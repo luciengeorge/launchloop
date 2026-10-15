@@ -82,7 +82,7 @@ export function KitChecklist({ kitId, productName, tasks, locked, persist, initi
           if (nextStage) {
             setActiveStage(nextStage);
             setManualStage(false);
-            toast.message(`${task.group} done — on to ${nextStage}`);
+            toast.message(`${task.group} done. On to ${nextStage}`);
           }
         } else if (!manualStage) {
           setActiveStage(TASK_GROUPS[currentStageIndex(tasks, next)] ?? task.group);
