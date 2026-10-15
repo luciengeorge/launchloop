@@ -23,7 +23,7 @@ const STEPS = [
 const RULES = [
   { title: "Reads your code, not just your homepage", body: "Features and numbers come from your README, commits and package.json, so the copy says something only your app can say." },
   { title: "Every limit, enforced", body: "60-character PH taglines, 260-character descriptions, 280-character posts counted the way X counts them." },
-  { title: "Never asks for upvotes", body: "Vote requests get your launch penalised on Product Hunt and Hacker News. We strip them out and ask for feedback instead." },
+  { title: "Never asks for upvotes", body: "Asking for upvotes or coordinating votes gets you penalised on Product Hunt and Hacker News, and HN also bans asking for comments. We strip those out and just invite people to check out your launch." },
   { title: "Images in your colours", body: "We pull your palette from your site's CSS and render OG, X and Product Hunt images at the exact sizes." },
 ];
 

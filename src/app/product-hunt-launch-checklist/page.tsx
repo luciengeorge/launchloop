@@ -52,7 +52,7 @@ export default function ProductHuntChecklistPage() {
       <h2 id="rules">The rules that get launches penalised</h2>
       <p>
         Product Hunt explicitly bans asking for upvotes, and its systems discount votes that look coordinated: lots of new accounts, or people arriving from a direct link to vote.
-        Hacker News has the same rule. Ask people to <em>check it out and share feedback</em>, never to vote. Do not buy votes or join vote-swap groups.
+        Hacker News has the same rule and also bans asking for comments. Ask people to <em>check it out</em>, never to vote (or, on HN, to comment). Do not buy votes or join vote-swap groups.
       </p>
 
       <h2 id="launch-day">Launch day</h2>

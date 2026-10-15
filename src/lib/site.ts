@@ -46,7 +46,7 @@ export const FAQ = [
   },
   {
     q: "Will the copy break Product Hunt's rules?",
-    a: "No. Product Hunt and Hacker News ban asking for upvotes, so LaunchLoop never writes vote requests and strips any that slip in. The maker comment asks for feedback instead.",
+    a: "No. Product Hunt and Hacker News ban asking for upvotes or coordinating votes, and Hacker News also bans asking for comments. LaunchLoop never writes those requests and strips any that slip in. The copy just invites people to check out your launch.",
   },
   {
     q: "Which character limits do you enforce?",
