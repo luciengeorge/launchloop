@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { AccountNav, LogInLink } from "./account-link";
 import { AuthCta, LaunchKitCta } from "./auth-cta";
-import { TAGLINE_CHECKER } from "@/lib/tools";
+import { OG_PREVIEW, TAGLINE_CHECKER } from "@/lib/tools";
 import { Logo } from "./logo";
 
 const NAV = [
@@ -10,6 +10,7 @@ const NAV = [
   { href: "/pricing", label: "Pricing" },
   { href: "/ship-loop", label: "Ship Loop" },
   { href: TAGLINE_CHECKER.path, label: "Tagline checker", className: "hidden lg:inline" },
+  { href: OG_PREVIEW.path, label: "OG preview", className: "hidden xl:inline" },
   { href: "/faq", label: "FAQ" },
 ];
 

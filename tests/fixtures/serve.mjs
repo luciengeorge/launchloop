@@ -2,6 +2,7 @@ import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { deflateSync } from "node:zlib";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "site");
 const port = Number(process.argv[2] ?? 3419);
@@ -9,8 +10,64 @@ const types = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=
 
 const html = (body) => `<!doctype html><html><head><title>${body.title}</title><meta name="description" content="${body.description}"></head><body><h1>${body.title}</h1><p>${body.description}</p></body></html>`;
 
+const CRC_TABLE = Array.from({ length: 256 }, (_, n) => {
+  let c = n;
+  for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+  return c >>> 0;
+});
+const crc32 = (buf) => {
+  let c = 0xffffffff;
+  for (const b of buf) c = CRC_TABLE[(c ^ b) & 0xff] ^ (c >>> 8);
+  return (c ^ 0xffffffff) >>> 0;
+};
+const pngChunk = (type, data) => {
+  const body = Buffer.concat([Buffer.from(type), data]);
+  const len = Buffer.alloc(4);
+  len.writeUInt32BE(data.length);
+  const crc = Buffer.alloc(4);
+  crc.writeUInt32BE(crc32(body));
+  return Buffer.concat([len, body, crc]);
+};
+/** A real, solid-colour RGB PNG, so both our size reader and the browser can open it. */
+const png = (w, h) => {
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(w, 0);
+  ihdr.writeUInt32BE(h, 4);
+  ihdr[8] = 8;
+  ihdr[9] = 2;
+  const row = Buffer.alloc(1 + w * 3);
+  for (let x = 0; x < w; x++) row.set([242, 84, 27], 1 + x * 3);
+  const raw = Buffer.concat(Array.from({ length: h }, () => row));
+  return Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), pngChunk("IHDR", ihdr), pngChunk("IDAT", deflateSync(raw)), pngChunk("IEND", Buffer.alloc(0))]);
+};
+
+const origin = `http://127.0.0.1:${port}`;
+const ogPage = (head) => (_req, res) => {
+  res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+  res.end(`<!doctype html><html><head>${head}</head><body><h1>Fixture</h1></body></html>`);
+};
+
 /** Dynamic routes for error-state tests, plus a tiny fake of the GitHub API (GITHUB_API_URL=http://127.0.0.1:PORT/gh). */
 const routes = {
+  "/og/good": ogPage(`<title>Pagebird</title>
+    <meta property="og:title" content="Pagebird: turn customer calls into product specs" />
+    <meta property="og:description" content="Pagebird joins your calls and turns feature requests into ranked specs." />
+    <meta property="og:image" content="${origin}/og/img-1200x630.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Pagebird logo and headline" />
+    <meta property="og:url" content="${origin}/og/good" />
+    <meta property="og:site_name" content="Pagebird" />
+    <meta name="twitter:card" content="summary_large_image" />`),
+  "/og/bad": ogPage(`<title>Snapshelf</title>
+    <meta property="og:image" content="/og/img-400x400.png" />
+    <meta name="twitter:card" content="summary" />`),
+  "/og/square": ogPage(`<title>Squarely</title>
+    <meta property="og:title" content="Squarely" />
+    <meta property="og:description" content="A square share image." />
+    <meta property="og:image" content="${origin}/og/img-1200x1200.png" />`),
+  "/og/broken-image": ogPage(`<meta property="og:title" content="Brokenpic" /><meta property="og:image" content="${origin}/og/missing.png" />`),
+  "/og/none": ogPage(""),
   "/slow": (_req, res) => setTimeout(() => res.end("<title>Too late</title>"), 5000),
   "/broken": (_req, res) => {
     res.writeHead(500, { "Content-Type": "text/html" });
@@ -41,6 +98,11 @@ const routes = {
 createServer(async (req, res) => {
   const route = routes[req.url.split("?")[0]];
   if (route) return route(req, res);
+  const img = /^\/og\/img-(\d{1,4})x(\d{1,4})\.png$/.exec(req.url);
+  if (img) {
+    res.writeHead(200, { "Content-Type": "image/png" });
+    return res.end(png(Number(img[1]), Number(img[2])));
+  }
   if (req.url.startsWith("/gh/")) {
     res.writeHead(404, { "Content-Type": "application/json" });
     return res.end(JSON.stringify({ message: "Not Found" }));

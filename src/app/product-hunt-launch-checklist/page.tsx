@@ -43,7 +43,10 @@ export default function ProductHuntChecklistPage() {
         <li><strong>Thumbnail:</strong> a square 240×240 logo or icon that reads at small sizes.</li>
         <li><strong>Gallery:</strong> 1270×760 images. Lead with the result, not your login screen. Three to five images, each with one idea.</li>
         <li><strong>Optional video or demo:</strong> under a minute, showing the product doing its main job.</li>
-        <li><strong>Social images:</strong> a 1200×630 Open Graph image for your site and a 1600×900 image for X and LinkedIn launch posts.</li>
+        <li>
+          <strong>Social images:</strong> a 1200×630 Open Graph image for your site and a 1600×900 image for X and LinkedIn launch posts. See how your link shares with the free{" "}
+          <Link href="/tools/og-preview">OG image preview</Link>.
+        </li>
       </ul>
 
       <h2 id="rules">The rules that get launches penalised</h2>
