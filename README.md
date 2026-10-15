@@ -118,8 +118,10 @@ Vercel Web Analytics and Speed Insights count page views and performance. PostHo
 | `preview_started` | Browser, kit form submit | `source` (github / site / sample), `plan` (free / kit intent), `isLoggedIn` |
 | `preview_completed` | Browser, preview stream done | the above plus `kitId`, `durationMs` |
 | `preview_failed` | Browser, preview error | the above plus `code` |
-| `checkout_started` | Server, `/api/checkout` once a session URL exists | `plan`, `kitId`, `price_id`, `amount` (after any discount), `currency`, `isLoggedIn`, `mock`, `promo_code` / `promo` when LAUNCH14 was due, `$feature/<flag>` for the variants the page showed |
-| `checkout_completed` | Server, Stripe webhook (paid), or `/api/checkout/mock` in test mode | the above plus `stripeSessionId` (`amount` is Stripe's `amount_total`) |
+| `checkout_started` | Server, `/api/checkout` once a session URL exists | `plan` (kit / shiploop_monthly / shiploop_yearly), `product_type` (kit / shiploop), `kitId`, `price_id`, `amount` in pence (after any discount), `currency`, `isLoggedIn`, `mock`, `promo_code` / `promo` when LAUNCH14 was due, `$feature/<flag>` for the variants the page showed |
+| `checkout_completed` | Server, Stripe webhook (`checkout.session.completed` / `async_payment_succeeded` with `payment_status: paid`), or `/api/checkout/mock` in test mode | the above plus `stripeSessionId`. `amount` is Stripe's `amount_total`; `promo_code` is LAUNCH14 or a code the buyer typed (Ship Loop) |
+
+**`checkout_completed` is the purchase event**: it only fires once Stripe confirms the payment, from the webhook, so it doesn't depend on the buyer's browser coming back. Filter `mock = false` and `env = production` for real revenue. No email or other buyer details are sent.
 
 Every event also carries `env` (production / preview / development).
 
@@ -127,6 +129,19 @@ Every event also carries `env` (production / preview / development).
 - **Joining server events.** The browser sends its PostHog id with `/api/checkout`; it goes into the Checkout session metadata (`ph_distinct_id`, plus `price_id` and `logged_in`) so the webhook's `checkout_completed` lands on the same id. Its uuid is derived from the session id, so webhook retries don't double count. Preview deployments never get the webhook, so they don't send `checkout_completed` for real Stripe sessions.
 - **Carrying the id across our own redirects.** When we cause a full page load (magic link, Stripe Checkout success and cancel), the page's id goes along as `?aid=` (in the login intent, or `ph_distinct_id` in Checkout metadata) and the next page bootstraps PostHog with it. Flag variants (hashed on the id) and funnel events stay on one id with nothing stored in the browser. A manual reload or a fresh visit still gets a new id.
 - **Proxy.** The browser sends to `/lp-relay`, rewritten in `next.config.ts` to `NEXT_PUBLIC_POSTHOG_HOST`, so ad blockers don't drop events. The server posts to PostHog directly.
+
+### UTMs and acquisition funnels
+
+`posthog-js` reads `utm_source`, `utm_medium`, `utm_campaign` (and `utm_content`, `utm_term`) from the landing URL, so a link like `https://launchloop.dev/?utm_source=x&utm_medium=social&utm_campaign=week2` puts them on that `$pageview` and on every later browser event in the visit (`preview_started`, `preview_completed`, ...). Nothing strips them first: PostHog boots in `instrumentation-client.ts` before React, the URL scrubber keeps `utm_` params, the in-page start links keep them in the URL, and every internal "start" link navigates client-side so the visit (and its anonymous id) carries on. Server events (`checkout_started`, `checkout_completed`) don't carry UTMs themselves; they join through the shared id (see above).
+
+To see which source converts, use a funnel and let the first step supply the source:
+
+1. Product analytics → New insight → **Funnels**, aggregating by unique users.
+2. Steps: `$pageview` → `preview_completed` → `checkout_started` → `checkout_completed`. Add a filter `env = production` (and `mock = false` on the last two steps).
+3. **Breakdown** by event property `utm_source` (or `utm_campaign` for a single campaign), with breakdown attribution **First touchpoint** (the default). "All steps" would drop everyone, because the server-side steps don't carry UTMs.
+4. A conversion window of a day or so fits: the funnel only joins within a visit (see the cookieless note above). A visitor who comes back later in a new tab starts a new anonymous id.
+
+Person properties like `$initial_utm_source` aren't useful here: anonymous visitors get no person profile.
 
 ### Experiments
 
@@ -161,6 +176,8 @@ npm run test:e2e
 Playwright builds the app into `.next-test` and runs it on port 3418 in forced mock mode, alongside a fixture site on port 3419. The smoke tests cover:
 
 - the home page, validation and newsletter signup (desktop and mobile)
+- the free preview with no account: a fresh visitor previews a live site, and the kit link opens for anyone
+- analytics: UTMs on `$pageview` and later events, and one anonymous id from a landing page through to the server-side `checkout_completed` (the fixture server records what the fake PostHog receives at `/ph/_events`)
 - the full sample flow: preview → mock checkout → full kit, with every character counter within its limit, no "upvote" anywhere, ZIP download, all three images and the email in the outbox
 - live-page ingestion: name, features and brand colour
 - Ship Loop waitlist and pre-order
