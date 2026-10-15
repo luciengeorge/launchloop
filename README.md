@@ -48,6 +48,7 @@ All are optional locally. See [`.env.example`](.env.example) for the full annota
 | `STRIPE_SECRET_KEY` | Real Stripe Checkout (use `sk_test_…` for test mode) |
 | `STRIPE_WEBHOOK_SECRET` | Verifying `/api/stripe/webhook` |
 | `STRIPE_PRICE_KIT`, `STRIPE_PRICE_SHIPLOOP_MONTHLY`, `STRIPE_PRICE_SHIPLOOP_YEARLY` | Optional: dashboard Prices instead of inline £19 / £12 / £99 |
+| `STRIPE_PROMO_LAUNCH14` | Optional: the LAUNCH14 promotion code id (`promo_…`). Without it, Checkout looks up the active code named `LAUNCH14` (see "Experiments") |
 | `RESEND_API_KEY`, `RESEND_FROM`, `RESEND_REPLY_TO` | Sending kit and pre-order emails |
 | `RESEND_SEGMENT_ID` or `RESEND_AUDIENCE_ID` | Storing newsletter, waitlist and buyer contacts in Resend |
 | `GITHUB_TOKEN` | Optional: GitHub API limit goes from 60 to 5,000 requests/hour |
@@ -117,14 +118,28 @@ Vercel Web Analytics and Speed Insights count page views and performance. PostHo
 | `preview_started` | Browser, kit form submit | `source` (github / site / sample), `plan` (free / kit intent), `isLoggedIn` |
 | `preview_completed` | Browser, preview stream done | the above plus `kitId`, `durationMs` |
 | `preview_failed` | Browser, preview error | the above plus `code` |
-| `checkout_started` | Server, `/api/checkout` once a session URL exists | `plan`, `kitId`, `price_id`, `amount`, `currency`, `isLoggedIn`, `mock` |
-| `checkout_completed` | Server, Stripe webhook (paid), or `/api/checkout/mock` in test mode | the above plus `stripeSessionId` |
+| `checkout_started` | Server, `/api/checkout` once a session URL exists | `plan`, `kitId`, `price_id`, `amount` (after any discount), `currency`, `isLoggedIn`, `mock`, `promo_code` / `promo` when LAUNCH14 was due, `$feature/<flag>` for the variants the page showed |
+| `checkout_completed` | Server, Stripe webhook (paid), or `/api/checkout/mock` in test mode | the above plus `stripeSessionId` (`amount` is Stripe's `amount_total`) |
 
 Every event also carries `env` (production / preview / development).
 
 - **Cookieless.** `posthog-js` runs with `persistence: "memory"`: no cookies, no local storage, a fresh anonymous id per full page load, and no person profiles. Autocapture, session replay, surveys and heatmaps are off. URL properties are scrubbed like Vercel Analytics (private kit ids become `[id]`, query strings keep only `utm_`).
 - **Joining server events.** The browser sends its PostHog id with `/api/checkout`; it goes into the Checkout session metadata (`ph_distinct_id`, plus `price_id` and `logged_in`) so the webhook's `checkout_completed` lands on the same id. Its uuid is derived from the session id, so webhook retries don't double count. Preview deployments never get the webhook, so they don't send `checkout_completed` for real Stripe sessions.
+- **Carrying the id across our own redirects.** When we cause a full page load (magic link, Stripe Checkout success and cancel), the page's id goes along as `?aid=` (in the login intent, or `ph_distinct_id` in Checkout metadata) and the next page bootstraps PostHog with it. Flag variants (hashed on the id) and funnel events stay on one id with nothing stored in the browser. A manual reload or a fresh visit still gets a new id.
 - **Proxy.** The browser sends to `/lp-relay`, rewritten in `next.config.ts` to `NEXT_PUBLIC_POSTHOG_HOST`, so ad blockers don't drop events. The server posts to PostHog directly.
+
+### Experiments
+
+Two PostHog multivariate flags (50/50, variants `control` and `treatment`), evaluated in the browser by `useExperiment` (`src/lib/use-experiment.ts`). Reading a flag sends PostHog's `$feature_flag_called` exposure. Until flags arrive the paywall price shows a placeholder; if they fail or take over 1.5 s the page shows control and sends no exposure.
+
+| Flag | Where | `control` | `treatment` |
+| --- | --- | --- | --- |
+| `exp_launch14_promo` | Kit paywall (`UnlockPanel`) | £19, and kit Checkout has no promotion code field | £19 struck through, £14 with `LAUNCH14`; kit Checkout gets `discounts: [{ promotion_code }]` |
+| `exp_shiploop_success_upsell` | Kit success page (`/account/kits/[id]?paid=1`, buyer only) | Unchanged | Soft Ship Loop card: £99/year pre-order (Checkout for `STRIPE_PRICE_SHIPLOOP_YEARLY`) or the free waitlist |
+
+- **LAUNCH14 lives in Stripe.** The code's terms (amount, kit only, first-time customers, redemption cap, expiry) are set on the coupon and promotion code in the dashboard; the app only sends the promotion code id (`STRIPE_PROMO_LAUNCH14`, else looked up by code). If Stripe turns the code down, or no active code exists, the buyer gets a £19 session and the paywall says so before redirecting. Turn the flag off (or roll it to 100% `control`) when the code expires.
+- **The variant is reported by the browser.** `/api/checkout` trusts the `experiments` it's sent. With a fresh id per page load anyone could reload until they see the promo anyway, so the Stripe-side limits are the guard, not the flag.
+- **Toggling.** In PostHog (project LaunchLoop EU): Feature flags → the flag → set the release condition's variant split (e.g. `control` 100% to stop the test, `treatment` 100% to ship it) or disable the flag (everyone sees control). Changes apply on the next page load; no deploy.
 
 ## Error logging
 

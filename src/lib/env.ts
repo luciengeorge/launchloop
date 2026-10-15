@@ -14,6 +14,8 @@ export const env = {
   stripePriceKit: read("STRIPE_PRICE_KIT"),
   stripePriceShipLoopMonthly: read("STRIPE_PRICE_SHIPLOOP_MONTHLY"),
   stripePriceShipLoopYearly: read("STRIPE_PRICE_SHIPLOOP_YEARLY"),
+  /** Promotion code id (promo_…) for LAUNCH14. Optional: without it Checkout looks the code up by name. */
+  stripePromoLaunch14: read("STRIPE_PROMO_LAUNCH14"),
 
   resendApiKey: forceMock ? undefined : read("RESEND_API_KEY"),
   resendFrom: read("RESEND_FROM") ?? "LaunchLoop <onboarding@resend.dev>",

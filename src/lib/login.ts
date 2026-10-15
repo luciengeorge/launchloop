@@ -4,6 +4,7 @@ import { after } from "next/server";
 import { ANON_KITS_COOKIE, SESSION_COOKIE, SESSION_HINT_COOKIE, SESSION_TTL_SECONDS, encodeSession, readAnonKits, secureCookies, type MagicLinkRecord } from "./auth";
 import { ensureStripeCustomer } from "./billing";
 import { isStripeMock } from "./env";
+import { withAnalyticsId } from "./experiments";
 import { claimKits, getKit } from "./kits";
 import { captureException } from "./observability";
 
@@ -47,7 +48,7 @@ export async function completeLogin(record: MagicLinkRecord): Promise<string> {
     const kit = claimed.includes(intentKit) ? await getKit(intentKit).catch(() => null) : null;
     if (!kit) return "/account";
     if (kit.paid) return `/account/kits/${kit.id}`;
-    return record.intent?.type === "unlock" ? `/kit/${kit.id}?unlock=1` : `/kit/${kit.id}?saved=1`;
+    return withAnalyticsId(record.intent?.type === "unlock" ? `/kit/${kit.id}?unlock=1` : `/kit/${kit.id}?saved=1`, record.intent?.aid);
   }
   return record.next ?? "/account";
 }

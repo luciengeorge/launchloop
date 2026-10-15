@@ -16,9 +16,11 @@ interface Props {
   defaultEmail?: string;
   /** PostHog id from the page that started checkout, like Stripe metadata in the real flow. */
   analyticsId?: string;
+  /** Promotion code the real session would carry. */
+  promo?: string;
 }
 
-export function MockCheckoutForm({ product, kitId, priceLabel, defaultEmail, analyticsId }: Props) {
+export function MockCheckoutForm({ product, kitId, priceLabel, defaultEmail, analyticsId, promo }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -28,7 +30,7 @@ export function MockCheckoutForm({ product, kitId, priceLabel, defaultEmail, ana
     setError(null);
     try {
       const email = String(new FormData(e.currentTarget).get("email") ?? "");
-      const { url } = await postJson<{ url: string }>("/api/checkout/mock", { product, kitId, email, analyticsId });
+      const { url } = await postJson<{ url: string }>("/api/checkout/mock", { product, kitId, email, analyticsId, promo });
       window.location.assign(url);
     } catch (err) {
       setError((err as Error).message);

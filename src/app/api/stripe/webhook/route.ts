@@ -2,6 +2,7 @@ import { after } from "next/server";
 import type Stripe from "stripe";
 import { captureServerEvent, eventUuid, resolveDistinctId } from "@/lib/analytics-server";
 import { env } from "@/lib/env";
+import { featureProperties, parseExperiments } from "@/lib/experiments";
 import { fulfilKit, recordPayment } from "@/lib/fulfil";
 import { captureException } from "@/lib/observability";
 import { deployEnv, stripeEventDecision } from "@/lib/deploy-env";
@@ -69,6 +70,8 @@ function trackCompleted(session: Stripe.Checkout.Session, product: ProductId) {
       isLoggedIn: m.logged_in === "1",
       mock: false,
       stripeSessionId: session.id,
+      ...(m.promo_code ? { promo_code: m.promo_code } : {}),
+      ...featureProperties(parseExperiments(m)),
     },
   });
 }
