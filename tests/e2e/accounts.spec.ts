@@ -25,6 +25,8 @@ test("magic-link login, single-use token, header state and log out", async ({ pa
   await page.waitForURL(/\/account$/);
   await expect(page.getByRole("heading", { name: "My kits" })).toBeVisible();
   await expect(page.getByText("No kits yet.")).toBeVisible();
+  // Free accounts have nothing to bill, so no Manage billing.
+  await expect(page.getByTestId("billing-card")).toHaveCount(0);
   // Logged-in navbar: My kits + Log out, no primary CTA, site header still present
   await expect(banner.getByRole("link", { name: "My kits" })).toBeVisible();
   await expect(banner.getByRole("button", { name: "Log out" })).toBeVisible();

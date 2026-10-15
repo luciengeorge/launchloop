@@ -37,18 +37,6 @@ export async function recordBillingCustomer(email: string, customerId: string, s
 
 export const getStoredBillingCustomer = (email: string) => store().get<BillingCustomer>(customerKey(email));
 
-/** Stripe customer for billing: saved at checkout, Ship Loop membership, else looked up by email. */
-export async function getBillingCustomer(email: string): Promise<string | null> {
-  const stored = await getStoredBillingCustomer(email);
-  if (stored?.customerId) return stored.customerId;
-  const membership = await getShipLoop(email);
-  if (membership?.customerId) return membership.customerId;
-  const s = stripe();
-  if (!s) return null;
-  const { data } = await s.customers.list({ email: normaliseEmail(email), limit: 1 });
-  return data[0]?.id ?? null;
-}
-
 /**
  * Stripe customer for a signed-in account, creating one when needed so every account has one.
  * A stored id is only reused if it still exists in the current Stripe account (ids saved before
@@ -71,7 +59,7 @@ export async function ensureStripeCustomer(email: string): Promise<string> {
     await recordBillingCustomer(address, data[0].id, "lookup");
     return data[0].id;
   }
-  // Idempotency key stops a double-submitted Manage billing from creating two customers.
+  // Idempotency key stops a login racing a Manage billing click (or a double submit) from creating two customers.
   const created = await s.customers.create({ email: address, metadata: { env: deployEnv() } }, { idempotencyKey: `customer:${deployEnv()}:${address}` });
   await recordBillingCustomer(address, created.id, "account");
   return created.id;
@@ -87,13 +75,14 @@ async function customerExists(s: Stripe, id: string): Promise<boolean> {
 }
 
 /**
- * Whether /account should show Manage billing.
- * True for Ship Loop subscribers, anyone with a stored Stripe customer, or anyone with a paid kit
- * (mock mode has no Stripe customer, but paid kit buyers still see the button → mock portal note).
+ * Whether /account should show Manage billing: paid kit buyers, Ship Loop subscribers, or anyone
+ * whose stored customer came from a Checkout purchase. Every account has a Stripe customer
+ * (see ensureStripeCustomer), so having one is not enough on its own. Mock mode has no Stripe
+ * customer, but paid kit buyers still see the button and get the mock portal note.
  */
 export async function hasBillingAccess(email: string, hasPaidKit: boolean): Promise<boolean> {
   if (hasPaidKit) return true;
   if (await getShipLoop(email)) return true;
-  if (await getStoredBillingCustomer(email)) return true;
-  return !!(await getBillingCustomer(email));
+  const source = (await getStoredBillingCustomer(email))?.source;
+  return source === "kit" || source === "shiploop";
 }
