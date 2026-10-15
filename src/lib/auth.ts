@@ -37,15 +37,18 @@ const sha = (v: string) => createHash("sha256").update(v).digest("hex");
 const tokenKey = (token: string) => `magic:${sha(token)}`;
 const codeKey = (email: string) => `magiccode:${sha(normaliseEmail(email))}`;
 
-/** What the user was doing when they asked to log in. Stored server-side with the token. */
-export type LoginIntent = { type: "unlock"; kitId: string };
+/**
+ * What the user was doing when they asked to log in. Stored server-side with the token.
+ * "unlock" goes on to checkout; "save" just claims the preview so it's in /account.
+ */
+export type LoginIntent = { type: "unlock" | "save"; kitId: string };
 
 export const KIT_ID_RE = /^[A-Za-z0-9_-]{16,32}$/;
 
 export function parseIntent(value: unknown): LoginIntent | undefined {
   if (!value || typeof value !== "object") return undefined;
   const v = value as Record<string, unknown>;
-  return v.type === "unlock" && typeof v.kitId === "string" && KIT_ID_RE.test(v.kitId) ? { type: "unlock", kitId: v.kitId } : undefined;
+  return (v.type === "unlock" || v.type === "save") && typeof v.kitId === "string" && KIT_ID_RE.test(v.kitId) ? { type: v.type, kitId: v.kitId } : undefined;
 }
 
 export interface MagicLinkRecord {

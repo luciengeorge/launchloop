@@ -31,7 +31,7 @@ export async function completeLogin(record: MagicLinkRecord): Promise<string> {
   }
 
   const anon = readAnonKits(jar.get(ANON_KITS_COOKIE)?.value);
-  const intentKit = record.intent?.type === "unlock" ? record.intent.kitId : undefined;
+  const intentKit = record.intent?.kitId;
   const toClaim = [...new Set([...anon, ...(intentKit ? [intentKit] : [])])];
   let claimed: string[] = [];
   if (toClaim.length) {
@@ -46,7 +46,8 @@ export async function completeLogin(record: MagicLinkRecord): Promise<string> {
   if (intentKit) {
     const kit = claimed.includes(intentKit) ? await getKit(intentKit).catch(() => null) : null;
     if (!kit) return "/account";
-    return kit.paid ? `/account/kits/${kit.id}` : `/kit/${kit.id}?unlock=1`;
+    if (kit.paid) return `/account/kits/${kit.id}`;
+    return record.intent?.type === "unlock" ? `/kit/${kit.id}?unlock=1` : `/kit/${kit.id}?saved=1`;
   }
   return record.next ?? "/account";
 }

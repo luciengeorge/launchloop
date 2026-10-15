@@ -5,14 +5,13 @@ import type { Session } from "@/lib/auth";
 import { launchChecklist, mockContent } from "@/lib/copy";
 import { MAX_ATTEMPTS } from "@/lib/fulfil";
 import { getDraft } from "@/lib/generation";
-import { PRODUCTS } from "@/lib/products";
 import { getProgress, isOwner } from "@/lib/progress";
 import type { Kit } from "@/lib/schema";
 import { buildTasks, mask, maskContent } from "@/lib/tasks";
 import { KitChecklist } from "./kit-checklist";
 import { KitErrorState } from "./kit-error-state";
 import { KitOverview } from "./kit-overview";
-import { UnlockPanel } from "./unlock-panel";
+import { PreviewPaywall } from "./preview-paywall";
 
 const maskEmail = (email: string) => email.replace(/^(.)(.*)(@.*)$/, (_, a: string, b: string, c: string) => `${a}${"•".repeat(Math.min(b.length, 6))}${c}`);
 
@@ -43,27 +42,32 @@ export async function KitView({ kit, session, query }: Props) {
 async function LockedKit({ kit, session, query }: Props) {
   const draft = await getDraft(kit.id);
   const shape = draft.complete ? { ...mockContent(kit.brief, kit.preview), ...draft.sections } : mockContent(kit.brief, kit.preview);
+  const checklist = launchChecklist(kit.brief);
   const tasks = buildTasks({
     content: maskContent(shape),
-    checklist: launchChecklist(kit.brief).map(mask),
+    checklist: checklist.map(mask),
     locked: true,
     free: { tagline: kit.preview.tagline, xPost: kit.preview.xPost },
     brief: kit.brief,
   });
+  const sample = kit.preview.xPost
+    ? { title: "Post 1 of your X thread", text: kit.preview.xPost }
+    : kit.preview.tagline
+      ? { title: "Your Product Hunt tagline", text: kit.preview.tagline }
+      : undefined;
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
-      <div className="order-2 lg:order-1" data-testid="locked-kit">
+    <div className="space-y-8">
+      <PreviewPaywall
+        kitId={kit.id}
+        productName={kit.brief.name}
+        counts={{ features: shape.landing.features.length, xPosts: shape.xThread.length, checklistSteps: checklist.length }}
+        sample={sample}
+        email={session?.email}
+        query={query}
+      />
+      <div data-testid="locked-kit">
         <KitChecklist kitId={kit.id} productName={kit.brief.name} tasks={tasks} locked persist="local" initialDone={[]} />
       </div>
-      <aside className="order-1 lg:sticky lg:top-20 lg:order-2 lg:self-start">
-        <UnlockPanel
-          kitId={kit.id}
-          priceLabel={PRODUCTS.kit.priceLabel}
-          email={session?.email}
-          autoCheckout={query.unlock === "1"}
-          cancelled={query.checkout === "cancelled"}
-        />
-      </aside>
     </div>
   );
 }

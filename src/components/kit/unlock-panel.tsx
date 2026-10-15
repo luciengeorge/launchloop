@@ -1,11 +1,11 @@
 "use client";
 
-import { ArrowRight, Check, Loader2, Lock, Mail } from "lucide-react";
+import { ArrowRight, BookmarkCheck, Check, Loader2, Lock, Mail } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { postJson } from "@/lib/client";
+import { postJson, startCheckout } from "@/lib/client";
 
 const EMAIL_KEY = "launchloop:email";
 
@@ -17,30 +17,36 @@ interface Props {
   /** Arrived from the magic link (or the "£19 kit" plan): go straight to checkout. */
   autoCheckout: boolean;
   cancelled: boolean;
+  /** Arrived from a "save this preview" link. */
+  saved: boolean;
 }
 
 type Step = "cta" | "email" | "sent" | "redirecting";
+type SaveState = "idle" | "sending" | "sent";
 
 /**
  * Unlock → magic-link sign in (email prefilled, returns here) → Stripe Checkout
  * with the account email → back to the unlocked kit in /account.
+ * Signed-out visitors can instead just email themselves a link that saves the preview.
  */
-export function UnlockPanel({ kitId, priceLabel, email, autoCheckout, cancelled }: Props) {
+export function UnlockPanel({ kitId, priceLabel, email, autoCheckout, cancelled, saved }: Props) {
   const [step, setStep] = useState<Step>(autoCheckout && email ? "redirecting" : autoCheckout ? "email" : "cta");
   const [address, setAddress] = useState(email ?? "");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [code, setCode] = useState("");
   const [signedIn, setSignedIn] = useState(email);
+  const [save, setSave] = useState<SaveState>("idle");
+  const [saveError, setSaveError] = useState<string | null>(null);
   const started = useRef(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (email) return;
     try {
-      const saved = localStorage.getItem(EMAIL_KEY);
+      const stored = localStorage.getItem(EMAIL_KEY);
       // eslint-disable-next-line react-hooks/set-state-in-effect -- prefill from storage after mount
-      if (saved) setAddress((a) => a || saved);
+      if (stored) setAddress((a) => a || stored);
     } catch {
       // Storage blocked.
     }
@@ -50,13 +56,20 @@ export function UnlockPanel({ kitId, priceLabel, email, autoCheckout, cancelled 
     if (step === "email") inputRef.current?.focus();
   }, [step]);
 
+  function remember(value: string) {
+    try {
+      localStorage.setItem(EMAIL_KEY, value);
+    } catch {
+      // Storage blocked.
+    }
+  }
+
   async function checkout() {
     setLoading(true);
     setError(null);
     setStep("redirecting");
     try {
-      const { url } = await postJson<{ url: string }>("/api/checkout", { product: "kit", kitId });
-      window.location.assign(url);
+      window.location.assign(await startCheckout("kit", kitId));
     } catch (err) {
       setError((err as Error).message);
       setStep("cta");
@@ -95,11 +108,7 @@ export function UnlockPanel({ kitId, priceLabel, email, autoCheckout, cancelled 
     e.preventDefault();
     setLoading(true);
     setError(null);
-    try {
-      localStorage.setItem(EMAIL_KEY, address);
-    } catch {
-      // Storage blocked.
-    }
+    remember(address);
     try {
       await postJson("/api/auth/request", { email: address, intent: { type: "unlock", kitId } });
       setCode("");
@@ -111,14 +120,28 @@ export function UnlockPanel({ kitId, priceLabel, email, autoCheckout, cancelled 
     }
   }
 
+  async function savePreview(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setSave("sending");
+    setSaveError(null);
+    remember(address);
+    try {
+      await postJson("/api/auth/request", { email: address, intent: { type: "save", kitId } });
+      setSave("sent");
+    } catch (err) {
+      setSaveError((err as Error).message);
+      setSave("idle");
+    }
+  }
+
   return (
-    <section className="rounded-2xl border-2 border-primary bg-card p-6 shadow-xl shadow-primary/10" aria-labelledby="unlock-heading" data-testid="unlock-panel" data-step={step}>
-      <h2 id="unlock-heading" className="text-lg font-semibold">
-        Like it? Get the full kit for this app.
-      </h2>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Full Product Hunt post, the whole X thread, LinkedIn post, landing copy, 3 images with no watermark and a launch-day checklist.{" "}
-        <span className="font-semibold text-foreground">{priceLabel} once.</span> No subscription.
+    <section aria-labelledby="unlock-heading" data-testid="unlock-panel" data-step={step}>
+      <h3 id="unlock-heading" className="text-sm font-medium text-muted-foreground">
+        The full kit
+      </h3>
+      <p className="mt-1">
+        <span className="text-4xl font-semibold tracking-tight">{priceLabel}</span>
+        <span className="ml-1.5 text-sm text-muted-foreground">once, no subscription</span>
       </p>
 
       <ol className="mt-5 space-y-2 text-sm" aria-label="How unlocking works">
@@ -132,9 +155,14 @@ export function UnlockPanel({ kitId, priceLabel, email, autoCheckout, cancelled 
           Checkout was cancelled. Your kit is saved here whenever you&apos;re ready.
         </p>
       ) : null}
+      {saved && signedIn ? (
+        <p className="mt-4 flex items-center gap-2 rounded-md bg-emerald-500/10 px-3 py-2 text-xs font-medium text-emerald-800" role="status" data-testid="preview-saved">
+          <BookmarkCheck className="size-3.5" aria-hidden="true" /> Saved. This preview is in your account now.
+        </p>
+      ) : null}
 
       {step === "cta" ? (
-        <Button type="button" className="mt-6 h-11 w-full text-base" onClick={() => (email ? void checkout() : setStep("email"))} disabled={loading}>
+        <Button type="button" className="mt-6 h-11 w-full text-base" onClick={() => (signedIn ? void checkout() : setStep("email"))} disabled={loading}>
           <Lock aria-hidden="true" />
           Unlock the full kit, {priceLabel}
         </Button>
@@ -144,7 +172,7 @@ export function UnlockPanel({ kitId, priceLabel, email, autoCheckout, cancelled 
         <form onSubmit={sendLink} className="mt-6 space-y-3">
           <div className="space-y-1.5">
             <Label htmlFor="unlock-email">Your email</Label>
-            <Input ref={inputRef} id="unlock-email" name="email" type="email" required autoComplete="email" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="you@example.com" className="h-10" />
+            <Input ref={inputRef} id="unlock-email" name="email" type="email" required autoComplete="email" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="you@example.com" className="h-10 bg-background" />
             <p className="text-xs text-muted-foreground">We&apos;ll email you a sign-in link and a 6-digit code. Your kit and progress live in your account.</p>
           </div>
           <Button type="submit" className="h-11 w-full text-base" disabled={loading}>
@@ -156,7 +184,7 @@ export function UnlockPanel({ kitId, priceLabel, email, autoCheckout, cancelled 
       ) : null}
 
       {step === "sent" ? (
-        <div className="mt-6 space-y-3 rounded-xl bg-muted/60 p-4 text-sm" role="status">
+        <div className="mt-6 space-y-3 rounded-xl bg-background p-4 text-sm" role="status">
           <p className="flex items-center gap-2 font-medium">
             <Mail className="size-4" aria-hidden="true" /> Check {address}
           </p>
@@ -202,6 +230,38 @@ export function UnlockPanel({ kitId, priceLabel, email, autoCheckout, cancelled 
         </p>
       ) : null}
       <p className="mt-4 text-center text-xs text-muted-foreground">Secure checkout by Stripe · 14-day refund, no questions</p>
+
+      {step === "cta" && !signedIn ? (
+        <div className="mt-6 border-t border-border pt-5" data-testid="save-preview">
+          {save === "sent" ? (
+            <p className="flex items-start gap-2 text-sm" role="status">
+              <Mail className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+              <span>
+                Link sent to <span className="font-medium">{address}</span>. Open it on any device and this preview is saved to your account.
+              </span>
+            </p>
+          ) : (
+            <form onSubmit={savePreview} className="space-y-2">
+              <Label htmlFor="save-email" className="text-sm font-medium">
+                Not ready yet? Save this preview
+              </Label>
+              <div className="flex gap-2">
+                <Input id="save-email" name="email" type="email" required autoComplete="email" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="you@example.com" className="h-9 bg-background" />
+                <Button type="submit" variant="outline" className="h-9" disabled={save === "sending"}>
+                  {save === "sending" ? <Loader2 className="animate-spin" /> : null}
+                  Email me a link
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">Optional. A sign-in link that keeps this preview in your account. No password, no newsletter.</p>
+              {saveError ? (
+                <p className="text-xs text-destructive" role="alert">
+                  {saveError}
+                </p>
+              ) : null}
+            </form>
+          )}
+        </div>
+      ) : null}
     </section>
   );
 }
