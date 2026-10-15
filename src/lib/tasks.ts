@@ -33,6 +33,7 @@ export const PIPELINE_STAGES: PipelineStage[] = TASK_GROUPS.map((g) => ({ id: g,
 interface BuildInput {
   /** Real content for paid kits; placeholder content (same shape) for locked kits. Missing sections are pending. */
   content: Partial<KitContent>;
+  /** Real steps for paid kits; masked placeholders for locked kits (shown blurred under a generic title). */
   checklist: string[];
   locked: boolean;
   /** Real free pieces, readable even when locked. */
@@ -110,67 +111,52 @@ export function buildTasks({ content: c, checklist, locked, free, brief }: Build
     add({ id: `img.${v}`, group: "Images", title: IMAGE_VARIANTS[v].label, image: v });
   }
 
-  checklist.forEach((item, i) => add({ id: `step.${i + 1}`, group: "Launch day", title: item }));
+  checklist.forEach((item, i) => add(locked ? { id: `step.${i + 1}`, group: "Launch day", title: `Launch-day step ${i + 1}`, text: item } : { id: `step.${i + 1}`, group: "Launch day", title: item }));
   return tasks;
 }
 
 /** Tasks that can be ticked (pending placeholders can't). */
 export const countableTasks = (tasks: KitTask[]) => tasks.filter((t) => !t.pending);
 
-const LOREM =
-  "lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua enim ad minim veniam quis nostrud exercitation ullamco laboris nisi aliquip ex ea commodo consequat duis aute irure in reprehenderit voluptate velit esse cillum fugiat nulla pariatur excepteur sint occaecat cupidatat non proident sunt culpa qui officia deserunt mollit anim id est laborum".split(
-    " ",
-  );
+const MASK_CHAR = "•";
 
 /**
- * Replaces every word with lorem ipsum of a similar length, keeping line
- * breaks, so the blurred preview has the real shape but none of the real text.
+ * Replaces every word with a run of mask dots of a similar length, keeping line
+ * breaks, so the blurred preview has the real shape but none of the real text
+ * (and nothing that reads as content if it's copied or read aloud).
  */
-export function scramble(text: string, seed: string): string {
-  let h = 2166136261;
-  for (const ch of seed) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
-  const next = () => {
-    h ^= h << 13;
-    h ^= h >>> 17;
-    h ^= h << 5;
-    return (h >>> 0) / 4294967296;
-  };
+export function mask(text: string): string {
   return text
     .split("\n")
     .map((line) =>
       line
         .split(/\s+/)
         .filter(Boolean)
-        .map((word) => {
-          const len = Math.min(Math.max([...word].length, 2), 12);
-          const candidates = LOREM.filter((w) => Math.abs(w.length - len) <= 1);
-          return candidates[Math.floor(next() * candidates.length)] ?? "lorem";
-        })
+        .map((word) => MASK_CHAR.repeat(Math.min(Math.max([...word].length, 2), 12)))
         .join(" "),
     )
     .join("\n");
 }
 
-export function scrambleContent(c: KitContent, seed: string): KitContent {
-  const s = (text: string, key: string) => scramble(text, `${seed}:${key}`);
+export function maskContent(c: KitContent): KitContent {
   return {
     landing: {
-      headline: s(c.landing.headline, "h"),
-      subheadline: s(c.landing.subheadline, "sh"),
-      cta: s(c.landing.cta, "cta"),
-      features: c.landing.features.map((f, i) => ({ title: s(f.title, `ft${i}`), description: s(f.description, `fd${i}`) })),
-      metaTitle: s(c.landing.metaTitle, "mt"),
-      metaDescription: s(c.landing.metaDescription, "md"),
+      headline: mask(c.landing.headline),
+      subheadline: mask(c.landing.subheadline),
+      cta: mask(c.landing.cta),
+      features: c.landing.features.map((f) => ({ title: mask(f.title), description: mask(f.description) })),
+      metaTitle: mask(c.landing.metaTitle),
+      metaDescription: mask(c.landing.metaDescription),
     },
     productHunt: {
-      name: s(c.productHunt.name, "n"),
-      tagline: s(c.productHunt.tagline, "t"),
-      description: s(c.productHunt.description, "d"),
-      makerComment: s(c.productHunt.makerComment, "m"),
-      topics: c.productHunt.topics.map((t, i) => s(t, `tp${i}`)),
+      name: mask(c.productHunt.name),
+      tagline: mask(c.productHunt.tagline),
+      description: mask(c.productHunt.description),
+      makerComment: mask(c.productHunt.makerComment),
+      topics: c.productHunt.topics.map(mask),
     },
-    xThread: c.xThread.map((p, i) => s(p, `x${i}`)),
-    linkedin: s(c.linkedin, "li"),
+    xThread: c.xThread.map(mask),
+    linkedin: mask(c.linkedin),
   };
 }
 
