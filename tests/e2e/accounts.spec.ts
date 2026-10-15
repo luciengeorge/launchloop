@@ -25,8 +25,9 @@ test("magic-link login, single-use token, header state and log out", async ({ pa
   await page.waitForURL(/\/account$/);
   await expect(page.getByRole("heading", { name: "My kits" })).toBeVisible();
   await expect(page.getByText("No kits yet.")).toBeVisible();
-  // Logged-in navbar: My kits + Log out, no primary CTA, site header still present
+  // Logged-in navbar: My kits is the primary CTA, Log out a text link, site header still present
   await expect(banner.getByRole("link", { name: "My kits" })).toBeVisible();
+  await expect(banner.getByTestId("nav-my-kits")).toHaveClass(/\bbg-primary\b/);
   await expect(banner.getByRole("button", { name: "Log out" })).toBeVisible();
   await expect(banner.getByRole("link", { name: "Get my launch kit" })).toHaveCount(0);
   await expect(banner.getByRole("link", { name: "LaunchLoop home" })).toBeVisible();
@@ -128,6 +129,16 @@ test("anonymous kits made in this browser are claimed on login and shown on the 
   await page.goto("/account");
   await expect(page.getByTestId("account-kit")).toHaveCount(2);
   await expect(page.locator(`[data-kit-id="${secondId}"]`)).toBeVisible();
+
+  // With kits already, New kit focuses the form embedded on the dashboard instead of leaving it.
+  await page.getByRole("link", { name: "New kit" }).click();
+  const newKit = page.getByTestId("account-new-kit");
+  await expect(newKit.getByLabel("GitHub repo or live site URL")).toBeFocused();
+  expect(new URL(page.url()).pathname).toBe("/account");
+  await newKit.getByRole("button", { name: "Try a sample app" }).click();
+  await page.waitForURL(/\/kit\/[\w-]+$/);
+  await page.goto("/account");
+  await expect(page.getByTestId("account-kit")).toHaveCount(3);
 });
 
 test("kits paid for with an email show up for that account with downloads and billing", async ({ browser }) => {

@@ -18,16 +18,11 @@ export async function AccountNav() {
     return <LogInLink />;
   }
   return (
-    <div className="flex items-center gap-3 sm:gap-4" data-testid="nav-authed">
-      <Link href="/account" className={linkCls} data-testid="nav-my-kits">
-        My kits
-      </Link>
-      {/* flex, not block: a block form adds a 16px line box and the button would sit on its baseline, not centred. */}
-      <form method="post" action="/api/auth/logout" className="flex">
-        <button type="submit" className={`${linkCls} cursor-pointer`} data-testid="nav-logout">
-          Log out
-        </button>
-      </form>
-    </div>
+    // flex, not block: a block form adds a 16px line box and the button would sit on its baseline, not centred.
+    <form method="post" action="/api/auth/logout" className="flex" data-testid="nav-authed">
+      <button type="submit" className={`${linkCls} cursor-pointer`} data-testid="nav-logout">
+        Log out
+      </button>
+    </form>
   );
 }

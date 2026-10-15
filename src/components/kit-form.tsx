@@ -7,7 +7,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { KitRequestError, createKitWithProgress } from "@/lib/client";
-import { rememberKit, START_EVENT, type StartPlan } from "@/lib/start-intent";
+import { START_EVENT, type StartPlan } from "@/lib/start-intent";
 
 const STEPS = [
   { id: "repo", label: "Reading repo" },
@@ -66,7 +66,6 @@ export function KitForm() {
     try {
       const { url: next } = await createKitWithProgress(value, advance);
       const kitId = next.split("/").pop();
-      if (kitId) rememberKit(kitId);
       // Preview images render on the kit page itself.
       advance("images");
       // Kit intent: open the kit with the unlock flow already started.
