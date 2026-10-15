@@ -17,9 +17,13 @@ const priceIds: Record<ProductId, string | undefined> = {
   shiploop_yearly: env.stripePriceShipLoopYearly,
 };
 
-/** Returns the URL to send the buyer to: Stripe Checkout, or the local mock checkout in test mode. */
-export async function createCheckoutUrl(params: { product: ProductId; origin: string; kitId?: string; email?: string }): Promise<string> {
-  const { product, origin, kitId, email } = params;
+/**
+ * Returns the URL to send the buyer to: Stripe Checkout, or the local mock checkout in test mode.
+ * Pass `customer` (from ensureStripeCustomer) to bill the account's existing Stripe customer;
+ * otherwise Checkout creates a new customer for `email` or whatever the buyer enters.
+ */
+export async function createCheckoutUrl(params: { product: ProductId; origin: string; kitId?: string; email?: string; customer?: string }): Promise<string> {
+  const { product, origin, kitId, email, customer } = params;
   const s = stripe();
   if (!s) {
     const qs = new URLSearchParams({ product, ...(kitId ? { kitId } : {}), ...(email ? { email } : {}) });
@@ -42,9 +46,9 @@ export async function createCheckoutUrl(params: { product: ProductId; origin: st
             },
           },
     ],
-    customer_email: email,
-    // A Customer lets Ship Loop buyers manage billing in the Customer Portal from /account.
-    customer_creation: "always",
+    // A Customer lets buyers manage billing in the Customer Portal from /account. Stripe rejects
+    // `customer` alongside `customer_email` or `customer_creation`.
+    ...(customer ? { customer } : { customer_email: email, customer_creation: "always" as const }),
     allow_promotion_codes: true,
     metadata: { product, env: deployEnv(), ...(kitId ? { kitId } : {}) },
     payment_intent_data: { metadata: { product, env: deployEnv(), ...(kitId ? { kitId } : {}) } },

@@ -1,5 +1,7 @@
 import { isEmail } from "@/lib/audience";
 import { getSession } from "@/lib/auth";
+import { ensureStripeCustomer } from "@/lib/billing";
+import { isStripeMock } from "@/lib/env";
 import { after } from "next/server";
 import { generateDraft } from "@/lib/generation";
 import { getKit } from "@/lib/kits";
@@ -26,7 +28,10 @@ export async function POST(req: Request) {
   }
 
   try {
-    const url = await createCheckoutUrl({ product: body.product, origin: new URL(req.url).origin, kitId, email });
+    // Only a signed-in (verified) email is tied to an existing Stripe customer; a guest-typed email
+    // could belong to someone else, so it stays a plain `customer_email` prefill.
+    const customer = session && !isStripeMock() ? await ensureStripeCustomer(session.email) : undefined;
+    const url = await createCheckoutUrl({ product: body.product, origin: new URL(req.url).origin, kitId, email, customer });
     return Response.json({ url });
   } catch (error) {
     captureException(error, { stage: "api.checkout", product: body.product, kitId });
