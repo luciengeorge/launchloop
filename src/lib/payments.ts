@@ -146,6 +146,23 @@ async function launchPromoId(s: Stripe): Promise<string | undefined> {
   return promoIdCache;
 }
 
+/**
+ * The promotion code a paid session used: LAUNCH14 from our metadata, else one the buyer typed
+ * (Ship Loop allows codes), which Stripe only gives us as a promotion code id.
+ */
+export async function sessionPromoCode(s: Stripe, session: Stripe.Checkout.Session): Promise<string | undefined> {
+  if (session.metadata?.promo_code) return session.metadata.promo_code;
+  const promo = session.discounts?.find((d) => d.promotion_code)?.promotion_code;
+  if (!promo) return undefined;
+  if (typeof promo !== "string") return promo.code;
+  try {
+    return (await s.promotionCodes.retrieve(promo)).code;
+  } catch (error) {
+    captureException(error, { stage: "payments.promo.session", sessionId: session.id });
+    return undefined;
+  }
+}
+
 /** Whether this deployment owns a Checkout session (see stripeEventDecision). */
 export function checkoutDecision(session: Stripe.Checkout.Session) {
   return stripeEventDecision({ metadataEnv: session.metadata?.env, livemode: session.livemode, current: deployEnv(), secretKey: env.stripeSecretKey });

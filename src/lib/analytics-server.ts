@@ -6,7 +6,7 @@ import { env } from "./env";
 import { isAnalyticsId, type ExperimentKey, type Variant } from "./experiments";
 import { captureException } from "./observability";
 import { posthogHost } from "./posthog-config";
-import type { ProductId } from "./products";
+import { productType, type ProductId } from "./products";
 
 interface CheckoutProperties {
   plan: ProductId;
@@ -17,7 +17,7 @@ interface CheckoutProperties {
   currency: string;
   isLoggedIn: boolean;
   mock: boolean;
-  /** Set when LAUNCH14 is on the session; `amount` is then the discounted price. */
+  /** The promotion code on the session (LAUNCH14, or one a Ship Loop buyer typed); `amount` is then the discounted price. */
   promo_code?: string;
   /** "unavailable" when the promo arm asked for LAUNCH14 but Stripe wouldn't take it. */
   promo?: "applied" | "unavailable";
@@ -49,7 +49,7 @@ export function eventUuid(seed: string): string {
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-4${h.slice(13, 16)}-a${h.slice(17, 20)}-${h.slice(20, 32)}`;
 }
 
-/** Never throws: analytics must not break checkout. No-op without NEXT_PUBLIC_POSTHOG_KEY. */
+/** Never throws: analytics must not break checkout. No-op without NEXT_PUBLIC_POSTHOG_KEY. Adds `product_type` from `plan`. */
 export async function captureServerEvent<E extends keyof ServerEvents>(
   event: E,
   params: { distinctId: string; properties: ServerEvents[E]; uuid?: string },
@@ -62,7 +62,7 @@ export async function captureServerEvent<E extends keyof ServerEvents>(
       event,
       uuid: params.uuid,
       // Anonymous funnel events: don't create person profiles server-side either.
-      properties: { ...params.properties, env: deployEnv(), $process_person_profile: false },
+      properties: { ...params.properties, product_type: productType(params.properties.plan), env: deployEnv(), $process_person_profile: false },
     });
   } catch (error) {
     captureException(error, { stage: "analytics.capture", event });

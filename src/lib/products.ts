@@ -34,6 +34,10 @@ export const PRODUCTS: Record<ProductId, Product> = {
 
 export const isProductId = (v: unknown): v is ProductId => typeof v === "string" && v in PRODUCTS;
 
+/** The kit, or either Ship Loop billing period. */
+export type ProductType = "kit" | "shiploop";
+export const productType = (product: ProductId): ProductType => (product === "kit" ? "kit" : "shiploop");
+
 /**
  * The exp_launch14_promo treatment: Stripe promotion code LAUNCH14 (£5 off the kit, once).
  * The code and its limits live in Stripe; this only mirrors the amount for the paywall copy.
