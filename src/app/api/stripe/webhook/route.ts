@@ -1,11 +1,12 @@
 import { after } from "next/server";
 import type Stripe from "stripe";
+import { captureServerEvent, eventUuid, resolveDistinctId } from "@/lib/analytics-server";
 import { env } from "@/lib/env";
 import { fulfilKit, recordPayment } from "@/lib/fulfil";
 import { captureException } from "@/lib/observability";
 import { deployEnv, stripeEventDecision } from "@/lib/deploy-env";
 import { stripe } from "@/lib/payments";
-import { isProductId } from "@/lib/products";
+import { isProductId, type ProductId } from "@/lib/products";
 
 export const maxDuration = 120;
 
@@ -46,8 +47,28 @@ export async function POST(req: Request) {
         return Response.json({ error: "Failed to record payment." }, { status: 500 });
       }
       if (product === "kit" && kitId) after(() => fulfilKit(kitId));
+      after(() => trackCompleted(session, product));
     }
   }
 
   return Response.json({ received: true });
+}
+
+/** Keyed on the session id, so webhook retries and the async-payment event don't double count. */
+function trackCompleted(session: Stripe.Checkout.Session, product: ProductId) {
+  const m = session.metadata ?? {};
+  return captureServerEvent("checkout_completed", {
+    distinctId: resolveDistinctId(m.ph_distinct_id),
+    uuid: eventUuid(`checkout_completed:${session.id}`),
+    properties: {
+      plan: product,
+      kitId: m.kitId,
+      price_id: m.price_id ?? "unknown",
+      amount: session.amount_total ?? 0,
+      currency: session.currency ?? "gbp",
+      isLoggedIn: m.logged_in === "1",
+      mock: false,
+      stripeSessionId: session.id,
+    },
+  });
 }

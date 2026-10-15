@@ -2,6 +2,7 @@ import "server-only";
 import Stripe from "stripe";
 import { deployEnv } from "./deploy-env";
 import { normaliseEmail } from "./kits";
+import { captureException } from "./observability";
 import { stripe } from "./payments";
 import type { ProductId } from "./products";
 import { store } from "./store";

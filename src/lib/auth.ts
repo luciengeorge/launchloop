@@ -6,9 +6,9 @@ import { env, forceMock } from "./env";
 import { normaliseEmail } from "./kits";
 import { store } from "./store";
 
+export { SESSION_HINT_COOKIE } from "./session-hint";
+
 export const SESSION_COOKIE = "ll_session";
-/** Non-secret hint so client code can tell a session exists. Never trusted on the server. */
-export const SESSION_HINT_COOKIE = "ll_auth";
 /** Kit ids created anonymously in this browser, claimed on login. */
 export const ANON_KITS_COOKIE = "ll_kits";
 

@@ -6,8 +6,12 @@ import { useEffect, useRef, useState } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { type PreviewSource, track } from "@/lib/analytics";
 import { KitRequestError, createKitWithProgress } from "@/lib/client";
+import { hasSessionHint } from "@/lib/session-hint";
 import { START_EVENT, type StartPlan } from "@/lib/start-intent";
+
+const previewSource = (value: string): PreviewSource => (value === "sample" ? "sample" : /github\.com/i.test(value) ? "github" : "site");
 
 const STEPS = [
   { id: "repo", label: "Reading repo" },
@@ -63,14 +67,19 @@ export function KitForm() {
     setError(null);
     setLoading(true);
     setStep(-1);
+    const context = { source: previewSource(value), plan, isLoggedIn: hasSessionHint() };
+    const startedAt = performance.now();
+    track("preview_started", context);
     try {
       const { url: next } = await createKitWithProgress(value, advance);
       const kitId = next.split("/").pop();
+      if (kitId) track("preview_completed", { ...context, kitId, durationMs: Math.round(performance.now() - startedAt) });
       // Preview images render on the kit page itself.
       advance("images");
       // Kit intent: open the kit with the unlock flow already started.
       router.push(plan === "kit" && kitId ? `/kit/${kitId}?unlock=1` : next);
     } catch (err) {
+      track("preview_failed", { ...context, code: err instanceof KitRequestError ? err.code : "unknown", durationMs: Math.round(performance.now() - startedAt) });
       setError(err instanceof KitRequestError ? { message: err.message, fix: err.fix, code: err.code } : { message: "Something went wrong.", fix: "Try again in a moment.", code: "unknown" });
       setLoading(false);
       requestAnimationFrame(() => inputRef.current?.focus());

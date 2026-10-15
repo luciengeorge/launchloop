@@ -39,7 +39,13 @@ async function MockCheckout({ searchParams }: Pick<PageProps<"/checkout/mock">, 
         <p className="mt-1 text-sm text-muted-foreground">{kit ? `For ${kit.brief.name}. ` : ""}{item.description}</p>
         <p className="mt-4 text-3xl font-semibold">£{(item.amountPence / 100).toFixed(2)}</p>
       </div>
-      <MockCheckoutForm product={product} kitId={kit?.id} priceLabel={`£${item.amountPence / 100}`} defaultEmail={typeof query.email === "string" ? query.email : undefined} />
+      <MockCheckoutForm
+        product={product}
+        kitId={kit?.id}
+        priceLabel={`£${item.amountPence / 100}`}
+        defaultEmail={typeof query.email === "string" ? query.email : undefined}
+        analyticsId={typeof query.aid === "string" ? query.aid : undefined}
+      />
     </div>
   );
 }

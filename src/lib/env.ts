@@ -34,6 +34,7 @@ export const env = {
 
   ingestAllowPrivate: read("INGEST_ALLOW_PRIVATE") === "true",
   sentryDsn: read("SENTRY_DSN"),
+  posthogKey: read("NEXT_PUBLIC_POSTHOG_KEY"),
   authSecret: read("AUTH_SECRET"),
 };
 
