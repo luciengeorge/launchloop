@@ -2,12 +2,14 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { AccountNav, LogInLink } from "./account-link";
 import { AuthCta, LaunchKitCta } from "./auth-cta";
+import { TAGLINE_CHECKER } from "@/lib/tools";
 import { Logo } from "./logo";
 
 const NAV = [
   { href: "/#kit", label: "What you get" },
   { href: "/pricing", label: "Pricing" },
   { href: "/ship-loop", label: "Ship Loop" },
+  { href: TAGLINE_CHECKER.path, label: "Tagline checker", className: "hidden lg:inline" },
   { href: "/faq", label: "FAQ" },
 ];
 
@@ -18,7 +20,7 @@ export function SiteHeader() {
         <Logo />
         <nav aria-label="Main" className="hidden items-center gap-6 text-sm text-muted-foreground md:flex">
           {NAV.map((item) => (
-            <Link key={item.href} href={item.href} className="transition-colors hover:text-foreground">
+            <Link key={item.href} href={item.href} className={`whitespace-nowrap transition-colors hover:text-foreground ${item.className ?? ""}`}>
               {item.label}
             </Link>
           ))}

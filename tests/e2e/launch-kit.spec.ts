@@ -175,6 +175,12 @@ test("launch pipeline: stage navigation, ticks persist, advance on stage complet
   await page.getByRole("checkbox", { name: "Mark “LinkedIn post” done" }).click();
   await expect(page.getByTestId("stage-tab-LinkedIn")).not.toHaveAttribute("data-state", "done");
 
+  // Some but not all of a stage ticked shows as in progress once you move off it.
+  await page.getByTestId("stage-tab-Landing").click();
+  await page.getByTestId("stage-Landing").locator('[data-done="false"] [role="checkbox"]').first().click();
+  await page.getByTestId("stage-tab-Product Hunt").click();
+  await expect(page.getByTestId("stage-tab-Landing")).toHaveAttribute("data-state", "partial");
+
   for (const stage of ["Brief", "Landing", "Product Hunt", "X", "LinkedIn", "Images", "Launch day"]) {
     await page.getByTestId(`stage-tab-${stage}`).click();
     const open = page.getByTestId(`stage-${stage}`).locator('[data-done="false"] [role="checkbox"]');

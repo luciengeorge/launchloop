@@ -52,6 +52,33 @@ test("magic-link login, single-use token, header state and log out", async ({ pa
   await page.waitForURL(/\/login\?next=%2Faccount|\/login\?next=\/account/);
 });
 
+test("login CTA locks with a loading state while the link is sent", async ({ page }) => {
+  let posts = 0;
+  let release!: () => void;
+  const held = new Promise<void>((r) => (release = r));
+  await page.route("**/api/auth/request", async (route) => {
+    posts++;
+    await held;
+    await route.continue();
+  });
+  await page.goto("/login");
+  await page.getByLabel("Email").fill(uniqueEmail("cta"));
+  const submit = page.getByTestId("login-submit");
+  // Locators wait for pending navigations, so read the in-flight state from inside the page.
+  const inFlight = await submit.evaluate(async (b: HTMLButtonElement) => {
+    b.click();
+    await new Promise((r) => setTimeout(r, 100));
+    b.form?.requestSubmit();
+    await new Promise((r) => setTimeout(r, 100));
+    return { disabled: b.disabled, text: b.textContent };
+  });
+  expect(inFlight).toEqual({ disabled: true, text: "Sending…" });
+  release();
+  await page.waitForURL(/\/login\/check-email$/);
+  await expect(page.getByTestId("envelope")).toBeVisible();
+  expect(posts).toBe(1);
+});
+
 test("tampered tokens and forged session cookies are rejected", async ({ page, context, baseURL }) => {
   await page.goto("/login/verify?token=abc.def");
   await page.waitForURL(/\/login\?error=expired/);

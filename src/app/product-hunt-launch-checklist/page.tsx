@@ -29,7 +29,10 @@ export default function ProductHuntChecklistPage() {
       <h2 id="the-listing">Write the listing</h2>
       <ul>
         <li><strong>Name:</strong> the product name only, no tagline stuffed in.</li>
-        <li><strong>Tagline: 60 characters maximum.</strong> Say what it does and for whom. &ldquo;AI-powered platform for productivity&rdquo; says nothing; &ldquo;Turn your GitHub repo into a launch kit&rdquo; says something.</li>
+        <li>
+          <strong>Tagline: 60 characters maximum.</strong> Say what it does and for whom. &ldquo;AI-powered platform for productivity&rdquo; says nothing; &ldquo;Turn your GitHub repo into a launch kit&rdquo; says something.
+          Test yours with the free <Link href="/tools/product-hunt-tagline-checker">Product Hunt tagline checker</Link>.
+        </li>
         <li><strong>Description: 260 characters maximum.</strong> The problem, what the product does about it, and one concrete detail that only your product can claim.</li>
         <li><strong>Topics:</strong> up to three that match where your users browse.</li>
         <li><strong>Maker comment:</strong> the first comment, posted as soon as you go live. Why you built it, what it does today, what is next, and a specific question you want answered.</li>

@@ -1,5 +1,6 @@
 import { GUIDES } from "@/lib/guides";
 import { FAQ, KIT_CONTENTS, SITE } from "@/lib/site";
+import { TOOLS } from "@/lib/tools";
 
 export function llmsText(base: string, full: boolean) {
   const intro = `# ${SITE.name}
@@ -36,6 +37,10 @@ The kit is delivered on a results page, as a ZIP download and by email.
 - [FAQ](${base}/faq): answers to common questions
 - [Privacy](${base}/privacy)
 - [Terms](${base}/terms)
+
+## Free tools
+
+${TOOLS.map((t) => `- [${t.title}](${base}${t.path}): ${t.description}`).join("\n")}
 
 ## Guides
 

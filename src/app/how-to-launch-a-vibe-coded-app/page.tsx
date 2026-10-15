@@ -50,7 +50,10 @@ export default function VibeCodedLaunchPage() {
         <li><strong>Three to six features</strong>, each a concrete capability rather than an adjective.</li>
         <li><strong>One proof point</strong> only your product can claim: a number, a constraint, a workflow.</li>
       </ul>
-      <p>That brief becomes your hero headline, your Product Hunt tagline and the first post of your X thread.</p>
+      <p>
+        That brief becomes your hero headline, your Product Hunt tagline and the first post of your X thread. Check the tagline against the 60-character limit with the free{" "}
+        <Link href="/tools/product-hunt-tagline-checker">Product Hunt tagline checker</Link>, or have it write three options from your repo.
+      </p>
 
       <h2 id="channels">3. Pick your launch channels</h2>
       <ul>

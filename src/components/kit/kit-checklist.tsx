@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ChevronDown, Lock, PartyPopper } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, Clock, Lock, PartyPopper } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { CopyButton } from "@/components/copy-button";
@@ -152,7 +152,11 @@ export function KitChecklist({ kitId, productName, tasks, locked, persist, initi
               data-state={complete ? "done" : isUpcoming ? "upcoming" : "collapsed"}
             >
               <span className="flex items-center gap-2 text-sm font-medium">
-                {complete ? <Check className="size-4 text-emerald-600" aria-hidden="true" /> : null}
+                {complete ? (
+                  <Check className="size-4 text-emerald-600" aria-hidden="true" />
+                ) : groupDone > 0 ? (
+                  <Clock className="size-4 text-amber-600" aria-hidden="true" />
+                ) : null}
                 {stage.label}
                 <span className="font-mono text-xs text-muted-foreground">
                   {locked && !complete ? "Preview" : `${groupDone}/${countableItems.length}`}
@@ -202,32 +206,40 @@ function StageTrack({
   onSelect: (s: TaskGroup) => void;
 }) {
   return (
-    <nav aria-label="Launch stages" className="overflow-x-auto" data-testid="stage-track">
-      <ol className="flex min-w-max items-center gap-1 pb-1">
+    <nav aria-label="Launch stages" data-testid="stage-track">
+      <ol className="flex flex-wrap items-center gap-x-1 gap-y-2 pb-1">
         {PIPELINE_STAGES.map((stage, i) => {
           const items = tasks.filter((t) => t.group === stage.id && !t.pending);
           if (!items.length && !tasks.some((t) => t.group === stage.id)) return null;
-          const complete = items.length > 0 && items.every((t) => done.has(t.id));
+          const doneCount = items.filter((t) => done.has(t.id)).length;
+          const complete = items.length > 0 && doneCount === items.length;
+          const partial = doneCount > 0 && !complete;
           const current = active === stage.id;
-          const state = complete ? "done" : current ? "current" : "upcoming";
+          const state = complete ? "done" : current ? "current" : partial ? "partial" : "upcoming";
           return (
             <li key={stage.id} className="flex items-center gap-1">
-              {i > 0 ? <span className="mx-0.5 h-px w-3 bg-border sm:w-5" aria-hidden="true" /> : null}
+              {i > 0 ? <ChevronRight className="size-4 shrink-0 text-primary sm:mx-0.5" strokeWidth={2.5} aria-hidden="true" /> : null}
               <button
                 type="button"
                 onClick={() => onSelect(stage.id)}
                 data-testid={`stage-tab-${stage.id}`}
                 data-state={state}
+                data-partial={partial || undefined}
+                aria-current={current ? "step" : undefined}
                 className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
                   state === "current"
                     ? "bg-primary text-primary-foreground shadow-sm"
                     : state === "done"
                       ? "bg-emerald-500/15 text-emerald-800"
-                      : "bg-muted text-muted-foreground hover:text-foreground"
+                      : state === "partial"
+                        ? "bg-amber-400/25 text-amber-800 hover:bg-amber-400/35"
+                        : "bg-muted text-muted-foreground hover:text-foreground"
                 }`}
               >
                 {complete ? <Check className="mr-1 inline size-3" aria-hidden="true" /> : null}
+                {partial ? <Clock className="mr-1 inline size-3" aria-hidden="true" /> : null}
                 {stage.label}
+                {complete ? <span className="sr-only"> (done)</span> : partial ? <span className="sr-only"> (in progress)</span> : null}
               </button>
             </li>
           );

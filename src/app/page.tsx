@@ -10,6 +10,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { siteUrl } from "@/lib/env";
 import { siteGraph } from "@/lib/structured-data";
 import { FAQ, KIT_CONTENTS } from "@/lib/site";
+import { TAGLINE_CHECKER } from "@/lib/tools";
 
 const KIT_ICONS = [Globe, Megaphone, MessageSquareText, FileText, ImageIcon, ListChecks];
 
@@ -56,6 +57,12 @@ export default function Home() {
               </li>
             ))}
           </ul>
+          <p className="mt-6 text-sm text-muted-foreground">
+            Only need a Product Hunt tagline?{" "}
+            <Link href={TAGLINE_CHECKER.path} className="font-medium text-foreground underline underline-offset-4 hover:text-primary">
+              Try the free tagline checker
+            </Link>
+          </p>
         </div>
       </section>
 
