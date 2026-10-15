@@ -38,7 +38,7 @@ test("API returns structured errors with a code and a fix", async ({ request }) 
   expect(res.status()).toBe(422);
   const body = (await res.json()) as { error: string; code: string; fix: string };
   expect(body.code).toBe("repo_not_found");
-  expect(body.fix).toContain("live URL");
+  expect(body.fix).toContain("live site URL");
 });
 
 test("paid kit whose generation keeps failing shows a proper error state with retry", async ({ page }) => {
