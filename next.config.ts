@@ -7,7 +7,10 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   redirects() {
-    return [{ source: "/product-hunt-tagline-checker", destination: "/tools/product-hunt-tagline-checker", permanent: true }];
+    return [
+      { source: "/product-hunt-tagline-checker", destination: "/tools/product-hunt-tagline-checker", permanent: true },
+      { source: "/og-preview", destination: "/tools/og-preview", permanent: true },
+    ];
   },
   turbopack: {
     rules: {

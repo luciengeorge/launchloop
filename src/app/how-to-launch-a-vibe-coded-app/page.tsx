@@ -25,7 +25,8 @@ export default function VibeCodedLaunchPage() {
       <h3>Social preview images</h3>
       <p>
         Without an Open Graph image, links on X, LinkedIn, Slack and iMessage share as plain text. Add a 1200×630 <code>og:image</code> and a{" "}
-        <code>twitter:card</code> of <code>summary_large_image</code>, then test the link in each app before you launch.
+        <code>twitter:card</code> of <code>summary_large_image</code>, then test the link before you launch: the free <Link href="/tools/og-preview">OG image preview</Link>{" "}
+        shows the card and flags missing tags or a wrongly sized image.
       </p>
       <h3>Server-rendered text</h3>
       <p>
