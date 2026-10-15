@@ -69,8 +69,10 @@ export async function linkKitToUser(email: string, kitId: string): Promise<void>
   await store().sAdd(userKitsKey(email), kitId);
 }
 
+export const listUserKitIds = (email: string) => store().sMembers(userKitsKey(email));
+
 export async function listUserKits(email: string): Promise<Kit[]> {
-  const ids = await store().sMembers(userKitsKey(email));
+  const ids = await listUserKitIds(email);
   const kits = await Promise.all(ids.map((id) => getKit(id)));
   return kits.filter((k): k is Kit => !!k).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }

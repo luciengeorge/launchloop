@@ -2,44 +2,45 @@
 
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
-/** Polls kit status after payment and refreshes the page once the full kit is ready. */
-export function GenerationPoller({ kitId, failed }: { kitId: string; failed: boolean }) {
+/** Polls after payment and refreshes as each section lands, so the kit fills in instead of waiting on a spinner. */
+export function GenerationPoller({ kitId, failed, sectionsReady }: { kitId: string; failed: boolean; sectionsReady: number }) {
   const router = useRouter();
-  const [message, setMessage] = useState(failed ? "The first attempt failed, so we're retrying." : "Writing your full kit. This usually takes under a minute.");
+  const seen = useRef(sectionsReady);
+  const [message, setMessage] = useState(failed ? "The first attempt hit a snag, so we're retrying." : "Finishing the last sections. They appear below as they're written.");
 
   useEffect(() => {
     let cancelled = false;
-    let delay = 1500;
+    let timer: ReturnType<typeof setTimeout>;
     async function tick() {
       try {
         const res = await fetch(`/api/kits/${kitId}/status`, { cache: "no-store" });
-        const data = (await res.json()) as { status: string; error: string | null };
+        const data = (await res.json()) as { status: string; error: string | null; finalFailure?: boolean; sectionsReady?: number };
         if (cancelled) return;
-        if (data.status === "ready") {
+        if (data.status === "ready" || data.finalFailure) return router.refresh();
+        if ((data.sectionsReady ?? 0) > seen.current) {
+          seen.current = data.sectionsReady ?? 0;
           router.refresh();
-          return;
         }
-        if (data.status === "failed") setMessage(data.error ?? "Generation failed. Retrying…");
+        if (data.status === "failed") setMessage(data.error ?? "Retrying…");
       } catch {
         // Network blips are fine; the next tick retries.
       }
-      delay = Math.min(delay * 1.4, 6000);
-      if (!cancelled) setTimeout(tick, delay);
+      if (!cancelled) timer = setTimeout(tick, 1000);
     }
-    const first = setTimeout(tick, 800);
+    timer = setTimeout(tick, 500);
     return () => {
       cancelled = true;
-      clearTimeout(first);
+      clearTimeout(timer);
     };
   }, [kitId, router]);
 
   return (
-    <div role="status" aria-live="polite" className="flex flex-col items-center gap-4 rounded-2xl border border-dashed border-border bg-card px-6 py-16 text-center">
-      <Loader2 className="size-8 animate-spin text-primary" />
-      <div className="space-y-1">
-        <p className="text-lg font-medium">Payment received. Building your launch kit…</p>
+    <div role="status" aria-live="polite" data-testid="generation-poller" className="flex items-center gap-3 rounded-2xl border border-dashed border-border bg-card px-5 py-4">
+      <Loader2 className="size-5 shrink-0 animate-spin text-primary" aria-hidden="true" />
+      <div>
+        <p className="font-medium">Payment received. Your kit is unlocking…</p>
         <p className="text-sm text-muted-foreground">{message}</p>
       </div>
     </div>

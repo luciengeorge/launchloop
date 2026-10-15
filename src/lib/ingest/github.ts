@@ -44,7 +44,7 @@ async function gh(path: string, accept = "application/vnd.github+json"): Promise
     "X-GitHub-Api-Version": "2022-11-28",
   };
   if (env.githubToken) headers.Authorization = `Bearer ${env.githubToken}`;
-  return fetch(`https://api.github.com${path}`, { headers, signal: AbortSignal.timeout(8000), cache: "no-store" });
+  return fetch(`${process.env.GITHUB_API_URL ?? "https://api.github.com"}${path}`, { headers, signal: AbortSignal.timeout(8000), cache: "no-store" });
 }
 
 async function raw(owner: string, name: string, file: string): Promise<string | undefined> {
@@ -67,14 +67,19 @@ function parsePackageJson(text: string | undefined, warnings: string[]): Package
 }
 
 export async function fetchRepo(owner: string, name: string, warnings: string[]): Promise<RepoData> {
-  const meta = await gh(`/repos/${owner}/${name}`);
+  let meta: Response;
+  try {
+    meta = await gh(`/repos/${owner}/${name}`);
+  } catch (error) {
+    throw new IngestError(`GitHub API unreachable: ${(error as Error).message}`, "github_unavailable");
+  }
   const rateLimited = meta.status === 403 || meta.status === 429;
 
   if (meta.status === 404) {
-    throw new IngestError(
-      `Repo ${owner}/${name} not found`,
-      "We couldn't find that repository. LaunchLoop only reads public GitHub repos for now.",
-    );
+    // GitHub answers 404 for private repos too, so all we can tell apart is whether the owner exists.
+    const ownerRes = await gh(`/users/${owner}`).catch(() => null);
+    if (ownerRes?.status === 404) throw new IngestError(`GitHub owner ${owner} not found`, "repo_owner_not_found", `There's no GitHub user or organisation called “${owner}”.`);
+    throw new IngestError(`Repo ${owner}/${name} not found`, "repo_not_found");
   }
 
   const repo: RepoData = { owner, name, url: `https://github.com/${owner}/${name}`, topics: [], commits: [] };
@@ -83,14 +88,14 @@ export async function fetchRepo(owner: string, name: string, warnings: string[])
     warnings.push("GitHub's API rate limit was hit, so stars and commit history were skipped. Set GITHUB_TOKEN to avoid this.");
     const [readme, pkg] = await Promise.all([raw(owner, name, "README.md"), raw(owner, name, "package.json")]);
     if (!readme && !pkg) {
-      throw new IngestError("GitHub rate limited and raw fallback failed", "GitHub is rate limiting us right now. Try again in a few minutes.");
+      throw new IngestError("GitHub rate limited and raw fallback failed", "github_rate_limited");
     }
     repo.readme = readme?.slice(0, README_CAP);
     repo.packageJson = parsePackageJson(pkg, warnings);
     return repo;
   }
 
-  if (!meta.ok) throw new IngestError(`GitHub API returned ${meta.status}`, "GitHub didn't respond as expected. Try again shortly.");
+  if (!meta.ok) throw new IngestError(`GitHub API returned ${meta.status}`, "github_unavailable");
 
   const info = (await meta.json()) as {
     description?: string | null;

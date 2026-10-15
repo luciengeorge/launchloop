@@ -23,17 +23,17 @@ export function normaliseInput(raw: string): string {
   const input = raw.trim();
   if (input.toLowerCase() === SAMPLE_INPUT) return SAMPLE_INPUT;
   if (!input || input.length > 500 || /\s/.test(input)) {
-    throw new IngestError("Invalid input", "Paste a public GitHub repo URL or your live site URL.");
+    throw new IngestError("Invalid input", "invalid_url", input ? "That doesn't look like a link." : "Paste a GitHub repo URL or your live site URL.");
   }
   const withScheme = /^https?:\/\//i.test(input) ? input : `https://${input}`;
   let url: URL;
   try {
     url = new URL(withScheme);
   } catch {
-    throw new IngestError("Invalid URL", "That doesn't look like a URL. Try something like https://github.com/you/your-app.");
+    throw new IngestError("Invalid URL", "invalid_url");
   }
   if (!url.hostname.includes(".") && url.hostname !== "localhost" && !/^\d+\.\d+\.\d+\.\d+$/.test(url.hostname)) {
-    throw new IngestError("Invalid host", "That doesn't look like a URL. Try something like https://your-app.com.");
+    throw new IngestError("Invalid host", "invalid_url");
   }
   return url.toString();
 }
@@ -70,10 +70,9 @@ export async function ingest(rawInput: string, onStep: (step: IngestStep) => voi
     } else warnings.push("The repo has no homepage set, so brand colours fell back to defaults unless found elsewhere.");
   } else {
     onStep("site");
-    site = await trySite(input, warnings);
-    if (!site) {
-      throw new IngestError("Site unreachable", "We couldn't load that page. Check the URL is public, or paste your GitHub repo instead.");
-    }
+    // The pasted site is the only source, so its failure is the user's error to see.
+    site = await fetchSite(input, warnings);
+    if (!hasUsableContent(site)) throw new IngestError(`No usable content at ${input}`, "site_no_content");
     const linked = site.githubUrl ? parseGitHubUrl(site.githubUrl) : null;
     if (linked) {
       onStep("repo");
@@ -90,6 +89,11 @@ export async function ingest(rawInput: string, onStep: (step: IngestStep) => voi
 
   const palette = site ? extractPalette({ css: site.css, themeColor: site.themeColor }) : DEFAULT_PALETTE;
   return { primary: gh ? "repo" : "site", repo, site, palette, source: summarise(input, repo, site, warnings) };
+}
+
+function hasUsableContent(site: SiteData): boolean {
+  const words = [site.title, site.description, site.h1, ...site.headings, ...site.paragraphs, ...site.listItems].filter(Boolean).join(" ");
+  return words.split(/\s+/).filter((w) => /\p{L}{2,}/u.test(w)).length >= 4;
 }
 
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");

@@ -1,6 +1,7 @@
 import "server-only";
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
+import { connection } from "next/server";
 import { env, forceMock } from "./env";
 import { normaliseEmail } from "./kits";
 import { store } from "./store";
@@ -80,6 +81,8 @@ export function decodeSession(value: string | undefined): Session | null {
 
 /** Reads the session from the request cookies (server components and route handlers). */
 export async function getSession(): Promise<Session | null> {
+  // Expiry checks read the clock, so this must run at request time.
+  await connection();
   return decodeSession((await cookies()).get(SESSION_COOKIE)?.value);
 }
 

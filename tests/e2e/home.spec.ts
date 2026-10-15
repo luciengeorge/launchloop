@@ -13,7 +13,7 @@ test("invalid input shows a friendly error", async ({ page }) => {
   await page.goto("/");
   await page.getByLabel("GitHub repo or live site URL").fill("not a url");
   await page.getByRole("button", { name: "Get my free preview" }).first().click();
-  await expect(page.getByRole("alert").filter({ hasText: "Paste" })).toContainText("Paste a public GitHub repo URL or your live site URL");
+  await expect(page.getByTestId("kit-error")).toContainText("Paste something like github.com/you/your-app");
 });
 
 test("newsletter signup succeeds", async ({ page }) => {

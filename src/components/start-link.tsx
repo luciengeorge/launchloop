@@ -2,12 +2,12 @@
 
 import { Loader2 } from "lucide-react";
 import { useState } from "react";
-import { checkoutKit, lastKitId, START_EVENT, type StartPlan } from "@/lib/start-intent";
+import { unlockPath, lastKitId, START_EVENT, type StartPlan } from "@/lib/start-intent";
 
 /**
  * Leads into the kit form. If the form is on this page it scrolls to and focuses it (with the plan preselected);
  * otherwise it navigates to /?plan=…#start. With plan="kit" and a kit already generated in this browser, it goes
- * straight to Stripe checkout.
+ * straight to the unlock flow.
  */
 export function StartLink({ plan = "free", className, children }: { plan?: StartPlan; className?: string; children: React.ReactNode }) {
   const [busy, setBusy] = useState(false);
@@ -25,7 +25,8 @@ export function StartLink({ plan = "free", className, children }: { plan?: Start
           const existing = lastKitId();
           if (existing) {
             setBusy(true);
-            if (await checkoutKit(existing)) return;
+            const path = await unlockPath(existing);
+            if (path) return window.location.assign(path);
             setBusy(false);
           }
         }

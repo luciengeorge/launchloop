@@ -9,6 +9,8 @@ import { getSession } from "@/lib/auth";
 import { getShipLoop } from "@/lib/billing";
 import { IMAGE_VARIANTS, type ImageVariant } from "@/lib/image-variants";
 import { listUserKits } from "@/lib/kits";
+import { getProgress } from "@/lib/progress";
+import { buildTasks, countableTasks } from "@/lib/tasks";
 import type { Kit } from "@/lib/schema";
 
 export const metadata: Metadata = { title: "My kits", robots: { index: false, follow: false } };
@@ -33,6 +35,7 @@ async function Dashboard({ searchParams }: Pick<PageProps<"/account">, "searchPa
   const session = await getSession();
   if (!session) redirect("/login?next=/account");
   const [kits, shipLoop, query] = await Promise.all([listUserKits(session.email), getShipLoop(session.email), searchParams]);
+  const progress = await Promise.all(kits.map((k) => (k.paid && k.content ? kitProgress(k) : null)));
   const billingNote = typeof query.billing === "string" ? BILLING_NOTES[query.billing] : undefined;
 
   return (
@@ -75,8 +78,8 @@ async function Dashboard({ searchParams }: Pick<PageProps<"/account">, "searchPa
         </div>
       ) : (
         <ul className="space-y-4" aria-label="Your kits">
-          {kits.map((kit) => (
-            <KitRow key={kit.id} kit={kit} />
+          {kits.map((kit, i) => (
+            <KitRow key={kit.id} kit={kit} progress={progress[i]} />
           ))}
         </ul>
       )}
@@ -86,14 +89,22 @@ async function Dashboard({ searchParams }: Pick<PageProps<"/account">, "searchPa
 
 const dateFormat = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric" });
 
-function KitRow({ kit }: { kit: Kit }) {
+async function kitProgress(kit: Kit) {
+  const tasks = countableTasks(buildTasks({ content: kit.content!, checklist: kit.checklist ?? [], locked: false }));
+  const done = new Set(await getProgress(kit.id));
+  const completed = tasks.filter((t) => done.has(t.id)).length;
+  return { completed, total: tasks.length, percent: tasks.length ? Math.round((completed / tasks.length) * 100) : 0 };
+}
+
+function KitRow({ kit, progress }: { kit: Kit; progress: { completed: number; total: number; percent: number } | null }) {
   const ready = kit.paid && kit.status === "ready";
+  const href = `/account/kits/${kit.id}`;
   return (
     <li className="rounded-2xl border border-border bg-card p-5 shadow-sm" data-testid="account-kit" data-kit-id={kit.id}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold">
-            <Link href={`/kit/${kit.id}`} className="hover:underline">
+            <Link href={href} className="hover:underline">
               {kit.brief.name}
             </Link>
           </h2>
@@ -107,9 +118,24 @@ function KitRow({ kit }: { kit: Kit }) {
           {kit.paid ? (ready ? "Paid" : "Paid · generating") : "Preview"}
         </Badge>
       </div>
+      {progress ? (
+        <div className="mt-4" data-testid="kit-progress">
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span>Launch checklist</span>
+            <span className="font-mono">
+              {progress.completed}/{progress.total} · {progress.percent}%
+            </span>
+          </div>
+          <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-muted" role="progressbar" aria-label={`${kit.brief.name} checklist progress`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress.percent}>
+            <div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${progress.percent}%` }} />
+          </div>
+        </div>
+      ) : !kit.paid ? (
+        <p className="mt-3 text-xs text-muted-foreground">Preview only. Unlock it to get the full kit and launch checklist.</p>
+      ) : null}
       <div className="mt-4 flex flex-wrap gap-2 text-sm">
-        <Link href={`/kit/${kit.id}`} className={buttonVariants({ variant: "outline", size: "sm" })}>
-          Open kit
+        <Link href={href} className={buttonVariants({ variant: kit.paid ? "outline" : "default", size: "sm" })}>
+          {kit.paid ? "Open kit" : "Unlock kit"}
         </Link>
         {ready ? (
           <a href={`/api/kits/${kit.id}/zip`} className={buttonVariants({ variant: "outline", size: "sm" })} download>

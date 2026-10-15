@@ -22,7 +22,8 @@ export async function createCheckoutUrl(params: { product: ProductId; origin: st
   const s = stripe();
   if (!s) {
     const qs = new URLSearchParams({ product, ...(kitId ? { kitId } : {}), ...(email ? { email } : {}) });
-    return `${origin}/checkout/mock?${qs}`;
+    // Relative, so the buyer stays on the host (and session cookie) they started on.
+    return `/checkout/mock?${qs}`;
   }
   const item = PRODUCTS[product];
   const priceId = priceIds[product];

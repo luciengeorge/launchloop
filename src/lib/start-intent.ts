@@ -20,11 +20,8 @@ export function lastKitId(): string | null {
   }
 }
 
-/** Starts kit checkout for an existing kit. Returns false if the kit is gone so callers can fall back to the form. */
-export async function checkoutKit(kitId: string): Promise<boolean> {
-  const res = await fetch("/api/checkout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ product: "kit", kitId }) });
-  const data = (await res.json().catch(() => ({}))) as { url?: string };
-  if (!res.ok || !data.url) return false;
-  window.location.assign(data.url);
-  return true;
+/** Path that starts the unlock flow (sign in, then checkout) for an existing kit, or null if the kit is gone. */
+export async function unlockPath(kitId: string): Promise<string | null> {
+  const res = await fetch(`/api/kits/${kitId}/status`, { cache: "no-store" }).catch(() => null);
+  return res?.ok ? `/kit/${kitId}?unlock=1` : null;
 }

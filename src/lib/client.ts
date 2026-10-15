@@ -19,18 +19,35 @@ export function reportClientError(error: Error & { digest?: string }) {
 export type KitStreamEvent =
   | { type: "step"; step: string }
   | { type: "done"; id: string; url: string }
-  | { type: "error"; status: number; error: string };
+  | { type: "error"; status: number; error: string; code?: string; fix?: string };
+
+/** An error the kit form can show with a title and a suggested fix. */
+export class KitRequestError extends Error {
+  constructor(
+    message: string,
+    public readonly code: string = "unknown",
+    public readonly fix?: string,
+  ) {
+    super(message);
+    this.name = "KitRequestError";
+  }
+}
 
 /** POST /api/kits with live progress. Falls back to the plain JSON response if streaming isn't available. */
 export async function createKitWithProgress(input: string, onStep: (step: string) => void): Promise<{ url: string }> {
-  const res = await fetch("/api/kits", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "application/x-ndjson, application/json" },
-    body: JSON.stringify({ url: input }),
-  });
+  let res: Response;
+  try {
+    res = await fetch("/api/kits", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/x-ndjson, application/json" },
+      body: JSON.stringify({ url: input }),
+    });
+  } catch {
+    throw new KitRequestError("We couldn't reach LaunchLoop.", "network", "Check your connection and try again.");
+  }
   if (!res.headers.get("content-type")?.includes("application/x-ndjson") || !res.body) {
-    const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
-    if (!res.ok || !data.url) throw new Error(data.error ?? `Request failed (${res.status})`);
+    const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string; code?: string; fix?: string };
+    if (!res.ok || !data.url) throw new KitRequestError(data.error ?? "Something went wrong reading your app.", data.code, data.fix ?? "Try again in a moment.");
     return { url: data.url };
   }
   const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
@@ -50,8 +67,8 @@ export async function createKitWithProgress(input: string, onStep: (step: string
       }
       if (event.type === "step") onStep(event.step);
       else if (event.type === "done") return { url: event.url };
-      else if (event.type === "error") throw new Error(event.error);
+      else if (event.type === "error") throw new KitRequestError(event.error, event.code, event.fix);
     }
-    if (done) throw new Error("The connection dropped before your preview was ready. Please try again.");
+    if (done) throw new KitRequestError("The connection dropped before your preview was ready.", "network", "Try again. It usually takes under 30 seconds.");
   }
 }

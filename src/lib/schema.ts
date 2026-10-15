@@ -52,6 +52,7 @@ export const kitContentSchema = z.object({
   linkedin: z.string(),
 });
 export type KitContent = z.infer<typeof kitContentSchema>;
+export type KitSection = keyof KitContent;
 
 export type KitStatus = "preview" | "paid" | "generating" | "ready" | "failed";
 
@@ -88,6 +89,8 @@ export interface Kit {
   checklist?: string[];
   generationStartedAt?: string;
   generatedAt?: string;
+  /** When the full kit became visible to the buyer. readyAt - paidAt is the post-payment wait. */
+  readyAt?: string;
   attempts: number;
   error?: string;
   emailedAt?: string;

@@ -1,31 +1,5 @@
-import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
-
-const uniqueEmail = (tag: string) => `${tag}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@example.com`;
-
-async function magicLinkFor(request: APIRequestContext, email: string): Promise<string> {
-  let link: string | null = null;
-  await expect
-    .poll(async () => {
-      const { emails } = (await (await request.get("/api/dev/outbox")).json()) as { emails: { to: string; subject: string; text: string }[] };
-      const mail = emails.find((e) => e.to === email && e.subject.includes("login link"));
-      link = mail?.text.match(/https?:\/\/\S+\/login\/verify\?token=\S+/)?.[0] ?? null;
-      return link;
-    })
-    .not.toBeNull();
-  return link!;
-}
-
-async function logIn(page: Page, email: string) {
-  await page.goto("/login");
-  await page.getByLabel("Email").fill(email);
-  await page.getByRole("button", { name: "Email me a login link" }).click();
-  await expect(page.getByRole("heading", { name: "Check your email" })).toBeVisible();
-  const link = await magicLinkFor(page.request, email);
-  await page.goto(link);
-  await page.getByRole("button", { name: "Continue to my kits" }).click();
-  await page.waitForURL(/\/account$/);
-  await expect(page.getByTestId("account-email")).toHaveText(email);
-}
+import { expect, test } from "@playwright/test";
+import { logIn, magicLinkFor, makeSampleKit, uniqueEmail, unlockAndPay } from "./helpers";
 
 test("magic-link login, single-use token, header state and log out", async ({ page }) => {
   await page.goto("/");
@@ -87,10 +61,7 @@ test("magic-link requests are rate limited per email", async ({ request }) => {
 });
 
 test("anonymous kits made in this browser are claimed on login and shown on the dashboard", async ({ page }) => {
-  await page.goto("/");
-  await page.getByRole("button", { name: "Try a sample app" }).click();
-  await page.waitForURL(/\/kit\/[\w-]+$/);
-  const kitId = new URL(page.url()).pathname.split("/").pop()!;
+  const kitId = await makeSampleKit(page);
 
   const email = uniqueEmail("claim");
   await logIn(page, email);
@@ -100,8 +71,9 @@ test("anonymous kits made in this browser are claimed on login and shown on the 
   await expect(row.getByRole("heading", { name: "Snapshelf" })).toBeVisible();
   await expect(row.getByTestId("kit-status")).toHaveText("Preview");
   await expect(row.locator("time")).toBeVisible();
-  await row.getByRole("link", { name: "Open kit" }).click();
-  await page.waitForURL(new RegExp(`/kit/${kitId}$`));
+  await row.getByRole("link", { name: "Unlock kit" }).click();
+  await page.waitForURL(new RegExp(`/account/kits/${kitId}$`));
+  await expect(page.getByTestId("unlock-panel")).toBeVisible();
 
   // A different account logging in from a fresh browser can't claim it.
   const other = await page.context().browser()!.newContext();
@@ -123,24 +95,19 @@ test("anonymous kits made in this browser are claimed on login and shown on the 
 test("kits paid for with an email show up for that account with downloads", async ({ browser }) => {
   const buyer = await browser.newContext();
   const page = await buyer.newPage();
-  await page.goto("/");
-  await page.getByRole("button", { name: "Try a sample app" }).click();
-  await page.waitForURL(/\/kit\/[\w-]+$/);
-  const kitId = new URL(page.url()).pathname.split("/").pop()!;
-  await page.getByRole("button", { name: "Unlock full kit for £19" }).click();
-  await page.waitForURL(/\/checkout\/mock/);
+  const kitId = await makeSampleKit(page);
   const email = uniqueEmail("buyer");
-  await page.getByLabel("Email for your receipt and kit").fill(email);
-  await page.getByRole("button", { name: /Pay £19/ }).click();
-  await expect(page.getByRole("heading", { name: "Your launch kit is ready" })).toBeVisible({ timeout: 30_000 });
+  await unlockAndPay(page, kitId, email);
+  await expect(page.getByRole("heading", { name: "Your launch kit is ready" })).toBeVisible();
   await buyer.close();
 
-  // Log in on a fresh browser (no anonymous-kit cookie): the payment linked it.
+  // A fresh browser (no anonymous-kit cookie): the payment linked it to the account.
   const fresh = await browser.newContext();
   const p2 = await fresh.newPage();
   await logIn(p2, email);
   const row = p2.locator(`[data-kit-id="${kitId}"]`);
   await expect(row.getByTestId("kit-status")).toHaveText("Paid");
+  await expect(row.getByTestId("kit-progress")).toContainText("0%");
   const zipHref = await row.getByRole("link", { name: "Download ZIP" }).getAttribute("href");
   const zip = await p2.request.get(zipHref!);
   expect(zip.status()).toBe(200);

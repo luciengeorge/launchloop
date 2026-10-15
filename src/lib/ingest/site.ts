@@ -1,6 +1,6 @@
 import "server-only";
 import { parse, type HTMLElement } from "node-html-parser";
-import { safeFetch } from "./safe-fetch";
+import { IngestError, safeFetch } from "./safe-fetch";
 
 export interface SiteData {
   url: string;
@@ -31,7 +31,10 @@ function meta(root: HTMLElement, key: string): string | undefined {
 
 export async function fetchSite(url: string, warnings: string[]): Promise<SiteData> {
   const page = await safeFetch(url);
-  if (page.status >= 400) throw new Error(`Live page returned ${page.status}`);
+  if (page.status >= 400) throw new IngestError(`Live page returned ${page.status}`, "site_http_error", `That page returned an error (HTTP ${page.status}).`);
+  if (page.contentType && !/html|xml|text\/plain/i.test(page.contentType)) {
+    throw new IngestError(`Live page is ${page.contentType}`, "site_no_content", "That link isn't a web page.");
+  }
   const root = parse(page.text, { comment: false });
 
   const inlineCss = [

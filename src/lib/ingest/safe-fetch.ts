@@ -2,15 +2,19 @@ import "server-only";
 import { lookup } from "node:dns/promises";
 import net from "node:net";
 import { env } from "../env";
+import { KIT_ERRORS, type KitErrorCode } from "../errors";
 
 export const USER_AGENT = "LaunchLoopBot/1.0 (+https://launchloop.dev/faq)";
 
 export class IngestError extends Error {
+  public readonly userMessage: string;
   constructor(
     message: string,
-    public readonly userMessage: string = message,
+    public readonly code: KitErrorCode,
+    userMessage?: string,
   ) {
     super(message);
+    this.userMessage = userMessage ?? KIT_ERRORS[code].title;
     this.name = "IngestError";
   }
 }
@@ -36,16 +40,21 @@ function isPrivateIp(ip: string): boolean {
 
 async function assertPublicUrl(url: URL) {
   if (url.protocol !== "http:" && url.protocol !== "https:") {
-    throw new IngestError(`Blocked protocol ${url.protocol}`, "Only http and https URLs are supported.");
+    throw new IngestError(`Blocked protocol ${url.protocol}`, "invalid_url", "Only http and https links are supported.");
   }
   if (env.ingestAllowPrivate) return;
   const host = url.hostname.replace(/^\[|\]$/g, "");
   if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".internal")) {
-    throw new IngestError(`Blocked host ${host}`, "That address isn't publicly reachable.");
+    throw new IngestError(`Blocked host ${host}`, "site_blocked");
   }
-  const addresses = net.isIP(host) ? [host] : (await lookup(host, { all: true })).map((a) => a.address);
+  let addresses: string[];
+  try {
+    addresses = net.isIP(host) ? [host] : (await lookup(host, { all: true })).map((a) => a.address);
+  } catch (error) {
+    throw new IngestError(`DNS lookup failed for ${host}: ${(error as Error).message}`, "site_unreachable");
+  }
   if (addresses.length === 0 || addresses.some(isPrivateIp)) {
-    throw new IngestError(`Blocked private address for ${host}`, "That address isn't publicly reachable.");
+    throw new IngestError(`Blocked private address for ${host}`, "site_blocked");
   }
 }
 
@@ -65,24 +74,37 @@ export interface SafeFetchResult {
 
 /** Fetches a public URL with SSRF checks on every redirect hop, a timeout and a size cap. */
 export async function safeFetch(input: string, options: SafeFetchOptions = {}): Promise<SafeFetchResult> {
-  const { maxBytes = 1_500_000, timeoutMs = 8000 } = options;
+  const { maxBytes = 1_500_000, timeoutMs = Number(process.env.SITE_FETCH_TIMEOUT_MS ?? 8000) } = options;
   let current = new URL(input);
   for (let hop = 0; hop < 4; hop++) {
     await assertPublicUrl(current);
-    const res = await fetch(current, {
-      redirect: "manual",
-      signal: AbortSignal.timeout(timeoutMs),
-      headers: { "User-Agent": USER_AGENT, Accept: options.accept ?? "text/html,*/*;q=0.8", ...options.headers },
-      cache: "no-store",
-    });
+    let res: Response;
+    try {
+      res = await fetch(current, {
+        redirect: "manual",
+        signal: AbortSignal.timeout(timeoutMs),
+        headers: { "User-Agent": USER_AGENT, Accept: options.accept ?? "text/html,*/*;q=0.8", ...options.headers },
+        cache: "no-store",
+      });
+    } catch (error) {
+      const name = (error as Error).name;
+      if (name === "TimeoutError" || name === "AbortError") throw new IngestError(`Timed out fetching ${current}`, "site_timeout");
+      throw new IngestError(`Fetch failed for ${current}: ${(error as Error).message}`, "site_unreachable");
+    }
     if (res.status >= 300 && res.status < 400 && res.headers.get("location")) {
       current = new URL(res.headers.get("location")!, current);
       continue;
     }
-    const text = await readCapped(res, maxBytes);
+    let text: string;
+    try {
+      text = await readCapped(res, maxBytes);
+    } catch (error) {
+      const name = (error as Error).name;
+      throw new IngestError(`Reading ${current} failed: ${(error as Error).message}`, name === "TimeoutError" || name === "AbortError" ? "site_timeout" : "site_unreachable");
+    }
     return { url: current.toString(), status: res.status, contentType: res.headers.get("content-type") ?? "", text };
   }
-  throw new IngestError("Too many redirects", "That URL redirects too many times.");
+  throw new IngestError("Too many redirects", "site_http_error", "That URL redirects too many times.");
 }
 
 async function readCapped(res: Response, maxBytes: number): Promise<string> {

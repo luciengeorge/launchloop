@@ -1,7 +1,8 @@
 import "server-only";
 import { LIMITS, charLength, containsVoteBegging, fitToLimit, stripVoteBegging, xLength } from "./limits";
 import { generateStructured } from "./llm";
-import { kitContentSchema, previewSchema, type Brief, type KitContent, type Preview } from "./schema";
+import { z } from "zod";
+import { kitContentSchema, previewSchema, type Brief, type KitContent, type KitSection, type Preview } from "./schema";
 
 const BANNED_PHRASES = [
   "revolutioniz",
@@ -72,7 +73,7 @@ function mockPreview(brief: Brief): Preview {
   return { tagline, xPost: fitX(lines) };
 }
 
-function mockContent(brief: Brief, preview: Preview): KitContent {
+export function mockContent(brief: Brief, preview: Preview): KitContent {
   const link = linkFor(brief);
   const f = brief.features;
   const proof = brief.proofPoints.filter((p) => !p.startsWith("Pricing"));
@@ -259,6 +260,7 @@ export async function generatePreview(brief: Brief): Promise<{ preview: Preview;
     mock: () => mockPreview(brief),
     rubric: previewRubric,
     mockOnGatewayError: true,
+    stage: "preview",
   });
   return {
     preview: {
@@ -269,7 +271,8 @@ export async function generatePreview(brief: Brief): Promise<{ preview: Preview;
   };
 }
 
-export async function generateKitContent(brief: Brief, preview: Preview, digest: string): Promise<{ content: KitContent; provider: string }> {
+/** Original single-call generation. Kept for profiling against the sectioned path. */
+export async function generateKitContentLegacy(brief: Brief, preview: Preview, digest: string): Promise<{ content: KitContent; provider: string }> {
   const fallback = mockContent(brief, preview);
   const { value, provider } = await generateStructured({
     schema: kitContentSchema,
@@ -283,8 +286,69 @@ export async function generateKitContent(brief: Brief, preview: Preview, digest:
 }`,
     mock: () => fallback,
     rubric: contentRubric,
+    stage: "kit",
   });
   return { content: enforceContent(value, fallback), provider };
+}
+
+const SECTION_PREFIX: Record<KitSection, string> = { landing: "landing.", productHunt: "productHunt.", xThread: "xThread", linkedin: "linkedin" };
+
+interface SectionSpec<T> {
+  schema: z.ZodType<T>;
+  speed: "main" | "fast";
+  prompt: (brief: Brief, preview: Preview) => string;
+  toContent: (value: T) => Partial<KitContent>;
+}
+
+const SECTIONS: { [K in KitSection]: SectionSpec<unknown> } = {
+  landing: {
+    schema: kitContentSchema.shape.landing,
+    speed: "fast",
+    prompt: () =>
+      `Write landing page copy as JSON: { "headline" (max ${LIMITS.landingHeadline}), "subheadline" (max ${LIMITS.landingSubheadline}), "cta" (button label, max ${LIMITS.landingCta}), "features": [3-6 × { "title" (max ${LIMITS.featureTitle}), "description" (max ${LIMITS.featureDescription}) }], "metaTitle" (max ${LIMITS.metaTitle}), "metaDescription" (max ${LIMITS.metaDescription}) }`,
+    toContent: (v) => ({ landing: v as KitContent["landing"] }),
+  },
+  productHunt: {
+    schema: kitContentSchema.shape.productHunt,
+    speed: "fast",
+    prompt: (_b, preview) =>
+      `Write the Product Hunt post as JSON: { "name" (max ${LIMITS.phName}), "tagline" (use exactly: "${preview.tagline}"), "description" (max ${LIMITS.phDescription}), "makerComment" (first comment from the maker: the story, what it does, an honest ask for feedback; max ${LIMITS.phMakerComment}), "topics": [up to 3 Product Hunt topics] }`,
+    toContent: (v) => ({ productHunt: v as KitContent["productHunt"] }),
+  },
+  xThread: {
+    schema: z.object({ posts: z.array(z.string()) }),
+    speed: "main",
+    prompt: (_b, preview) =>
+      `Write an X launch thread as JSON: { "posts": [${LIMITS.xThreadMin}-${LIMITS.xThreadMax} posts, each max ${LIMITS.xPost} weighted chars; post 1 must be exactly: ${JSON.stringify(preview.xPost)}; last post has the link and asks for feedback] }`,
+    toContent: (v) => ({ xThread: (v as { posts: string[] }).posts }),
+  },
+  linkedin: {
+    schema: z.object({ post: z.string() }),
+    speed: "fast",
+    prompt: () => `Write a LinkedIn launch post as JSON: { "post": "strong first line, short paragraphs, max ${LIMITS.linkedin} chars, at most 2 hashtags at the end" }`,
+    toContent: (v) => ({ linkedin: (v as { post: string }).post }),
+  },
+};
+
+export const KIT_SECTIONS = Object.keys(SECTIONS) as KitSection[];
+
+/** Generates one section of the kit. Sections are independent so they run in parallel. */
+export async function generateKitSection(section: KitSection, brief: Brief, preview: Preview, digest: string): Promise<{ content: Partial<KitContent>; provider: string }> {
+  const spec = SECTIONS[section];
+  const fallback = mockContent(brief, preview);
+  const fallbackValue = { landing: fallback.landing, productHunt: fallback.productHunt, xThread: { posts: fallback.xThread }, linkedin: { post: fallback.linkedin } }[section];
+  const { value, provider } = await generateStructured<unknown>({
+    schema: spec.schema,
+    speed: spec.speed,
+    stage: "kit",
+    system: SYSTEM,
+    user: `Product brief:\n${briefJson(brief)}\n\nSupporting source material (for facts only):\n${digest}\n\n${spec.prompt(brief, preview)}`,
+    mock: () => fallbackValue,
+    rubric: (v) => contentRubric({ ...fallback, ...spec.toContent(v) }).filter((p) => p.startsWith(SECTION_PREFIX[section])),
+  });
+  const enforced = enforceContent({ ...fallback, ...spec.toContent(value) }, fallback);
+  const key = section as keyof KitContent;
+  return { content: { [key]: enforced[key] } as Partial<KitContent>, provider };
 }
 
 export function launchChecklist(brief: Brief): string[] {

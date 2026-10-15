@@ -13,9 +13,20 @@ import { captureException, captureMessage } from "./observability";
  */
 export const DEFAULT_MODEL = "anthropic/claude-sonnet-4.5";
 export const DEFAULT_FALLBACK_MODELS = ["openai/gpt-5-mini"];
+/** Used for the smaller kit sections, where latency matters more than depth. */
+export const DEFAULT_FAST_MODEL = "anthropic/claude-haiku-4.5";
+
+/** Any failure to get usable output from the model. Callers turn this into a friendly message. */
+export class LlmError extends Error {
+  constructor(message: string, options?: { cause?: unknown }) {
+    super(message, options);
+    this.name = "LlmError";
+  }
+}
 
 interface GatewayConfig {
   model: string;
+  fastModel: string;
   fallbacks: string[];
 }
 
@@ -27,6 +38,7 @@ export function gatewayConfig(): GatewayConfig | null {
   const fallbacks = env.aiGatewayFallbackModels;
   return {
     model: env.aiGatewayModel ?? DEFAULT_MODEL,
+    fastModel: process.env.AI_GATEWAY_FAST_MODEL?.trim() || DEFAULT_FAST_MODEL,
     fallbacks:
       fallbacks === undefined
         ? DEFAULT_FALLBACK_MODELS
@@ -53,12 +65,30 @@ interface StructuredRequest<T> {
   maxAttempts?: number;
   /** For free, non-critical steps: serve the mock output if the gateway is down instead of failing. */
   mockOnGatewayError?: boolean;
+  /** "fast" uses the smaller model for short sections. */
+  speed?: "main" | "fast";
+  /** Used by the test-only failure switch (MOCK_LLM_FAILURES=true). */
+  stage?: "brief" | "preview" | "kit";
+}
+
+/**
+ * Test-only: with MOCK_LLM_FAILURES=true in mock mode, prompts containing
+ * LLMFAIL fail every call and KITFAIL fails full-kit calls, so error states can be tested.
+ */
+function simulatedFailure(req: StructuredRequest<unknown>): boolean {
+  if (process.env.MOCK_LLM_FAILURES !== "true") return false;
+  return req.user.includes("LLMFAIL") || (req.stage === "kit" && req.user.includes("KITFAIL"));
 }
 
 /** Generates schema-validated output, checks it against the rubric, and retries with the problems listed. */
 export async function generateStructured<T>(req: StructuredRequest<T>): Promise<{ value: T; provider: string }> {
   const config = gatewayConfig();
-  if (!config) return { value: req.mock(), provider: "mock" };
+  if (!config) {
+    if (simulatedFailure(req as StructuredRequest<unknown>)) throw new LlmError("Simulated LLM failure");
+    return { value: req.mock(), provider: "mock" };
+  }
+  const model = req.speed === "fast" ? config.fastModel : config.model;
+  const fallbacks = req.speed === "fast" ? [config.model, ...config.fallbacks].filter((m) => m !== model) : config.fallbacks;
 
   const maxAttempts = req.maxAttempts ?? 3;
   let prompt = req.user;
@@ -69,11 +99,11 @@ export async function generateStructured<T>(req: StructuredRequest<T>): Promise<
     let problems: string[];
     try {
       const result = await generateText({
-        model: gateway(config.model),
+        model: gateway(model),
         system: req.system,
         prompt,
         output: Output.object({ schema: req.schema }),
-        providerOptions: { gateway: { models: config.fallbacks } satisfies GatewayProviderOptions },
+        providerOptions: { gateway: { models: fallbacks } satisfies GatewayProviderOptions },
         abortSignal: AbortSignal.timeout(90_000),
       });
       last = { value: result.output, provider: `gateway:${result.response.modelId}` };
@@ -82,10 +112,10 @@ export async function generateStructured<T>(req: StructuredRequest<T>): Promise<
     } catch (error) {
       if (!NoObjectGeneratedError.isInstance(error)) {
         if (req.mockOnGatewayError) {
-          captureException(error, { stage: "llm.gateway", model: config.model, fallback: "mock" });
+          captureException(error, { stage: "llm.gateway", model, fallback: "mock" });
           return { value: req.mock(), provider: "mock (gateway unavailable)" };
         }
-        throw error;
+        throw new LlmError(`Gateway call failed: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
       }
       problems = [`Output did not match the required JSON shape (${error.cause instanceof Error ? error.cause.message : "invalid JSON"}).`];
     }
@@ -97,5 +127,5 @@ export async function generateStructured<T>(req: StructuredRequest<T>): Promise<
     captureMessage("LLM output still failed the rubric; falling back to automatic fixes", { problems: lastProblems });
     return last;
   }
-  throw new Error(`LLM returned unusable output after ${maxAttempts} attempts: ${lastProblems}`);
+  throw new LlmError(`LLM returned unusable output after ${maxAttempts} attempts: ${lastProblems}`);
 }

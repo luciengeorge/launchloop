@@ -9,12 +9,15 @@ export async function POST(req: Request) {
   const body = (await req.json().catch(() => ({}))) as { product?: unknown; kitId?: unknown; email?: unknown };
   if (!isProductId(body.product)) return Response.json({ error: "Unknown product." }, { status: 400 });
 
-  const email = isEmail(body.email) ? body.email : (await getSession())?.email;
+  const session = await getSession();
+  const email = session?.email ?? (isEmail(body.email) ? body.email : undefined);
   let kitId: string | undefined;
   if (body.product === "kit") {
+    // Kits are bought from an account so they land in /account and progress can be saved.
+    if (!session) return Response.json({ error: "Confirm your email first so your kit is saved to your account.", code: "login_required" }, { status: 401 });
     const kit = typeof body.kitId === "string" ? await getKit(body.kitId) : null;
     if (!kit) return Response.json({ error: "That kit doesn't exist any more. Generate a new preview." }, { status: 404 });
-    if (kit.paid) return Response.json({ url: `/kit/${kit.id}` });
+    if (kit.paid) return Response.json({ url: `/account/kits/${kit.id}` });
     kitId = kit.id;
   }
 

@@ -27,7 +27,7 @@ export async function GET(req: Request) {
     await recordPayment({ product, kitId, email, ref: session.id, customerId: typeof session.customer === "string" ? session.customer : session.customer?.id });
     if (product === "kit" && kitId) {
       after(() => fulfilKit(kitId));
-      return Response.redirect(new URL(`/kit/${kitId}?paid=1`, url), 303);
+      return Response.redirect(new URL(`/account/kits/${kitId}?paid=1`, url), 303);
     }
     return Response.redirect(new URL(`/ship-loop/thanks?plan=${product}`, url), 303);
   } catch (error) {

@@ -239,6 +239,7 @@ export async function buildBrief(source: IngestResult): Promise<{ brief: Brief; 
     user: `Write a product brief as JSON with keys: name (product name, max 30 chars), oneLiner (max 140 chars, what it does and for whom), audience (who it is for), problem (1-2 sentences, the pain it removes), features (3-6 short concrete features actually present in the material, max 120 chars each), tone (3-6 words describing the maker's voice, inferred from the README).\n\nDetected facts: ${JSON.stringify(facts)}\n\nSource material:\n${sourceDigest(source)}`,
     mock: () => fallback,
     mockOnGatewayError: true,
+    stage: "brief",
   });
   const nonEmpty = Object.fromEntries(Object.entries(value).filter(([, v]) => (typeof v === "string" ? v.trim() : true)));
   return {

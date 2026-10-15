@@ -6,8 +6,8 @@ import { useEffect, useRef, useState } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { createKitWithProgress } from "@/lib/client";
-import { checkoutKit, rememberKit, START_EVENT, type StartPlan } from "@/lib/start-intent";
+import { KitRequestError, createKitWithProgress } from "@/lib/client";
+import { rememberKit, START_EVENT, type StartPlan } from "@/lib/start-intent";
 
 const STEPS = [
   { id: "repo", label: "Reading repo" },
@@ -22,7 +22,7 @@ export function KitForm() {
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(-1);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ message: string; fix?: string; code: string } | null>(null);
 
   const [plan, setPlan] = useState<StartPlan>("free");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -65,12 +65,12 @@ export function KitForm() {
       if (kitId) rememberKit(kitId);
       // Preview images render on the kit page itself.
       advance("images");
-      // Kit intent: go straight to Stripe for the £19 kit; fall back to the preview page if checkout can't start.
-      if (plan === "kit" && kitId && (await checkoutKit(kitId).catch(() => false))) return;
-      router.push(next);
+      // Kit intent: open the kit with the unlock flow already started.
+      router.push(plan === "kit" && kitId ? `/kit/${kitId}?unlock=1` : next);
     } catch (err) {
-      setError((err as Error).message);
+      setError(err instanceof KitRequestError ? { message: err.message, fix: err.fix, code: err.code } : { message: "Something went wrong.", fix: "Try again in a moment.", code: "unknown" });
       setLoading(false);
+      requestAnimationFrame(() => inputRef.current?.focus());
     }
   }
 
@@ -98,6 +98,8 @@ export function KitForm() {
           inputMode="url"
           required
           disabled={loading}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? "kit-form-error" : undefined}
           className="h-12 border-0 bg-transparent text-base shadow-none focus-visible:ring-0 sm:text-base"
         />
         <Button type="submit" disabled={loading} className="h-12 px-5 text-base">
@@ -132,8 +134,16 @@ export function KitForm() {
       </div>
 
       {error ? (
-        <Alert variant="destructive" role="alert">
-          <AlertDescription>{error}</AlertDescription>
+        <Alert variant="destructive" role="alert" id="kit-form-error" data-testid="kit-error" data-code={error.code} className="text-left">
+          <AlertDescription>
+            <p className="font-medium text-foreground">{error.message}</p>
+            {error.fix ? <p className="mt-1">{error.fix}</p> : null}
+            {error.code === "llm_failed" || error.code === "site_timeout" || error.code === "network" ? (
+              <button type="button" className="mt-2 font-medium underline underline-offset-4" onClick={() => void submit(url)}>
+                Try again
+              </button>
+            ) : null}
+          </AlertDescription>
         </Alert>
       ) : null}
     </div>

@@ -21,7 +21,7 @@ export async function POST(req: Request) {
     if (!kit) return Response.json({ error: "Kit not found." }, { status: 404 });
     await recordPayment({ product: "kit", kitId: kit.id, email: body.email, ref });
     after(() => fulfilKit(kit.id));
-    return Response.json({ url: `/kit/${kit.id}?paid=1` });
+    return Response.json({ url: `/account/kits/${kit.id}?paid=1` });
   }
 
   await recordPayment({ product: body.product, email: body.email, ref });

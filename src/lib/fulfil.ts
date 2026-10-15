@@ -1,6 +1,7 @@
 import "server-only";
 import { addContact } from "./audience";
-import { generateKitContent, launchChecklist } from "./copy";
+import { launchChecklist } from "./copy";
+import { assemble, generateDraft, getDraft } from "./generation";
 import { kitReadyEmail, preorderEmail, sendEmail } from "./email";
 import { siteUrl } from "./env";
 import { recordShipLoop } from "./billing";
@@ -12,7 +13,7 @@ import { store } from "./store";
 import { buildKitZip, zipFileName } from "./zip";
 
 const STALE_GENERATION_MS = 3 * 60_000;
-const MAX_ATTEMPTS = 3;
+export const MAX_ATTEMPTS = 3;
 
 export interface PaidOrder {
   product: ProductId;
@@ -34,6 +35,8 @@ export interface Preorder {
 export async function recordPayment(order: PaidOrder): Promise<void> {
   if (order.product === "kit") {
     if (!order.kitId) throw new Error(`Kit payment ${order.ref} has no kitId`);
+    // If the speculative draft is done, unlock in the same write so the kit is visible on the redirect.
+    const ready = assemble((await getDraft(order.kitId)).sections);
     await updateKit(order.kitId, (kit) =>
       kit.paid
         ? { email: kit.email ?? order.email, ownerEmail: kit.ownerEmail ?? (order.email ? normaliseEmail(order.email) : undefined) }
@@ -44,6 +47,9 @@ export async function recordPayment(order: PaidOrder): Promise<void> {
             ownerEmail: kit.ownerEmail ?? (order.email ? normaliseEmail(order.email) : undefined),
             paymentRef: order.ref,
             paidAt: new Date().toISOString(),
+            ...(ready
+              ? { status: "ready" as const, content: ready, checklist: launchChecklist(kit.brief), generatedAt: new Date().toISOString(), readyAt: new Date().toISOString() }
+              : {}),
           },
     );
     if (order.email) {
@@ -104,11 +110,14 @@ async function runFulfilment(id: string): Promise<void> {
   if (kit.status !== "ready") {
     kit = await updateKit(id, (k) => ({ status: "generating", generationStartedAt: new Date().toISOString(), attempts: k.attempts + 1, error: undefined }));
     try {
-      const { content, provider } = await generateKitContent(kit.brief, kit.preview, kit.digest);
-      kit = await updateKit(id, { status: "ready", content, checklist: launchChecklist(kit.brief), generatedAt: new Date().toISOString(), llm: provider });
+      const draft = await generateDraft(kit);
+      const content = assemble(draft.sections);
+      if (!content) throw new Error("Draft finished without every section");
+      const now = new Date().toISOString();
+      kit = await updateKit(id, { status: "ready", content, checklist: launchChecklist(kit.brief), generatedAt: now, readyAt: now, llm: draft.meta?.provider ?? kit.llm });
     } catch (error) {
       captureException(error, { stage: "fulfil.generate", kitId: id });
-      await updateKit(id, { status: "failed", error: "Generation failed. We're retrying automatically." });
+      await updateKit(id, (k) => ({ status: "failed", error: k.attempts >= MAX_ATTEMPTS ? "We couldn't finish writing your kit." : "Generation hit a snag. We're retrying automatically." }));
       return;
     }
   }
