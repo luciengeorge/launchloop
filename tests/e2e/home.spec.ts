@@ -41,6 +41,38 @@ test("newsletter signup succeeds", async ({ page }) => {
   await expect(page.getByRole("status").filter({ hasText: "You're subscribed" })).toBeVisible();
 });
 
+test("free preview needs no account: a fresh visitor previews a live site and can share the link", async ({ page, browser }) => {
+  expect(await page.context().cookies()).toEqual([]);
+  const authRequests: string[] = [];
+  const pages: string[] = [];
+  page.on("request", (r) => {
+    if (new URL(r.url()).pathname.startsWith("/api/auth")) authRequests.push(r.url());
+  });
+  page.on("framenavigated", (f) => {
+    if (f === page.mainFrame()) pages.push(new URL(f.url()).pathname);
+  });
+
+  await page.goto("/");
+  await page.getByLabel("GitHub repo or live site URL").fill("http://127.0.0.1:3419/");
+  await page.getByRole("button", { name: "Get my free preview" }).first().click();
+  await page.waitForURL(/\/kit\/[\w-]+$/);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Pagebird");
+  await page.getByTestId("stage-tab-Product Hunt").click();
+  await expect(page.locator('[data-task-id="ph.tagline"]')).toHaveAttribute("data-locked", "false");
+  await expect(page.getByTestId("preview-paywall")).toBeVisible();
+  // An account only comes in at unlock.
+  await expect(page.getByRole("button", { name: "Unlock the full kit, £19" })).toBeVisible();
+  expect(authRequests).toEqual([]);
+  expect(pages.some((p) => p.startsWith("/login") || p.startsWith("/account"))).toBe(false);
+
+  const other = await browser.newContext();
+  const friend = await other.newPage();
+  await friend.goto(page.url());
+  await expect(friend.getByRole("heading", { level: 1 })).toHaveText("Pagebird");
+  await expect(friend.getByTestId("preview-paywall")).toBeVisible();
+  await other.close();
+});
+
 test.describe("without JavaScript", () => {
   test.use({ javaScriptEnabled: false });
 
