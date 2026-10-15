@@ -1,6 +1,6 @@
 import { IMAGE_VARIANTS, type ImageVariant } from "./image-variants";
 import { LIMITS } from "./limits";
-import type { KitContent } from "./schema";
+import type { Brief, KitContent } from "./schema";
 
 /** One step of the launch checklist. Serialisable so it can be passed to the client. */
 export interface KitTask {
@@ -19,8 +19,16 @@ export interface KitTask {
   pending?: boolean;
 }
 
-export const TASK_GROUPS = ["Landing page", "Meta tags", "Product Hunt", "X thread", "LinkedIn", "Images", "Launch day"] as const;
+/** Pipeline stages shown on the kit page (order matters). */
+export const TASK_GROUPS = ["Brief", "Landing", "Product Hunt", "X", "LinkedIn", "Images", "Launch day"] as const;
 export type TaskGroup = (typeof TASK_GROUPS)[number];
+
+export interface PipelineStage {
+  id: TaskGroup;
+  label: TaskGroup;
+}
+
+export const PIPELINE_STAGES: PipelineStage[] = TASK_GROUPS.map((g) => ({ id: g, label: g }));
 
 interface BuildInput {
   /** Real content for paid kits; placeholder content (same shape) for locked kits. Missing sections are pending. */
@@ -29,24 +37,40 @@ interface BuildInput {
   locked: boolean;
   /** Real free pieces, readable even when locked. */
   free?: { tagline: string; xPost: string };
+  /** Product brief — always shown as the first stage (readable even when locked). */
+  brief?: Brief;
 }
 
-export function buildTasks({ content: c, checklist, locked, free }: BuildInput): KitTask[] {
+export function buildTasks({ content: c, checklist, locked, free, brief }: BuildInput): KitTask[] {
   const tasks: KitTask[] = [];
   const add = (t: Omit<KitTask, "locked"> & { locked?: boolean }) => tasks.push({ locked, ...t });
   const pending = (group: TaskGroup, id: string, title: string) => add({ id, group, title, pending: true });
 
+  if (brief) {
+    add({
+      id: "brief.review",
+      group: "Brief",
+      title: "Confirm product brief",
+      text: [brief.name, brief.oneLiner, `Audience: ${brief.audience}`, `Problem: ${brief.problem}`, brief.features.length ? `Features:\n${brief.features.map((f) => `• ${f}`).join("\n")}` : ""]
+        .filter(Boolean)
+        .join("\n\n"),
+      hint: "Skim the brief above. If anything looks wrong, regenerate a preview before you unlock.",
+      locked: false,
+    });
+  } else {
+    pending("Brief", "brief.review", "Confirm product brief");
+  }
+
   if (c.landing) {
     const l = c.landing;
-    add({ id: "landing.headline", group: "Landing page", title: "Hero headline", text: l.headline, limit: LIMITS.landingHeadline });
-    add({ id: "landing.subheadline", group: "Landing page", title: "Subheadline", text: l.subheadline, limit: LIMITS.landingSubheadline });
-    add({ id: "landing.cta", group: "Landing page", title: "Call-to-action button", text: l.cta, limit: LIMITS.landingCta });
-    add({ id: "landing.features", group: "Landing page", title: `Feature blocks (${l.features.length})`, text: l.features.map((f) => `${f.title}\n${f.description}`).join("\n\n") });
-    add({ id: "meta.title", group: "Meta tags", title: "Meta title", text: l.metaTitle, limit: LIMITS.metaTitle });
-    add({ id: "meta.description", group: "Meta tags", title: "Meta description", text: l.metaDescription, limit: LIMITS.metaDescription });
+    add({ id: "landing.headline", group: "Landing", title: "Hero headline", text: l.headline, limit: LIMITS.landingHeadline });
+    add({ id: "landing.subheadline", group: "Landing", title: "Subheadline", text: l.subheadline, limit: LIMITS.landingSubheadline });
+    add({ id: "landing.cta", group: "Landing", title: "Call-to-action button", text: l.cta, limit: LIMITS.landingCta });
+    add({ id: "landing.features", group: "Landing", title: `Feature blocks (${l.features.length})`, text: l.features.map((f) => `${f.title}\n${f.description}`).join("\n\n") });
+    add({ id: "meta.title", group: "Landing", title: "Meta title", text: l.metaTitle, limit: LIMITS.metaTitle });
+    add({ id: "meta.description", group: "Landing", title: "Meta description", text: l.metaDescription, limit: LIMITS.metaDescription });
   } else {
-    pending("Landing page", "landing.headline", "Landing page copy");
-    pending("Meta tags", "meta.title", "Meta title and description");
+    pending("Landing", "landing.headline", "Landing page copy");
   }
 
   if (c.productHunt) {
@@ -69,7 +93,7 @@ export function buildTasks({ content: c, checklist, locked, free }: BuildInput):
     c.xThread.forEach((post, i) =>
       add({
         id: `x.${i + 1}`,
-        group: "X thread",
+        group: "X",
         title: `Post ${i + 1} of ${c.xThread!.length}`,
         text: i === 0 && free ? free.xPost : post,
         limit: LIMITS.xPost,
@@ -77,7 +101,7 @@ export function buildTasks({ content: c, checklist, locked, free }: BuildInput):
         locked: i === 0 && free ? false : locked,
       }),
     );
-  } else pending("X thread", "x.1", "X launch thread");
+  } else pending("X", "x.1", "X launch thread");
 
   if (c.linkedin !== undefined) add({ id: "linkedin", group: "LinkedIn", title: "LinkedIn post", text: c.linkedin, limit: LIMITS.linkedin });
   else pending("LinkedIn", "linkedin", "LinkedIn post");
@@ -148,4 +172,14 @@ export function scrambleContent(c: KitContent, seed: string): KitContent {
     xThread: c.xThread.map((p, i) => s(p, `x${i}`)),
     linkedin: s(c.linkedin, "li"),
   };
+}
+
+/** First incomplete stage, or the last stage when everything is done. */
+export function currentStageIndex(tasks: KitTask[], done: Set<string>): number {
+  for (let i = 0; i < TASK_GROUPS.length; i++) {
+    const items = tasks.filter((t) => t.group === TASK_GROUPS[i] && !t.pending);
+    if (!items.length) continue;
+    if (items.some((t) => !done.has(t.id))) return i;
+  }
+  return Math.max(0, TASK_GROUPS.length - 1);
 }

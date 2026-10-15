@@ -48,6 +48,7 @@ async function LockedKit({ kit, session, query }: Props) {
     checklist: launchChecklist(kit.brief).map((item, i) => scramble(item, `${kit.id}:step${i}`)),
     locked: true,
     free: { tagline: kit.preview.tagline, xPost: kit.preview.xPost },
+    brief: kit.brief,
   });
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
@@ -74,7 +75,7 @@ async function PaidKit({ kit, session }: Omit<Props, "query">) {
 
   const ready = kit.status === "ready" && kit.content;
   const sections = ready ? kit.content! : (await getDraft(kit.id)).sections;
-  const tasks = buildTasks({ content: sections, checklist: kit.checklist ?? launchChecklist(kit.brief), locked: false });
+  const tasks = buildTasks({ content: sections, checklist: kit.checklist ?? launchChecklist(kit.brief), locked: false, brief: kit.brief });
   const done = owner ? await getProgress(kit.id) : [];
 
   return (

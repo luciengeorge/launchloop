@@ -10,18 +10,38 @@ async function expectAllCountsWithinLimits(page: Page) {
   }
 }
 
+/** Open every stage so char-count / paid-text assertions can see the full kit. */
+async function expandAllStages(page: Page) {
+  const tabs = page.locator('[data-testid^="stage-tab-"]');
+  const n = await tabs.count();
+  for (let i = 0; i < n; i++) {
+    await tabs.nth(i).click();
+    await expect(page.locator('section[data-state="current"]')).toBeVisible();
+  }
+}
+
 test("sample app: blurred preview without leaks, unlock via magic link, instant full kit, ZIP and email", async ({ page, request }) => {
   const kitId = await makeSampleKit(page);
   const kitPath = `/kit/${kitId}`;
 
-  // Locked kit: the full layout, free pieces readable, everything else blurred placeholder text.
+  // Locked kit: pipeline structure, free pieces readable, everything else blurred placeholder text.
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Snapshelf");
   await expect(page.getByText("Product brief", { exact: true })).toBeVisible();
+  await expect(page.getByTestId("launch-pipeline")).toBeVisible();
+  await expect(page.getByTestId("stage-track")).toBeVisible();
+  await expect(page.getByTestId("stage-tab-Brief")).toBeVisible();
+  await expect(page.getByTestId("stage-tab-Launch day")).toBeVisible();
+
+  // Free pieces live in Product Hunt / X — open those stages.
+  await page.getByTestId("stage-tab-Product Hunt").click();
   const tagline = page.locator('[data-task-id="ph.tagline"]');
   await expect(tagline).toHaveAttribute("data-locked", "false");
+  await page.getByTestId("stage-tab-X").click();
   await expect(page.locator('[data-task-id="x.1"] [data-testid="task-text"]')).toContainText("Snapshelf");
+  await page.getByTestId("stage-tab-LinkedIn").click();
   await expect(page.locator('[data-task-id="linkedin"]')).toHaveAttribute("data-locked", "true");
-  expect(await page.getByTestId("locked-text").count()).toBeGreaterThan(10);
+  expect(await page.getByTestId("locked-text").count()).toBeGreaterThan(0);
+  await page.getByTestId("stage-tab-Images").click();
   await expect(page.getByRole("img", { name: /Product Hunt gallery.*watermarked/ })).toBeVisible();
   await expect(page.getByTestId("unlock-panel")).toBeVisible();
   expect((await request.get(`/api/kits/${kitId}/zip`)).status()).toBe(402);
@@ -43,21 +63,35 @@ test("sample app: blurred preview without leaks, unlock via magic link, instant 
 
   // The speculative draft means the kit is visible right away, no spinner.
   await expect(page.getByRole("heading", { name: "Your launch kit is ready" })).toBeVisible({ timeout: 3000 });
+  await expect(page.getByTestId("launch-pipeline")).toBeVisible();
+  await expandAllStages(page);
   await expectAllCountsWithinLimits(page);
-  const posts = page.getByTestId("group-X thread").getByTestId("task");
+  await page.getByTestId("stage-tab-X").click();
+  const posts = page.getByTestId("stage-X").getByTestId("task");
   const postCount = await posts.count();
   expect(postCount).toBeGreaterThanOrEqual(5);
   expect(postCount).toBeLessThanOrEqual(7);
 
   // None of the paid text was in anything the locked page received.
-  const paidTexts = await page.locator('[data-locked="false"]:not([data-task-id="ph.tagline"]):not([data-task-id="x.1"]) [data-testid="task-text"]').allInnerTexts();
+  const paidTexts: string[] = [];
+  for (const stage of ["Landing", "Product Hunt", "X", "LinkedIn", "Launch day"]) {
+    await page.getByTestId(`stage-tab-${stage}`).click();
+    const texts = await page
+      .locator('[data-locked="false"]:not([data-task-id="ph.tagline"]):not([data-task-id="x.1"]):not([data-task-id="brief.review"]) [data-testid="task-text"]')
+      .allInnerTexts();
+    paidTexts.push(...texts);
+  }
   expect(paidTexts.length).toBeGreaterThan(10);
   const sent = lockedBodies.join("\n");
   // Text that is also in the free brief (mock copy reuses it) isn't secret.
   const brief = await page.locator('section[aria-labelledby="brief-heading"]').innerText();
+  const isFreeBriefLine = (line: string) => {
+    const plain = line.replace(/^[•\-*]\s+/, "");
+    return brief.includes(line) || brief.includes(plain);
+  };
   let checked = 0;
   for (const text of paidTexts) {
-    for (const line of text.split("\n").map((l) => l.trim()).filter((l) => l.length > 25 && !brief.includes(l))) {
+    for (const line of text.split("\n").map((l) => l.trim()).filter((l) => l.length > 25 && !isFreeBriefLine(l))) {
       expect(sent, `locked page leaked: ${line}`).not.toContain(line);
       checked++;
     }
@@ -90,7 +124,7 @@ test("sample app: blurred preview without leaks, unlock via magic link, instant 
   expect(receipt.text).toContain("X launch thread");
 });
 
-test("launch checklist: ticks persist to the account, show on /account, and 100% celebrates", async ({ page }) => {
+test("launch pipeline: stage navigation, ticks persist, advance on stage complete, 100% celebrates", async ({ page }) => {
   const kitId = await makeSampleKit(page);
   const email = `checklist-${Date.now()}@example.com`;
   await unlockAndPay(page, kitId, email);
@@ -98,30 +132,50 @@ test("launch checklist: ticks persist to the account, show on /account, and 100%
 
   const progress = page.getByTestId("progress");
   await expect(progress).toHaveAttribute("aria-valuenow", "0");
-  const tasks = page.getByTestId("task");
-  const total = await tasks.count();
+  await expect(page.getByTestId("stage-track")).toBeVisible();
+  await expect(page.getByTestId("stage-Brief")).toHaveAttribute("data-state", "current");
+
+  // Count total tasks across stages (open each tab).
+  let total = 0;
+  for (const stage of ["Brief", "Landing", "Product Hunt", "X", "LinkedIn", "Images", "Launch day"]) {
+    await page.getByTestId(`stage-tab-${stage}`).click();
+    total += await page.getByTestId(`stage-${stage}`).getByTestId("task").count();
+  }
   expect(total).toBeGreaterThan(20);
 
-  await page.getByRole("checkbox", { name: "Mark “Hero headline” done" }).click();
+  // Back to Brief — tick the brief review via Mark done; completing Brief advances to Landing.
+  await page.getByTestId("stage-tab-Brief").click();
+  await expect(page.locator('[data-task-id="brief.review"]')).toBeVisible();
+  await page.getByRole("button", { name: "Mark done" }).click();
+  await expect(page.getByTestId("stage-Landing")).toHaveAttribute("data-state", "current");
+  await expect(page.getByTestId("stage-tab-Brief")).toHaveAttribute("data-state", "done");
+
+  // Jump to LinkedIn and tick it (single-task stage advances immediately).
+  await page.getByTestId("stage-tab-LinkedIn").click();
   await page.getByRole("checkbox", { name: "Mark “LinkedIn post” done" }).click();
-  await expect(page.locator('[data-task-id="linkedin"]')).toHaveAttribute("data-done", "true");
+  await expect(page.getByTestId("stage-tab-LinkedIn")).toHaveAttribute("data-state", "done");
   const two = String(Math.round((2 / total) * 100));
   await expect(progress).toHaveAttribute("aria-valuenow", two);
 
   // Persisted server-side: survives a reload and shows on the dashboard.
   await page.waitForLoadState("networkidle");
   await page.reload();
-  await expect(page.locator('[data-task-id="linkedin"]')).toHaveAttribute("data-done", "true");
+  await expect(page.getByTestId("stage-tab-LinkedIn")).toHaveAttribute("data-state", "done");
   await expect(page.getByTestId("progress")).toHaveAttribute("aria-valuenow", two);
   await page.goto("/account");
   await expect(page.locator(`[data-kit-id="${kitId}"] [data-testid="kit-progress"]`)).toContainText(`2/${total} · ${two}%`);
 
-  // Untick works too, then finish everything.
+  // Untick works too, then finish everything stage by stage.
   await page.goto(`/account/kits/${kitId}`);
+  await page.getByTestId("stage-tab-LinkedIn").click();
   await page.getByRole("checkbox", { name: "Mark “LinkedIn post” done" }).click();
-  await expect(page.locator('[data-task-id="linkedin"]')).toHaveAttribute("data-done", "false");
-  const open = page.locator('[data-done="false"] [role="checkbox"]');
-  while ((await open.count()) > 0) await open.first().click();
+  await expect(page.getByTestId("stage-tab-LinkedIn")).not.toHaveAttribute("data-state", "done");
+
+  for (const stage of ["Brief", "Landing", "Product Hunt", "X", "LinkedIn", "Images", "Launch day"]) {
+    await page.getByTestId(`stage-tab-${stage}`).click();
+    const open = page.getByTestId(`stage-${stage}`).locator('[data-done="false"] [role="checkbox"]');
+    while ((await open.count()) > 0) await open.first().click();
+  }
   await expect(page.getByTestId("progress")).toHaveAttribute("aria-valuenow", "100");
   await expect(page.getByTestId("all-done")).toBeVisible();
   await page.waitForLoadState("networkidle");

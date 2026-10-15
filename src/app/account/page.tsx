@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getSession } from "@/lib/auth";
-import { getShipLoop } from "@/lib/billing";
+import { getShipLoop, hasBillingAccess } from "@/lib/billing";
 import { IMAGE_VARIANTS, type ImageVariant } from "@/lib/image-variants";
 import { listUserKits } from "@/lib/kits";
 import { getProgress } from "@/lib/progress";
@@ -37,6 +37,10 @@ async function Dashboard({ searchParams }: Pick<PageProps<"/account">, "searchPa
   const [kits, shipLoop, query] = await Promise.all([listUserKits(session.email), getShipLoop(session.email), searchParams]);
   const progress = await Promise.all(kits.map((k) => (k.paid && k.content ? kitProgress(k) : null)));
   const billingNote = typeof query.billing === "string" ? BILLING_NOTES[query.billing] : undefined;
+  const showBilling = await hasBillingAccess(
+    session.email,
+    kits.some((k) => k.paid),
+  );
 
   return (
     <div className="space-y-8">
@@ -47,21 +51,26 @@ async function Dashboard({ searchParams }: Pick<PageProps<"/account">, "searchPa
             {session.email}
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {shipLoop ? (
-            <form method="post" action="/api/billing/portal">
-              <Button type="submit" variant="outline" size="lg">
-                Manage billing
-              </Button>
-            </form>
-          ) : null}
-          <form method="post" action="/api/auth/logout">
-            <Button type="submit" variant="ghost" size="lg">
-              Log out
+        {shipLoop ? (
+          <Badge variant="secondary" data-testid="shiploop-badge">
+            Ship Loop
+          </Badge>
+        ) : null}
+      </header>
+
+      {showBilling ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-primary/30 bg-primary/5 p-5" data-testid="billing-card">
+          <div>
+            <p className="text-base font-semibold">Invoices &amp; payments</p>
+            <p className="mt-0.5 text-sm text-muted-foreground">Receipts, invoices and payment methods for your kits and Ship Loop.</p>
+          </div>
+          <form method="post" action="/api/billing/portal">
+            <Button type="submit" size="lg" data-testid="manage-billing">
+              Manage billing
             </Button>
           </form>
         </div>
-      </header>
+      ) : null}
 
       {billingNote ? (
         <p className="rounded-md bg-muted px-3 py-2 text-sm" role="status">
@@ -90,7 +99,7 @@ async function Dashboard({ searchParams }: Pick<PageProps<"/account">, "searchPa
 const dateFormat = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric" });
 
 async function kitProgress(kit: Kit) {
-  const tasks = countableTasks(buildTasks({ content: kit.content!, checklist: kit.checklist ?? [], locked: false }));
+  const tasks = countableTasks(buildTasks({ content: kit.content!, checklist: kit.checklist ?? [], locked: false, brief: kit.brief }));
   const done = new Set(await getProgress(kit.id));
   const completed = tasks.filter((t) => done.has(t.id)).length;
   return { completed, total: tasks.length, percent: tasks.length ? Math.round((completed / tasks.length) * 100) : 0 };
@@ -121,7 +130,7 @@ function KitRow({ kit, progress }: { kit: Kit; progress: { completed: number; to
       {progress ? (
         <div className="mt-4" data-testid="kit-progress">
           <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span>Launch checklist</span>
+            <span>Launch pipeline</span>
             <span className="font-mono">
               {progress.completed}/{progress.total} · {progress.percent}%
             </span>

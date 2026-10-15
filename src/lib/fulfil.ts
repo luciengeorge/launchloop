@@ -3,7 +3,7 @@ import { addContact } from "./audience";
 import { launchChecklist } from "./copy";
 import { assemble, generateDraft, getDraft } from "./generation";
 import { kitReadyEmail, preorderEmail, sendEmail } from "./email";
-import { recordShipLoop } from "./billing";
+import { recordBillingCustomer, recordShipLoop } from "./billing";
 import { getKit, linkKitToUser, normaliseEmail, updateKit } from "./kits";
 import { captureException } from "./observability";
 import { PRODUCTS, type ProductId } from "./products";
@@ -54,6 +54,7 @@ export async function recordPayment(order: PaidOrder): Promise<void> {
     if (order.email) {
       await linkKitToUser(order.email, order.kitId);
       await addContact(order.email, "kit");
+      if (order.customerId) await recordBillingCustomer(order.email, order.customerId, "kit");
     }
     return;
   }

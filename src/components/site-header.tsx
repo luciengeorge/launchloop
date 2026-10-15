@@ -1,9 +1,8 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import { AccountLink, LogInLink } from "./account-link";
-import { buttonVariants } from "@/components/ui/button";
+import { AccountNav, LogInLink } from "./account-link";
+import { AuthCta } from "./auth-cta";
 import { Logo } from "./logo";
-import { StartLink } from "./start-link";
 
 const NAV = [
   { href: "/#kit", label: "What you get" },
@@ -24,13 +23,13 @@ export function SiteHeader() {
             </Link>
           ))}
         </nav>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3 sm:gap-4">
           <Suspense fallback={<LogInLink />}>
-            <AccountLink />
+            <AccountNav />
           </Suspense>
-          <StartLink plan="kit" className={buttonVariants({ size: "lg", className: "px-4" })}>
-            Get my launch kit
-          </StartLink>
+          <Suspense fallback={null}>
+            <AuthCta />
+          </Suspense>
         </div>
       </div>
     </header>

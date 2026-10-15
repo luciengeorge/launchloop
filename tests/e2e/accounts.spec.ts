@@ -3,7 +3,13 @@ import { logIn, magicLinkFor, makeSampleKit, uniqueEmail, unlockAndPay } from ".
 
 test("magic-link login, single-use token, header state and log out", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("banner").getByRole("link", { name: "Log in" })).toBeVisible();
+  const banner = page.getByRole("banner");
+  await expect(banner.getByRole("link", { name: "Log in" })).toBeVisible();
+  await expect(banner.getByRole("link", { name: "Get my launch kit" })).toBeVisible();
+  await expect(banner.getByRole("link", { name: "What you get" })).toBeVisible();
+  await expect(banner.getByRole("link", { name: "Pricing" })).toBeVisible();
+  await expect(banner.getByRole("link", { name: "Ship Loop" })).toBeVisible();
+  await expect(banner.getByRole("link", { name: "FAQ" })).toBeVisible();
 
   const email = uniqueEmail("login");
   await page.goto("/login");
@@ -19,7 +25,12 @@ test("magic-link login, single-use token, header state and log out", async ({ pa
   await page.waitForURL(/\/account$/);
   await expect(page.getByRole("heading", { name: "My kits" })).toBeVisible();
   await expect(page.getByText("No kits yet.")).toBeVisible();
-  await expect(page.getByRole("banner").getByRole("link", { name: "My kits" })).toBeVisible();
+  // Logged-in navbar: My kits + Log out, no primary CTA, site header still present
+  await expect(banner.getByRole("link", { name: "My kits" })).toBeVisible();
+  await expect(banner.getByRole("button", { name: "Log out" })).toBeVisible();
+  await expect(banner.getByRole("link", { name: "Get my launch kit" })).toHaveCount(0);
+  await expect(banner.getByRole("link", { name: "LaunchLoop home" })).toBeVisible();
+  await expect(banner.getByRole("link", { name: "Pricing" })).toBeVisible();
 
   const cookies = await page.context().cookies();
   const session = cookies.find((c) => c.name === "ll_session");
@@ -31,9 +42,10 @@ test("magic-link login, single-use token, header state and log out", async ({ pa
   await page.waitForURL(/\/login\?error=expired/);
   await expect(page.getByText("That login link has expired")).toBeVisible();
 
-  // Log out.
+  // Log out from the navbar (not only /account).
   await page.goto("/account");
-  await page.getByRole("button", { name: "Log out" }).click();
+  await expect(page.getByRole("banner").getByRole("link", { name: "LaunchLoop home" })).toBeVisible();
+  await page.getByRole("banner").getByRole("button", { name: "Log out" }).click();
   await page.waitForURL((u) => u.pathname === "/");
   await expect(page.getByRole("banner").getByRole("link", { name: "Log in" })).toBeVisible();
   await page.goto("/account");
@@ -91,7 +103,7 @@ test("anonymous kits made in this browser are claimed on login and shown on the 
   await expect(page.locator(`[data-kit-id="${secondId}"]`)).toBeVisible();
 });
 
-test("kits paid for with an email show up for that account with downloads", async ({ browser }) => {
+test("kits paid for with an email show up for that account with downloads and billing", async ({ browser }) => {
   const buyer = await browser.newContext();
   const page = await buyer.newPage();
   const kitId = await makeSampleKit(page);
@@ -115,7 +127,11 @@ test("kits paid for with an email show up for that account with downloads", asyn
     const res = await p2.request.get((await row.getByRole("link", { name: file }).getAttribute("href"))!);
     expect(res.headers()["content-type"]).toBe("image/png");
   }
-  await expect(p2.getByRole("button", { name: "Manage billing" })).toHaveCount(0);
+  // One-off kit buyers get Manage billing too (mock Stripe → billing=mock).
+  await expect(p2.getByTestId("billing-card")).toBeVisible();
+  await p2.getByRole("button", { name: "Manage billing" }).click();
+  await p2.waitForURL(/\/account\?billing=mock/);
+  await expect(p2.getByText("unavailable in test mode")).toBeVisible();
   await fresh.close();
 });
 

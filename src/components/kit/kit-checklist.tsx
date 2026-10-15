@@ -1,13 +1,14 @@
 "use client";
 
-import { Check, Lock, PartyPopper } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Check, ChevronDown, Lock, PartyPopper } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { CopyButton } from "@/components/copy-button";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { IMAGE_VARIANTS } from "@/lib/image-variants";
 import { charLength, xLength } from "@/lib/limits";
-import { TASK_GROUPS, type KitTask } from "@/lib/tasks";
+import { PIPELINE_STAGES, TASK_GROUPS, currentStageIndex, type KitTask, type TaskGroup } from "@/lib/tasks";
 import { Confetti } from "./confetti";
 
 interface Props {
@@ -28,6 +29,10 @@ export function KitChecklist({ kitId, productName, tasks, locked, persist, initi
   const [done, setDone] = useState<Set<string>>(() => new Set(initialDone));
   const [confetti, setConfetti] = useState(0);
   const [justTicked, setJustTicked] = useState<string | null>(null);
+  const [celebratePct, setCelebratePct] = useState(false);
+  const prevPercent = useRef(0);
+  const [activeStage, setActiveStage] = useState<TaskGroup>(() => TASK_GROUPS[currentStageIndex(tasks, new Set(initialDone))] ?? "Brief");
+  const [manualStage, setManualStage] = useState(false);
 
   useEffect(() => {
     if (persist !== "local" || locked) return;
@@ -43,6 +48,16 @@ export function KitChecklist({ kitId, productName, tasks, locked, persist, initi
   const total = countable.length;
   const completed = countable.filter((t) => done.has(t.id)).length;
   const percent = total ? Math.round((completed / total) * 100) : 0;
+
+  useEffect(() => {
+    if (percent > prevPercent.current && prevPercent.current > 0) {
+      setCelebratePct(true);
+      const t = setTimeout(() => setCelebratePct(false), 900);
+      prevPercent.current = percent;
+      return () => clearTimeout(t);
+    }
+    prevPercent.current = percent;
+  }, [percent]);
 
   const toggle = useCallback(
     async (task: KitTask) => {
@@ -60,6 +75,18 @@ export function KitChecklist({ kitId, productName, tasks, locked, persist, initi
           setConfetti((n) => n + 1);
           toast.success(`${productName} is ready to launch. Every step done!`);
         } else if (nextCompleted % 5 === 0) toast(CHEERS[(nextCompleted / 5) % CHEERS.length]);
+        // Advance when finishing the last task of this stage
+        if (stageComplete(tasks, next, task.group)) {
+          const idx = TASK_GROUPS.indexOf(task.group);
+          const nextStage = TASK_GROUPS[idx + 1];
+          if (nextStage) {
+            setActiveStage(nextStage);
+            setManualStage(false);
+            toast.message(`${task.group} done — on to ${nextStage}`);
+          }
+        } else if (!manualStage) {
+          setActiveStage(TASK_GROUPS[currentStageIndex(tasks, next)] ?? task.group);
+        }
       }
       if (persist === "local") {
         try {
@@ -77,33 +104,76 @@ export function KitChecklist({ kitId, productName, tasks, locked, persist, initi
         setDone(done);
       }
     },
-    [countable, done, kitId, locked, persist, productName, total],
+    [countable, done, kitId, locked, manualStage, persist, productName, tasks, total],
   );
 
+  const openStage = (stage: TaskGroup) => {
+    setActiveStage(stage);
+    setManualStage(true);
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-testid="launch-pipeline">
       <Confetti fire={confetti} />
-      <ProgressHeader percent={percent} completed={completed} total={total} locked={locked} persist={persist} />
+      <ProgressHero percent={percent} completed={completed} total={total} locked={locked} persist={persist} celebrate={celebratePct} />
       {percent === 100 && !locked ? (
         <p className="flex items-center gap-2 rounded-xl bg-emerald-500/10 px-4 py-3 text-sm font-medium text-emerald-800" role="status" data-testid="all-done">
           <PartyPopper className="size-4" aria-hidden="true" /> Every step done. Go launch {productName}!
         </p>
       ) : null}
-      {TASK_GROUPS.map((group) => {
-        const items = tasks.filter((t) => t.group === group);
+
+      <StageTrack
+        tasks={tasks}
+        done={done}
+        active={activeStage}
+        onSelect={openStage}
+      />
+
+      {PIPELINE_STAGES.map((stage) => {
+        const items = tasks.filter((t) => t.group === stage.id);
         if (!items.length) return null;
-        const groupDone = items.filter((t) => done.has(t.id)).length;
+        const countableItems = items.filter((t) => !t.pending);
+        const groupDone = countableItems.filter((t) => done.has(t.id)).length;
+        const complete = countableItems.length > 0 && groupDone === countableItems.length;
+        const isActive = activeStage === stage.id;
+        const isUpcoming = TASK_GROUPS.indexOf(stage.id) > TASK_GROUPS.indexOf(activeStage) && !complete;
+
+        if (!isActive) {
+          return (
+            <button
+              key={stage.id}
+              type="button"
+              onClick={() => openStage(stage.id)}
+              className={`flex w-full items-center justify-between gap-3 rounded-xl border px-4 py-3 text-left transition-colors ${
+                complete ? "border-emerald-500/30 bg-emerald-500/[0.04]" : "border-border bg-card hover:border-primary/40"
+              } ${isUpcoming && locked ? "opacity-70" : ""}`}
+              data-testid={`stage-summary-${stage.id}`}
+              data-stage={stage.id}
+              data-state={complete ? "done" : isUpcoming ? "upcoming" : "collapsed"}
+            >
+              <span className="flex items-center gap-2 text-sm font-medium">
+                {complete ? <Check className="size-4 text-emerald-600" aria-hidden="true" /> : null}
+                {stage.label}
+                <span className="font-mono text-xs text-muted-foreground">
+                  {locked && !complete ? "Preview" : `${groupDone}/${countableItems.length}`}
+                </span>
+              </span>
+              <ChevronDown className="size-4 text-muted-foreground" aria-hidden="true" />
+            </button>
+          );
+        }
+
         return (
-          <section key={group} aria-label={group} className="space-y-3" data-testid={`group-${group}`}>
-            <h3 className="flex items-baseline justify-between text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              {group}
+          <section key={stage.id} aria-label={stage.label} className="space-y-4" data-testid={`stage-${stage.id}`} data-stage={stage.id} data-state="current">
+            <h3 className="flex items-baseline justify-between text-base font-semibold tracking-tight">
+              {stage.label}
               {!locked ? (
-                <span className="font-mono text-xs normal-case">
-                  {groupDone}/{items.filter((t) => !t.pending).length}
+                <span className="font-mono text-xs font-normal text-muted-foreground">
+                  {groupDone}/{countableItems.length} done
                 </span>
               ) : null}
             </h3>
-            <ul className="space-y-3">
+            <ul className="space-y-4">
               {items.map((task) => (
                 <TaskRow key={task.id} kitId={kitId} task={task} done={done.has(task.id)} pop={justTicked === task.id} onToggle={() => void toggle(task)} kitLocked={locked} />
               ))}
@@ -115,36 +185,119 @@ export function KitChecklist({ kitId, productName, tasks, locked, persist, initi
   );
 }
 
-function ProgressHeader({ percent, completed, total, locked, persist }: { percent: number; completed: number; total: number; locked: boolean; persist: "server" | "local" }) {
-  const r = 22;
+function stageComplete(tasks: KitTask[], done: Set<string>, group: TaskGroup): boolean {
+  const items = tasks.filter((t) => t.group === group && !t.pending);
+  return items.length > 0 && items.every((t) => done.has(t.id));
+}
+
+function StageTrack({
+  tasks,
+  done,
+  active,
+  onSelect,
+}: {
+  tasks: KitTask[];
+  done: Set<string>;
+  active: TaskGroup;
+  onSelect: (s: TaskGroup) => void;
+}) {
+  return (
+    <nav aria-label="Launch stages" className="overflow-x-auto" data-testid="stage-track">
+      <ol className="flex min-w-max items-center gap-1 pb-1">
+        {PIPELINE_STAGES.map((stage, i) => {
+          const items = tasks.filter((t) => t.group === stage.id && !t.pending);
+          if (!items.length && !tasks.some((t) => t.group === stage.id)) return null;
+          const complete = items.length > 0 && items.every((t) => done.has(t.id));
+          const current = active === stage.id;
+          const state = complete ? "done" : current ? "current" : "upcoming";
+          return (
+            <li key={stage.id} className="flex items-center gap-1">
+              {i > 0 ? <span className="mx-0.5 h-px w-3 bg-border sm:w-5" aria-hidden="true" /> : null}
+              <button
+                type="button"
+                onClick={() => onSelect(stage.id)}
+                data-testid={`stage-tab-${stage.id}`}
+                data-state={state}
+                className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                  state === "current"
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : state === "done"
+                      ? "bg-emerald-500/15 text-emerald-800"
+                      : "bg-muted text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {complete ? <Check className="mr-1 inline size-3" aria-hidden="true" /> : null}
+                {stage.label}
+              </button>
+            </li>
+          );
+        })}
+      </ol>
+    </nav>
+  );
+}
+
+function ProgressHero({
+  percent,
+  completed,
+  total,
+  locked,
+  persist,
+  celebrate,
+}: {
+  percent: number;
+  completed: number;
+  total: number;
+  locked: boolean;
+  persist: "server" | "local";
+  celebrate: boolean;
+}) {
+  const r = 54;
   const circ = 2 * Math.PI * r;
   return (
-    <div className="flex items-center gap-4 rounded-2xl border border-border bg-card p-4">
-      <div className="relative size-14 shrink-0" role="progressbar" aria-label="Launch checklist progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent} data-testid="progress">
-        <svg viewBox="0 0 56 56" className="size-14 -rotate-90">
-          <circle cx="28" cy="28" r={r} fill="none" stroke="currentColor" strokeWidth="6" className="text-muted" />
+    <div
+      className={`flex flex-col items-center gap-4 rounded-3xl border border-border bg-card p-6 sm:flex-row sm:items-center sm:gap-8 sm:p-8 ${
+        celebrate ? "ring-2 ring-primary/40 motion-reduce:ring-0" : ""
+      }`}
+      data-testid="progress-hero"
+    >
+      <div
+        className={`relative size-32 shrink-0 sm:size-36 ${celebrate ? "scale-105 motion-reduce:scale-100" : ""} transition-transform duration-500 motion-reduce:transition-none`}
+        role="progressbar"
+        aria-label="Launch checklist progress"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={percent}
+        data-testid="progress"
+      >
+        <svg viewBox="0 0 128 128" className="size-full -rotate-90">
+          <circle cx="64" cy="64" r={r} fill="none" stroke="currentColor" strokeWidth="10" className="text-muted" />
           <circle
-            cx="28"
-            cy="28"
+            cx="64"
+            cy="64"
             r={r}
             fill="none"
             stroke="currentColor"
-            strokeWidth="6"
+            strokeWidth="10"
             strokeLinecap="round"
             strokeDasharray={circ}
             strokeDashoffset={circ * (1 - percent / 100)}
-            className="text-primary transition-[stroke-dashoffset] duration-500 motion-reduce:transition-none"
+            className="text-primary transition-[stroke-dashoffset] duration-700 ease-out motion-reduce:transition-none"
           />
         </svg>
-        <span className="absolute inset-0 flex items-center justify-center font-mono text-xs font-semibold">{percent}%</span>
+        <span className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className="font-mono text-2xl font-semibold tabular-nums sm:text-3xl">{percent}%</span>
+        </span>
       </div>
-      <div className="text-sm">
-        <p className="font-medium">{locked ? "Your launch checklist" : `${completed} of ${total} launch steps done`}</p>
-        <p className="text-muted-foreground">
+      <div className="text-center sm:text-left">
+        <p className="text-lg font-semibold tracking-tight sm:text-xl">
+          {locked ? "Your launch pipeline" : `${completed} of ${total} done`}
+        </p>
+        <p className="mt-1 max-w-md text-sm text-muted-foreground">
           {locked
-            ? `${total} steps, from landing copy to launch day. Unlock to start ticking them off.`
+            ? `${total} steps across Brief → Launch day. Unlock to start ticking them off.`
             : persist === "server"
-              ? "Copy each asset, use it, tick it off. Progress saves to your account."
+              ? "Work one stage at a time. Progress saves to your account."
               : "Progress is saved in this browser. Log in to keep it on your account."}
         </p>
       </div>
@@ -169,30 +322,30 @@ function TaskRow({ kitId, task, done, pop, onToggle, kitLocked }: { kitId: strin
 
   return (
     <li
-      className={`rounded-xl border bg-card transition-colors ${done ? "border-emerald-500/40 bg-emerald-500/[0.03]" : "border-border"}`}
+      className={`rounded-2xl border bg-card transition-colors ${done ? "border-emerald-500/40 bg-emerald-500/[0.03]" : "border-border"}`}
       data-testid="task"
       data-task-id={task.id}
       data-locked={task.locked}
       data-done={done}
     >
-      <div className="flex items-start gap-3 px-4 py-3">
+      <div className="flex items-start gap-4 px-5 py-4">
         <button
           type="button"
           role="checkbox"
           aria-checked={done}
           aria-label={kitLocked ? `${task.title} (locked)` : `Mark “${task.title}” done`}
-          disabled={kitLocked}
+          disabled={kitLocked || task.locked}
           onClick={onToggle}
-          className={`mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full border-2 transition-all motion-reduce:transition-none ${
+          className={`mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full border-2 transition-all motion-reduce:transition-none ${
             done ? "border-emerald-500 bg-emerald-500 text-white" : "border-border hover:border-primary"
           } ${pop ? "scale-125 motion-reduce:scale-100" : "scale-100"} disabled:cursor-not-allowed disabled:opacity-60`}
         >
-          {kitLocked ? <Lock className="size-3 text-muted-foreground" aria-hidden="true" /> : done ? <Check className="size-3.5" aria-hidden="true" /> : null}
+          {kitLocked || task.locked ? <Lock className="size-4 text-muted-foreground" aria-hidden="true" /> : done ? <Check className="size-5" aria-hidden="true" /> : null}
         </button>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <h4 className={`text-sm font-medium ${done ? "text-muted-foreground line-through decoration-emerald-500/60" : ""}`}>{task.title}</h4>
+              <h4 className={`text-base font-medium ${done ? "text-muted-foreground line-through decoration-emerald-500/60" : ""}`}>{task.title}</h4>
               {task.limit !== undefined && !task.locked ? (
                 <span
                   data-testid="char-count"
@@ -204,12 +357,19 @@ function TaskRow({ kitId, task, done, pop, onToggle, kitLocked }: { kitId: strin
                 </span>
               ) : null}
             </div>
-            {task.text !== undefined && !task.locked ? <CopyButton text={task.text} /> : null}
-            {src && image && !task.locked ? (
-              <a href={src} download={image.file} className="text-xs font-medium underline underline-offset-4">
-                Download
-              </a>
-            ) : null}
+            <div className="flex flex-wrap items-center gap-2">
+              {task.text !== undefined && !task.locked ? <CopyButton text={task.text} /> : null}
+              {src && image && !task.locked ? (
+                <a href={src} download={image.file} className="text-xs font-medium underline underline-offset-4">
+                  Download
+                </a>
+              ) : null}
+              {!kitLocked && !task.locked ? (
+                <Button type="button" variant={done ? "outline" : "default"} size="sm" onClick={onToggle} data-testid="mark-done">
+                  {done ? "Undo" : "Mark done"}
+                </Button>
+              ) : null}
+            </div>
           </div>
           {task.text !== undefined ? (
             task.locked ? (
