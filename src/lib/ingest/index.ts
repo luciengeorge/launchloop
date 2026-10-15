@@ -38,7 +38,9 @@ export function normaliseInput(raw: string): string {
   return url.toString();
 }
 
-export async function ingest(rawInput: string): Promise<IngestResult> {
+export type IngestStep = "repo" | "site";
+
+export async function ingest(rawInput: string, onStep: (step: IngestStep) => void = () => {}): Promise<IngestResult> {
   const input = normaliseInput(rawInput);
   const warnings: string[] = [];
 
@@ -57,17 +59,24 @@ export async function ingest(rawInput: string): Promise<IngestResult> {
   const gh = parseGitHubUrl(input);
 
   if (gh) {
+    onStep("repo");
     repo = await fetchRepo(gh.owner, gh.name, warnings);
     const homepage = repo.homepage ?? repo.packageJson?.homepage;
-    if (homepage && /^https?:\/\//.test(homepage)) site = await trySite(homepage, warnings);
-    else warnings.push("The repo has no homepage set, so brand colours fell back to defaults unless found elsewhere.");
+    if (homepage && /^https?:\/\//.test(homepage)) {
+      onStep("site");
+      site = await trySite(homepage, warnings);
+      // An open-source repo's site only counts as "paid" if it links to its own pricing page.
+      if (site && !site.pricingUrl) site = { ...site, prices: [] };
+    } else warnings.push("The repo has no homepage set, so brand colours fell back to defaults unless found elsewhere.");
   } else {
+    onStep("site");
     site = await trySite(input, warnings);
     if (!site) {
       throw new IngestError("Site unreachable", "We couldn't load that page. Check the URL is public, or paste your GitHub repo instead.");
     }
     const linked = site.githubUrl ? parseGitHubUrl(site.githubUrl) : null;
     if (linked) {
+      onStep("repo");
       try {
         const candidate = await fetchRepo(linked.owner, linked.name, warnings);
         if (repoMatchesSite(candidate, site)) repo = candidate;

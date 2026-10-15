@@ -1,10 +1,14 @@
 "use client";
 
 import { useEffect } from "react";
+import * as Sentry from "@sentry/nextjs";
 import { reportClientError } from "@/lib/client";
 
 export default function GlobalError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
-  useEffect(() => reportClientError(error), [error]);
+  useEffect(() => {
+    Sentry.captureException(error);
+    reportClientError(error);
+  }, [error]);
   return (
     <html lang="en-GB">
       <body style={{ fontFamily: "system-ui, sans-serif", display: "grid", placeItems: "center", minHeight: "100vh", margin: 0 }}>

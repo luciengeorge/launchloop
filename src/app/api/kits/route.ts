@@ -26,6 +26,9 @@ export async function POST(req: Request) {
     return Response.json({ error: "Paste a public GitHub repo URL or your live site URL." }, { status: 400 });
   }
 
+  // Opt-in progress stream: newline-delimited JSON events, ending with {type:"done"} or {type:"error"}.
+  if (req.headers.get("accept")?.includes("application/x-ndjson")) return streamKit(url);
+
   try {
     const kit = await createKit(url);
     return Response.json({ id: kit.id, url: `/kit/${kit.id}` }, { status: 201 });
@@ -34,4 +37,39 @@ export async function POST(req: Request) {
     captureException(error, { stage: "api.kits.create", url });
     return Response.json({ error: "Something went wrong reading your app. Please try again." }, { status: 500 });
   }
+}
+
+function streamKit(url: string): Response {
+  const encoder = new TextEncoder();
+  const body = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const send = (event: Record<string, unknown>) => {
+        try {
+          controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+        } catch {
+          // Client went away; keep generating so the kit still gets saved.
+        }
+      };
+      try {
+        const kit = await createKit(url, (step) => send({ type: "step", step }));
+        send({ type: "done", id: kit.id, url: `/kit/${kit.id}` });
+      } catch (error) {
+        if (error instanceof IngestError) send({ type: "error", status: 422, error: error.userMessage });
+        else {
+          captureException(error, { stage: "api.kits.create", url });
+          send({ type: "error", status: 500, error: "Something went wrong reading your app. Please try again." });
+        }
+      } finally {
+        try {
+          controller.close();
+        } catch {
+          // Already closed.
+        }
+      }
+    },
+  });
+  return new Response(body, {
+    status: 200,
+    headers: { "Content-Type": "application/x-ndjson; charset=utf-8", "Cache-Control": "no-store, no-transform", "X-Accel-Buffering": "no" },
+  });
 }

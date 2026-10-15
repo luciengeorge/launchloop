@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { Logo } from "./logo";
+import { StartLink } from "./start-link";
 
 const NAV = [
   { href: "/#kit", label: "What you get" },
-  { href: "/#pricing", label: "Pricing" },
+  { href: "/pricing", label: "Pricing" },
   { href: "/ship-loop", label: "Ship Loop" },
   { href: "/faq", label: "FAQ" },
 ];
@@ -21,9 +22,9 @@ export function SiteHeader() {
             </Link>
           ))}
         </nav>
-        <Link href="/#start" className={buttonVariants({ size: "lg", className: "px-4" })}>
+        <StartLink plan="kit" className={buttonVariants({ size: "lg", className: "px-4" })}>
           Get my launch kit
-        </Link>
+        </StartLink>
       </div>
     </header>
   );

@@ -30,9 +30,13 @@ export async function updateKit(id: string, patch: Partial<Kit> | ((kit: Kit) =>
 }
 
 /** Free step: ingest, brief and the watermarked preview. The paid kit is generated after checkout. */
-export async function createKit(input: string): Promise<Kit> {
-  const source = await ingest(input);
+export type KitStep = "repo" | "site" | "brief" | "copy";
+
+export async function createKit(input: string, onStep: (step: KitStep) => void = () => {}): Promise<Kit> {
+  const source = await ingest(input, onStep);
+  onStep("brief");
   const { brief, provider } = await buildBrief(source);
+  onStep("copy");
   const { preview } = await generatePreview(brief);
   const kit: Kit = {
     id: newId(),
