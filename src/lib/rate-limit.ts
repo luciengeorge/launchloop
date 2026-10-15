@@ -34,6 +34,13 @@ export function freePreviewLimit(req: Request) {
   ]);
 }
 
+const OG_PREVIEWS_PER_HOUR = Number(process.env.OG_PREVIEW_RATE_LIMIT_PER_HOUR ?? 60);
+
+/** The OG preview only fetches a page and its image (no LLM), so it gets its own, larger budget. */
+export function ogPreviewLimit(req: Request) {
+  return sharedRateLimit(`og:${clientIp(req)}`, [{ limit: OG_PREVIEWS_PER_HOUR, seconds: 60 * 60 }]);
+}
+
 /**
  * Fixed-window limits shared across instances via the store (Redis in
  * production). All windows are counted; the request fails if any is exceeded.

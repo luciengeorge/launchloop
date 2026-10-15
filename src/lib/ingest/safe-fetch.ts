@@ -72,8 +72,25 @@ export interface SafeFetchResult {
   text: string;
 }
 
+export interface SafeFetchBytesResult {
+  url: string;
+  status: number;
+  contentType: string;
+  bytes: Uint8Array;
+  /** From the Content-Length header, when the server sent one. */
+  contentLength?: number;
+  /** The body was longer than maxBytes and was cut off. */
+  truncated: boolean;
+}
+
 /** Fetches a public URL with SSRF checks on every redirect hop, a timeout and a size cap. */
 export async function safeFetch(input: string, options: SafeFetchOptions = {}): Promise<SafeFetchResult> {
+  const { url, status, contentType, bytes } = await safeFetchBytes(input, options);
+  return { url, status, contentType, text: new TextDecoder().decode(bytes) };
+}
+
+/** Same guards as safeFetch, but returns the raw (capped) body, for binary files like images. */
+export async function safeFetchBytes(input: string, options: SafeFetchOptions = {}): Promise<SafeFetchBytesResult> {
   const { maxBytes = 1_500_000, timeoutMs = Number(process.env.SITE_FETCH_TIMEOUT_MS ?? 8000) } = options;
   let current = new URL(input);
   for (let hop = 0; hop < 4; hop++) {
@@ -95,33 +112,42 @@ export async function safeFetch(input: string, options: SafeFetchOptions = {}): 
       current = new URL(res.headers.get("location")!, current);
       continue;
     }
-    let text: string;
+    let body: { bytes: Uint8Array; truncated: boolean };
     try {
-      text = await readCapped(res, maxBytes);
+      body = await readCapped(res, maxBytes);
     } catch (error) {
       const name = (error as Error).name;
       throw new IngestError(`Reading ${current} failed: ${(error as Error).message}`, name === "TimeoutError" || name === "AbortError" ? "site_timeout" : "site_unreachable");
     }
-    return { url: current.toString(), status: res.status, contentType: res.headers.get("content-type") ?? "", text };
+    const length = Number(res.headers.get("content-length"));
+    return {
+      url: current.toString(),
+      status: res.status,
+      contentType: res.headers.get("content-type") ?? "",
+      ...body,
+      contentLength: Number.isFinite(length) && length > 0 ? length : undefined,
+    };
   }
   throw new IngestError("Too many redirects", "site_http_error", "That URL redirects too many times.");
 }
 
-async function readCapped(res: Response, maxBytes: number): Promise<string> {
-  if (!res.body) return "";
+async function readCapped(res: Response, maxBytes: number): Promise<{ bytes: Uint8Array; truncated: boolean }> {
+  if (!res.body) return { bytes: new Uint8Array(), truncated: false };
   const reader = res.body.getReader();
   const chunks: Uint8Array[] = [];
   let total = 0;
+  let truncated = false;
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
     total += value.byteLength;
     if (total > maxBytes) {
       chunks.push(value.slice(0, value.byteLength - (total - maxBytes)));
+      truncated = true;
       await reader.cancel();
       break;
     }
     chunks.push(value);
   }
-  return new TextDecoder().decode(Buffer.concat(chunks));
+  return { bytes: Buffer.concat(chunks), truncated };
 }
