@@ -38,12 +38,29 @@ test("short alias redirects to the tools URL", async ({ request }) => {
   expect(res.headers().location).toMatch(new RegExp(`${PATH}$`));
 });
 
-test("footer and both guides link to the checker", async ({ page }) => {
-  for (const path of ["/", "/product-hunt-launch-checklist", "/how-to-launch-a-vibe-coded-app"]) {
+test("checker is reachable from the footer, home hero, header and both guides", async ({ page, isMobile }) => {
+  await page.goto("/");
+  await expect(page.getByRole("navigation", { name: "Free tools and guides" }).locator(`a[href="${PATH}"]`)).toBeVisible();
+  await expect(page.locator("#start").getByRole("link", { name: "Try the free tagline checker" })).toBeVisible();
+  if (!isMobile) await expect(page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Tagline checker" })).toBeVisible();
+  for (const path of ["/product-hunt-launch-checklist", "/how-to-launch-a-vibe-coded-app"]) {
     await page.goto(path);
-    const scope = path === "/" ? page.getByRole("navigation", { name: "Product" }) : page.locator("article");
-    await expect(scope.locator(`a[href="${PATH}"]`).first()).toBeVisible();
+    await expect(page.locator("article").locator(`a[href="${PATH}"]`).first()).toBeVisible();
   }
+});
+
+test("tabs stay on one line and the name sits above the tagline", async ({ page }) => {
+  await page.goto(PATH);
+  for (const name of ["Check a tagline", "Generate from repo or URL"]) {
+    const box = (await page.getByRole("tab", { name }).boundingBox())!;
+    expect(box.height).toBeLessThan(40);
+  }
+  const nameBox = (await page.getByLabel("Product name").boundingBox())!;
+  const taglineBox = (await page.getByLabel("Tagline", { exact: true }).boundingBox())!;
+  expect(nameBox.y + nameBox.height).toBeLessThanOrEqual(taglineBox.y);
+  expect(Math.abs(nameBox.width - taglineBox.width)).toBeLessThan(2);
+  const countBox = (await page.getByTestId("tagline-count").boundingBox())!;
+  expect(countBox.height).toBeLessThan(28);
 });
 
 test("check mode: live counter, flags, feed preview and CTA", async ({ page }) => {

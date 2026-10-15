@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { SITE } from "@/lib/site";
+import { TOOLS } from "@/lib/tools";
 import { Logo } from "./logo";
 import { NewsletterForm } from "./newsletter-form";
 
 export function SiteFooter() {
   return (
     <footer className="border-t border-border/60 bg-muted/40">
-      <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:px-6 md:grid-cols-[1.2fr_1fr_1fr]">
+      <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:px-6 sm:grid-cols-2 md:grid-cols-[1.4fr_1fr_1.2fr_1fr]">
         <div className="space-y-4">
           <Logo />
           <p className="max-w-sm text-sm text-muted-foreground">{SITE.shortDescription} Built for makers shipping with Cursor, Lovable, Bolt and v0.</p>
@@ -19,7 +20,14 @@ export function SiteFooter() {
             <li><Link href="/#pricing" className="hover:text-foreground">Pricing</Link></li>
             <li><Link href="/ship-loop" className="hover:text-foreground">Ship Loop (waitlist)</Link></li>
             <li><Link href="/faq" className="hover:text-foreground">FAQ</Link></li>
-            <li><Link href="/tools/product-hunt-tagline-checker" className="hover:text-foreground">Product Hunt tagline checker</Link></li>
+          </ul>
+        </nav>
+        <nav aria-label="Free tools and guides" className="space-y-3 text-sm">
+          <h2 className="font-medium">Free tools &amp; guides</h2>
+          <ul className="space-y-2 text-muted-foreground">
+            {TOOLS.map((tool) => (
+              <li key={tool.path}><Link href={tool.path} className="hover:text-foreground">{tool.title}</Link></li>
+            ))}
             <li><Link href="/product-hunt-launch-checklist" className="hover:text-foreground">Product Hunt launch checklist</Link></li>
             <li><Link href="/how-to-launch-a-vibe-coded-app" className="hover:text-foreground">How to launch a vibe-coded app</Link></li>
           </ul>
