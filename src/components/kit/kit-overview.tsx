@@ -66,7 +66,7 @@ export function KitOverview({ kit }: { kit: Kit }) {
           <ul className="mt-3 flex flex-wrap gap-2">
             <SourceChip ok={source.readmeFound}>README</SourceChip>
             <SourceChip ok={source.packageJsonFound}>package.json</SourceChip>
-            <SourceChip ok={source.commitsAnalysed > 0}>{source.commitsAnalysed} commits</SourceChip>
+            <SourceChip ok={source.commitsAnalysed > 0}>{source.commitsAnalysed > 0 ? `Last ${source.commitsAnalysed} commits` : "Commits"}</SourceChip>
             <SourceChip ok={source.pageScraped}>Live page</SourceChip>
             {source.stars !== undefined ? <SourceChip ok>{source.stars} stars</SourceChip> : null}
           </ul>

@@ -1,6 +1,7 @@
 import "server-only";
 import { z } from "zod";
 import type { IngestResult } from "./ingest";
+import { COMMIT_SAMPLE, type PackageJson, type RepoData } from "./ingest/github";
 import { generateStructured } from "./llm";
 import { briefSchema, type Brief } from "./schema";
 
@@ -37,6 +38,65 @@ const STACK_MAP: Record<string, string> = {
   hono: "Hono",
   express: "Express",
 };
+
+/** Frameworks and build tools that legitimately live in devDependencies. Servers and SDKs there are usually test or example fixtures. */
+const DEV_STACK = new Set(["next", "react", "vue", "nuxt", "svelte", "@sveltejs/kit", "astro", "vite", "@remix-run/react", "tailwindcss", "prisma", "electron", "@tauri-apps/api", "expo", "react-native"]);
+
+/** GitHub topics that name a stack, used when package.json can't tell us. */
+const TOPIC_STACK: Record<string, string> = {
+  nextjs: "Next.js",
+  react: "React",
+  reactjs: "React",
+  vue: "Vue",
+  vuejs: "Vue",
+  nuxt: "Nuxt",
+  svelte: "Svelte",
+  sveltekit: "SvelteKit",
+  astro: "Astro",
+  vite: "Vite",
+  remix: "Remix",
+  tailwindcss: "Tailwind CSS",
+  supabase: "Supabase",
+  convex: "Convex",
+  prisma: "Prisma",
+  electron: "Electron",
+  tauri: "Tauri",
+  expo: "Expo",
+  "react-native": "React Native",
+};
+
+/** Monorepo and tooling roots list every package's build and test tooling in devDependencies, so those say nothing about the product. */
+const MONOREPO_TOOLS = ["turbo", "lerna", "nx"];
+const isToolingRoot = (pkg: PackageJson) =>
+  pkg.workspaces !== undefined ||
+  MONOREPO_TOOLS.some((t) => t in (pkg.devDependencies ?? {})) ||
+  (!Object.keys(pkg.dependencies ?? {}).length && Object.keys(pkg.devDependencies ?? {}).length > 40);
+
+function detectStack(repo: RepoData | undefined): string[] {
+  const pkg = repo?.packageJson;
+  const runtime = Object.keys(pkg?.dependencies ?? {});
+  const dev = pkg && !isToolingRoot(pkg) ? Object.keys(pkg.devDependencies ?? {}).filter((d) => DEV_STACK.has(d)) : [];
+  const stack = [...runtime, ...dev].map((d) => STACK_MAP[d]).filter(Boolean);
+  if (!stack.length) stack.push(...(repo?.topics ?? []).map((t) => TOPIC_STACK[t]).filter(Boolean));
+  if (!stack.length && repo?.language) stack.push(repo.language);
+  return [...new Set(stack)];
+}
+
+const DAY_MS = 86_400_000;
+
+/** Commit cadence from the sample we read. When every sampled commit is recent, the sample is the cap, so say that rather than claim a total. */
+function commitCadence(commits: RepoData["commits"]): string | undefined {
+  const times = commits.map((c) => Date.parse(c.date)).filter(Number.isFinite);
+  if (!times.length) return undefined;
+  const newest = times[0];
+  const recent = times.filter((t) => newest - t <= 30 * DAY_MS);
+  if (recent.length < 3) return undefined;
+  if (recent.length === times.length && times.length >= COMMIT_SAMPLE) {
+    const days = Math.max(1, Math.ceil((newest - recent[recent.length - 1]) / DAY_MS));
+    return `Last ${times.length} commits all landed within ${days} day${days === 1 ? "" : "s"}`;
+  }
+  return `${recent.length} commits in the last month`;
+}
 
 const prettify = (slug: string) => {
   const bare = slug.replace(/^@[^/]+\//, "");
@@ -123,9 +183,7 @@ export interface Facts {
 const CHORE_COMMIT = /^(chore|docs?|ci|build|test|style|refactor|bump|deps|merge|revert|wip|lint|format)\b|^Merge (pull request|branch)|^(update|bump) (readme|deps|dependencies)/i;
 
 export function extractFacts({ repo, site, primary }: IngestResult): Facts {
-  const deps = { ...repo?.packageJson?.dependencies, ...repo?.packageJson?.devDependencies };
-  const stack = [...new Set(Object.keys(deps).map((d) => STACK_MAP[d]).filter(Boolean))];
-  if (stack.length === 0 && repo?.language) stack.push(repo.language);
+  const stack = detectStack(repo);
 
   const readme = repo?.readme;
   const readmeTop = readme?.split("\n").filter((l) => l.trim()).slice(0, 12).join("\n");
@@ -148,9 +206,8 @@ export function extractFacts({ repo, site, primary }: IngestResult): Facts {
   const proofPoints: string[] = [];
   if (repo?.stars && repo.stars >= 10) proofPoints.push(`${repo.stars.toLocaleString("en-GB")} GitHub stars`);
   if (repo?.commits.length) {
-    const newest = Date.parse(repo.commits[0].date);
-    const recent = repo.commits.filter((c) => newest - Date.parse(c.date) <= 30 * 86_400_000).length;
-    if (recent >= 3) proofPoints.push(`${recent}${recent === 20 ? "+" : ""} commits in the last month`);
+    const cadence = commitCadence(repo.commits);
+    if (cadence) proofPoints.push(cadence);
     const latest = repo.commits.find((c) => !CHORE_COMMIT.test(c.message));
     if (latest) proofPoints.push(`Latest ship: ${latest.message.replace(/\s*\(#\d+\)$/, "")}`);
   }
@@ -188,8 +245,11 @@ export function sourceDigest({ repo, site }: IngestResult, maxReadme = 6000): st
     if (repo.topics.length) parts.push(`Topics: ${repo.topics.join(", ")}`);
     if (repo.stars !== undefined) parts.push(`Stars: ${repo.stars}`);
     if (repo.packageJson) {
-      const deps = Object.keys({ ...repo.packageJson.dependencies, ...repo.packageJson.devDependencies });
-      parts.push(`package.json name: ${repo.packageJson.name ?? "-"}; description: ${repo.packageJson.description ?? "-"}; dependencies: ${deps.slice(0, 40).join(", ")}`);
+      const deps = Object.keys(repo.packageJson.dependencies ?? {});
+      const devDeps = Object.keys(repo.packageJson.devDependencies ?? {});
+      parts.push(
+        `package.json name: ${repo.packageJson.name ?? "-"}; description: ${repo.packageJson.description ?? "-"}; dependencies: ${deps.slice(0, 40).join(", ") || "-"}; devDependencies (build and test tooling): ${devDeps.slice(0, 20).join(", ") || "-"}`,
+      );
     }
     if (repo.commits.length) parts.push(`Recent commits:\n${repo.commits.slice(0, 15).map((c) => `- ${c.date.slice(0, 10)} ${c.message}`).join("\n")}`);
     if (repo.readme) parts.push(`README:\n${repo.readme.slice(0, maxReadme)}`);
