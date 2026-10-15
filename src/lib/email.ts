@@ -97,3 +97,16 @@ export function preorderEmail(params: { to: string; planLabel: string }): Outgoi
     text: paragraphs.join("\n\n"),
   };
 }
+
+export function magicLinkEmail(params: { to: string; url: string }): OutgoingEmail {
+  const paragraphs = [
+    "Click the button below to log in to LaunchLoop and see your launch kits. The link works once and expires in 15 minutes.",
+    "If you didn't ask for this, you can ignore this email.",
+  ];
+  return {
+    to: params.to,
+    subject: "Your LaunchLoop login link",
+    html: layout("Log in to LaunchLoop", paragraphs, { href: params.url, label: "Log in" }),
+    text: `${paragraphs.join("\n\n")}\n\nLog in: ${params.url}`,
+  };
+}

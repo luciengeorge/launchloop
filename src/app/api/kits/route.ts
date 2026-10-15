@@ -1,5 +1,7 @@
 import { IngestError } from "@/lib/ingest";
-import { createKit } from "@/lib/kits";
+import { cookies } from "next/headers";
+import { ANON_KITS_COOKIE, getSession, readAnonKits, secureCookies } from "@/lib/auth";
+import { createKit, newId } from "@/lib/kits";
 import { captureException } from "@/lib/observability";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 
@@ -27,10 +29,21 @@ export async function POST(req: Request) {
   }
 
   // Opt-in progress stream: newline-delimited JSON events, ending with {type:"done"} or {type:"error"}.
-  if (req.headers.get("accept")?.includes("application/x-ndjson")) return streamKit(url);
+  // The id is fixed up front so it can go in the cookie before the stream starts.
+  const id = newId();
+  const session = await getSession();
+  const opts = { id, ownerEmail: session?.email };
+  if (!session) {
+    // Remember anonymous kits so they can be claimed on login.
+    const jar = await cookies();
+    const ids = [...readAnonKits(jar.get(ANON_KITS_COOKIE)?.value), id].slice(-50);
+    jar.set(ANON_KITS_COOKIE, ids.join(","), { httpOnly: true, secure: secureCookies(), sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 365 });
+  }
+
+  if (req.headers.get("accept")?.includes("application/x-ndjson")) return streamKit(url, opts);
 
   try {
-    const kit = await createKit(url);
+    const kit = await createKit(url, undefined, opts);
     return Response.json({ id: kit.id, url: `/kit/${kit.id}` }, { status: 201 });
   } catch (error) {
     if (error instanceof IngestError) return Response.json({ error: error.userMessage }, { status: 422 });
@@ -39,7 +52,7 @@ export async function POST(req: Request) {
   }
 }
 
-function streamKit(url: string): Response {
+function streamKit(url: string, opts: { id: string; ownerEmail?: string }): Response {
   const encoder = new TextEncoder();
   const body = new ReadableStream<Uint8Array>({
     async start(controller) {
@@ -51,7 +64,7 @@ function streamKit(url: string): Response {
         }
       };
       try {
-        const kit = await createKit(url, (step) => send({ type: "step", step }));
+        const kit = await createKit(url, (step) => send({ type: "step", step }), opts);
         send({ type: "done", id: kit.id, url: `/kit/${kit.id}` });
       } catch (error) {
         if (error instanceof IngestError) send({ type: "error", status: 422, error: error.userMessage });

@@ -41,6 +41,8 @@ export async function createCheckoutUrl(params: { product: ProductId; origin: st
           },
     ],
     customer_email: email,
+    // A Customer lets Ship Loop buyers manage billing in the Customer Portal from /account.
+    customer_creation: "always",
     allow_promotion_codes: true,
     metadata: { product, ...(kitId ? { kitId } : {}) },
     payment_intent_data: { metadata: { product, ...(kitId ? { kitId } : {}) } },

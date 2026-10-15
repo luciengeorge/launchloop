@@ -36,6 +36,7 @@ export async function POST(req: Request) {
           kitId,
           email: session.customer_details?.email ?? session.customer_email ?? undefined,
           ref: session.id,
+          customerId: typeof session.customer === "string" ? session.customer : session.customer?.id,
         });
       } catch (error) {
         captureException(error, { stage: "stripe.webhook.record", sessionId: session.id });

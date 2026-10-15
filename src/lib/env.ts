@@ -34,6 +34,7 @@ export const env = {
 
   ingestAllowPrivate: read("INGEST_ALLOW_PRIVATE") === "true",
   sentryDsn: read("SENTRY_DSN"),
+  authSecret: read("AUTH_SECRET"),
 };
 
 export const isStripeMock = () => !env.stripeSecretKey;
@@ -45,4 +46,16 @@ export function siteUrl(): string {
   const vercel = read("VERCEL_PROJECT_PRODUCTION_URL");
   if (vercel) return `https://${vercel}`;
   return `http://localhost:${read("PORT") ?? "3417"}`;
+}
+
+/**
+ * Base URL for links that must land on this exact deployment (magic links).
+ * Previews point at their branch URL, not the production NEXT_PUBLIC_SITE_URL.
+ */
+export function deploymentUrl(): string {
+  if (read("VERCEL_ENV") === "preview") {
+    const host = read("VERCEL_BRANCH_URL") ?? read("VERCEL_URL");
+    if (host) return `https://${host}`;
+  }
+  return siteUrl();
 }

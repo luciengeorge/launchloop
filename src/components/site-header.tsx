@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { Suspense } from "react";
+import { AccountLink, LogInLink } from "./account-link";
 import { buttonVariants } from "@/components/ui/button";
 import { Logo } from "./logo";
 import { StartLink } from "./start-link";
@@ -22,9 +24,14 @@ export function SiteHeader() {
             </Link>
           ))}
         </nav>
-        <StartLink plan="kit" className={buttonVariants({ size: "lg", className: "px-4" })}>
-          Get my launch kit
-        </StartLink>
+        <div className="flex items-center gap-4">
+          <Suspense fallback={<LogInLink />}>
+            <AccountLink />
+          </Suspense>
+          <StartLink plan="kit" className={buttonVariants({ size: "lg", className: "px-4" })}>
+            Get my launch kit
+          </StartLink>
+        </div>
       </div>
     </header>
   );

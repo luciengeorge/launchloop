@@ -24,7 +24,7 @@ export async function GET(req: Request) {
       return Response.redirect(new URL(kitId ? `/kit/${kitId}?checkout=pending` : "/ship-loop?checkout=pending", url), 303);
     }
     const email = session.customer_details?.email ?? session.customer_email ?? undefined;
-    await recordPayment({ product, kitId, email, ref: session.id });
+    await recordPayment({ product, kitId, email, ref: session.id, customerId: typeof session.customer === "string" ? session.customer : session.customer?.id });
     if (product === "kit" && kitId) {
       after(() => fulfilKit(kitId));
       return Response.redirect(new URL(`/kit/${kitId}?paid=1`, url), 303);

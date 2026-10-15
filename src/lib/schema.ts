@@ -80,6 +80,8 @@ export interface Kit {
   llm: string;
   paid: boolean;
   email?: string;
+  /** Account (lowercased email) the kit belongs to, once claimed or created while logged in. */
+  ownerEmail?: string;
   paymentRef?: string;
   paidAt?: string;
   content?: KitContent;

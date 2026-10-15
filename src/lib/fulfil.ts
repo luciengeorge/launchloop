@@ -3,7 +3,8 @@ import { addContact } from "./audience";
 import { generateKitContent, launchChecklist } from "./copy";
 import { kitReadyEmail, preorderEmail, sendEmail } from "./email";
 import { siteUrl } from "./env";
-import { getKit, updateKit } from "./kits";
+import { recordShipLoop } from "./billing";
+import { getKit, linkKitToUser, normaliseEmail, updateKit } from "./kits";
 import { captureException } from "./observability";
 import { PRODUCTS, type ProductId } from "./products";
 import type { Kit } from "./schema";
@@ -18,6 +19,8 @@ export interface PaidOrder {
   ref: string;
   kitId?: string;
   email?: string;
+  /** Stripe customer id, when Checkout created one. */
+  customerId?: string;
 }
 
 export interface Preorder {
@@ -33,16 +36,27 @@ export async function recordPayment(order: PaidOrder): Promise<void> {
     if (!order.kitId) throw new Error(`Kit payment ${order.ref} has no kitId`);
     await updateKit(order.kitId, (kit) =>
       kit.paid
-        ? { email: kit.email ?? order.email }
-        : { paid: true, status: "paid", email: order.email, paymentRef: order.ref, paidAt: new Date().toISOString() },
+        ? { email: kit.email ?? order.email, ownerEmail: kit.ownerEmail ?? (order.email ? normaliseEmail(order.email) : undefined) }
+        : {
+            paid: true,
+            status: "paid",
+            email: order.email,
+            ownerEmail: kit.ownerEmail ?? (order.email ? normaliseEmail(order.email) : undefined),
+            paymentRef: order.ref,
+            paidAt: new Date().toISOString(),
+          },
     );
-    if (order.email) await addContact(order.email, "kit");
+    if (order.email) {
+      await linkKitToUser(order.email, order.kitId);
+      await addContact(order.email, "kit");
+    }
     return;
   }
 
   const key = `preorder:${order.ref}`;
-  if (await store().get<Preorder>(key)) return;
   if (!order.email) throw new Error(`Pre-order ${order.ref} has no email`);
+  await recordShipLoop(order.email, { product: order.product, ref: order.ref, customerId: order.customerId, since: new Date().toISOString() });
+  if (await store().get<Preorder>(key)) return;
   await store().set<Preorder>(key, { ref: order.ref, email: order.email, product: order.product, createdAt: new Date().toISOString() });
   await addContact(order.email, "preorder", { plan: order.product });
   try {

@@ -47,6 +47,8 @@ export default defineConfig({
         DATA_DIR: ".data-test",
         INGEST_ALLOW_PRIVATE: "true",
         PREVIEW_RATE_LIMIT_PER_HOUR: "500",
+        MAGIC_LINK_RATE_LIMIT_PER_IP: "500",
+        AUTH_SECRET: "playwright-test-secret",
         NEXT_PUBLIC_SITE_URL: baseURL,
       },
     },

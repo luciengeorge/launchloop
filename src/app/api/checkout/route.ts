@@ -1,4 +1,5 @@
 import { isEmail } from "@/lib/audience";
+import { getSession } from "@/lib/auth";
 import { getKit } from "@/lib/kits";
 import { captureException } from "@/lib/observability";
 import { createCheckoutUrl } from "@/lib/payments";
@@ -8,7 +9,7 @@ export async function POST(req: Request) {
   const body = (await req.json().catch(() => ({}))) as { product?: unknown; kitId?: unknown; email?: unknown };
   if (!isProductId(body.product)) return Response.json({ error: "Unknown product." }, { status: 400 });
 
-  const email = isEmail(body.email) ? body.email : undefined;
+  const email = isEmail(body.email) ? body.email : (await getSession())?.email;
   let kitId: string | undefined;
   if (body.product === "kit") {
     const kit = typeof body.kitId === "string" ? await getKit(body.kitId) : null;

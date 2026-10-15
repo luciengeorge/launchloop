@@ -11,6 +11,12 @@ import { env } from "./env";
 export interface KeyValueStore {
   get<T>(key: string): Promise<T | null>;
   set<T>(key: string, value: T, ttlSeconds?: number): Promise<void>;
+  /** Atomically reads and deletes a key (used for single-use tokens). */
+  getDel<T>(key: string): Promise<T | null>;
+  /** Increments a counter, setting its TTL when it is first created. Returns the new value. */
+  incr(key: string, ttlSeconds: number): Promise<number>;
+  sAdd(key: string, member: string): Promise<void>;
+  sMembers(key: string): Promise<string[]>;
 }
 
 class FileStore implements KeyValueStore {
@@ -39,6 +45,49 @@ class FileStore implements KeyValueStore {
     const payload = { value, expiresAt: ttlSeconds ? Date.now() + ttlSeconds * 1000 : undefined };
     await fs.writeFile(tmp, JSON.stringify(payload));
     await fs.rename(tmp, target);
+  }
+
+  // File mode is single-process (local dev / tests), so a promise chain is enough to serialise writes.
+  private queue: Promise<unknown> = Promise.resolve();
+  private serial<R>(fn: () => Promise<R>): Promise<R> {
+    const next = this.queue.then(fn, fn);
+    this.queue = next.catch(() => undefined);
+    return next;
+  }
+
+  getDel<T>(key: string): Promise<T | null> {
+    return this.serial(async () => {
+      const value = await this.get<T>(key);
+      await fs.rm(this.file(key), { force: true });
+      return value;
+    });
+  }
+
+  incr(key: string, ttlSeconds: number): Promise<number> {
+    return this.serial(async () => {
+      let parsed: { value: number; expiresAt?: number } | null = null;
+      try {
+        parsed = JSON.parse(await fs.readFile(this.file(key), "utf8"));
+      } catch {
+        parsed = null;
+      }
+      if (!parsed || (parsed.expiresAt && parsed.expiresAt < Date.now())) parsed = { value: 0, expiresAt: Date.now() + ttlSeconds * 1000 };
+      const value = parsed.value + 1;
+      await fs.mkdir(this.dir, { recursive: true });
+      await fs.writeFile(this.file(key), JSON.stringify({ value, expiresAt: parsed.expiresAt }));
+      return value;
+    });
+  }
+
+  sAdd(key: string, member: string): Promise<void> {
+    return this.serial(async () => {
+      const members = (await this.get<string[]>(key)) ?? [];
+      if (!members.includes(member)) await this.set(key, [...members, member]);
+    });
+  }
+
+  async sMembers(key: string): Promise<string[]> {
+    return (await this.get<string[]>(key)) ?? [];
   }
 }
 
@@ -70,6 +119,25 @@ class RedisRestStore implements KeyValueStore {
     const args: (string | number)[] = ["SET", key, JSON.stringify(value)];
     if (ttlSeconds) args.push("EX", ttlSeconds);
     await this.command(args);
+  }
+
+  async getDel<T>(key: string): Promise<T | null> {
+    const raw = await this.command<string | null>(["GETDEL", key]);
+    return raw ? (JSON.parse(raw) as T) : null;
+  }
+
+  async incr(key: string, ttlSeconds: number): Promise<number> {
+    const value = await this.command<number>(["INCR", key]);
+    if (value === 1) await this.command(["EXPIRE", key, ttlSeconds]);
+    return value;
+  }
+
+  async sAdd(key: string, member: string): Promise<void> {
+    await this.command(["SADD", key, member]);
+  }
+
+  async sMembers(key: string): Promise<string[]> {
+    return (await this.command<string[] | null>(["SMEMBERS", key])) ?? [];
   }
 }
 
