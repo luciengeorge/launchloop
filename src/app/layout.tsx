@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { Toaster } from "@/components/ui/sonner";
+import { VercelInsights } from "@/components/vercel-insights";
 import { siteUrl } from "@/lib/env";
 import { SITE } from "@/lib/site";
 import "./globals.css";
@@ -51,6 +52,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         </main>
         <SiteFooter />
         <Toaster position="bottom-center" />
+        <VercelInsights />
       </body>
     </html>
   );
