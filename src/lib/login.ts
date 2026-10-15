@@ -1,6 +1,9 @@
 import "server-only";
 import { cookies } from "next/headers";
+import { after } from "next/server";
 import { ANON_KITS_COOKIE, SESSION_COOKIE, SESSION_HINT_COOKIE, SESSION_TTL_SECONDS, encodeSession, readAnonKits, secureCookies, type MagicLinkRecord } from "./auth";
+import { ensureStripeCustomer } from "./billing";
+import { isStripeMock } from "./env";
 import { claimKits, getKit } from "./kits";
 import { captureException } from "./observability";
 
@@ -14,6 +17,18 @@ export async function completeLogin(record: MagicLinkRecord): Promise<string> {
   const secure = secureCookies();
   jar.set(SESSION_COOKIE, encodeSession(record.email), { httpOnly: true, secure, sameSite: "lax", path: "/", maxAge: SESSION_TTL_SECONDS });
   jar.set(SESSION_HINT_COOKIE, "1", { httpOnly: false, secure, sameSite: "lax", path: "/", maxAge: SESSION_TTL_SECONDS });
+
+  // Every account has a Stripe customer. Done after the response so Stripe never slows login;
+  // the billing portal route calls the same helper if this didn't finish.
+  if (!isStripeMock()) {
+    after(async () => {
+      try {
+        await ensureStripeCustomer(record.email);
+      } catch (error) {
+        captureException(error, { stage: "auth.login.stripeCustomer" });
+      }
+    });
+  }
 
   const anon = readAnonKits(jar.get(ANON_KITS_COOKIE)?.value);
   const intentKit = record.intent?.type === "unlock" ? record.intent.kitId : undefined;

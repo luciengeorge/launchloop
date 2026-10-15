@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { logIn, magicLinkFor, makeSampleKit, uniqueEmail, unlockAndPay } from "./helpers";
 
 test("magic-link login, single-use token, header state and log out", async ({ page }) => {
@@ -25,6 +25,8 @@ test("magic-link login, single-use token, header state and log out", async ({ pa
   await page.waitForURL(/\/account$/);
   await expect(page.getByRole("heading", { name: "My kits" })).toBeVisible();
   await expect(page.getByText("No kits yet.")).toBeVisible();
+  // Free accounts have nothing to bill, so no Manage billing.
+  await expect(page.getByTestId("billing-card")).toHaveCount(0);
   // Logged-in navbar: My kits is the primary CTA, Log out a text link, site header still present
   await expect(banner.getByRole("link", { name: "My kits" })).toBeVisible();
   await expect(banner.getByTestId("nav-my-kits")).toHaveClass(/\bbg-primary\b/);
@@ -165,11 +167,10 @@ test("kits paid for with an email show up for that account with downloads and bi
     const res = await p2.request.get((await row.getByRole("link", { name: file }).getAttribute("href"))!);
     expect(res.headers()["content-type"]).toBe("image/png");
   }
-  // One-off kit buyers get Manage billing too (mock Stripe → billing=mock).
+  // One-off kit buyers get Manage billing too (mock Stripe → billing=mock toast).
   await expect(p2.getByTestId("billing-card")).toBeVisible();
   await p2.getByRole("button", { name: "Manage billing" }).click();
-  await p2.waitForURL(/\/account\?billing=mock/);
-  await expect(p2.getByText("unavailable in test mode")).toBeVisible();
+  await expectBillingToastOnce(p2, "unavailable in test mode");
   await fresh.close();
 });
 
@@ -182,9 +183,23 @@ test("Ship Loop subscribers get a Manage billing button", async ({ page }) => {
 
   await logIn(page, email);
   await page.getByRole("button", { name: "Manage billing" }).click();
-  await page.waitForURL(/\/account\?billing=mock/);
-  await expect(page.getByText("unavailable in test mode")).toBeVisible();
+  await expectBillingToastOnce(page, "unavailable in test mode");
 });
+
+test("billing redirect notes toast once and leave the URL clean", async ({ page }) => {
+  await logIn(page, uniqueEmail("flash"));
+  await page.goto("/account?billing=error");
+  await expectBillingToastOnce(page, "Couldn't open the billing portal");
+});
+
+/** The ?billing= note shows as a toast, the param is stripped, and a reload doesn't toast again. */
+async function expectBillingToastOnce(page: Page, text: string) {
+  await expect(page.locator("[data-sonner-toast]").getByText(text)).toBeVisible();
+  await expect(page).toHaveURL(/\/account$/);
+  await page.reload();
+  await expect(page.getByTestId("account-email")).toBeVisible();
+  await expect(page.getByText(text)).toHaveCount(0);
+}
 
 test("private pages are noindex and disallowed in robots.txt", async ({ page, request }) => {
   const robots = await (await request.get("/robots.txt")).text();
