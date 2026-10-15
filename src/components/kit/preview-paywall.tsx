@@ -46,7 +46,7 @@ export function PreviewPaywall({ kitId, productName, counts, sample, email, quer
             Like it? Here&apos;s the rest of {productName}&apos;s launch kit.
           </h2>
           <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-            Written from your repo and live page, checked against every platform limit, ready to paste. {PRODUCTS.kit.priceLabel} once, no subscription.
+            Written from your repo and live page, checked against every platform limit, ready to paste.
           </p>
         </div>
 
