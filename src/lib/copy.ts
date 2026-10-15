@@ -3,6 +3,7 @@ import { LIMITS, charLength, containsVoteBegging, fitToLimit, stripVoteBegging, 
 import { generateStructured } from "./llm";
 import { z } from "zod";
 import { kitContentSchema, previewSchema, type Brief, type KitContent, type KitSection, type Preview } from "./schema";
+import { checkTagline, taglineProblems } from "./tagline-check";
 
 const BANNED_PHRASES = [
   "revolutioniz",
@@ -269,6 +270,76 @@ export async function generatePreview(brief: Brief): Promise<{ preview: Preview;
     },
     provider,
   };
+}
+
+const TAGLINE_OPTIONS = 3;
+const taglinesSchema = z.object({ taglines: z.array(z.string()) });
+
+/** "Your app" is the brief's placeholder when no name was found; don't check taglines against it. */
+const realName = (brief: Brief) => (brief.name === "Your app" ? "" : brief.name);
+
+const usableTagline = (t: string, brief: Brief) => checkTagline(t, realName(brief)).verdict !== "fail";
+
+function cleanTagline(t: string): string {
+  return stripVoteBegging(t).replace(/\s+/g, " ").replace(/[.\s]+$/, "").trim();
+}
+
+/** Deterministic options from the brief: the free-preview tagline first, then feature-led variants. */
+function mockTaglines(brief: Brief): string[] {
+  const audience = brief.audience.trim();
+  const candidates = [
+    mockPreview(brief).tagline,
+    ...brief.features.flatMap((f) => {
+      const clause = short(f, 200);
+      return [`${clause} for ${audience}`, trimToPhrase(clause, LIMITS.phTagline)];
+    }),
+    `${trimToPhrase(firstClause(brief.oneLiner), 40)} for ${audience}`,
+    trimToPhrase(restOf(brief.oneLiner) || brief.problem, LIMITS.phTagline),
+    `Built for ${audience}`,
+  ];
+  return pickTaglines(candidates, brief, LAST_RESORT_TAGLINES);
+}
+
+/** Only used when the brief is too thin to produce three distinct options. */
+const LAST_RESORT_TAGLINES = ["Does one job well, without the setup", "Built by an indie maker who uses it every day", "Small, fast and made for real work"];
+
+/** Up to TAGLINE_OPTIONS distinct, usable options, topped up from `fallback`. */
+function pickTaglines(candidates: string[], brief: Brief, fallback: string[]): string[] {
+  const picked: string[] = [];
+  for (const raw of [...candidates, ...fallback]) {
+    const t = cleanTagline(raw);
+    if (!t || t.endsWith("…") || !usableTagline(t, brief) || picked.some((p) => p.toLowerCase() === t.toLowerCase())) continue;
+    picked.push(t);
+    if (picked.length === TAGLINE_OPTIONS) break;
+  }
+  return picked;
+}
+
+function taglinesRubric(v: { taglines: string[] }, brief: Brief): string[] {
+  const problems: string[] = [];
+  if (v.taglines.length !== TAGLINE_OPTIONS) problems.push(`taglines has ${v.taglines.length} items; it must have exactly ${TAGLINE_OPTIONS}.`);
+  if (new Set(v.taglines.map((t) => t.trim().toLowerCase())).size !== v.taglines.length) problems.push("taglines must all be different.");
+  v.taglines.forEach((t, i) => {
+    problems.push(...taglineProblems(t, realName(brief), `taglines[${i}]`));
+    checkText(`taglines[${i}]`, t, LIMITS.phTagline, problems);
+  });
+  return [...new Set(problems)];
+}
+
+/** Three Product Hunt tagline options for the free tagline checker, from the same brief the free preview uses. */
+export async function generateTaglines(brief: Brief): Promise<{ taglines: string[]; provider: string }> {
+  const fallback = mockTaglines(brief);
+  const { value, provider } = await generateStructured({
+    schema: taglinesSchema,
+    system: SYSTEM,
+    speed: "fast",
+    user: `Product brief:\n${briefJson(brief)}\n\nWrite JSON { "taglines": [${TAGLINE_OPTIONS} different Product Hunt taglines] }. Each one: max ${LIMITS.phTagline} characters, says what the product does and for whom using facts from the brief, sentence case, no product name, no trailing period, no emoji, no "AI-powered", "revolutionary", "ultimate" or "seamless". Use a different angle for each, for example "[Outcome] for [who]", "[Action] without [pain]", and a plain description of the main feature.`,
+    mock: () => ({ taglines: fallback }),
+    rubric: (v) => taglinesRubric(v, brief),
+    mockOnGatewayError: true,
+    stage: "preview",
+  });
+  return { taglines: pickTaglines(value.taglines, brief, fallback), provider };
 }
 
 const SECTION_PREFIX: Record<KitSection, string> = { landing: "landing.", productHunt: "productHunt.", xThread: "xThread", linkedin: "linkedin" };

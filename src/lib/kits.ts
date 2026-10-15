@@ -3,7 +3,7 @@ import { randomBytes } from "node:crypto";
 import { buildBrief, sourceDigest } from "./brief";
 import { generatePreview } from "./copy";
 import { ingest } from "./ingest";
-import type { Kit } from "./schema";
+import type { Brief, Kit } from "./schema";
 import { copyDraft } from "./generation";
 import { store } from "./store";
 
@@ -72,6 +72,19 @@ export async function createKit(
 
 const DEDUPE_TTL_SECONDS = 24 * 60 * 60;
 const dedupeKey = (fingerprint: string) => `dedupe:${fingerprint}`;
+
+/**
+ * The free preview's ingest and brief steps without saving a kit, for the free
+ * tools. A kit made from the same repo state in the last 24 hours lends its brief.
+ */
+export async function briefFor(input: string): Promise<Brief> {
+  const source = await ingest(input);
+  const fingerprint = source.source.fingerprint;
+  const recentId = fingerprint ? await store().get<string>(dedupeKey(fingerprint)) : null;
+  const recent = recentId ? await getKit(recentId) : null;
+  if (recent) return recent.brief;
+  return (await buildBrief(source)).brief;
+}
 
 /**
  * Same repo at the same commit within 24 hours: reuse the brief, preview and

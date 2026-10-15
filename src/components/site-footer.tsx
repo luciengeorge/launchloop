@@ -19,6 +19,7 @@ export function SiteFooter() {
             <li><Link href="/#pricing" className="hover:text-foreground">Pricing</Link></li>
             <li><Link href="/ship-loop" className="hover:text-foreground">Ship Loop (waitlist)</Link></li>
             <li><Link href="/faq" className="hover:text-foreground">FAQ</Link></li>
+            <li><Link href="/tools/product-hunt-tagline-checker" className="hover:text-foreground">Product Hunt tagline checker</Link></li>
             <li><Link href="/product-hunt-launch-checklist" className="hover:text-foreground">Product Hunt launch checklist</Link></li>
             <li><Link href="/how-to-launch-a-vibe-coded-app" className="hover:text-foreground">How to launch a vibe-coded app</Link></li>
           </ul>
