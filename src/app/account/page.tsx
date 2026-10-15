@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
+import { BillingFlash } from "@/components/billing-flash";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -15,28 +16,21 @@ import type { Kit } from "@/lib/schema";
 
 export const metadata: Metadata = { title: "My kits", robots: { index: false, follow: false } };
 
-const BILLING_NOTES: Record<string, string> = {
-  mock: "Billing portal is unavailable in test mode (Stripe isn't configured).",
-  none: "We couldn't find a billing account for this email.",
-  error: "Couldn't open the billing portal. Please try again.",
-};
-
-export default function AccountPage({ searchParams }: PageProps<"/account">) {
+export default function AccountPage() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
       <Suspense fallback={<Skeleton className="h-96 rounded-2xl" />}>
-        <Dashboard searchParams={searchParams} />
+        <Dashboard />
       </Suspense>
     </div>
   );
 }
 
-async function Dashboard({ searchParams }: Pick<PageProps<"/account">, "searchParams">) {
+async function Dashboard() {
   const session = await getSession();
   if (!session) redirect("/login?next=/account");
-  const [kits, shipLoop, query] = await Promise.all([listUserKits(session.email), getShipLoop(session.email), searchParams]);
+  const [kits, shipLoop] = await Promise.all([listUserKits(session.email), getShipLoop(session.email)]);
   const progress = await Promise.all(kits.map((k) => (k.paid && k.content ? kitProgress(k) : null)));
-  const billingNote = typeof query.billing === "string" ? BILLING_NOTES[query.billing] : undefined;
   const showBilling = await hasBillingAccess(
     session.email,
     kits.some((k) => k.paid),
@@ -44,6 +38,7 @@ async function Dashboard({ searchParams }: Pick<PageProps<"/account">, "searchPa
 
   return (
     <div className="space-y-8">
+      <BillingFlash />
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight">My kits</h1>
@@ -70,12 +65,6 @@ async function Dashboard({ searchParams }: Pick<PageProps<"/account">, "searchPa
             </Button>
           </form>
         </div>
-      ) : null}
-
-      {billingNote ? (
-        <p className="rounded-md bg-muted px-3 py-2 text-sm" role="status">
-          {billingNote}
-        </p>
       ) : null}
 
       {kits.length === 0 ? (
