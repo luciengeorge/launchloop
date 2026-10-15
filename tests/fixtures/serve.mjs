@@ -2,7 +2,7 @@ import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { deflateSync } from "node:zlib";
+import { deflateSync, gunzipSync } from "node:zlib";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "site");
 const port = Number(process.argv[2] ?? 3419);
@@ -95,7 +95,26 @@ const routes = {
   },
 };
 
+/** Every event the fake PostHog received, from the browser (via /lp-relay) and from posthog-node. */
+const phEvents = [];
+
+/** posthog-js sends one event or an array, posthog-node `{ batch }`; either may be gzipped. */
+function recordPosthog(body) {
+  try {
+    const raw = body[0] === 0x1f && body[1] === 0x8b ? gunzipSync(body) : body;
+    const text = raw.toString("utf8");
+    const json = JSON.parse(text.startsWith("data=") ? Buffer.from(decodeURIComponent(text.slice(5)), "base64").toString("utf8") : text);
+    for (const e of Array.isArray(json) ? json : (json.batch ?? [json])) if (e && typeof e.event === "string") phEvents.push(e);
+  } catch {
+    // Not an event payload (flags, config).
+  }
+}
+
 createServer(async (req, res) => {
+  if (req.url === "/ph/_events") {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    return res.end(JSON.stringify(phEvents));
+  }
   const route = routes[req.url.split("?")[0]];
   if (route) return route(req, res);
   const img = /^\/og\/img-(\d{1,4})x(\d{1,4})\.png$/.exec(req.url);
@@ -106,7 +125,9 @@ createServer(async (req, res) => {
   // Fake PostHog (NEXT_PUBLIC_POSTHOG_HOST in the test build): no flags for anyone, so every
   // experiment is control unless a test intercepts /lp-relay/flags in the browser.
   if (req.url.startsWith("/ph/")) {
-    req.resume();
+    const chunks = [];
+    for await (const chunk of req) chunks.push(chunk);
+    if (req.method === "POST") recordPosthog(Buffer.concat(chunks));
     const pathname = req.url.split("?")[0];
     // Remote config script (/array/<key>/config.js): an empty script, not JSON the browser would execute.
     if (pathname.endsWith(".js")) {

@@ -6,7 +6,7 @@ import { featureProperties, parseExperiments } from "@/lib/experiments";
 import { fulfilKit, recordPayment } from "@/lib/fulfil";
 import { captureException } from "@/lib/observability";
 import { deployEnv, stripeEventDecision } from "@/lib/deploy-env";
-import { stripe } from "@/lib/payments";
+import { sessionPromoCode, stripe } from "@/lib/payments";
 import { isProductId, type ProductId } from "@/lib/products";
 
 export const maxDuration = 120;
@@ -48,16 +48,17 @@ export async function POST(req: Request) {
         return Response.json({ error: "Failed to record payment." }, { status: 500 });
       }
       if (product === "kit" && kitId) after(() => fulfilKit(kitId));
-      after(() => trackCompleted(session, product));
+      after(() => trackCompleted(s, session, product));
     }
   }
 
   return Response.json({ received: true });
 }
 
-/** Keyed on the session id, so webhook retries and the async-payment event don't double count. */
-function trackCompleted(session: Stripe.Checkout.Session, product: ProductId) {
+/** The purchase event. Keyed on the session id, so webhook retries and the async-payment event don't double count. */
+async function trackCompleted(s: Stripe, session: Stripe.Checkout.Session, product: ProductId) {
   const m = session.metadata ?? {};
+  const promoCode = await sessionPromoCode(s, session);
   return captureServerEvent("checkout_completed", {
     distinctId: resolveDistinctId(m.ph_distinct_id),
     uuid: eventUuid(`checkout_completed:${session.id}`),
@@ -70,7 +71,7 @@ function trackCompleted(session: Stripe.Checkout.Session, product: ProductId) {
       isLoggedIn: m.logged_in === "1",
       mock: false,
       stripeSessionId: session.id,
-      ...(m.promo_code ? { promo_code: m.promo_code } : {}),
+      ...(promoCode ? { promo_code: promoCode } : {}),
       ...featureProperties(parseExperiments(m)),
     },
   });
