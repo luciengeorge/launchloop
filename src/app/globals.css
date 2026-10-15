@@ -157,4 +157,106 @@
       linear-gradient(to bottom, color-mix(in oklch, var(--foreground) 6%, transparent) 1px, transparent 1px);
     background-size: 40px 40px;
   }
+
+  .envelope {
+    --envelope-ease: cubic-bezier(0.645, 0.045, 0.355, 1);
+    overflow: visible;
+    stroke: var(--primary);
+    stroke-width: 2.5;
+    stroke-linejoin: round;
+  }
+  .envelope-back {
+    fill: color-mix(in oklch, var(--primary) 24%, var(--card));
+  }
+  .envelope-flap-open {
+    fill: color-mix(in oklch, var(--primary) 14%, var(--card));
+    transform-box: fill-box;
+    transform-origin: center bottom;
+    transform: scaleY(0);
+  }
+  .envelope-paper {
+    fill: var(--card);
+    stroke: color-mix(in oklch, var(--primary) 45%, var(--card));
+    stroke-width: 1.5;
+  }
+  .envelope-ink-strong {
+    fill: var(--primary);
+    stroke: none;
+  }
+  .envelope-ink {
+    fill: color-mix(in oklch, var(--primary) 28%, var(--card));
+    stroke: none;
+  }
+  .envelope-pocket {
+    fill: color-mix(in oklch, var(--primary) 10%, var(--card));
+  }
+  .envelope-flap-closed {
+    fill: color-mix(in oklch, var(--primary) 18%, var(--card));
+    transform-box: fill-box;
+    transform-origin: center top;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .envelope {
+      animation: envelope-float 3s ease-in-out infinite alternate;
+    }
+    .envelope-flap-closed {
+      animation: envelope-flap-closed 5s var(--envelope-ease) infinite;
+    }
+    .envelope-flap-open {
+      animation: envelope-flap-open 5s var(--envelope-ease) infinite;
+    }
+    .envelope-letter {
+      animation: envelope-letter 5s var(--envelope-ease) infinite;
+    }
+  }
+}
+
+@keyframes envelope-float {
+  to {
+    transform: translateY(-4px);
+  }
+}
+/* The flap flips in two halves: the closed flap folds flat, then the open flap unfolds behind the letter. */
+@keyframes envelope-flap-closed {
+  0%,
+  12% {
+    transform: scaleY(1);
+  }
+  20%,
+  80% {
+    transform: scaleY(0);
+  }
+  88%,
+  100% {
+    transform: scaleY(1);
+  }
+}
+@keyframes envelope-flap-open {
+  0%,
+  20% {
+    transform: scaleY(0);
+  }
+  28%,
+  72% {
+    transform: scaleY(1);
+  }
+  80%,
+  100% {
+    transform: scaleY(0);
+  }
+}
+@keyframes envelope-letter {
+  0%,
+  28% {
+    transform: translateY(0);
+  }
+  42%,
+  58% {
+    transform: translateY(-28px);
+  }
+  72%,
+  100% {
+    transform: translateY(0);
+  }
 }
