@@ -4,10 +4,15 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { postJson } from "@/lib/client";
+import { useQueryParam } from "@/lib/use-query-param";
 
 export function NewsletterForm() {
   const [state, setState] = useState<"idle" | "loading" | "done">("idle");
   const [error, setError] = useState<string | null>(null);
+
+  const redirected = useQueryParam("subscribed");
+  const done = state === "done" || redirected === "1";
+  const shownError = error ?? (redirected === "0" && state === "idle" ? "Enter a valid email address." : null);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -23,12 +28,12 @@ export function NewsletterForm() {
     }
   }
 
-  if (state === "done") {
+  if (done) {
     return <p className="text-sm font-medium" role="status">You&apos;re subscribed. One useful launch teardown a week, no spam.</p>;
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-2" aria-label="Newsletter signup">
+    <form onSubmit={onSubmit} method="post" action="/api/newsletter" className="space-y-2" aria-label="Newsletter signup">
       <label htmlFor="newsletter-email" className="text-sm font-medium">
         Weekly launch teardowns
       </label>
@@ -38,7 +43,7 @@ export function NewsletterForm() {
           {state === "loading" ? "Joining…" : "Subscribe"}
         </Button>
       </div>
-      {error ? <p className="text-sm text-destructive" role="alert">{error}</p> : null}
+      {shownError ? <p className="text-sm text-destructive" role="alert">{shownError}</p> : null}
     </form>
   );
 }
