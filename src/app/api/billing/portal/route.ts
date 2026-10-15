@@ -1,19 +1,18 @@
 import { getSession, seeOther } from "@/lib/auth";
-import { getBillingCustomer } from "@/lib/billing";
+import { ensureStripeCustomer } from "@/lib/billing";
 import { siteUrl } from "@/lib/env";
 import { captureException } from "@/lib/observability";
 import { stripe } from "@/lib/payments";
 import { ensurePortalConfiguration } from "@/lib/stripe-branding";
 
-/** Opens a Stripe Customer Portal session for the logged-in customer (kit buyer or Ship Loop). */
+/** Opens a Stripe Customer Portal session for the logged-in user, creating their Stripe customer if missing. */
 export async function POST() {
   const session = await getSession();
   if (!session) return seeOther("/login?next=/account");
   const s = stripe();
   if (!s) return seeOther("/account?billing=mock");
   try {
-    const customer = await getBillingCustomer(session.email);
-    if (!customer) return seeOther("/account?billing=none");
+    const customer = await ensureStripeCustomer(session.email);
     const configuration = await ensurePortalConfiguration();
     const portal = await s.billingPortal.sessions.create({
       customer,
