@@ -42,9 +42,9 @@ export function MockCheckoutForm({ product, kitId, priceLabel, defaultEmail }: {
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       ) : null}
-      <Button type="submit" className="h-11 w-full text-base" disabled={loading}>
-        {loading ? <Loader2 className="animate-spin" /> : null}
-        Pay {priceLabel} (test mode)
+      <Button type="submit" className="h-11 w-full text-base" disabled={loading} aria-busy={loading || undefined}>
+        {loading ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
+        {loading ? "Working…" : `Pay ${priceLabel} (test mode)`}
       </Button>
     </form>
   );

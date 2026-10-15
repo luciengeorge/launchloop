@@ -23,7 +23,9 @@ export function CheckoutButton({ product, kitId, children, variant = "default", 
       variant={variant}
       className={className}
       disabled={loading}
+      aria-busy={loading || undefined}
       onClick={async () => {
+        if (loading) return;
         setLoading(true);
         try {
           const { url } = await postJson<{ url: string }>("/api/checkout", { product, kitId });
@@ -34,8 +36,8 @@ export function CheckoutButton({ product, kitId, children, variant = "default", 
         }
       }}
     >
-      {loading ? <Loader2 className="animate-spin" /> : null}
-      {children}
+      {loading ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
+      {loading ? "Working…" : children}
     </Button>
   );
 }

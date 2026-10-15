@@ -56,6 +56,7 @@ export function KitForm() {
   };
 
   async function submit(value: string) {
+    if (loading) return;
     setError(null);
     setLoading(true);
     setStep(-1);
@@ -102,7 +103,7 @@ export function KitForm() {
           aria-describedby={error ? "kit-form-error" : undefined}
           className="h-12 border-0 bg-transparent text-base shadow-none focus-visible:ring-0 sm:text-base"
         />
-        <Button type="submit" disabled={loading} className="h-12 px-5 text-base">
+        <Button type="submit" disabled={loading} aria-busy={loading || undefined} className="h-12 px-5 text-base">
           {loading ? <Loader2 className="animate-spin" /> : null}
           {loading ? "Reading your app…" : plan === "kit" ? "Get my £19 launch kit" : "Get my free preview"}
           {loading ? null : <ArrowRight />}
@@ -126,7 +127,7 @@ export function KitForm() {
           <>
             <span data-plan={plan}>{plan === "kit" ? "Launch Kit £19 · Preview first, then secure Stripe checkout" : "Free preview · No sign-up · Public repos only"}</span>
             <span aria-hidden="true" className="hidden sm:inline">·</span>
-            <button type="button" className="font-medium text-foreground underline underline-offset-4 hover:text-primary" onClick={() => void submit("sample")}>
+            <button type="button" className="font-medium text-foreground underline underline-offset-4 hover:text-primary disabled:opacity-50" disabled={loading} onClick={() => void submit("sample")}>
               Try a sample app
             </button>
           </>

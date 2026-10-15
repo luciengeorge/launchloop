@@ -39,8 +39,8 @@ export function NewsletterForm() {
       </label>
       <div className="flex max-w-sm gap-2">
         <Input id="newsletter-email" name="email" type="email" required placeholder="you@example.com" autoComplete="email" className="h-9 bg-background" />
-        <Button type="submit" size="lg" disabled={state === "loading"}>
-          {state === "loading" ? "Joining…" : "Subscribe"}
+        <Button type="submit" size="lg" disabled={state === "loading"} aria-busy={state === "loading" || undefined}>
+          {state === "loading" ? "Sending…" : "Subscribe"}
         </Button>
       </div>
       {shownError ? <p className="text-sm text-destructive" role="alert">{shownError}</p> : null}

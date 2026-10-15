@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { getSession } from "@/lib/auth";
+import { LogoutButton } from "./logout-button";
+import { PendingForm } from "./pending-form";
 
 const linkCls = "text-sm text-muted-foreground transition-colors hover:text-foreground";
 
@@ -11,22 +12,16 @@ export function LogInLink() {
   );
 }
 
-/** Streams in behind a Suspense boundary so the rest of the header stays in the static shell. */
-export async function AccountNav() {
-  const session = await getSession();
-  if (!session) {
-    return <LogInLink />;
-  }
+/** Logged-in header links. Session already known by SiteHeader. */
+export function AuthedNav() {
   return (
     <div className="flex items-center gap-3 sm:gap-4" data-testid="nav-authed">
       <Link href="/account" className={linkCls} data-testid="nav-my-kits">
         My kits
       </Link>
-      <form method="post" action="/api/auth/logout">
-        <button type="submit" className={linkCls} data-testid="nav-logout">
-          Log out
-        </button>
-      </form>
+      <PendingForm method="post" action="/api/auth/logout">
+        <LogoutButton className={linkCls} />
+      </PendingForm>
     </div>
   );
 }

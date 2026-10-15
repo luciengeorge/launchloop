@@ -37,10 +37,10 @@ test("magic-link login, single-use token, header state and log out", async ({ pa
   expect(session?.httpOnly).toBe(true);
   expect(session?.sameSite).toBe("Lax");
 
-  // Reusing the same link fails.
+  // Reusing the same link fails. Already logged in → /login?error=expired then bounce to /account.
   await page.goto(link);
-  await page.waitForURL(/\/login\?error=expired/);
-  await expect(page.getByText("That login link has expired")).toBeVisible();
+  await page.waitForURL(/\/account$/);
+  await expect(page.getByRole("heading", { name: "My kits" })).toBeVisible();
 
   // Log out from the navbar (not only /account).
   await page.goto("/account");

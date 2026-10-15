@@ -3,7 +3,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { ManageBillingButton } from "@/components/manage-billing-button";
+import { buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getSession } from "@/lib/auth";
 import { getShipLoop, hasBillingAccess } from "@/lib/billing";
@@ -64,11 +65,7 @@ async function Dashboard({ searchParams }: Pick<PageProps<"/account">, "searchPa
             <p className="text-base font-semibold">Invoices &amp; payments</p>
             <p className="mt-0.5 text-sm text-muted-foreground">Receipts, invoices and payment methods for your kits and Ship Loop.</p>
           </div>
-          <form method="post" action="/api/billing/portal">
-            <Button type="submit" size="lg" data-testid="manage-billing">
-              Manage billing
-            </Button>
-          </form>
+          <ManageBillingButton />
         </div>
       ) : null}
 

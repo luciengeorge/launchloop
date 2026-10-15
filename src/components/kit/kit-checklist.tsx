@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ChevronDown, Lock, PartyPopper } from "lucide-react";
+import { Check, ChevronDown, Loader2, Lock, PartyPopper } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { CopyButton } from "@/components/copy-button";
@@ -27,6 +27,7 @@ const CHEERS = ["Nice one.", "Ticked off.", "Momentum.", "One step closer to lau
 export function KitChecklist({ kitId, productName, tasks, locked, persist, initialDone }: Props) {
   const countable = useMemo(() => tasks.filter((t) => !t.pending), [tasks]);
   const [done, setDone] = useState<Set<string>>(() => new Set(initialDone));
+  const [saving, setSaving] = useState<string | null>(null);
   const [confetti, setConfetti] = useState(0);
   const [justTicked, setJustTicked] = useState<string | null>(null);
   const [celebratePct, setCelebratePct] = useState(false);
@@ -61,7 +62,7 @@ export function KitChecklist({ kitId, productName, tasks, locked, persist, initi
 
   const toggle = useCallback(
     async (task: KitTask) => {
-      if (locked || task.pending) return;
+      if (locked || task.pending || saving) return;
       const nextDone = !done.has(task.id);
       const next = new Set(done);
       if (nextDone) next.add(task.id);
@@ -96,15 +97,18 @@ export function KitChecklist({ kitId, productName, tasks, locked, persist, initi
         }
         return;
       }
+      setSaving(task.id);
       try {
         const res = await fetch(`/api/kits/${kitId}/progress`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ taskId: task.id, done: nextDone }) });
         if (!res.ok) throw new Error();
       } catch {
         toast.error("Couldn't save that tick. Check your connection.");
         setDone(done);
+      } finally {
+        setSaving(null);
       }
     },
-    [countable, done, kitId, locked, manualStage, persist, productName, tasks, total],
+    [countable, done, kitId, locked, manualStage, persist, productName, saving, tasks, total],
   );
 
   const openStage = (stage: TaskGroup) => {
@@ -175,7 +179,7 @@ export function KitChecklist({ kitId, productName, tasks, locked, persist, initi
             </h3>
             <ul className="space-y-4">
               {items.map((task) => (
-                <TaskRow key={task.id} kitId={kitId} task={task} done={done.has(task.id)} pop={justTicked === task.id} onToggle={() => void toggle(task)} kitLocked={locked} />
+                <TaskRow key={task.id} kitId={kitId} task={task} done={done.has(task.id)} pop={justTicked === task.id} onToggle={() => void toggle(task)} kitLocked={locked} saving={saving === task.id} />
               ))}
             </ul>
           </section>
@@ -305,7 +309,7 @@ function ProgressHero({
   );
 }
 
-function TaskRow({ kitId, task, done, pop, onToggle, kitLocked }: { kitId: string; task: KitTask; done: boolean; pop: boolean; onToggle: () => void; kitLocked: boolean }) {
+function TaskRow({ kitId, task, done, pop, onToggle, kitLocked, saving }: { kitId: string; task: KitTask; done: boolean; pop: boolean; onToggle: () => void; kitLocked: boolean; saving: boolean }) {
   if (task.pending) {
     return (
       <li className="rounded-xl border border-dashed border-border bg-card p-4" data-testid="task-pending" aria-busy="true">
@@ -334,7 +338,7 @@ function TaskRow({ kitId, task, done, pop, onToggle, kitLocked }: { kitId: strin
           role="checkbox"
           aria-checked={done}
           aria-label={kitLocked ? `${task.title} (locked)` : `Mark “${task.title}” done`}
-          disabled={kitLocked || task.locked}
+          disabled={kitLocked || task.locked || saving}
           onClick={onToggle}
           className={`mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full border-2 transition-all motion-reduce:transition-none ${
             done ? "border-emerald-500 bg-emerald-500 text-white" : "border-border hover:border-primary"
@@ -365,8 +369,9 @@ function TaskRow({ kitId, task, done, pop, onToggle, kitLocked }: { kitId: strin
                 </a>
               ) : null}
               {!kitLocked && !task.locked ? (
-                <Button type="button" variant={done ? "outline" : "default"} size="sm" onClick={onToggle} data-testid="mark-done">
-                  {done ? "Undo" : "Mark done"}
+                <Button type="button" variant={done ? "outline" : "default"} size="sm" onClick={onToggle} disabled={saving} aria-busy={saving || undefined} data-testid="mark-done">
+                  {saving ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
+                  {saving ? "Saving…" : done ? "Undo" : "Mark done"}
                 </Button>
               ) : null}
             </div>

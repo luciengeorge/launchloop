@@ -134,9 +134,9 @@ export function UnlockPanel({ kitId, priceLabel, email, autoCheckout, cancelled,
       ) : null}
 
       {step === "cta" ? (
-        <Button type="button" className="mt-6 h-11 w-full text-base" onClick={() => (email ? void checkout() : setStep("email"))} disabled={loading}>
-          <Lock aria-hidden="true" />
-          Unlock full kit for {priceLabel}
+        <Button type="button" className="mt-6 h-11 w-full text-base" onClick={() => (email ? void checkout() : setStep("email"))} disabled={loading} aria-busy={loading || undefined}>
+          {loading ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Lock aria-hidden="true" />}
+          {loading ? "Working…" : `Unlock full kit for ${priceLabel}`}
         </Button>
       ) : null}
 
@@ -147,9 +147,9 @@ export function UnlockPanel({ kitId, priceLabel, email, autoCheckout, cancelled,
             <Input ref={inputRef} id="unlock-email" name="email" type="email" required autoComplete="email" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="you@example.com" className="h-10" />
             <p className="text-xs text-muted-foreground">We&apos;ll email a one-click sign-in link and a 6-digit code. Your kit and progress live in your account.</p>
           </div>
-          <Button type="submit" className="h-11 w-full text-base" disabled={loading}>
-            {loading ? <Loader2 className="animate-spin" /> : null}
-            Continue to checkout
+          <Button type="submit" className="h-11 w-full text-base" disabled={loading} aria-busy={loading || undefined}>
+            {loading ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
+            {loading ? "Sending…" : "Continue to checkout"}
             {loading ? null : <ArrowRight aria-hidden="true" />}
           </Button>
         </form>
@@ -179,9 +179,9 @@ export function UnlockPanel({ kitId, priceLabel, email, autoCheckout, cancelled,
               placeholder="123456"
               className="h-10 bg-background font-mono text-lg tracking-[0.3em]"
             />
-            <Button type="submit" className="h-10" disabled={loading || code.length !== 6}>
-              {loading ? <Loader2 className="animate-spin" /> : null}
-              Verify
+            <Button type="submit" className="h-10" disabled={loading || code.length !== 6} aria-busy={loading || undefined}>
+              {loading ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
+              {loading ? "Working…" : "Verify"}
             </Button>
           </form>
           <button type="button" className="text-xs font-medium underline underline-offset-4" onClick={() => setStep("email")}>
