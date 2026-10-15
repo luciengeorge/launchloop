@@ -52,6 +52,25 @@ test("magic-link login, single-use token, header state and log out", async ({ pa
   await page.waitForURL(/\/login\?next=%2Faccount|\/login\?next=\/account/);
 });
 
+test("login CTA locks with a loading state while the link is sent", async ({ page }) => {
+  let posts = 0;
+  await page.route("**/api/auth/request", async (route) => {
+    posts++;
+    await new Promise((r) => setTimeout(r, 1500));
+    await route.continue();
+  });
+  await page.goto("/login");
+  await page.getByLabel("Email").fill(uniqueEmail("cta"));
+  await page.getByRole("button", { name: "Email me a login link" }).click();
+  const submit = page.getByTestId("login-submit");
+  await expect(submit).toBeDisabled();
+  await expect(submit).toHaveText("Sending…");
+  await page.getByLabel("Email").press("Enter");
+  await page.waitForURL(/\/login\/check-email$/);
+  await expect(page.getByTestId("envelope")).toBeVisible();
+  expect(posts).toBe(1);
+});
+
 test("tampered tokens and forged session cookies are rejected", async ({ page, context, baseURL }) => {
   await page.goto("/login/verify?token=abc.def");
   await page.waitForURL(/\/login\?error=expired/);
