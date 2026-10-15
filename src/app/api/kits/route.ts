@@ -8,18 +8,12 @@ import { cookies } from "next/headers";
 import { ANON_KITS_COOKIE, getSession, readAnonKits, secureCookies } from "@/lib/auth";
 import { createKit, newId } from "@/lib/kits";
 import { captureException } from "@/lib/observability";
-import { clientIp, sharedRateLimit } from "@/lib/rate-limit";
+import { freePreviewLimit } from "@/lib/rate-limit";
 
 export const maxDuration = 60;
 
-const PREVIEWS_PER_HOUR = Number(process.env.PREVIEW_RATE_LIMIT_PER_HOUR ?? 5);
-const PREVIEWS_PER_DAY = Number(process.env.PREVIEW_RATE_LIMIT_PER_DAY ?? 20);
-
 export async function POST(req: Request) {
-  const limit = await sharedRateLimit(`kits:${clientIp(req)}`, [
-    { limit: PREVIEWS_PER_HOUR, seconds: 60 * 60 },
-    { limit: PREVIEWS_PER_DAY, seconds: 24 * 60 * 60 },
-  ]);
+  const limit = await freePreviewLimit(req);
   if (!limit.ok) {
     return Response.json(
       kitErrorBody("rate_limited"),

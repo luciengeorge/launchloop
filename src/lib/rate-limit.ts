@@ -23,6 +23,17 @@ export function clientIp(req: Request): string {
   return req.headers.get("x-forwarded-for")?.split(",")[0].trim() || req.headers.get("x-real-ip") || "local";
 }
 
+const PREVIEWS_PER_HOUR = Number(process.env.PREVIEW_RATE_LIMIT_PER_HOUR ?? 5);
+const PREVIEWS_PER_DAY = Number(process.env.PREVIEW_RATE_LIMIT_PER_DAY ?? 20);
+
+/** One budget per IP for everything that reads a repo and calls the LLM for free: previews and tool generations. */
+export function freePreviewLimit(req: Request) {
+  return sharedRateLimit(`kits:${clientIp(req)}`, [
+    { limit: PREVIEWS_PER_HOUR, seconds: 60 * 60 },
+    { limit: PREVIEWS_PER_DAY, seconds: 24 * 60 * 60 },
+  ]);
+}
+
 /**
  * Fixed-window limits shared across instances via the store (Redis in
  * production). All windows are counted; the request fails if any is exceeded.
