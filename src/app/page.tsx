@@ -15,7 +15,7 @@ import { OG_PREVIEW, TAGLINE_CHECKER } from "@/lib/tools";
 const KIT_ICONS = [Globe, Megaphone, MessageSquareText, FileText, ImageIcon, ListChecks];
 
 const STEPS = [
-  { title: "Paste a link", body: "A public GitHub repo or your live URL. We read the README, package.json, the last 20 commits and your landing page." },
+  { title: "Paste a link", body: "A public GitHub repo or your live URL. We read the README, package.json, the last 20 commit messages and your landing page." },
   { title: "Get your brief", body: "A short product brief built from what's actually in your code: real features, real numbers, your stack." },
   { title: "Launch from it", body: "Copy for every platform plus three images in your brand colours, checked against each platform's limits." },
 ];
@@ -43,20 +43,19 @@ export default function Home() {
             Paste your repo. <span className="text-primary">Get your whole launch.</span>
           </h1>
           <p className="mt-5 max-w-2xl text-pretty text-lg text-muted-foreground">
-            LaunchLoop reads your code and live site, then writes your landing page, Product Hunt post, X thread and LinkedIn post, with three on-brand
-            social images to match.
+            LaunchLoop reads your public repo and live site, then writes your landing page copy, Product Hunt post, X thread and LinkedIn post, plus three
+            images in your brand colours.
           </p>
           <div className="mt-10 flex w-full justify-center">
             <KitForm />
           </div>
-          <ul className="mt-10 flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
-            {["Free preview: brief, PH tagline, first X post and watermarked images", "£19 for the full kit", "ZIP download and email"].map((item) => (
-              <li key={item} className="flex items-center gap-1.5">
-                <Check className="size-4 text-primary" aria-hidden="true" />
-                {item}
-              </li>
-            ))}
-          </ul>
+          <p className="mt-8 flex items-center gap-1.5 text-sm text-muted-foreground">
+            <Check className="size-4 text-primary" aria-hidden="true" />
+            Free preview, no account needed. Full kit is £19, paid once, for one app.
+          </p>
+          <Link href="/pricing" className="mt-2 text-sm font-medium text-foreground underline underline-offset-4 hover:text-primary">
+            See what&apos;s in the £19 kit
+          </Link>
           <p className="mt-6 text-sm text-muted-foreground">
             Only need one piece?{" "}
             <Link href={TAGLINE_CHECKER.path} className="font-medium text-foreground underline underline-offset-4 hover:text-primary">
@@ -74,9 +73,11 @@ export default function Home() {
         <div className="max-w-2xl">
           <p className="font-mono text-xs uppercase tracking-widest text-primary">The Launch Kit</p>
           <h2 id="kit-heading" className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
-            Everything you need for launch day, from one link
+            Everything in the £19 Launch Kit
           </h2>
-          <p className="mt-3 text-muted-foreground">Other tools write copy, or make OG images, or schedule posts. LaunchLoop does the whole launch in one go.</p>
+          <p className="mt-3 text-muted-foreground">
+            One payment, one app, everything for launch day. Other tools write copy, or make images, or schedule posts. The kit does the whole launch from one link.
+          </p>
         </div>
         <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {KIT_CONTENTS.map((item, i) => {
@@ -107,7 +108,7 @@ export default function Home() {
             ))}
           </ol>
           <p className="mt-8 flex items-center gap-2 text-sm text-muted-foreground">
-            <GitBranch className="size-4" aria-hidden="true" /> Public repos only. We never clone your code or store your README beyond your kit.
+            <GitBranch className="size-4" aria-hidden="true" /> Public repos only. We never clone your code. We keep a short excerpt of your sources with your kit, nothing more.
           </p>
         </div>
       </section>

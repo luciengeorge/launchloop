@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { loginCodeFor, magicLinkFor, makeSampleKit, uniqueEmail } from "./helpers";
 
 async function requestUnlock(page: import("@playwright/test").Page, email: string) {
-  await page.getByRole("button", { name: "Unlock full kit for £19" }).click();
+  await page.getByRole("button", { name: "Unlock the full kit, £19" }).click();
   await page.getByLabel("Your email").fill(email);
   await page.getByRole("button", { name: "Continue to checkout" }).click();
   await expect(page.getByTestId("unlock-panel")).toHaveAttribute("data-step", "sent");

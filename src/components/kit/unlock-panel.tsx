@@ -17,7 +17,6 @@ interface Props {
   /** Arrived from the magic link (or the "£19 kit" plan): go straight to checkout. */
   autoCheckout: boolean;
   cancelled: boolean;
-  totalTasks: number;
 }
 
 type Step = "cta" | "email" | "sent" | "redirecting";
@@ -26,7 +25,7 @@ type Step = "cta" | "email" | "sent" | "redirecting";
  * Unlock → magic-link sign in (email prefilled, returns here) → Stripe Checkout
  * with the account email → back to the unlocked kit in /account.
  */
-export function UnlockPanel({ kitId, priceLabel, email, autoCheckout, cancelled, totalTasks }: Props) {
+export function UnlockPanel({ kitId, priceLabel, email, autoCheckout, cancelled }: Props) {
   const [step, setStep] = useState<Step>(autoCheckout && email ? "redirecting" : autoCheckout ? "email" : "cta");
   const [address, setAddress] = useState(email ?? "");
   const [error, setError] = useState<string | null>(null);
@@ -115,10 +114,11 @@ export function UnlockPanel({ kitId, priceLabel, email, autoCheckout, cancelled,
   return (
     <section className="rounded-2xl border-2 border-primary bg-card p-6 shadow-xl shadow-primary/10" aria-labelledby="unlock-heading" data-testid="unlock-panel" data-step={step}>
       <h2 id="unlock-heading" className="text-lg font-semibold">
-        Your full kit is written. Unlock it.
+        Like it? Get the full kit for this app.
       </h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        One-off <span className="font-semibold text-foreground">{priceLabel}</span>. Every blurred section below, {totalTasks} launch steps, 3 images without watermarks and a ZIP.
+        Full Product Hunt post, the whole X thread, LinkedIn post, landing copy, 3 images with no watermark and a launch-day checklist.{" "}
+        <span className="font-semibold text-foreground">{priceLabel} once.</span> No subscription.
       </p>
 
       <ol className="mt-5 space-y-2 text-sm" aria-label="How unlocking works">
@@ -136,7 +136,7 @@ export function UnlockPanel({ kitId, priceLabel, email, autoCheckout, cancelled,
       {step === "cta" ? (
         <Button type="button" className="mt-6 h-11 w-full text-base" onClick={() => (email ? void checkout() : setStep("email"))} disabled={loading}>
           <Lock aria-hidden="true" />
-          Unlock full kit for {priceLabel}
+          Unlock the full kit, {priceLabel}
         </Button>
       ) : null}
 

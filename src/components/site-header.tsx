@@ -8,7 +8,7 @@ import { Logo } from "./logo";
 const NAV = [
   { href: "/#kit", label: "What you get" },
   { href: "/pricing", label: "Pricing" },
-  { href: "/ship-loop", label: "Ship Loop" },
+  { href: "/ship-loop", label: "Ship Loop (soon)" },
   { href: TAGLINE_CHECKER.path, label: "Tagline checker", className: "hidden lg:inline" },
   { href: OG_PREVIEW.path, label: "OG preview", className: "hidden xl:inline" },
   { href: "/faq", label: "FAQ" },

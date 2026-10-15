@@ -44,7 +44,7 @@ export function WaitlistForm({ plan }: { plan: "monthly" | "yearly" }) {
       <div className="flex flex-col gap-2 sm:flex-row">
         <Input id="waitlist-email" name="email" type="email" required placeholder="you@example.com" autoComplete="email" className="h-10" />
         <Button type="submit" variant="outline" className="h-10 px-4" disabled={state === "loading"}>
-          {state === "loading" ? "Joining…" : "Join the waitlist (free)"}
+          {state === "loading" ? "Joining…" : "Join the free waitlist"}
         </Button>
       </div>
       {shownError ? <p className="text-sm text-destructive" role="alert">{shownError}</p> : null}
