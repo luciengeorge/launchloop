@@ -1,5 +1,6 @@
 import "server-only";
 import Stripe from "stripe";
+import { deployEnv, stripeEventDecision } from "./deploy-env";
 import { env, isStripeMock } from "./env";
 import { PRODUCTS, type ProductId } from "./products";
 
@@ -45,11 +46,16 @@ export async function createCheckoutUrl(params: { product: ProductId; origin: st
     // A Customer lets Ship Loop buyers manage billing in the Customer Portal from /account.
     customer_creation: "always",
     allow_promotion_codes: true,
-    metadata: { product, ...(kitId ? { kitId } : {}) },
-    payment_intent_data: { metadata: { product, ...(kitId ? { kitId } : {}) } },
+    metadata: { product, env: deployEnv(), ...(kitId ? { kitId } : {}) },
+    payment_intent_data: { metadata: { product, env: deployEnv(), ...(kitId ? { kitId } : {}) } },
     success_url: `${origin}/api/checkout/return?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: kitId ? `${origin}/kit/${kitId}?checkout=cancelled` : `${origin}/ship-loop?checkout=cancelled`,
   });
   if (!session.url) throw new Error("Stripe did not return a Checkout URL");
   return session.url;
+}
+
+/** Whether this deployment owns a Checkout session (see stripeEventDecision). */
+export function checkoutDecision(session: Stripe.Checkout.Session) {
+  return stripeEventDecision({ metadataEnv: session.metadata?.env, livemode: session.livemode, current: deployEnv(), secretKey: env.stripeSecretKey });
 }

@@ -1,7 +1,7 @@
 import { after } from "next/server";
 import { fulfilKit, recordPayment } from "@/lib/fulfil";
 import { captureException } from "@/lib/observability";
-import { stripe } from "@/lib/payments";
+import { checkoutDecision, stripe } from "@/lib/payments";
 import { isProductId } from "@/lib/products";
 
 export const maxDuration = 120;
@@ -18,6 +18,8 @@ export async function GET(req: Request) {
 
   try {
     const session = await s.checkout.sessions.retrieve(sessionId);
+    // Previews never receive the webhook, so this verified lookup is how they fulfil.
+    if (!checkoutDecision(session).handle) return Response.redirect(new URL("/?checkout=error", url), 303);
     const product = session.metadata?.product;
     const kitId = session.metadata?.kitId;
     if (session.payment_status !== "paid" || !isProductId(product)) {

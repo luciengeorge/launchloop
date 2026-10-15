@@ -1,6 +1,7 @@
 import "server-only";
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { keyPrefix } from "./deploy-env";
 import { env } from "./env";
 
 /**
@@ -141,6 +142,35 @@ class RedisRestStore implements KeyValueStore {
   }
 }
 
+/** Namespaces every key by deployment env so previews and dev never touch production data. */
+class PrefixedStore implements KeyValueStore {
+  constructor(
+    private inner: KeyValueStore,
+    private prefix: string,
+  ) {}
+  private k(key: string) {
+    return this.prefix + key;
+  }
+  get<T>(key: string) {
+    return this.inner.get<T>(this.k(key));
+  }
+  set<T>(key: string, value: T, ttlSeconds?: number) {
+    return this.inner.set(this.k(key), value, ttlSeconds);
+  }
+  getDel<T>(key: string) {
+    return this.inner.getDel<T>(this.k(key));
+  }
+  incr(key: string, ttlSeconds: number) {
+    return this.inner.incr(this.k(key), ttlSeconds);
+  }
+  sAdd(key: string, member: string) {
+    return this.inner.sAdd(this.k(key), member);
+  }
+  sMembers(key: string) {
+    return this.inner.sMembers(this.k(key));
+  }
+}
+
 let instance: KeyValueStore | null = null;
 
 export function store(): KeyValueStore {
@@ -151,6 +181,8 @@ export function store(): KeyValueStore {
     const dir = env.dataDir ?? (process.env.VERCEL ? "/tmp/launchloop" : path.join(process.cwd(), ".data"));
     instance = new FileStore(dir);
   }
+  const prefix = keyPrefix();
+  if (prefix) instance = new PrefixedStore(instance, prefix);
   return instance;
 }
 

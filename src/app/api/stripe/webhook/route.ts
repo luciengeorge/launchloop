@@ -3,6 +3,7 @@ import type Stripe from "stripe";
 import { env } from "@/lib/env";
 import { fulfilKit, recordPayment } from "@/lib/fulfil";
 import { captureException } from "@/lib/observability";
+import { deployEnv, stripeEventDecision } from "@/lib/deploy-env";
 import { stripe } from "@/lib/payments";
 import { isProductId } from "@/lib/products";
 
@@ -27,6 +28,8 @@ export async function POST(req: Request) {
 
   if (event.type === "checkout.session.completed" || event.type === "checkout.session.async_payment_succeeded") {
     const session = event.data.object;
+    const decision = stripeEventDecision({ metadataEnv: session.metadata?.env, livemode: event.livemode, current: deployEnv(), secretKey: env.stripeSecretKey });
+    if (!decision.handle) return Response.json({ received: true, ignored: decision.reason });
     const product = session.metadata?.product;
     const kitId = session.metadata?.kitId;
     if (session.payment_status === "paid" && isProductId(product)) {
