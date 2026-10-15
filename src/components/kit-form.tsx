@@ -28,6 +28,7 @@ export function KitForm() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Arriving via /#start or ?plan=kit (or a StartLink on this page): scroll to the form, focus it, preselect the plan.
+  // ?url= prefills the input, e.g. when a free tool hands over the repo it just read.
   useEffect(() => {
     const focusForm = (nextPlan?: StartPlan) => {
       if (nextPlan) setPlan(nextPlan);
@@ -36,8 +37,11 @@ export function KitForm() {
       inputRef.current?.focus({ preventScroll: true });
     };
     const fromUrl = () => {
-      const urlPlan = new URLSearchParams(location.search).get("plan") === "kit" ? "kit" : undefined;
+      const params = new URLSearchParams(location.search);
+      const urlPlan = params.get("plan") === "kit" ? "kit" : undefined;
+      const prefill = params.get("url")?.trim();
       if (urlPlan) setPlan(urlPlan);
+      if (prefill) setUrl(prefill);
       if (location.hash === "#start" || urlPlan) requestAnimationFrame(() => focusForm(urlPlan));
     };
     const onStart = (e: Event) => focusForm((e as CustomEvent<{ plan?: StartPlan }>).detail?.plan ?? "free");
