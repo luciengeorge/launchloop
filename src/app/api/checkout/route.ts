@@ -1,0 +1,27 @@
+import { isEmail } from "@/lib/audience";
+import { getKit } from "@/lib/kits";
+import { captureException } from "@/lib/observability";
+import { createCheckoutUrl } from "@/lib/payments";
+import { isProductId } from "@/lib/products";
+
+export async function POST(req: Request) {
+  const body = (await req.json().catch(() => ({}))) as { product?: unknown; kitId?: unknown; email?: unknown };
+  if (!isProductId(body.product)) return Response.json({ error: "Unknown product." }, { status: 400 });
+
+  const email = isEmail(body.email) ? body.email : undefined;
+  let kitId: string | undefined;
+  if (body.product === "kit") {
+    const kit = typeof body.kitId === "string" ? await getKit(body.kitId) : null;
+    if (!kit) return Response.json({ error: "That kit doesn't exist any more. Generate a new preview." }, { status: 404 });
+    if (kit.paid) return Response.json({ url: `/kit/${kit.id}` });
+    kitId = kit.id;
+  }
+
+  try {
+    const url = await createCheckoutUrl({ product: body.product, origin: new URL(req.url).origin, kitId, email });
+    return Response.json({ url });
+  } catch (error) {
+    captureException(error, { stage: "api.checkout", product: body.product, kitId });
+    return Response.json({ error: "Couldn't start checkout. Please try again." }, { status: 502 });
+  }
+}

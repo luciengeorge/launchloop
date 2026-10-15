@@ -1,0 +1,48 @@
+import "server-only";
+
+function read(name: string): string | undefined {
+  const value = process.env[name]?.trim();
+  return value ? value : undefined;
+}
+
+/** MOCK_MODE=true forces every integration into mock mode, even when keys are present. */
+export const forceMock = read("MOCK_MODE") === "true";
+
+export const env = {
+  stripeSecretKey: forceMock ? undefined : read("STRIPE_SECRET_KEY"),
+  stripeWebhookSecret: read("STRIPE_WEBHOOK_SECRET"),
+  stripePriceKit: read("STRIPE_PRICE_KIT"),
+  stripePriceShipLoopMonthly: read("STRIPE_PRICE_SHIPLOOP_MONTHLY"),
+  stripePriceShipLoopYearly: read("STRIPE_PRICE_SHIPLOOP_YEARLY"),
+
+  resendApiKey: forceMock ? undefined : read("RESEND_API_KEY"),
+  resendFrom: read("RESEND_FROM") ?? "LaunchLoop <onboarding@resend.dev>",
+  resendReplyTo: read("RESEND_REPLY_TO"),
+  resendAudienceId: read("RESEND_AUDIENCE_ID"),
+  resendSegmentId: read("RESEND_SEGMENT_ID"),
+
+  llmProvider: read("LLM_PROVIDER"),
+  llmApiKey: read("LLM_API_KEY") ?? read("OPENAI_API_KEY") ?? read("ANTHROPIC_API_KEY"),
+  llmModel: read("LLM_MODEL"),
+  llmBaseUrl: read("LLM_BASE_URL"),
+
+  githubToken: read("GITHUB_TOKEN"),
+
+  kvUrl: read("KV_REST_API_URL") ?? read("UPSTASH_REDIS_REST_URL"),
+  kvToken: read("KV_REST_API_TOKEN") ?? read("UPSTASH_REDIS_REST_TOKEN"),
+  dataDir: read("DATA_DIR"),
+
+  ingestAllowPrivate: read("INGEST_ALLOW_PRIVATE") === "true",
+  sentryDsn: read("SENTRY_DSN"),
+};
+
+export const isStripeMock = () => !env.stripeSecretKey;
+export const isEmailMock = () => !env.resendApiKey;
+
+export function siteUrl(): string {
+  const explicit = read("NEXT_PUBLIC_SITE_URL");
+  if (explicit) return explicit.replace(/\/$/, "");
+  const vercel = read("VERCEL_PROJECT_PRODUCTION_URL");
+  if (vercel) return `https://${vercel}`;
+  return `http://localhost:${read("PORT") ?? "3417"}`;
+}

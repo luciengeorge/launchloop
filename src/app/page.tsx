@@ -1,0 +1,218 @@
+import { Check, FileText, GitBranch, Globe, Image as ImageIcon, ListChecks, Megaphone, MessageSquareText, ShieldCheck } from "lucide-react";
+import Link from "next/link";
+import { JsonLd } from "@/components/json-ld";
+import { KitForm } from "@/components/kit-form";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button";
+import { siteUrl } from "@/lib/env";
+import { FAQ, KIT_CONTENTS, SITE } from "@/lib/site";
+
+const KIT_ICONS = [Globe, Megaphone, MessageSquareText, FileText, ImageIcon, ListChecks];
+
+const STEPS = [
+  { title: "Paste a link", body: "A public GitHub repo or your live URL. We read the README, package.json, the last 20 commits and your landing page." },
+  { title: "Get your brief", body: "A short product brief built from what's actually in your code: real features, real numbers, your stack." },
+  { title: "Launch from it", body: "Copy for every platform plus three images in your brand colours, checked against each platform's limits." },
+];
+
+const RULES = [
+  { title: "Reads your code, not just your homepage", body: "Features and numbers come from your README, commits and package.json, so the copy says something only your app can say." },
+  { title: "Every limit, enforced", body: "60-character PH taglines, 260-character descriptions, 280-character posts counted the way X counts them." },
+  { title: "Never asks for upvotes", body: "Vote requests get your launch penalised on Product Hunt and Hacker News. We strip them out and ask for feedback instead." },
+  { title: "Images in your colours", body: "We pull your palette from your site's CSS and render OG, X and Product Hunt images at the exact sizes." },
+];
+
+export default function Home() {
+  const url = siteUrl();
+  return (
+    <>
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@type": "SoftwareApplication",
+          name: SITE.name,
+          url,
+          applicationCategory: "BusinessApplication",
+          operatingSystem: "Web",
+          description: SITE.description,
+          offers: [
+            { "@type": "Offer", name: "Free preview", price: "0", priceCurrency: "GBP" },
+            { "@type": "Offer", name: "Launch Kit", price: "19.00", priceCurrency: "GBP" },
+          ],
+        }}
+      />
+
+      <section id="start" className="relative overflow-hidden border-b border-border/60">
+        <div className="bg-grid absolute inset-0 [mask-image:radial-gradient(ellipse_at_top,black_30%,transparent_75%)]" aria-hidden="true" />
+        <div className="relative mx-auto flex max-w-6xl flex-col items-center px-4 pb-20 pt-16 text-center sm:px-6 sm:pt-24">
+          <Badge variant="outline" className="mb-6 bg-background/80 px-3 py-1 text-xs">
+            For apps built with Cursor, Lovable, Bolt and v0
+          </Badge>
+          <h1 className="max-w-3xl text-balance text-4xl font-semibold tracking-tight sm:text-6xl">
+            Paste your repo. <span className="text-primary">Get your whole launch.</span>
+          </h1>
+          <p className="mt-5 max-w-2xl text-pretty text-lg text-muted-foreground">
+            LaunchLoop reads your code and live site, then writes your landing page, Product Hunt post, X thread and LinkedIn post, with three on-brand
+            social images to match.
+          </p>
+          <div className="mt-10 flex w-full justify-center">
+            <KitForm />
+          </div>
+          <ul className="mt-10 flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
+            {["Free preview of your PH tagline and first X post", "£19 for the full kit", "ZIP download and email"].map((item) => (
+              <li key={item} className="flex items-center gap-1.5">
+                <Check className="size-4 text-primary" aria-hidden="true" />
+                {item}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+
+      <section id="kit" className="mx-auto max-w-6xl px-4 py-20 sm:px-6" aria-labelledby="kit-heading">
+        <div className="max-w-2xl">
+          <p className="font-mono text-xs uppercase tracking-widest text-primary">The Launch Kit</p>
+          <h2 id="kit-heading" className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
+            Everything you need for launch day, from one link
+          </h2>
+          <p className="mt-3 text-muted-foreground">Other tools write copy, or make OG images, or schedule posts. LaunchLoop does the whole launch in one go.</p>
+        </div>
+        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {KIT_CONTENTS.map((item, i) => {
+            const Icon = KIT_ICONS[i];
+            return (
+              <article key={item.title} className="rounded-2xl border border-border bg-card p-6">
+                <Icon className="size-5 text-primary" aria-hidden="true" />
+                <h3 className="mt-4 font-medium">{item.title}</h3>
+                <p className="mt-2 text-sm text-muted-foreground">{item.body}</p>
+              </article>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="border-y border-border/60 bg-muted/40" aria-labelledby="how-heading">
+        <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
+          <h2 id="how-heading" className="text-3xl font-semibold tracking-tight sm:text-4xl">
+            How it works
+          </h2>
+          <ol className="mt-10 grid gap-6 md:grid-cols-3">
+            {STEPS.map((step, i) => (
+              <li key={step.title} className="relative rounded-2xl border border-border bg-background p-6">
+                <span className="font-mono text-sm text-primary">0{i + 1}</span>
+                <h3 className="mt-3 text-lg font-medium">{step.title}</h3>
+                <p className="mt-2 text-sm text-muted-foreground">{step.body}</p>
+              </li>
+            ))}
+          </ol>
+          <p className="mt-8 flex items-center gap-2 text-sm text-muted-foreground">
+            <GitBranch className="size-4" aria-hidden="true" /> Public repos only. We never clone your code or store your README beyond your kit.
+          </p>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-6xl px-4 py-20 sm:px-6" aria-labelledby="why-heading">
+        <h2 id="why-heading" className="max-w-2xl text-3xl font-semibold tracking-tight sm:text-4xl">
+          Launch copy that doesn&apos;t read like everyone else&apos;s
+        </h2>
+        <div className="mt-10 grid gap-x-10 gap-y-8 md:grid-cols-2">
+          {RULES.map((rule) => (
+            <div key={rule.title} className="flex gap-4">
+              <ShieldCheck className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden="true" />
+              <div>
+                <h3 className="font-medium">{rule.title}</h3>
+                <p className="mt-1 text-sm text-muted-foreground">{rule.body}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section id="pricing" className="border-y border-border/60 bg-muted/40" aria-labelledby="pricing-heading">
+        <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
+          <h2 id="pricing-heading" className="text-3xl font-semibold tracking-tight sm:text-4xl">
+            Simple pricing
+          </h2>
+          <div className="mt-10 grid gap-4 lg:grid-cols-3">
+            <PriceCard
+              name="Free preview"
+              price="£0"
+              body="See what LaunchLoop makes of your app before you pay."
+              items={["Product brief from your repo", "Product Hunt tagline", "First post of your X thread", "Watermarked OG image"]}
+              cta={<Link href="/#start" className={buttonVariants({ variant: "outline", className: "w-full" })}>Try it free</Link>}
+            />
+            <PriceCard
+              featured
+              name="Launch Kit"
+              price="£19"
+              suffix="one-off"
+              body="Your whole launch, ready to paste."
+              items={["Landing page copy and meta tags", "Full Product Hunt post and maker comment", "5–7 post X thread and LinkedIn post", "3 on-brand images, no watermark", "Launch-day checklist", "ZIP download and email copy"]}
+              cta={<Link href="/#start" className={buttonVariants({ className: "w-full" })}>Get my launch kit</Link>}
+            />
+            <PriceCard
+              name="Ship Loop"
+              price="£12"
+              suffix="/month or £99/year"
+              body="Coming soon: fresh posts and an image every time you release."
+              items={["Watches your repo for releases", "Drafts update posts and an OG image", "One-click approve or edit by email", "£19 kit credit if you join within 14 days"]}
+              cta={<Link href="/ship-loop" className={buttonVariants({ variant: "outline", className: "w-full" })}>Join the waitlist</Link>}
+            />
+          </div>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-3xl px-4 py-20 sm:px-6" aria-labelledby="faq-heading">
+        <h2 id="faq-heading" className="text-3xl font-semibold tracking-tight">
+          Questions
+        </h2>
+        <Accordion className="mt-6">
+          {FAQ.slice(0, 5).map((item) => (
+            <AccordionItem key={item.q} value={item.q}>
+              <AccordionTrigger className="text-base">{item.q}</AccordionTrigger>
+              <AccordionContent className="text-muted-foreground">{item.a}</AccordionContent>
+            </AccordionItem>
+          ))}
+        </Accordion>
+        <Link href="/faq" className="mt-6 inline-block text-sm font-medium underline underline-offset-4 hover:text-primary">
+          Read all FAQs
+        </Link>
+      </section>
+
+      <section className="mx-auto max-w-6xl px-4 pb-24 sm:px-6">
+        <div className="flex flex-col items-center gap-5 rounded-3xl bg-foreground px-6 py-14 text-center text-background">
+          <h2 className="max-w-xl text-balance text-3xl font-semibold tracking-tight">Your app is built. Let&apos;s get it launched.</h2>
+          <Link href="/#start" className={buttonVariants({ size: "lg", className: "h-11 px-6 text-base" })}>
+            Get my free preview
+          </Link>
+        </div>
+      </section>
+    </>
+  );
+}
+
+function PriceCard(props: { name: string; price: string; suffix?: string; body: string; items: string[]; cta: React.ReactNode; featured?: boolean }) {
+  return (
+    <article className={`flex flex-col rounded-2xl border bg-background p-6 ${props.featured ? "border-primary shadow-xl shadow-primary/10" : "border-border"}`}>
+      <div className="flex items-center justify-between">
+        <h3 className="font-medium">{props.name}</h3>
+        {props.featured ? <Badge>Most popular</Badge> : null}
+      </div>
+      <p className="mt-4">
+        <span className="text-4xl font-semibold tracking-tight">{props.price}</span>
+        {props.suffix ? <span className="ml-1 text-sm text-muted-foreground">{props.suffix}</span> : null}
+      </p>
+      <p className="mt-2 text-sm text-muted-foreground">{props.body}</p>
+      <ul className="mt-6 flex-1 space-y-2 text-sm">
+        {props.items.map((item) => (
+          <li key={item} className="flex gap-2">
+            <Check className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />
+            {item}
+          </li>
+        ))}
+      </ul>
+      <div className="mt-6">{props.cta}</div>
+    </article>
+  );
+}

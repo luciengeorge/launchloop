@@ -1,0 +1,113 @@
+import "server-only";
+import { addContact } from "./audience";
+import { generateKitContent, launchChecklist } from "./copy";
+import { kitReadyEmail, preorderEmail, sendEmail } from "./email";
+import { siteUrl } from "./env";
+import { getKit, updateKit } from "./kits";
+import { captureException } from "./observability";
+import { PRODUCTS, type ProductId } from "./products";
+import type { Kit } from "./schema";
+import { store } from "./store";
+import { buildKitZip, zipFileName } from "./zip";
+
+const STALE_GENERATION_MS = 3 * 60_000;
+const MAX_ATTEMPTS = 3;
+
+export interface PaidOrder {
+  product: ProductId;
+  ref: string;
+  kitId?: string;
+  email?: string;
+}
+
+export interface Preorder {
+  ref: string;
+  email: string;
+  product: ProductId;
+  createdAt: string;
+}
+
+/** Records a successful payment. Fast and idempotent; heavy work happens in `fulfilKit`. */
+export async function recordPayment(order: PaidOrder): Promise<void> {
+  if (order.product === "kit") {
+    if (!order.kitId) throw new Error(`Kit payment ${order.ref} has no kitId`);
+    await updateKit(order.kitId, (kit) =>
+      kit.paid
+        ? { email: kit.email ?? order.email }
+        : { paid: true, status: "paid", email: order.email, paymentRef: order.ref, paidAt: new Date().toISOString() },
+    );
+    if (order.email) await addContact(order.email, "kit");
+    return;
+  }
+
+  const key = `preorder:${order.ref}`;
+  if (await store().get<Preorder>(key)) return;
+  if (!order.email) throw new Error(`Pre-order ${order.ref} has no email`);
+  await store().set<Preorder>(key, { ref: order.ref, email: order.email, product: order.product, createdAt: new Date().toISOString() });
+  await addContact(order.email, "preorder", { plan: order.product });
+  try {
+    await sendEmail(preorderEmail({ to: order.email, planLabel: PRODUCTS[order.product].priceLabel }));
+  } catch (error) {
+    captureException(error, { stage: "fulfil.preorderEmail", ref: order.ref });
+  }
+}
+
+export function needsFulfilment(kit: Kit): boolean {
+  if (!kit.paid) return false;
+  switch (kit.status) {
+    case "paid":
+      return true;
+    case "generating":
+      return !kit.generationStartedAt || Date.now() - Date.parse(kit.generationStartedAt) > STALE_GENERATION_MS;
+    case "failed":
+      return kit.attempts < MAX_ATTEMPTS;
+    case "ready":
+      return !!kit.email && !kit.emailedAt;
+    case "preview":
+      return false;
+    default: {
+      const exhaustive: never = kit.status;
+      return exhaustive;
+    }
+  }
+}
+
+const inFlight = new Map<string, Promise<void>>();
+
+/** Generates the full kit and emails it. Safe to call repeatedly from the webhook, return URL and status poll. */
+export function fulfilKit(id: string): Promise<void> {
+  const running = inFlight.get(id);
+  if (running) return running;
+  const job = runFulfilment(id).finally(() => inFlight.delete(id));
+  inFlight.set(id, job);
+  return job;
+}
+
+async function runFulfilment(id: string): Promise<void> {
+  let kit = await getKit(id);
+  if (!kit || !needsFulfilment(kit)) return;
+
+  if (kit.status !== "ready") {
+    kit = await updateKit(id, (k) => ({ status: "generating", generationStartedAt: new Date().toISOString(), attempts: k.attempts + 1, error: undefined }));
+    try {
+      const { content, provider } = await generateKitContent(kit.brief, kit.preview, kit.digest);
+      kit = await updateKit(id, { status: "ready", content, checklist: launchChecklist(kit.brief), generatedAt: new Date().toISOString(), llm: provider });
+    } catch (error) {
+      captureException(error, { stage: "fulfil.generate", kitId: id });
+      await updateKit(id, { status: "failed", error: "Generation failed. We're retrying automatically." });
+      return;
+    }
+  }
+
+  if (kit.email && !kit.emailedAt) {
+    try {
+      const zip = await buildKitZip(kit);
+      await sendEmail(
+        kitReadyEmail({ to: kit.email, productName: kit.brief.name, kitUrl: `${siteUrl()}/kit/${kit.id}`, zip: { filename: zipFileName(kit), content: zip } }),
+      );
+      await updateKit(id, { emailedAt: new Date().toISOString() });
+    } catch (error) {
+      captureException(error, { stage: "fulfil.email", kitId: id });
+    }
+  }
+}
