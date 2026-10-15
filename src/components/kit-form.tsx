@@ -77,7 +77,7 @@ export function KitForm() {
         ) : (
           <>
             <span>Free preview · No sign-up · Public repos only</span>
-            <span aria-hidden="true">·</span>
+            <span aria-hidden="true" className="hidden sm:inline">·</span>
             <button type="button" className="font-medium text-foreground underline underline-offset-4 hover:text-primary" onClick={() => void submit("sample")}>
               Try a sample app
             </button>

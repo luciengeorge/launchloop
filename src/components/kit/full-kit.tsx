@@ -17,7 +17,7 @@ export function FullKit({ kit }: { kit: Kit & { content: NonNullable<Kit["conten
           <h2 className="text-lg font-semibold">Your launch kit is ready</h2>
           <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
             <Mail className="size-4" aria-hidden="true" />
-            {kit.email ? (kit.emailedAt ? `Also emailed to ${maskEmail(kit.email)}` : `Emailing a copy to ${maskEmail(kit.email)}…`) : "Bookmark this page: it's your private link."}
+            {kit.email ? `A copy with the ZIP is going to ${maskEmail(kit.email)}. Bookmark this page too: it's your private link.` : "Bookmark this page: it's your private link."}
           </p>
         </div>
         <a href={`/api/kits/${kit.id}/zip`} className={buttonVariants({ size: "lg", className: "h-10 px-4" })} download>

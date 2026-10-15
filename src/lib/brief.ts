@@ -164,12 +164,14 @@ export function extractFacts({ repo, site, primary }: IngestResult): Facts {
   if (repo?.license) proofPoints.push(`Open source (${repo.license})`);
   if (site?.prices.length) proofPoints.push(`Pricing on site: ${site.prices.join(", ")}`);
 
+  const problem = firstParagraph(readme ? readmeSection(readme, /why|problem|motivation/i) : undefined)?.split(/(?<=[.!?])\s+/)[0];
+
   return {
     name,
     oneLiner: (primary === "site" ? site?.description ?? repo?.description : repo?.description ?? site?.description) ?? firstParagraph(readme),
-    problem: firstParagraph(readme ? readmeSection(readme, /why|problem|motivation/i) : undefined)?.split(/(?<=[.!?])\s+/)[0],
+    problem,
     features: dedupeFeatures(features).slice(0, 6),
-    proofPoints: proofPoints.slice(0, 6),
+    proofPoints: proofPoints.filter((p) => p !== problem).slice(0, 6),
     stack: stack.slice(0, 8),
     url: site?.url ?? repo?.homepage,
     repoUrl: repo?.url,
