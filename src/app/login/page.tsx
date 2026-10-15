@@ -1,17 +1,10 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { safeNext } from "@/lib/auth";
+import { loginError } from "@/lib/login-errors";
 import { LoginForm } from "./login-form";
 
 export const metadata: Metadata = { title: "Log in", robots: { index: false, follow: false } };
-
-const ERRORS: Record<string, string> = {
-  invalid: "Enter a valid email address.",
-  rate: "Too many login links requested. Try again in an hour.",
-  send: "We couldn't send your login link. Please try again.",
-  expired: "That login link has expired or was already used. Request a new one.",
-  code: "That code didn't work or has expired. Request a new login email.",
-};
 
 export default function LoginPage({ searchParams }: PageProps<"/login">) {
   return (
@@ -31,6 +24,5 @@ export default function LoginPage({ searchParams }: PageProps<"/login">) {
 
 async function LoginFormWithQuery({ searchParams }: Pick<PageProps<"/login">, "searchParams">) {
   const q = await searchParams;
-  const error = typeof q.error === "string" ? ERRORS[q.error] : undefined;
-  return <LoginForm error={error} next={safeNext(q.next)} />;
+  return <LoginForm error={loginError(q.error)} next={safeNext(q.next)} />;
 }

@@ -9,6 +9,14 @@ test("home page explains the product and offers the input", async ({ page }) => 
   await expect(page.getByText("£19", { exact: true }).first()).toBeVisible();
 });
 
+test("header CTA is on every marketing page and Pricing links agree", async ({ page }) => {
+  for (const path of ["/pricing", "/faq", "/login", "/privacy", "/terms", "/product-hunt-launch-checklist"]) {
+    await page.goto(path);
+    await expect(page.getByRole("banner").getByRole("link", { name: "Get my launch kit" })).toBeVisible();
+  }
+  await expect(page.getByRole("contentinfo").getByRole("link", { name: "Pricing" })).toHaveAttribute("href", "/pricing");
+});
+
 test("invalid input shows a friendly error", async ({ page }) => {
   await page.goto("/");
   await page.getByLabel("GitHub repo or live site URL").fill("not a url");

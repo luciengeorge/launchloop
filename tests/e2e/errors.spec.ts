@@ -67,6 +67,7 @@ test("unknown pages and kits get a helpful not-found page", async ({ page }) => 
   const res = await page.goto("/no-such-page");
   expect(res?.status()).toBe(404);
   await expect(page.getByRole("heading", { name: "This page doesn't exist" })).toBeVisible();
+  await expect(page).toHaveTitle("Page not found · LaunchLoop");
   await page.goto("/kit/doesNotExist1234567");
   await expect(page.getByRole("heading", { name: "We can't find that kit" })).toBeVisible();
 });

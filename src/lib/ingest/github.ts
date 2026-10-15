@@ -26,9 +26,12 @@ export interface PackageJson {
   keywords?: string[];
   dependencies?: Record<string, string>;
   devDependencies?: Record<string, string>;
+  workspaces?: unknown;
 }
 
 const README_CAP = 12_000;
+/** How many recent commits we read. Anything counted from them is a floor, not a total. */
+export const COMMIT_SAMPLE = 20;
 
 export function parseGitHubUrl(input: string): { owner: string; name: string } | null {
   const m = input
@@ -119,7 +122,7 @@ export async function fetchRepo(owner: string, name: string, warnings: string[])
   const [readmeRes, pkgRes, commitsRes] = await Promise.all([
     gh(`/repos/${owner}/${name}/readme`, "application/vnd.github.raw+json"),
     gh(`/repos/${owner}/${name}/contents/package.json`, "application/vnd.github.raw+json"),
-    gh(`/repos/${owner}/${name}/commits?per_page=20`),
+    gh(`/repos/${owner}/${name}/commits?per_page=${COMMIT_SAMPLE}`),
   ]);
 
   if (readmeRes.ok) repo.readme = (await readmeRes.text()).slice(0, README_CAP);

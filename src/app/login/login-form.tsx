@@ -1,16 +1,22 @@
 "use client";
 
 import { Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { postJson } from "@/lib/client";
+import { LOGIN_ERRORS } from "@/lib/login-errors";
 
 /**
- * Native POST so it works without JS. The API answers with a redirect (check-email on success, /login?error=… on failure),
- * so the button stays locked until that navigation replaces the page.
+ * Posts with fetch once hydrated, so errors show inline and the email stays filled in; before hydration it's a
+ * native POST that redirects to check-email or /login?error=…. Either way the button stays locked while the request
+ * is in flight.
  */
 export function LoginForm({ error, next }: { error?: string; next?: string }) {
+  const router = useRouter();
+  const [message, setMessage] = useState(error);
   const [pending, setPending] = useState(false);
   const submitting = useRef(false);
 
@@ -25,29 +31,44 @@ export function LoginForm({ error, next }: { error?: string; next?: string }) {
     return () => window.removeEventListener("pageshow", reset);
   }, []);
 
+  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (submitting.current) return;
+    submitting.current = true;
+    const email = String(new FormData(e.currentTarget).get("email") ?? "");
+    setPending(true);
+    setMessage(undefined);
+    try {
+      await postJson("/api/auth/request", { email, next });
+      router.push("/login/check-email");
+    } catch (err) {
+      setMessage(err instanceof TypeError ? LOGIN_ERRORS.send : (err as Error).message);
+      submitting.current = false;
+      setPending(false);
+    }
+  }
+
   return (
-    <form
-      method="post"
-      action="/api/auth/request"
-      className="space-y-4"
-      aria-busy={pending || undefined}
-      onSubmit={(e) => {
-        if (submitting.current) {
-          e.preventDefault();
-          return;
-        }
-        submitting.current = true;
-        setPending(true);
-      }}
-    >
+    <form method="post" action="/api/auth/request" onSubmit={onSubmit} className="space-y-4" aria-busy={pending || undefined}>
       {next ? <input type="hidden" name="next" value={next} /> : null}
       <div className="space-y-2">
         <Label htmlFor="login-email">Email</Label>
-        <Input id="login-email" name="email" type="email" required autoComplete="email" placeholder="you@example.com" className="h-10" readOnly={pending} />
+        <Input
+          id="login-email"
+          name="email"
+          type="email"
+          required
+          autoComplete="email"
+          placeholder="you@example.com"
+          readOnly={pending}
+          aria-invalid={message ? true : undefined}
+          aria-describedby={message ? "login-error" : undefined}
+          className="h-10"
+        />
       </div>
-      {error && !pending ? (
-        <p className="text-sm text-destructive" role="alert">
-          {error}
+      {message ? (
+        <p id="login-error" className="text-sm text-destructive" role="alert">
+          {message}
         </p>
       ) : null}
       <Button type="submit" className="h-11 w-full text-base" disabled={pending} data-testid="login-submit">

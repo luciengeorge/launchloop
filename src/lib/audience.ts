@@ -1,5 +1,5 @@
 import "server-only";
-import { env } from "./env";
+import { env, isEmailMock } from "./env";
 import { resend } from "./email";
 import { captureException } from "./observability";
 import { store } from "./store";
@@ -8,6 +8,15 @@ export type ContactSource = "newsletter" | "waitlist" | "preorder" | "kit";
 
 export const isEmail = (v: unknown): v is string =>
   typeof v === "string" && v.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v);
+
+/** RFC 2606 / 6761 names (example.com, *.test, *.invalid…) can never receive mail, and Resend rejects them. */
+export function isReservedEmailDomain(email: string): boolean {
+  const domain = email.slice(email.lastIndexOf("@") + 1).trim().toLowerCase();
+  return /(^|\.)example\.(com|net|org)$/.test(domain) || /\.(example|test|invalid|localhost|local)$/.test(domain);
+}
+
+/** Only enforced when real email is configured: mock mode (local dev, e2e) has no provider to reject them. */
+export const isUndeliverableEmail = (email: string) => !isEmailMock() && isReservedEmailDomain(email);
 
 /**
  * Stores a contact locally (always) and in Resend (when configured).

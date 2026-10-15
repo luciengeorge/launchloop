@@ -8,6 +8,9 @@ export const SITE = {
   email: "hello@launchloop.dev",
 } as const;
 
+/** What an unpaid kit page actually shows. Keep every free-tier mention in sync with this. */
+export const FREE_PREVIEW = ["Product brief from your repo", "Product Hunt tagline", "First post of your X thread", "Watermarked image previews"] as const;
+
 export const KIT_CONTENTS = [
   { title: "Landing page copy", body: "Hero headline, subheadline, CTA, 3–6 feature blocks, plus meta title and description sized for Google." },
   { title: "Product Hunt post", body: "Name, tagline (60 chars), description (260 chars), topics and a maker comment that asks for feedback, never votes." },
@@ -28,7 +31,7 @@ export const FAQ = [
   },
   {
     q: "What's free?",
-    a: "The product brief, your Product Hunt tagline, the first post of your X thread and a watermarked preview image. No account or card needed.",
+    a: "The product brief, your Product Hunt tagline, the first post of your X thread and watermarked previews of your three images. No account or card needed.",
   },
   {
     q: "Do you need access to my code?",

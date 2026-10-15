@@ -17,7 +17,7 @@ The kit is delivered on a results page, as a ZIP download and by email.
 
 ## Pricing (GBP)
 
-- Free preview: the product brief, the Product Hunt tagline and the first post of the X thread, watermarked. No account needed.
+- Free preview: the product brief, the Product Hunt tagline, the first post of the X thread and watermarked previews of the three images. No account needed.
 - Launch Kit: £19 one-off, paid through Stripe Checkout. 14-day refund.
 - Ship Loop (coming soon): £12/month or £99/year. Drafts new posts and an on-brand image on every release. Waitlist and pre-orders are open.
 

@@ -8,7 +8,7 @@ import { getDraft } from "@/lib/generation";
 import { PRODUCTS } from "@/lib/products";
 import { getProgress, isOwner } from "@/lib/progress";
 import type { Kit } from "@/lib/schema";
-import { buildTasks, countableTasks, scramble, scrambleContent } from "@/lib/tasks";
+import { buildTasks, countableTasks, mask, maskContent } from "@/lib/tasks";
 import { KitChecklist } from "./kit-checklist";
 import { KitErrorState } from "./kit-error-state";
 import { KitOverview } from "./kit-overview";
@@ -38,14 +38,14 @@ export async function KitView({ kit, session, query }: Props) {
 
 /**
  * The real full-kit text never reaches an unpaid page: every locked section is
- * lorem ipsum shaped like the real copy. Only the free pieces are real.
+ * masked placeholder text shaped like the real copy. Only the free pieces are real.
  */
 async function LockedKit({ kit, session, query }: Props) {
   const draft = await getDraft(kit.id);
   const shape = draft.complete ? { ...mockContent(kit.brief, kit.preview), ...draft.sections } : mockContent(kit.brief, kit.preview);
   const tasks = buildTasks({
-    content: scrambleContent(shape, kit.id),
-    checklist: launchChecklist(kit.brief).map((item, i) => scramble(item, `${kit.id}:step${i}`)),
+    content: maskContent(shape),
+    checklist: launchChecklist(kit.brief).map(mask),
     locked: true,
     free: { tagline: kit.preview.tagline, xPost: kit.preview.xPost },
     brief: kit.brief,

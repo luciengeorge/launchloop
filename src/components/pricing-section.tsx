@@ -4,6 +4,7 @@ import { CheckoutButton } from "@/components/checkout-button";
 import { StartLink } from "@/components/start-link";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
+import { FREE_PREVIEW } from "@/lib/site";
 
 export function PricingSection({ headingLevel = "h2" }: { headingLevel?: "h1" | "h2" }) {
   const Heading = headingLevel;
@@ -18,7 +19,7 @@ export function PricingSection({ headingLevel = "h2" }: { headingLevel?: "h1" | 
               name="Free preview"
               price="£0"
               body="See what LaunchLoop makes of your app before you pay."
-              items={["Product brief from your repo", "Product Hunt tagline", "First post of your X thread", "Watermarked OG image"]}
+              items={FREE_PREVIEW}
               cta={<StartLink className={buttonVariants({ variant: "outline", className: "w-full" })}>Try it free</StartLink>}
             />
             <PriceCard
@@ -58,7 +59,7 @@ export function PricingSection({ headingLevel = "h2" }: { headingLevel?: "h1" | 
   );
 }
 
-function PriceCard(props: { name: string; price: string; suffix?: string; body: string; items: string[]; cta: React.ReactNode; featured?: boolean }) {
+function PriceCard(props: { name: string; price: string; suffix?: string; body: string; items: readonly string[]; cta: React.ReactNode; featured?: boolean }) {
   return (
     <article className={`flex flex-col rounded-2xl border bg-background p-6 ${props.featured ? "border-primary shadow-xl shadow-primary/10" : "border-border"}`}>
       <div className="flex items-center justify-between">

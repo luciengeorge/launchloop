@@ -41,6 +41,10 @@ test("sample app: blurred preview without leaks, unlock via magic link, instant 
   await page.getByTestId("stage-tab-LinkedIn").click();
   await expect(page.locator('[data-task-id="linkedin"]')).toHaveAttribute("data-locked", "true");
   expect(await page.getByTestId("locked-text").count()).toBeGreaterThan(0);
+  await expect(page.getByTestId("locked-text").first()).toHaveText(/^[•\s]+Locked\. Unlock the kit to read this\.$/);
+  await page.getByTestId("stage-tab-Launch day").click();
+  await expect(page.getByRole("heading", { name: "Launch-day step 1", exact: true })).toBeVisible();
+  await expect(page.getByTestId("locked-kit")).not.toContainText(/lorem|ipsum/i);
   await page.getByTestId("stage-tab-Images").click();
   await expect(page.getByRole("img", { name: /Product Hunt gallery.*watermarked/ })).toBeVisible();
   await expect(page.getByTestId("unlock-panel")).toBeVisible();
