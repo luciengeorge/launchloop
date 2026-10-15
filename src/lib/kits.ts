@@ -7,8 +7,15 @@ import type { Brief, Kit } from "./schema";
 import { copyDraft } from "./generation";
 import { store } from "./store";
 
-const KIT_TTL_SECONDS = 60 * 60 * 24 * 365;
+/** The privacy page promises this: unpaid previews go 30 days after they were made, paid kits stay until the buyer asks us to delete them. */
+const PREVIEW_TTL_SECONDS = 60 * 60 * 24 * 30;
 const key = (id: string) => `kit:${id}`;
+
+function kitTtlSeconds(kit: Kit): number | undefined {
+  if (kit.paid) return undefined;
+  const ageSeconds = Math.floor((Date.now() - Date.parse(kit.createdAt)) / 1000);
+  return Number.isFinite(ageSeconds) ? Math.max(60, PREVIEW_TTL_SECONDS - ageSeconds) : PREVIEW_TTL_SECONDS;
+}
 
 export const newId = () => randomBytes(16).toString("base64url");
 export const isValidKitId = (id: string) => /^[A-Za-z0-9_-]{16,32}$/.test(id);
@@ -19,7 +26,7 @@ export async function getKit(id: string): Promise<Kit | null> {
 }
 
 export async function saveKit(kit: Kit): Promise<void> {
-  await store().set(key(kit.id), kit, KIT_TTL_SECONDS);
+  await store().set(key(kit.id), kit, kitTtlSeconds(kit));
 }
 
 export async function updateKit(id: string, patch: Partial<Kit> | ((kit: Kit) => Partial<Kit>)): Promise<Kit> {
