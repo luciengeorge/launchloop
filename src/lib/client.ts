@@ -1,8 +1,17 @@
+import { analyticsId } from "./analytics";
+import type { ProductId } from "./products";
+
 export async function postJson<T>(url: string, body: unknown): Promise<T> {
   const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   const data = (await res.json().catch(() => ({}))) as T & { error?: string };
   if (!res.ok) throw new Error(data.error ?? `Request failed (${res.status})`);
   return data;
+}
+
+/** Creates a Checkout session (the server records checkout_started) and returns where to send the buyer. */
+export async function startCheckout(product: ProductId, kitId?: string): Promise<string> {
+  const { url } = await postJson<{ url: string }>("/api/checkout", { product, kitId, analyticsId: analyticsId() });
+  return url;
 }
 
 export function reportClientError(error: Error & { digest?: string }) {

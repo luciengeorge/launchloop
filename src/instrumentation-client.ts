@@ -1,5 +1,8 @@
 import * as Sentry from "@sentry/nextjs";
+import { initAnalytics } from "./lib/analytics";
 import { reportClientError } from "./lib/client";
+
+initAnalytics();
 
 const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN;
 if (dsn) {

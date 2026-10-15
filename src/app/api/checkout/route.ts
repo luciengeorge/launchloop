@@ -1,4 +1,5 @@
 import { isEmail } from "@/lib/audience";
+import { captureServerEvent, resolveDistinctId } from "@/lib/analytics-server";
 import { getSession } from "@/lib/auth";
 import { ensureStripeCustomer } from "@/lib/billing";
 import { isStripeMock } from "@/lib/env";
@@ -6,11 +7,11 @@ import { after } from "next/server";
 import { generateDraft } from "@/lib/generation";
 import { getKit } from "@/lib/kits";
 import { captureException } from "@/lib/observability";
-import { createCheckoutUrl } from "@/lib/payments";
+import { checkoutPrice, createCheckoutUrl } from "@/lib/payments";
 import { isProductId } from "@/lib/products";
 
 export async function POST(req: Request) {
-  const body = (await req.json().catch(() => ({}))) as { product?: unknown; kitId?: unknown; email?: unknown };
+  const body = (await req.json().catch(() => ({}))) as { product?: unknown; kitId?: unknown; email?: unknown; analyticsId?: unknown };
   if (!isProductId(body.product)) return Response.json({ error: "Unknown product." }, { status: 400 });
 
   const session = await getSession();
@@ -27,14 +28,18 @@ export async function POST(req: Request) {
     after(() => generateDraft(kit).catch(() => undefined));
   }
 
+  const product = body.product;
+  const analyticsId = resolveDistinctId(body.analyticsId);
+  const isLoggedIn = !!session;
   try {
     // Only a signed-in (verified) email is tied to an existing Stripe customer; a guest-typed email
     // could belong to someone else, so it stays a plain `customer_email` prefill.
     const customer = session && !isStripeMock() ? await ensureStripeCustomer(session.email) : undefined;
-    const url = await createCheckoutUrl({ product: body.product, origin: new URL(req.url).origin, kitId, email, customer });
+    const url = await createCheckoutUrl({ product, origin: new URL(req.url).origin, kitId, email, customer, analyticsId, isLoggedIn });
+    after(() => captureServerEvent("checkout_started", { distinctId: analyticsId, properties: { plan: product, kitId, ...checkoutPrice(product), isLoggedIn, mock: isStripeMock() } }));
     return Response.json({ url });
   } catch (error) {
-    captureException(error, { stage: "api.checkout", product: body.product, kitId });
+    captureException(error, { stage: "api.checkout", product, kitId });
     return Response.json({ error: "Couldn't start checkout. Please try again." }, { status: 502 });
   }
 }

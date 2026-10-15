@@ -4,7 +4,7 @@ import { Loader2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { postJson } from "@/lib/client";
+import { startCheckout } from "@/lib/client";
 import type { ProductId } from "@/lib/products";
 
 interface Props {
@@ -26,8 +26,7 @@ export function CheckoutButton({ product, kitId, children, variant = "default", 
       onClick={async () => {
         setLoading(true);
         try {
-          const { url } = await postJson<{ url: string }>("/api/checkout", { product, kitId });
-          window.location.assign(url);
+          window.location.assign(await startCheckout(product, kitId));
         } catch (err) {
           toast.error((err as Error).message);
           setLoading(false);

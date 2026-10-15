@@ -9,7 +9,16 @@ import { Label } from "@/components/ui/label";
 import { postJson } from "@/lib/client";
 import type { ProductId } from "@/lib/products";
 
-export function MockCheckoutForm({ product, kitId, priceLabel, defaultEmail }: { product: ProductId; kitId?: string; priceLabel: string; defaultEmail?: string }) {
+interface Props {
+  product: ProductId;
+  kitId?: string;
+  priceLabel: string;
+  defaultEmail?: string;
+  /** PostHog id from the page that started checkout, like Stripe metadata in the real flow. */
+  analyticsId?: string;
+}
+
+export function MockCheckoutForm({ product, kitId, priceLabel, defaultEmail, analyticsId }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -19,7 +28,7 @@ export function MockCheckoutForm({ product, kitId, priceLabel, defaultEmail }: {
     setError(null);
     try {
       const email = String(new FormData(e.currentTarget).get("email") ?? "");
-      const { url } = await postJson<{ url: string }>("/api/checkout/mock", { product, kitId, email });
+      const { url } = await postJson<{ url: string }>("/api/checkout/mock", { product, kitId, email, analyticsId });
       window.location.assign(url);
     } catch (err) {
       setError((err as Error).message);

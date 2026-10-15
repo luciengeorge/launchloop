@@ -63,9 +63,15 @@ export default function PrivacyPage() {
         <li>Your browser also stores your email address (to fill in forms for you) and your checklist progress. This stays on your device.</li>
       </ul>
       <p>
-        We use Vercel Analytics to count page views and Vercel Speed Insights to measure how fast pages load. Neither sets cookies. Before anything is sent, we remove private kit
-        links and everything in the address bar except campaign tags (utm_). We use Sentry to record errors so we can fix them. An error report includes what went wrong, the page
-        and your browser and device type, and may include your IP address.
+        We use Vercel Analytics to count page views and Vercel Speed Insights to measure how fast pages load. We use PostHog to see how many people go from a free preview to
+        buying a kit. PostHog records page views and a few steps: starting a preview, the preview finishing, starting checkout and completing a purchase. Those steps include
+        the kit&apos;s id, which plan and price you picked and whether you were signed in. PostHog gives you an anonymous id that only lasts while the page is open. None of
+        the three set cookies, PostHog stores nothing in your browser, and we never send any of them your email address or name. Before anything is sent, we remove private kit links
+        and everything in the address bar except campaign tags (utm_). Like any service your browser talks to, they receive your IP address and browser type, and PostHog may use
+        your IP address to work out your rough location.
+      </p>
+      <p>
+        We use Sentry to record errors so we can fix them. An error report includes what went wrong, the page and your browser and device type, and may include your IP address.
       </p>
 
       <h2>Why we use it</h2>
@@ -81,6 +87,7 @@ export default function PrivacyPage() {
         <li>Stripe (payments)</li>
         <li>Resend (email)</li>
         <li>Vercel (hosting, Vercel Analytics, Speed Insights and Vercel AI Gateway)</li>
+        <li>PostHog (product analytics: how people move from a free preview to a purchase)</li>
         <li>Upstash (our database: kits, email sign-ups, sign-in links and rate limits)</li>
         <li>Sentry (error tracking)</li>
         <li>AI model providers (currently Anthropic, with OpenAI as a backup), reached through Vercel AI Gateway, which turn your public sources into copy.</li>

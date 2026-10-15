@@ -56,6 +56,7 @@ All are optional locally. See [`.env.example`](.env.example) for the full annota
 | `MOCK_MODE` | Force everything into mock mode |
 | `PREVIEW_RATE_LIMIT_PER_HOUR` | Free previews per IP per hour (default 12) |
 | `SENTRY_DSN` | Reserved for Sentry (see "Error logging") |
+| `NEXT_PUBLIC_POSTHOG_KEY`, `NEXT_PUBLIC_POSTHOG_HOST` | Conversion analytics (see "Analytics"). Host defaults to `https://eu.i.posthog.com` |
 
 ### Testing Stripe locally
 
@@ -106,6 +107,24 @@ To switch models, change the env vars; no code changes are needed.
 - `/faq` with `FAQPage` JSON-LD; `SoftwareApplication` JSON-LD with offers on the home page
 - `/llms.txt`: a plain-language description for AI assistants
 - Semantic HTML: one `h1` per page, landmarks, labelled forms, a skip link
+
+## Analytics
+
+Vercel Web Analytics and Speed Insights count page views and performance. PostHog tracks the preview-to-purchase funnel. It's off until `NEXT_PUBLIC_POSTHOG_KEY` is set.
+
+| Event | Fired from | Properties |
+| --- | --- | --- |
+| `preview_started` | Browser, kit form submit | `source` (github / site / sample), `plan` (free / kit intent), `isLoggedIn` |
+| `preview_completed` | Browser, preview stream done | the above plus `kitId`, `durationMs` |
+| `preview_failed` | Browser, preview error | the above plus `code` |
+| `checkout_started` | Server, `/api/checkout` once a session URL exists | `plan`, `kitId`, `price_id`, `amount`, `currency`, `isLoggedIn`, `mock` |
+| `checkout_completed` | Server, Stripe webhook (paid), or `/api/checkout/mock` in test mode | the above plus `stripeSessionId` |
+
+Every event also carries `env` (production / preview / development).
+
+- **Cookieless.** `posthog-js` runs with `persistence: "memory"`: no cookies, no local storage, a fresh anonymous id per full page load, and no person profiles. Autocapture, session replay, surveys and heatmaps are off. URL properties are scrubbed like Vercel Analytics (private kit ids become `[id]`, query strings keep only `utm_`).
+- **Joining server events.** The browser sends its PostHog id with `/api/checkout`; it goes into the Checkout session metadata (`ph_distinct_id`, plus `price_id` and `logged_in`) so the webhook's `checkout_completed` lands on the same id. Its uuid is derived from the session id, so webhook retries don't double count. Preview deployments never get the webhook, so they don't send `checkout_completed` for real Stripe sessions.
+- **Proxy.** The browser sends to `/lp-relay`, rewritten in `next.config.ts` to `NEXT_PUBLIC_POSTHOG_HOST`, so ad blockers don't drop events. The server posts to PostHog directly.
 
 ## Error logging
 
