@@ -57,7 +57,7 @@ function Counter({ length, id }: { length: number; id?: string }) {
       id={id}
       data-testid="tagline-count"
       data-within={within}
-      className={`rounded-full px-2 py-0.5 font-mono text-xs tabular-nums ${within ? "bg-emerald-500/10 text-emerald-700" : "bg-destructive/10 text-destructive"}`}
+      className={`shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 font-mono text-xs tabular-nums ${within ? "bg-emerald-500/10 text-emerald-700" : "bg-destructive/10 text-destructive"}`}
     >
       {length} / {TAGLINE_LIMIT}
     </span>
@@ -113,9 +113,9 @@ export function TaglineChecker() {
   return (
     <div className="space-y-6" data-testid="tagline-checker">
       <Tabs value={mode} onValueChange={(v) => setMode(v as Mode)}>
-        <TabsList className="h-10! w-full sm:w-fit">
-          <TabsTrigger value="check" className="px-3">Check a tagline</TabsTrigger>
-          <TabsTrigger value="generate" className="px-3">Generate from repo or URL</TabsTrigger>
+        <TabsList className="h-auto! min-h-10 w-full sm:w-fit">
+          <TabsTrigger value="check" className="h-auto min-h-9 whitespace-normal px-3 py-1.5 leading-tight">Check a tagline</TabsTrigger>
+          <TabsTrigger value="generate" className="h-auto min-h-9 whitespace-normal px-3 py-1.5 leading-tight">Generate from repo or URL</TabsTrigger>
         </TabsList>
 
         <TabsContent value="check" className="mt-4 space-y-5">

@@ -47,14 +47,14 @@ export default function TaglineCheckerOgImage() {
           <div style={{ display: "flex", flex: 1, gap: 20, alignItems: "center", backgroundColor: "#ffffff", border: "2px solid #e4e4e7", borderRadius: 24, padding: 28 }}>
             <div style={{ display: "flex", width: 72, height: 72, borderRadius: 16, backgroundColor: "rgba(242,84,27,0.12)", color: "#f2541b", fontSize: 38, fontWeight: 700, alignItems: "center", justifyContent: "center" }}>L</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1 }}>
-              <div style={{ display: "flex", fontSize: 30, fontWeight: 700 }}>LaunchLoop</div>
-              <div style={{ display: "flex", fontSize: 26, color: "#52525b" }}>{EXAMPLE}</div>
+              <div style={{ display: "flex", fontSize: 28, fontWeight: 700 }}>LaunchLoop</div>
+              <div style={{ display: "flex", fontSize: 23, color: "#52525b" }}>{EXAMPLE}</div>
             </div>
             <div style={{ display: "flex", fontSize: 24, fontWeight: 700, color: "#047857", backgroundColor: "rgba(16,185,129,0.12)", borderRadius: 999, padding: "8px 16px" }}>
               {`${charLength(EXAMPLE)} / ${TAGLINE_LIMIT}`}
             </div>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", gap: 10, fontSize: 24, color: "#3f3f46" }}>
+          <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", gap: 10, fontSize: 22, color: "#3f3f46" }}>
             {checks.map((c) => (
               <div key={c} style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <div style={{ display: "flex", width: 22, height: 22, borderRadius: 999, backgroundColor: "#10b981" }} />

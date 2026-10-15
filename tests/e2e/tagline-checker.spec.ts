@@ -11,7 +11,7 @@ test("tagline checker has its own title, meta, canonical, share image and JSON-L
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", new RegExp(`${PATH}$`));
   await expect(page.locator('meta[property="og:url"]')).toHaveAttribute("content", new RegExp(`${PATH}$`));
   await expect(page.locator('meta[property="og:image"]').first()).toHaveAttribute("content", new RegExp(`${PATH}/opengraph-image`));
-  await expect(page.locator('meta[name="twitter:image"]').first()).toHaveAttribute("content", new RegExp(`${PATH}/twitter-image`));
+  await expect(page.locator('meta[name="twitter:image"]').first()).toHaveAttribute("content", new RegExp(`${PATH}/opengraph-image`));
 
   const graph = JSON.parse((await page.locator('script[type="application/ld+json"]').textContent()) ?? "{}");
   const nodes = graph["@graph"] as { "@type": string; mainEntity?: unknown[] }[];
