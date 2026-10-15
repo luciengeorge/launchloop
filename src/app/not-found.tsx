@@ -1,5 +1,11 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
+
+export const metadata: Metadata = {
+  title: "Page not found",
+  description: "This page doesn't exist. Paste your repo to see a free LaunchLoop preview instead.",
+};
 
 export default function NotFound() {
   return (
