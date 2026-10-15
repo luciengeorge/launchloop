@@ -24,5 +24,5 @@ export default function LoginPage({ searchParams }: PageProps<"/login">) {
 
 async function LoginFormWithQuery({ searchParams }: Pick<PageProps<"/login">, "searchParams">) {
   const q = await searchParams;
-  return <LoginForm error={loginError(q.error)} next={safeNext(q.next)} />;
+  return <LoginForm error={loginError(q.error)} next={safeNext(q.next)} email={typeof q.email === "string" ? q.email : undefined} />;
 }

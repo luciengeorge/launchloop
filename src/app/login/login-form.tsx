@@ -14,7 +14,7 @@ import { LOGIN_ERRORS } from "@/lib/login-errors";
  * native POST that redirects to check-email or /login?error=…. Either way the button stays locked while the request
  * is in flight.
  */
-export function LoginForm({ error, next }: { error?: string; next?: string }) {
+export function LoginForm({ error, next, email }: { error?: string; next?: string; email?: string }) {
   const router = useRouter();
   const [message, setMessage] = useState(error);
   const [pending, setPending] = useState(false);
@@ -59,6 +59,7 @@ export function LoginForm({ error, next }: { error?: string; next?: string }) {
           type="email"
           required
           autoComplete="email"
+          defaultValue={email}
           placeholder="you@example.com"
           readOnly={pending}
           aria-invalid={message ? true : undefined}

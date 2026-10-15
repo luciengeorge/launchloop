@@ -17,8 +17,14 @@ export async function POST(req: Request) {
   const { data, isForm } = await readBody(req);
   const next = safeNext(data.next);
   const intent = parseIntent(typeof data.intent === "string" ? safeJson(data.intent) : data.intent);
-  const fail = (status: number, code: LoginErrorCode) =>
-    isForm ? seeOther(`/login?error=${code}${next ? `&next=${encodeURIComponent(next)}` : ""}`) : Response.json({ error: LOGIN_ERRORS[code], code }, { status });
+  const fail = (status: number, code: LoginErrorCode) => {
+    if (!isForm) return Response.json({ error: LOGIN_ERRORS[code], code }, { status });
+    const query = new URLSearchParams({ error: code });
+    if (next) query.set("next", next);
+    // Only echo addresses that were rejected outright, so the user can fix them; never put a deliverable one in the URL.
+    if ((code === "invalid" || code === "reserved") && typeof data.email === "string") query.set("email", data.email.slice(0, 254));
+    return seeOther(`/login?${query}`);
+  };
 
   if (!isEmail(data.email)) return fail(400, "invalid");
   const email = normaliseEmail(data.email);
