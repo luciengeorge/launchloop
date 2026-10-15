@@ -113,13 +113,17 @@ export function TaglineChecker() {
   return (
     <div className="space-y-6" data-testid="tagline-checker">
       <Tabs value={mode} onValueChange={(v) => setMode(v as Mode)}>
-        <TabsList className="h-auto! min-h-10 w-full sm:w-fit">
-          <TabsTrigger value="check" className="h-auto min-h-9 whitespace-normal px-3 py-1.5 leading-tight">Check a tagline</TabsTrigger>
-          <TabsTrigger value="generate" className="h-auto min-h-9 whitespace-normal px-3 py-1.5 leading-tight">Generate from repo or URL</TabsTrigger>
+        <TabsList className="h-10! w-full sm:w-fit">
+          <TabsTrigger value="check" className="whitespace-nowrap px-4">Check a tagline</TabsTrigger>
+          {/* The short label keeps both tabs on one line on narrow phones; the accessible name stays the same. */}
+          <TabsTrigger value="generate" className="whitespace-nowrap px-4" aria-label="Generate from repo or URL">
+            <span className="sm:hidden">Generate</span>
+            <span className="hidden sm:inline">Generate from repo or URL</span>
+          </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="check" className="mt-4 space-y-5">
-          <div className="grid gap-4 sm:grid-cols-[1fr_2fr]">
+        <TabsContent value="check" className="mt-5 space-y-5">
+          <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor={`${ids}-name`}>Product name <span className="font-normal text-muted-foreground">(optional)</span></Label>
               <Input id={`${ids}-name`} value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. LaunchLoop" autoComplete="off" className="h-11 text-base" />
