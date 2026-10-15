@@ -7,6 +7,8 @@ const baseURL = `http://127.0.0.1:${PORT}`;
 /**
  * Smoke tests run against a production build in full mock mode: no Stripe,
  * Resend or AI Gateway credentials are used even if they exist in .env.local.
+ * PostHog is on but points at the fixture server, which serves no flags (every
+ * experiment is control); tests force variants by intercepting /lp-relay/flags.
  */
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -54,6 +56,8 @@ export default defineConfig({
         SITE_FETCH_TIMEOUT_MS: "1500",
         GITHUB_API_URL: `http://127.0.0.1:${FIXTURE_PORT}/gh`,
         NEXT_PUBLIC_SITE_URL: baseURL,
+        NEXT_PUBLIC_POSTHOG_KEY: "phc_playwright",
+        NEXT_PUBLIC_POSTHOG_HOST: `http://127.0.0.1:${FIXTURE_PORT}/ph`,
       },
     },
   ],

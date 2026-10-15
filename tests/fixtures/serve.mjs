@@ -103,6 +103,19 @@ createServer(async (req, res) => {
     res.writeHead(200, { "Content-Type": "image/png" });
     return res.end(png(Number(img[1]), Number(img[2])));
   }
+  // Fake PostHog (NEXT_PUBLIC_POSTHOG_HOST in the test build): no flags for anyone, so every
+  // experiment is control unless a test intercepts /lp-relay/flags in the browser.
+  if (req.url.startsWith("/ph/")) {
+    req.resume();
+    const pathname = req.url.split("?")[0];
+    // Remote config script (/array/<key>/config.js): an empty script, not JSON the browser would execute.
+    if (pathname.endsWith(".js")) {
+      res.writeHead(200, { "Content-Type": "application/javascript" });
+      return res.end("");
+    }
+    res.writeHead(200, { "Content-Type": "application/json" });
+    return res.end(JSON.stringify(pathname.startsWith("/ph/flags") ? { flags: {}, errorsWhileComputingFlags: false } : {}));
+  }
   if (req.url.startsWith("/gh/")) {
     res.writeHead(404, { "Content-Type": "application/json" });
     return res.end(JSON.stringify({ message: "Not Found" }));
