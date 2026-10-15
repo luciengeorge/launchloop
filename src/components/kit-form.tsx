@@ -107,7 +107,7 @@ export function KitForm() {
         />
         <Button type="submit" disabled={loading} className="h-12 px-5 text-base">
           {loading ? <Loader2 className="animate-spin" /> : null}
-          {loading ? "Reading your app…" : plan === "kit" ? "Get my £19 launch kit" : "Get my free preview"}
+          {loading ? "Reading your app…" : plan === "kit" ? "Get my launch kit, £19" : "Get my free preview"}
           {loading ? null : <ArrowRight />}
         </Button>
       </form>
@@ -127,7 +127,7 @@ export function KitForm() {
           </ol>
         ) : (
           <>
-            <span data-plan={plan}>{plan === "kit" ? "Launch Kit £19 · Preview first, then secure Stripe checkout" : "Free preview · No sign-up · Public repos only"}</span>
+            <span data-plan={plan}>{plan === "kit" ? "Launch Kit, £19 once · Preview first, then secure Stripe checkout" : "Free preview · No sign-up · Public repos only"}</span>
             <span aria-hidden="true" className="hidden sm:inline">·</span>
             <button type="button" className="font-medium text-foreground underline underline-offset-4 hover:text-primary" onClick={() => void submit("sample")}>
               Try a sample app

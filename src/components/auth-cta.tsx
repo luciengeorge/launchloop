@@ -8,7 +8,7 @@ const ctaCls = buttonVariants({ size: "lg", className: "px-4" });
 export function LaunchKitCta() {
   return (
     <StartLink plan="kit" className={ctaCls}>
-      Get my launch kit
+      Get my launch kit, £19
     </StartLink>
   );
 }

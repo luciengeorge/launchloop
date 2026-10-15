@@ -8,7 +8,7 @@ import { getDraft } from "@/lib/generation";
 import { PRODUCTS } from "@/lib/products";
 import { getProgress, isOwner } from "@/lib/progress";
 import type { Kit } from "@/lib/schema";
-import { buildTasks, countableTasks, mask, maskContent } from "@/lib/tasks";
+import { buildTasks, mask, maskContent } from "@/lib/tasks";
 import { KitChecklist } from "./kit-checklist";
 import { KitErrorState } from "./kit-error-state";
 import { KitOverview } from "./kit-overview";
@@ -62,7 +62,6 @@ async function LockedKit({ kit, session, query }: Props) {
           email={session?.email}
           autoCheckout={query.unlock === "1"}
           cancelled={query.checkout === "cancelled"}
-          totalTasks={countableTasks(tasks).length}
         />
       </aside>
     </div>

@@ -50,7 +50,7 @@ export async function makeSampleKit(page: Page): Promise<string> {
 
 /** Unlock → magic link → mock checkout → unlocked kit in /account. Works logged in or out. */
 export async function unlockAndPay(page: Page, kitId: string, email: string) {
-  await page.getByRole("button", { name: "Unlock full kit for £19" }).click();
+  await page.getByRole("button", { name: "Unlock the full kit, £19" }).click();
   if (await page.getByLabel("Your email").isVisible().catch(() => false)) {
     await page.getByLabel("Your email").fill(email);
     await page.getByRole("button", { name: "Continue to checkout" }).click();

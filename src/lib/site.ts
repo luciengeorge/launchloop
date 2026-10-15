@@ -2,19 +2,22 @@ export const SITE = {
   name: "LaunchLoop",
   tagline: "Paste your repo. Get your whole launch.",
   description:
-    "LaunchLoop reads your GitHub repo and live site, then writes your landing page copy, Product Hunt post, X thread and LinkedIn post, and renders on-brand social images. Free preview, £19 for the full kit.",
+    "LaunchLoop reads your GitHub repo and live site, then writes your landing page copy, Product Hunt post, X thread and LinkedIn post, and renders on-brand social images. Free preview, £19 once for the full kit.",
   shortDescription: "Turn a vibe-coded app into a complete launch kit in minutes.",
   twitter: "@launchloop",
   email: "hello@launchloop.dev",
 } as const;
 
 /** What an unpaid kit page actually shows. Keep every free-tier mention in sync with this. */
-export const FREE_PREVIEW = ["Product brief from your repo", "Product Hunt tagline", "First post of your X thread", "Watermarked image previews"] as const;
+export const FREE_PREVIEW = ["Product brief from your repo", "Product Hunt tagline", "First post of your X thread", "3 watermarked images"] as const;
+
+/** Free preview allowance per IP, as stated in the copy, terms and privacy page. */
+export const PREVIEW_LIMITS = { perHour: 5, perDay: 20 } as const;
 
 export const KIT_CONTENTS = [
-  { title: "Landing page copy", body: "Hero headline, subheadline, CTA, 3–6 feature blocks, plus meta title and description sized for Google." },
+  { title: "Landing page copy", body: "Hero headline, subheadline, CTA, 3 to 6 feature blocks, plus meta title and description sized for Google." },
   { title: "Product Hunt post", body: "Name, tagline (60 chars), description (260 chars), topics and a maker comment that asks for feedback, never votes." },
-  { title: "X launch thread", body: "5–7 posts, each checked against X's 280-character weighting, with your link in the right place." },
+  { title: "X launch thread", body: "5 to 7 posts, each checked against X's 280-character weighting, with your link in the right place." },
   { title: "LinkedIn post", body: "A launch post with a strong first line and short paragraphs, well under LinkedIn's 3,000-character limit." },
   { title: "3 on-brand images", body: "1200×630 Open Graph, 1600×900 post image and a 1270×760 Product Hunt gallery shot, in your site's colours." },
   { title: "Launch-day checklist", body: "What to post where and when, in order, so launch day is copy, paste, reply." },
@@ -27,11 +30,11 @@ export const FAQ = [
   },
   {
     q: "What do I get for £19?",
-    a: "Landing page copy (headline, subheadline, CTA, features, meta tags), a Product Hunt post (tagline, description, topics, maker comment), a 5–7 post X thread, a LinkedIn post, three on-brand social images and a launch-day checklist. You get it on a results page, as a ZIP download and by email.",
+    a: "Landing page copy (headline, subheadline, CTA, features, meta tags), a Product Hunt post (tagline, description, topics, maker comment), a 5 to 7 post X thread, a LinkedIn post, three on-brand social images and a launch-day checklist, for one app. You pay once; it's not a subscription. You get it on a results page, as a ZIP download and by email.",
   },
   {
     q: "What's free?",
-    a: "The product brief, your Product Hunt tagline, the first post of your X thread and watermarked previews of your three images. No account or card needed.",
+    a: "The product brief, your Product Hunt tagline, the first post of your X thread and three watermarked images. No account or card needed. Free previews work with public repos and live sites, up to 5 an hour and 20 a day.",
   },
   {
     q: "Do you need access to my code?",
@@ -59,10 +62,10 @@ export const FAQ = [
   },
   {
     q: "What if I'm not happy with my kit?",
-    a: "Reply to your kit email within 14 days and we'll refund you in full.",
+    a: "Email hello@launchloop.dev or reply to your kit email within 14 days of buying and we'll refund you in full, for any reason.",
   },
   {
     q: "What is Ship Loop?",
-    a: "Ship Loop is the upcoming subscription (£12/month or £99/year). It watches your repo and drafts new posts and an on-brand image every time you ship a release. Join the waitlist or pre-order now; if you bought a Launch Kit in the 14 days before subscribing, we credit the £19.",
+    a: "Ship Loop is a separate subscription for after launch, coming soon (£12/month or £99/year). Every time you ship a release, it drafts an X post, a LinkedIn post, a changelog blurb and an image in your colours, and emails them to you to approve or edit. It never posts for you. Join the waitlist or pre-order now. Bought a Launch Kit? Subscribe within 14 days of buying it and we credit the £19.",
   },
 ] as const;

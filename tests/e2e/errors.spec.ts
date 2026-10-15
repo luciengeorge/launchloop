@@ -5,7 +5,7 @@ const FIXTURE = "http://127.0.0.1:3419";
 
 const CASES = [
   { name: "invalid URL", input: "not a url", code: "invalid_url", text: "doesn't look like a link", fix: "github.com/you/your-app" },
-  { name: "private or missing repo", input: "github.com/real-owner/secret-repo", code: "repo_not_found", text: "This repo is private or doesn't exist", fix: "paste your live URL instead, or make the repo public" },
+  { name: "private or missing repo", input: "github.com/real-owner/secret-repo", code: "repo_not_found", text: "This repo is private or doesn't exist", fix: "Make the repo public, or paste your live site URL instead" },
   { name: "unknown GitHub owner", input: "https://github.com/no-such-owner-zz/thing", code: "repo_owner_not_found", text: "no-such-owner-zz", fix: "Check the spelling" },
   { name: "site that doesn't resolve", input: "https://launchloop-no-such-site.invalid", code: "site_unreachable", text: "couldn't reach that site", fix: "paste your GitHub repo instead" },
   { name: "site that times out", input: `${FIXTURE}/slow`, code: "site_timeout", text: "took too long", fix: "try again" },
@@ -38,7 +38,7 @@ test("API returns structured errors with a code and a fix", async ({ request }) 
   expect(res.status()).toBe(422);
   const body = (await res.json()) as { error: string; code: string; fix: string };
   expect(body.code).toBe("repo_not_found");
-  expect(body.fix).toContain("live URL");
+  expect(body.fix).toContain("live site URL");
 });
 
 test("paid kit whose generation keeps failing shows a proper error state with retry", async ({ page }) => {
@@ -48,7 +48,7 @@ test("paid kit whose generation keeps failing shows a proper error state with re
   await page.waitForURL(/\/kit\/[\w-]+$/);
   const kitId = new URL(page.url()).pathname.split("/").pop()!;
   const email = `kitfail-${Date.now()}@example.com`;
-  await page.getByRole("button", { name: "Unlock full kit for £19" }).click();
+  await page.getByRole("button", { name: "Unlock the full kit, £19" }).click();
   await page.getByLabel("Your email").fill(email);
   await page.getByRole("button", { name: "Continue to checkout" }).click();
   await followMagicLink(page, email);

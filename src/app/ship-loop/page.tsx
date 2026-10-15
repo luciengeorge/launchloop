@@ -2,18 +2,28 @@ import { GitCommitHorizontal, Image as ImageIcon, MailCheck, PenLine } from "luc
 import type { Metadata } from "next";
 import { pageMetadata } from "@/lib/seo";
 import { ShipLoopPlans } from "@/components/ship-loop-plans";
+import { StartLink } from "@/components/start-link";
+import { buttonVariants } from "@/components/ui/button";
 
 export const metadata: Metadata = pageMetadata({
-  title: "Ship Loop: launch posts for every release",
-  description: "Ship Loop watches your repo and drafts new X, LinkedIn and Product Hunt-ready posts plus an on-brand image every time you release. £12/month or £99/year. Join the waitlist or pre-order.",
+  title: "Ship Loop: draft posts for every release",
+  description:
+    "Coming soon. Every time you ship a release, Ship Loop drafts an X post, a LinkedIn post, a changelog blurb and an image in your colours, then emails them to you to approve. It never posts for you. £12/month or £99/year. Join the waitlist or pre-order.",
   path: "/ship-loop",
 });
 
 const FLOW = [
-  { icon: GitCommitHorizontal, title: "You ship", body: "Push a release or tag on your default branch, or update your changelog." },
-  { icon: PenLine, title: "We draft", body: "Ship Loop reads the diff and release notes and writes an X post, a LinkedIn update and a changelog blurb." },
-  { icon: ImageIcon, title: "With an image", body: "Every update gets a fresh social image in your brand colours, sized for each platform." },
-  { icon: MailCheck, title: "You approve", body: "One email with a one-click approve or edit link. Nothing posts without you." },
+  { icon: GitCommitHorizontal, title: "You ship.", body: "Push a release or tag on your default branch, or update your changelog." },
+  { icon: PenLine, title: "We draft.", body: "Ship Loop reads the release notes and changes, then writes an X post, a LinkedIn post and a changelog blurb." },
+  { icon: ImageIcon, title: "With an image.", body: "Each update gets a fresh image in your brand colours, sized for each platform." },
+  { icon: MailCheck, title: "You approve.", body: "One email. Approve it as is or edit it, then post it yourself. Nothing is posted for you." },
+];
+
+const COMPARISON = [
+  { label: "When", kit: "Launch day", loop: "Every release after" },
+  { label: "Price", kit: "£19 once", loop: "£12/month or £99/year" },
+  { label: "You get", kit: "A full launch pack for one app", loop: "Draft posts and an image per release" },
+  { label: "Status", kit: "Available now", loop: "Coming soon" },
 ];
 
 export default function ShipLoopPage() {
@@ -22,11 +32,21 @@ export default function ShipLoopPage() {
       <div className="grid gap-12 lg:grid-cols-[1fr_420px] lg:items-start">
         <div className="space-y-8">
           <div className="space-y-4">
-            <p className="font-mono text-xs uppercase tracking-widest text-primary">Coming soon · Waitlist open</p>
-            <h1 className="text-balance text-4xl font-semibold tracking-tight sm:text-5xl">Launch once. Keep shipping in public on autopilot.</h1>
+            <p className="font-mono text-xs uppercase tracking-widest text-primary">Coming soon · Waitlist and pre-orders open</p>
+            <h1 className="text-balance text-4xl font-semibold tracking-tight sm:text-5xl">You launched once. Now keep shipping in public.</h1>
             <p className="max-w-xl text-lg text-muted-foreground">
-              Ship Loop turns every release into ready-to-post updates and an on-brand image, so your audience sees you shipping without you writing a word.
+              Every time you ship a release, Ship Loop drafts an X post, a LinkedIn post, a changelog blurb and an image in your colours. You get one email. You approve or
+              edit, then you post.
             </p>
+            <div className="flex flex-wrap items-center gap-3 pt-2">
+              <a href="#plans" className={buttonVariants({ size: "lg", className: "px-5" })}>
+                Pre-order Ship Loop
+              </a>
+              <a href="#waitlist" className={buttonVariants({ variant: "outline", size: "lg", className: "px-5" })}>
+                Join the free waitlist
+              </a>
+            </div>
+            <p className="text-sm text-muted-foreground">£12/month or £99/year. Pre-orders are refundable in full until Ship Loop launches.</p>
           </div>
           <ol className="grid gap-4 sm:grid-cols-2">
             {FLOW.map(({ icon: Icon, title, body }) => (
@@ -38,10 +58,44 @@ export default function ShipLoopPage() {
             ))}
           </ol>
           <ul className="space-y-2 text-sm text-muted-foreground">
-            <li>• Bought a £19 Launch Kit? Subscribe within 14 days and we credit the full £19.</li>
-            <li>• Drafts only. We never auto-post or ask anyone for upvotes.</li>
-            <li>• Public GitHub repos at launch; private repos via a GitHub App soon after.</li>
+            <li>• Bought a £19 Launch Kit? Subscribe within 14 days of buying and we credit the full £19.</li>
+            <li>• Drafts only. We never post for you or ask anyone for upvotes.</li>
+            <li>• Public GitHub repos at launch. Private repos via a GitHub App later.</li>
           </ul>
+          <section className="rounded-2xl border border-border bg-muted/40 p-6" aria-labelledby="compare-heading">
+            <h2 id="compare-heading" className="text-xl font-semibold tracking-tight">
+              Launch Kit or Ship Loop?
+            </h2>
+            <table className="mt-4 w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-border">
+                  <td className="py-2 pr-4" />
+                  <th scope="col" className="py-2 pr-4 font-medium">Launch Kit</th>
+                  <th scope="col" className="py-2 font-medium">Ship Loop</th>
+                </tr>
+              </thead>
+              <tbody className="text-muted-foreground">
+                {COMPARISON.map((row) => (
+                  <tr key={row.label} className="border-b border-border/60 last:border-0">
+                    <th scope="row" className="py-2 pr-4 font-medium text-foreground">{row.label}</th>
+                    <td className="py-2 pr-4">{row.kit}</td>
+                    <td className="py-2">{row.loop}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="mt-4 text-sm text-muted-foreground">
+              Most people buy the kit to launch, then add Ship Loop. Subscribe within 14 days of buying a kit and we credit the £19.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <StartLink plan="kit" className={buttonVariants({ variant: "outline" })}>
+                Get my launch kit, £19
+              </StartLink>
+              <a href="#plans" className={buttonVariants({ variant: "ghost" })}>
+                Pre-order Ship Loop
+              </a>
+            </div>
+          </section>
         </div>
         <ShipLoopPlans />
       </div>

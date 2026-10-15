@@ -6,7 +6,7 @@ test("home page explains the product and offers the input", async ({ page }) => 
   await expect(page.getByRole("heading", { level: 1 })).toContainText("Paste your repo");
   await expect(page.getByLabel("GitHub repo or live site URL")).toBeVisible();
   await expect(page.getByRole("button", { name: "Get my free preview" }).first()).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Simple pricing" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Three steps. Pay only for what you need." })).toBeVisible();
   await expect(page.getByText("£19", { exact: true }).first()).toBeVisible();
 });
 

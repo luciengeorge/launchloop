@@ -1,84 +1,194 @@
-import { Check } from "lucide-react";
+import { ArrowRight, Check } from "lucide-react";
 import Link from "next/link";
-import { CheckoutButton } from "@/components/checkout-button";
 import { StartLink } from "@/components/start-link";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
-import { FREE_PREVIEW } from "@/lib/site";
+import { FREE_PREVIEW, PREVIEW_LIMITS } from "@/lib/site";
 
-export function PricingSection({ headingLevel = "h2" }: { headingLevel?: "h1" | "h2" }) {
-  const Heading = headingLevel;
+const KIT_ITEMS = [
+  "Landing page copy and meta tags",
+  "Full Product Hunt post and maker comment",
+  "5 to 7 post X thread",
+  "LinkedIn post",
+  "3 images in your colours, no watermark",
+  "Launch-day checklist",
+  "ZIP download and a copy by email",
+  "Full refund within 14 days, for any reason",
+];
+
+const SHIP_LOOP_ITEMS = [
+  "Watches your public repo for releases, tags and changelog updates",
+  "Drafts an X post, LinkedIn post and changelog blurb",
+  "A fresh image in your colours for each one",
+  "Emailed to you to approve or edit. We never post for you",
+  "Bought a kit? Join within 14 days of buying and we credit the £19",
+  "Pre-orders refundable in full until Ship Loop launches",
+];
+
+const TIMELINE = [
+  { step: "Try it", product: "Free preview" },
+  { step: "Launch it", product: "Launch Kit, £19 once" },
+  { step: "Keep shipping", product: "Ship Loop, monthly (coming soon)" },
+];
+
+export function PricingTimeline({ className = "" }: { className?: string }) {
   return (
-      <section id="pricing" className="border-y border-border/60 bg-muted/40" aria-labelledby="pricing-heading">
-        <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
-          <Heading id="pricing-heading" className="text-3xl font-semibold tracking-tight sm:text-4xl">
-            Simple pricing
-          </Heading>
-          <div className="mt-10 grid gap-4 lg:grid-cols-3">
-            <PriceCard
-              name="Free preview"
-              price="£0"
-              body="See what LaunchLoop makes of your app before you pay."
-              items={FREE_PREVIEW}
-              cta={<StartLink className={buttonVariants({ variant: "outline", className: "w-full" })}>Try it free</StartLink>}
-            />
-            <PriceCard
-              featured
-              name="Launch Kit"
-              price="£19"
-              suffix="one-off"
-              body="Your whole launch, ready to paste."
-              items={["Landing page copy and meta tags", "Full Product Hunt post and maker comment", "5–7 post X thread and LinkedIn post", "3 on-brand images, no watermark", "Launch-day checklist", "ZIP download and email copy"]}
-              cta={<StartLink plan="kit" className={buttonVariants({ className: "w-full" })}>Get my launch kit</StartLink>}
-            />
-            <PriceCard
-              name="Ship Loop"
-              price="£12"
-              suffix="/month or £99/year"
-              body="Coming soon: fresh posts and an image every time you release."
-              items={["Watches your repo for releases", "Drafts update posts and an OG image", "One-click approve or edit by email", "£19 kit credit if you join within 14 days"]}
-              cta={
-                <div className="space-y-2">
-                  <div className="grid grid-cols-2 gap-2">
-                    <CheckoutButton product="shiploop_monthly" variant="outline" className="w-full">
-                      £12 monthly
-                    </CheckoutButton>
-                    <CheckoutButton product="shiploop_yearly" className="w-full">
-                      £99 yearly
-                    </CheckoutButton>
-                  </div>
-                  <Link href="/ship-loop" className="block text-center text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground">
-                    Or join the free waitlist
-                  </Link>
-                </div>
-              }
-            />
-          </div>
-        </div>
-      </section>
+    <ol aria-label="How the plans fit together" className={`flex flex-wrap items-center gap-x-3 gap-y-2 text-sm ${className}`}>
+      {TIMELINE.map((item, i) => (
+        <li key={item.step} className="flex items-center gap-3">
+          {i > 0 ? <ArrowRight className="size-4 text-muted-foreground" aria-hidden="true" /> : null}
+          <span>
+            <span className="font-medium">{item.step}</span>
+            <span className="text-muted-foreground">: {item.product}</span>
+          </span>
+        </li>
+      ))}
+    </ol>
   );
 }
 
-function PriceCard(props: { name: string; price: string; suffix?: string; body: string; items: readonly string[]; cta: React.ReactNode; featured?: boolean }) {
+const freeCta = <StartLink className={buttonVariants({ variant: "outline", className: "w-full" })}>Get my free preview</StartLink>;
+const kitCta = (
+  <StartLink plan="kit" className={buttonVariants({ className: "w-full" })}>
+    Get my launch kit, £19
+  </StartLink>
+);
+
+/** The home page's three-step strip, or the full comparison on /pricing. */
+export function PricingSection({ variant = "home" }: { variant?: "home" | "page" }) {
   return (
-    <article className={`flex flex-col rounded-2xl border bg-background p-6 ${props.featured ? "border-primary shadow-xl shadow-primary/10" : "border-border"}`}>
-      <div className="flex items-center justify-between">
+    <section id="pricing" className="border-y border-border/60 bg-muted/40" aria-labelledby="pricing-heading">
+      <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6">{variant === "home" ? <HomeStrip /> : <PricingPage />}</div>
+    </section>
+  );
+}
+
+function HomeStrip() {
+  return (
+    <>
+      <h2 id="pricing-heading" className="text-3xl font-semibold tracking-tight sm:text-4xl">
+        Three steps. Pay only for what you need.
+      </h2>
+      <PricingTimeline className="mt-4" />
+      <div className="mt-10 grid gap-4 lg:grid-cols-3">
+        <PriceCard
+          name="1. Free preview"
+          price="£0"
+          body="Try it on your repo. You get a product brief, your Product Hunt tagline, the first post of your X thread and three watermarked images."
+          cta={freeCta}
+        />
+        <PriceCard
+          featured
+          badge="Most people start here"
+          name="2. Launch Kit"
+          price="£19"
+          suffix="once"
+          body="Everything for launch day, for one app. Landing copy, full Product Hunt post, X thread, LinkedIn post, 3 images with no watermark, and a checklist. ZIP download and email copy. Not a subscription."
+          cta={kitCta}
+        />
+        <PriceCard
+          badge="Coming soon"
+          name="3. Ship Loop"
+          price="from £12"
+          suffix="/month"
+          body="For after launch. Every time you release, we draft an X post, a LinkedIn post, a changelog blurb and an image, and email them to you to approve. Subscribe within 14 days of buying a kit and we credit your £19."
+          cta={
+            <Link href="/ship-loop" className={buttonVariants({ variant: "outline", className: "w-full" })}>
+              Join the free waitlist
+            </Link>
+          }
+        />
+      </div>
+    </>
+  );
+}
+
+function PricingPage() {
+  return (
+    <>
+      <h1 id="pricing-heading" className="text-3xl font-semibold tracking-tight sm:text-4xl">
+        Pricing
+      </h1>
+      <p className="mt-3 text-lg text-muted-foreground">Try it free. Pay £19 once to launch. Ship Loop is for after launch.</p>
+      <PricingTimeline className="mt-4" />
+      <div className="mt-10 grid gap-4 lg:grid-cols-3 lg:gap-6">
+        <PriceCard
+          name="Free preview"
+          price="£0"
+          body="See a taste of your launch before you pay."
+          items={[...FREE_PREVIEW, `Public repos only. ${PREVIEW_LIMITS.perHour} per hour, ${PREVIEW_LIMITS.perDay} per day.`]}
+          cta={freeCta}
+        />
+        <PriceCard
+          featured
+          badge="Most people start here"
+          name="Launch Kit"
+          price="£19"
+          suffix="once"
+          body="Everything for launch day. One app, one payment, no subscription."
+          items={KIT_ITEMS}
+          cta={kitCta}
+        />
+        <div className="flex flex-col gap-3 lg:border-l lg:border-dashed lg:border-border lg:pl-6" data-testid="ship-loop-plan">
+          <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">After launch</p>
+          <PriceCard
+            muted
+            badge="Coming soon"
+            name="Ship Loop"
+            price="£12"
+            suffix="/month or £99/year"
+            body="For after launch. A draft post and image for every release."
+            items={SHIP_LOOP_ITEMS}
+            cta={
+              <div className="space-y-2">
+                <Link href="/ship-loop#plans" className={buttonVariants({ variant: "outline", className: "w-full" })}>
+                  Pre-order Ship Loop
+                </Link>
+                <Link href="/ship-loop#waitlist" className="block text-center text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground">
+                  Join the free waitlist
+                </Link>
+              </div>
+            }
+          />
+        </div>
+      </div>
+    </>
+  );
+}
+
+function PriceCard(props: {
+  name: string;
+  price: string;
+  suffix?: string;
+  body: string;
+  items?: readonly string[];
+  cta: React.ReactNode;
+  badge?: string;
+  featured?: boolean;
+  muted?: boolean;
+}) {
+  const tone = props.featured ? "border-primary bg-background shadow-xl shadow-primary/10" : props.muted ? "border-dashed border-border bg-background/60" : "border-border bg-background";
+  return (
+    <article className={`flex flex-1 flex-col rounded-2xl border p-6 ${tone}`}>
+      <div className="flex items-center justify-between gap-2">
         <h3 className="font-medium">{props.name}</h3>
-        {props.featured ? <Badge>Most popular</Badge> : null}
+        {props.badge ? <Badge variant={props.featured ? "default" : "outline"}>{props.badge}</Badge> : null}
       </div>
       <p className="mt-4">
         <span className="text-4xl font-semibold tracking-tight">{props.price}</span>
         {props.suffix ? <span className="ml-1 text-sm text-muted-foreground">{props.suffix}</span> : null}
       </p>
-      <p className="mt-2 text-sm text-muted-foreground">{props.body}</p>
-      <ul className="mt-6 flex-1 space-y-2 text-sm">
-        {props.items.map((item) => (
-          <li key={item} className="flex gap-2">
-            <Check className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />
-            {item}
-          </li>
-        ))}
-      </ul>
+      <p className={`mt-2 text-sm text-muted-foreground ${props.items ? "" : "flex-1"}`}>{props.body}</p>
+      {props.items ? (
+        <ul className="mt-6 flex-1 space-y-2 text-sm">
+          {props.items.map((item) => (
+            <li key={item} className="flex gap-2">
+              <Check className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />
+              {item}
+            </li>
+          ))}
+        </ul>
+      ) : null}
       <div className="mt-6">{props.cta}</div>
     </article>
   );

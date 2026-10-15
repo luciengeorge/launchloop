@@ -17,9 +17,9 @@ The kit is delivered on a results page, as a ZIP download and by email.
 
 ## Pricing (GBP)
 
-- Free preview: the product brief, the Product Hunt tagline, the first post of the X thread and watermarked previews of the three images. No account needed.
-- Launch Kit: £19 one-off, paid through Stripe Checkout. 14-day refund.
-- Ship Loop (coming soon): £12/month or £99/year. Drafts new posts and an on-brand image on every release. Waitlist and pre-orders are open.
+- Free preview: the product brief, the Product Hunt tagline, the first post of the X thread and three watermarked images. No account needed. Public repos and live sites only, up to 5 previews an hour and 20 a day.
+- Launch Kit: £19 once, for one app, paid through Stripe Checkout. Not a subscription. 14-day refund.
+- Ship Loop (coming soon, separate from the kit): £12/month or £99/year, for after launch. Drafts an X post, a LinkedIn post, a changelog blurb and an image on every release and emails them to the user to approve or edit. It never posts for the user. Waitlist and pre-orders are open; pre-orders are refundable in full until launch.
 
 ## Rules it follows
 

@@ -1,3 +1,5 @@
+import { PREVIEW_LIMITS } from "./site";
+
 /** User-facing error catalogue, shared by the API and the form. Every entry says what happened and what to do. */
 export type KitErrorCode =
   | "invalid_url"
@@ -19,7 +21,7 @@ export const KIT_ERRORS: Record<KitErrorCode, { title: string; fix: string }> = 
   invalid_url: { title: "That doesn't look like a link.", fix: "Paste something like github.com/you/your-app or https://your-app.com." },
   repo_not_found: {
     title: "This repo is private or doesn't exist.",
-    fix: "If it's private, paste your live URL instead, or make the repo public. Otherwise check the spelling of the repo name.",
+    fix: "We can only read public repos right now. Make the repo public, or paste your live site URL instead. Otherwise check the spelling of the repo name.",
   },
   repo_owner_not_found: { title: "There's no GitHub user or organisation with that name.", fix: "Check the spelling in the URL, or paste your live site URL instead." },
   github_rate_limited: { title: "GitHub is rate limiting us right now.", fix: "Try again in a few minutes, or paste your live site URL instead." },
@@ -37,7 +39,10 @@ export const KIT_ERRORS: Record<KitErrorCode, { title: string; fix: string }> = 
     fix: "It points to a file or an API response. Paste your homepage or landing page URL (like https://your-app.com), or your GitHub repo.",
   },
   llm_failed: { title: "Our AI writer is having a moment.", fix: "Nothing is wrong with your link. Try again in a minute." },
-  rate_limited: { title: "You've hit the free preview limit for now.", fix: "Try again in a little while. Your earlier previews are saved under My kits once you log in." },
+  rate_limited: {
+    title: "You've used your free previews for now.",
+    fix: `You can run ${PREVIEW_LIMITS.perHour} an hour and ${PREVIEW_LIMITS.perDay} a day. Try again later, or unlock the full kit for an app you've already previewed.`,
+  },
   unknown: { title: "Something went wrong reading your app.", fix: "Try again. If it keeps happening, email hello@launchloop.dev." },
 };
 

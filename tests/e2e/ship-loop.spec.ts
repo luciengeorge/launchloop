@@ -6,7 +6,7 @@ test("waitlist signup", async ({ page }) => {
   await page.getByRole("radio", { name: "Monthly" }).click();
   await expect(page.getByText("£12", { exact: true })).toBeVisible();
   await page.getByRole("textbox", { name: "Email" }).fill(`wait-${Date.now()}@example.com`);
-  await page.getByRole("button", { name: "Join the waitlist (free)" }).click();
+  await page.getByRole("button", { name: "Join the free waitlist" }).click();
   await expect(page.getByText("You're on the waitlist")).toBeVisible();
 });
 
