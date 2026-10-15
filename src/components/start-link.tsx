@@ -1,44 +1,26 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
-import { useState } from "react";
-import { unlockPath, lastKitId, START_EVENT, type StartPlan } from "@/lib/start-intent";
+import { START_EVENT, type StartPlan } from "@/lib/start-intent";
 
 /**
  * Leads into the kit form. If the form is on this page it scrolls to and focuses it (with the plan preselected);
- * otherwise it navigates to /?plan=…#start. With plan="kit" and a kit already generated in this browser, it goes
- * straight to the unlock flow.
+ * otherwise it navigates to /?plan=…#start.
  */
 export function StartLink({ plan = "free", className, children }: { plan?: StartPlan; className?: string; children: React.ReactNode }) {
-  const [busy, setBusy] = useState(false);
   const href = plan === "kit" ? "/?plan=kit#start" : "/#start";
   return (
     <a
       href={href}
       className={className}
-      aria-busy={busy || undefined}
       data-plan={plan}
-      onClick={async (e) => {
+      onClick={(e) => {
         if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+        if (!document.getElementById("start")) return;
         e.preventDefault();
-        if (plan === "kit") {
-          const existing = lastKitId();
-          if (existing) {
-            setBusy(true);
-            const path = await unlockPath(existing);
-            if (path) return window.location.assign(path);
-            setBusy(false);
-          }
-        }
-        if (document.getElementById("start")) {
-          history.replaceState(null, "", plan === "kit" ? "?plan=kit#start" : `${location.pathname}#start`);
-          window.dispatchEvent(new CustomEvent(START_EVENT, { detail: { plan } }));
-        } else {
-          window.location.assign(href);
-        }
+        history.replaceState(null, "", plan === "kit" ? "?plan=kit#start" : `${location.pathname}#start`);
+        window.dispatchEvent(new CustomEvent(START_EVENT, { detail: { plan } }));
       }}
     >
-      {busy ? <Loader2 className="size-4 animate-spin" /> : null}
       {children}
     </a>
   );
