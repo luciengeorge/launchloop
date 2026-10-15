@@ -1,0 +1,16 @@
+:root {
+  --background: #0f172a;
+  --primary: #e11d48;
+  --foreground: #f8fafc;
+}
+body {
+  background: var(--background);
+  color: var(--foreground);
+}
+a,
+button {
+  color: #e11d48;
+}
+.badge {
+  background: rgb(225 29 72 / 0.2);
+}

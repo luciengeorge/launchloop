@@ -284,7 +284,7 @@ export function launchChecklist(brief: Brief): string[] {
     `Update your landing page hero, meta title and meta description, and set og:image to og-1200x630.png on ${brief.url ?? "your site"}.`,
     "Publish the X thread from your own account at launch time, attach x-1600x900.png to post 1 and pin it.",
     "Post the LinkedIn version 2–3 hours later to catch the UK and US mornings.",
-    "Tell your users, email list and friends you've launched. Ask for feedback and questions, never for upvotes: Product Hunt bans vote requests and penalises them.",
+    "Tell your users, email list and friends you've launched. Ask for feedback and questions, not votes: Product Hunt bans vote requests and penalises them.",
     "Reply to every comment within the first 6 hours, with specifics rather than \"thanks!\".",
     "Share on Indie Hackers, r/SideProject and relevant Discords, following each community's self-promotion rules.",
     "The day after, post a short follow-up with what you learned and real numbers (visitors, sign-ups, feedback themes).",
