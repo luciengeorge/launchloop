@@ -49,7 +49,7 @@ export default function Home() {
             <KitForm />
           </div>
           <ul className="mt-10 flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
-            {["Free preview of your PH tagline and first X post", "£19 for the full kit", "ZIP download and email"].map((item) => (
+            {["Free preview: brief, PH tagline, first X post and watermarked images", "£19 for the full kit", "ZIP download and email"].map((item) => (
               <li key={item} className="flex items-center gap-1.5">
                 <Check className="size-4 text-primary" aria-hidden="true" />
                 {item}
