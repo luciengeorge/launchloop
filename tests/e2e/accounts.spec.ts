@@ -54,18 +54,26 @@ test("magic-link login, single-use token, header state and log out", async ({ pa
 
 test("login CTA locks with a loading state while the link is sent", async ({ page }) => {
   let posts = 0;
+  let release!: () => void;
+  const held = new Promise<void>((r) => (release = r));
   await page.route("**/api/auth/request", async (route) => {
     posts++;
-    await new Promise((r) => setTimeout(r, 1500));
+    await held;
     await route.continue();
   });
   await page.goto("/login");
   await page.getByLabel("Email").fill(uniqueEmail("cta"));
-  await page.getByRole("button", { name: "Email me a login link" }).click();
   const submit = page.getByTestId("login-submit");
-  await expect(submit).toBeDisabled();
-  await expect(submit).toHaveText("Sending…");
-  await page.getByLabel("Email").press("Enter");
+  // Locators wait for pending navigations, so read the in-flight state from inside the page.
+  const inFlight = await submit.evaluate(async (b: HTMLButtonElement) => {
+    b.click();
+    await new Promise((r) => setTimeout(r, 100));
+    b.form?.requestSubmit();
+    await new Promise((r) => setTimeout(r, 100));
+    return { disabled: b.disabled, text: b.textContent };
+  });
+  expect(inFlight).toEqual({ disabled: true, text: "Sending…" });
+  release();
   await page.waitForURL(/\/login\/check-email$/);
   await expect(page.getByTestId("envelope")).toBeVisible();
   expect(posts).toBe(1);
