@@ -74,7 +74,7 @@ function HomeStrip() {
         <PriceCard
           name="1. Free preview"
           price="£0"
-          body="Try it on your repo. You get a product brief, your Product Hunt tagline, the first post of your X thread and one watermarked image."
+          body="Try it on your repo. You get a product brief, your Product Hunt tagline, the first post of your X thread and three watermarked images."
           cta={freeCta}
         />
         <PriceCard

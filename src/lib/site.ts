@@ -9,7 +9,7 @@ export const SITE = {
 } as const;
 
 /** What an unpaid kit page actually shows. Keep every free-tier mention in sync with this. */
-export const FREE_PREVIEW = ["Product brief from your repo", "Product Hunt tagline", "First post of your X thread", "1 watermarked image"] as const;
+export const FREE_PREVIEW = ["Product brief from your repo", "Product Hunt tagline", "First post of your X thread", "3 watermarked images"] as const;
 
 /** Free preview allowance per IP, as stated in the copy, terms and privacy page. */
 export const PREVIEW_LIMITS = { perHour: 5, perDay: 20 } as const;
@@ -34,7 +34,7 @@ export const FAQ = [
   },
   {
     q: "What's free?",
-    a: "The product brief, your Product Hunt tagline, the first post of your X thread and one watermarked image. No account or card needed. Free previews work with public repos and live sites, up to 5 an hour and 20 a day.",
+    a: "The product brief, your Product Hunt tagline, the first post of your X thread and three watermarked images. No account or card needed. Free previews work with public repos and live sites, up to 5 an hour and 20 a day.",
   },
   {
     q: "Do you need access to my code?",

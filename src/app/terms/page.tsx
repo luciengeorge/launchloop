@@ -28,7 +28,7 @@ export default function TermsPage() {
 
       <h2>Free preview</h2>
       <p>
-        The free preview shows a product brief, a Product Hunt tagline, the first post of your X thread and one watermarked image. It&apos;s for trying LaunchLoop before you
+        The free preview shows a product brief, a Product Hunt tagline, the first post of your X thread and three watermarked images. It&apos;s for trying LaunchLoop before you
         buy. The full copy and the images without a watermark come with the Launch Kit. The preview works with public repos and live sites only, and is limited to{" "}
         {PREVIEW_LIMITS.perHour} previews an hour and {PREVIEW_LIMITS.perDay} a day.
       </p>
