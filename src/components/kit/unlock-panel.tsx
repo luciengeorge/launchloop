@@ -145,7 +145,7 @@ export function UnlockPanel({ kitId, priceLabel, email, autoCheckout, cancelled 
           <div className="space-y-1.5">
             <Label htmlFor="unlock-email">Your email</Label>
             <Input ref={inputRef} id="unlock-email" name="email" type="email" required autoComplete="email" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="you@example.com" className="h-10" />
-            <p className="text-xs text-muted-foreground">We&apos;ll email a one-click sign-in link and a 6-digit code. Your kit and progress live in your account.</p>
+            <p className="text-xs text-muted-foreground">We&apos;ll email you a sign-in link and a 6-digit code. Your kit and progress live in your account.</p>
           </div>
           <Button type="submit" className="h-11 w-full text-base" disabled={loading}>
             {loading ? <Loader2 className="animate-spin" /> : null}
