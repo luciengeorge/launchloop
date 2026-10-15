@@ -46,7 +46,7 @@ test("saving the preview by email claims it to the account from another browser,
   const other = await browser.newContext();
   const phone = await other.newPage();
   await phone.goto(await magicLinkFor(page.request, email));
-  await phone.waitForURL(new RegExp(`/kit/${kitId}\\?saved=1$`));
+  await phone.waitForURL(new RegExp(`/kit/${kitId}\\?saved=1&aid=[^&]+$`));
   await expect(phone.getByTestId("preview-saved")).toBeVisible();
   await expect(phone.getByTestId("unlock-panel")).toHaveAttribute("data-step", "cta");
   await phone.goto("/account");

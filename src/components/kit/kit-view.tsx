@@ -12,6 +12,7 @@ import { KitChecklist } from "./kit-checklist";
 import { KitErrorState } from "./kit-error-state";
 import { KitOverview } from "./kit-overview";
 import { PreviewPaywall } from "./preview-paywall";
+import { ShipLoopUpsell } from "./ship-loop-upsell";
 
 const maskEmail = (email: string) => email.replace(/^(.)(.*)(@.*)$/, (_, a: string, b: string, c: string) => `${a}${"•".repeat(Math.min(b.length, 6))}${c}`);
 
@@ -30,7 +31,7 @@ export async function KitView({ kit, session, query }: Props) {
         <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">{kit.brief.name}</h1>
       </header>
       <KitOverview kit={kit} />
-      {kit.paid ? <PaidKit kit={kit} session={session} /> : <LockedKit kit={kit} session={session} query={query} />}
+      {kit.paid ? <PaidKit kit={kit} session={session} query={query} /> : <LockedKit kit={kit} session={session} query={query} />}
     </div>
   );
 }
@@ -72,7 +73,7 @@ async function LockedKit({ kit, session, query }: Props) {
   );
 }
 
-async function PaidKit({ kit, session }: Omit<Props, "query">) {
+async function PaidKit({ kit, session, query }: Props) {
   const owner = isOwner(kit, session);
   if (kit.status === "failed" && kit.attempts >= MAX_ATTEMPTS) return <KitErrorState kitId={kit.id} />;
 
@@ -100,6 +101,8 @@ async function PaidKit({ kit, session }: Omit<Props, "query">) {
       ) : (
         <GenerationPoller kitId={kit.id} failed={kit.status === "failed"} sectionsReady={Object.keys(sections).length} />
       )}
+      {/* Straight back from checkout (?paid=1) only, for the buyer. */}
+      {owner && query.paid === "1" ? <ShipLoopUpsell /> : null}
       <KitChecklist kitId={kit.id} productName={kit.brief.name} tasks={tasks} locked={false} persist={owner ? "server" : "local"} initialDone={done} />
     </div>
   );

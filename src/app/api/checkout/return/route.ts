@@ -1,4 +1,5 @@
 import { after } from "next/server";
+import { withAnalyticsId } from "@/lib/experiments";
 import { fulfilKit, recordPayment } from "@/lib/fulfil";
 import { captureException } from "@/lib/observability";
 import { checkoutDecision, stripe } from "@/lib/payments";
@@ -25,13 +26,15 @@ export async function GET(req: Request) {
     if (session.payment_status !== "paid" || !isProductId(product)) {
       return Response.redirect(new URL(kitId ? `/kit/${kitId}?checkout=pending` : "/ship-loop?checkout=pending", url), 303);
     }
+    // Same anonymous id on the success page, so its flags and any upsell checkout join this purchase.
+    const aid = session.metadata?.ph_distinct_id;
     const email = session.customer_details?.email ?? session.customer_email ?? undefined;
     await recordPayment({ product, kitId, email, ref: session.id, customerId: typeof session.customer === "string" ? session.customer : session.customer?.id });
     if (product === "kit" && kitId) {
       after(() => fulfilKit(kitId));
-      return Response.redirect(new URL(`/account/kits/${kitId}?paid=1`, url), 303);
+      return Response.redirect(new URL(withAnalyticsId(`/account/kits/${kitId}?paid=1`, aid), url), 303);
     }
-    return Response.redirect(new URL(`/ship-loop/thanks?plan=${product}`, url), 303);
+    return Response.redirect(new URL(withAnalyticsId(`/ship-loop/thanks?plan=${product}`, aid), url), 303);
   } catch (error) {
     captureException(error, { stage: "api.checkout.return", sessionId });
     return Response.redirect(new URL("/?checkout=error", url), 303);

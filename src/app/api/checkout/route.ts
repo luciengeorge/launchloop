@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth";
 import { ensureStripeCustomer } from "@/lib/billing";
 import { isStripeMock } from "@/lib/env";
 import { after } from "next/server";
+import { featureProperties, parseExperiments } from "@/lib/experiments";
 import { generateDraft } from "@/lib/generation";
 import { getKit } from "@/lib/kits";
 import { captureException } from "@/lib/observability";
@@ -11,7 +12,7 @@ import { checkoutPrice, createCheckoutUrl } from "@/lib/payments";
 import { isProductId } from "@/lib/products";
 
 export async function POST(req: Request) {
-  const body = (await req.json().catch(() => ({}))) as { product?: unknown; kitId?: unknown; email?: unknown; analyticsId?: unknown };
+  const body = (await req.json().catch(() => ({}))) as { product?: unknown; kitId?: unknown; email?: unknown; analyticsId?: unknown; experiments?: unknown };
   if (!isProductId(body.product)) return Response.json({ error: "Unknown product." }, { status: 400 });
 
   const session = await getSession();
@@ -31,13 +32,29 @@ export async function POST(req: Request) {
   const product = body.product;
   const analyticsId = resolveDistinctId(body.analyticsId);
   const isLoggedIn = !!session;
+  // Trusted as sent: anyone can retry until a page shows the promo arm, so LAUNCH14's own
+  // limits in Stripe (once per customer, first purchase, capped, expiring) are the real guard.
+  const experiments = parseExperiments(body.experiments);
   try {
     // Only a signed-in (verified) email is tied to an existing Stripe customer; a guest-typed email
     // could belong to someone else, so it stays a plain `customer_email` prefill.
     const customer = session && !isStripeMock() ? await ensureStripeCustomer(session.email) : undefined;
-    const url = await createCheckoutUrl({ product, origin: new URL(req.url).origin, kitId, email, customer, analyticsId, isLoggedIn });
-    after(() => captureServerEvent("checkout_started", { distinctId: analyticsId, properties: { plan: product, kitId, ...checkoutPrice(product), isLoggedIn, mock: isStripeMock() } }));
-    return Response.json({ url });
+    const { url, promo } = await createCheckoutUrl({ product, origin: new URL(req.url).origin, kitId, email, customer, analyticsId, isLoggedIn, experiments });
+    after(() =>
+      captureServerEvent("checkout_started", {
+        distinctId: analyticsId,
+        properties: {
+          plan: product,
+          kitId,
+          ...checkoutPrice(product, promo === "applied"),
+          ...(promo === "none" ? {} : { promo }),
+          ...featureProperties(experiments),
+          isLoggedIn,
+          mock: isStripeMock(),
+        },
+      }),
+    );
+    return Response.json({ url, promo });
   } catch (error) {
     captureException(error, { stage: "api.checkout", product, kitId });
     return Response.json({ error: "Couldn't start checkout. Please try again." }, { status: 502 });

@@ -1,4 +1,5 @@
 import posthog, { type CaptureResult } from "posthog-js";
+import { ANALYTICS_ID_PARAM, isAnalyticsId } from "./experiments";
 import { POSTHOG_PROXY_PATH, posthogUiHost } from "./posthog-config";
 import { scrubProperties } from "./scrub-url";
 import type { StartPlan } from "./start-intent";
@@ -17,11 +18,15 @@ const key = process.env.NEXT_PUBLIC_POSTHOG_KEY;
 /**
  * Cookieless: identity lives in page memory only, so nothing is written to cookies or
  * storage and no consent banner is needed. The trade-off is a new anonymous id per full
- * page load; checkout events reuse the id from the page that started checkout.
+ * page load. Where we cause the reload (magic link, Stripe Checkout and back) the previous
+ * page's id rides along as `?aid=` and is reused here, so flag variants don't re-roll
+ * mid-purchase. A manual reload or a new visit still gets a fresh id.
  */
 export function initAnalytics() {
   if (!key || posthog.__loaded) return;
+  const handoff = new URLSearchParams(window.location.search).get(ANALYTICS_ID_PARAM);
   posthog.init(key, {
+    ...(isAnalyticsId(handoff) ? { bootstrap: { distinctID: handoff } } : {}),
     api_host: POSTHOG_PROXY_PATH,
     ui_host: posthogUiHost(),
     defaults: "2026-08-30",

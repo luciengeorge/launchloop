@@ -33,3 +33,19 @@ export const PRODUCTS: Record<ProductId, Product> = {
 };
 
 export const isProductId = (v: unknown): v is ProductId => typeof v === "string" && v in PRODUCTS;
+
+/**
+ * The exp_launch14_promo treatment: Stripe promotion code LAUNCH14 (£5 off the kit, once).
+ * The code and its limits live in Stripe; this only mirrors the amount for the paywall copy.
+ */
+export const LAUNCH_PROMO = {
+  code: "LAUNCH14",
+  amountOffPence: 500,
+  priceLabel: "£14",
+} as const;
+
+/** What the buyer pays, in pence, with or without the launch promo. */
+export function chargedPence(product: ProductId, promo: boolean): number {
+  const base = PRODUCTS[product].amountPence;
+  return product === "kit" && promo ? base - LAUNCH_PROMO.amountOffPence : base;
+}

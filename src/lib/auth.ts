@@ -3,6 +3,7 @@ import { createHash, createHmac, randomBytes, randomInt, timingSafeEqual } from 
 import { cookies } from "next/headers";
 import { connection } from "next/server";
 import { env, forceMock } from "./env";
+import { isAnalyticsId } from "./experiments";
 import { normaliseEmail } from "./kits";
 import { store } from "./store";
 
@@ -41,14 +42,20 @@ const codeKey = (email: string) => `magiccode:${sha(normaliseEmail(email))}`;
  * What the user was doing when they asked to log in. Stored server-side with the token.
  * "unlock" goes on to checkout; "save" just claims the preview so it's in /account.
  */
-export type LoginIntent = { type: "unlock" | "save"; kitId: string };
+export type LoginIntent = {
+  type: "unlock" | "save";
+  kitId: string;
+  /** Anonymous PostHog id of the page that asked, handed back on return so its flag variants hold. */
+  aid?: string;
+};
 
 export const KIT_ID_RE = /^[A-Za-z0-9_-]{16,32}$/;
 
 export function parseIntent(value: unknown): LoginIntent | undefined {
   if (!value || typeof value !== "object") return undefined;
   const v = value as Record<string, unknown>;
-  return (v.type === "unlock" || v.type === "save") && typeof v.kitId === "string" && KIT_ID_RE.test(v.kitId) ? { type: v.type, kitId: v.kitId } : undefined;
+  if ((v.type !== "unlock" && v.type !== "save") || typeof v.kitId !== "string" || !KIT_ID_RE.test(v.kitId)) return undefined;
+  return { type: v.type, kitId: v.kitId, ...(isAnalyticsId(v.aid) ? { aid: v.aid } : {}) };
 }
 
 export interface MagicLinkRecord {

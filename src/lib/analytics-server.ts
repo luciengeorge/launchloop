@@ -3,6 +3,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { PostHog } from "posthog-node";
 import { deployEnv } from "./deploy-env";
 import { env } from "./env";
+import { isAnalyticsId, type ExperimentKey, type Variant } from "./experiments";
 import { captureException } from "./observability";
 import { posthogHost } from "./posthog-config";
 import type { ProductId } from "./products";
@@ -16,11 +17,17 @@ interface CheckoutProperties {
   currency: string;
   isLoggedIn: boolean;
   mock: boolean;
+  /** Set when LAUNCH14 is on the session; `amount` is then the discounted price. */
+  promo_code?: string;
+  /** "unavailable" when the promo arm asked for LAUNCH14 but Stripe wouldn't take it. */
+  promo?: "applied" | "unavailable";
 }
 
+type FeatureProperties = Partial<Record<`$feature/${ExperimentKey}`, Variant>>;
+
 export interface ServerEvents {
-  checkout_started: CheckoutProperties;
-  checkout_completed: CheckoutProperties & { stripeSessionId: string };
+  checkout_started: CheckoutProperties & FeatureProperties;
+  checkout_completed: CheckoutProperties & FeatureProperties & { stripeSessionId: string };
 }
 
 let client: PostHog | null = null;
@@ -31,11 +38,9 @@ function posthog(): PostHog | null {
   return client;
 }
 
-const DISTINCT_ID_RE = /^[\w$:.-]{1,200}$/;
-
 /** The browser's anonymous id when it sent a sane one, else a fresh server id so the event still counts. */
 export function resolveDistinctId(value: unknown): string {
-  return typeof value === "string" && DISTINCT_ID_RE.test(value) ? value : `server_${randomUUID()}`;
+  return isAnalyticsId(value) ? value : `server_${randomUUID()}`;
 }
 
 /** Same uuid for the same logical event, so PostHog drops duplicates from Stripe webhook retries. */

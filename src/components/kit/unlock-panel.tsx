@@ -5,12 +5,17 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { analyticsId } from "@/lib/analytics";
 import { postJson, startCheckout } from "@/lib/client";
+import { EXPERIMENTS } from "@/lib/experiments";
+import { LAUNCH_PROMO } from "@/lib/products";
+import { useExperiment } from "@/lib/use-experiment";
 
 const EMAIL_KEY = "launchloop:email";
 
 interface Props {
   kitId: string;
+  /** Full kit price. The exp_launch14_promo treatment shows it struck through next to the LAUNCH14 price. */
   priceLabel: string;
   /** Logged-in email, if any. */
   email?: string;
@@ -40,6 +45,11 @@ export function UnlockPanel({ kitId, priceLabel, email, autoCheckout, cancelled,
   const [saveError, setSaveError] = useState<string | null>(null);
   const started = useRef(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const promoVariant = useExperiment(EXPERIMENTS.launchPromo);
+  /** Full-price Checkout URL, set when the promo arm's LAUNCH14 was turned down by Stripe. */
+  const [fullPriceUrl, setFullPriceUrl] = useState<string | null>(null);
+  const promo = promoVariant === "treatment" && !fullPriceUrl;
+  const shownPrice = promo ? LAUNCH_PROMO.priceLabel : priceLabel;
 
   useEffect(() => {
     if (email) return;
@@ -69,7 +79,14 @@ export function UnlockPanel({ kitId, priceLabel, email, autoCheckout, cancelled,
     setError(null);
     setStep("redirecting");
     try {
-      window.location.assign(await startCheckout("kit", kitId));
+      const { url, promo: outcome } = await startCheckout("kit", kitId, promoVariant ? { [EXPERIMENTS.launchPromo]: promoVariant } : {});
+      if (outcome === "unavailable") {
+        setFullPriceUrl(url);
+        setStep("cta");
+        setLoading(false);
+        return;
+      }
+      window.location.assign(url);
     } catch (err) {
       setError((err as Error).message);
       setStep("cta");
@@ -78,12 +95,13 @@ export function UnlockPanel({ kitId, priceLabel, email, autoCheckout, cancelled,
   }
 
   useEffect(() => {
-    if (autoCheckout && email && !started.current) {
+    // Wait for the variant so the session matches the price this page shows.
+    if (autoCheckout && email && promoVariant && !started.current) {
       started.current = true;
       void checkout();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on arrival
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on arrival, once the variant is known
+  }, [promoVariant]);
 
   async function verifyCode(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -110,7 +128,7 @@ export function UnlockPanel({ kitId, priceLabel, email, autoCheckout, cancelled,
     setError(null);
     remember(address);
     try {
-      await postJson("/api/auth/request", { email: address, intent: { type: "unlock", kitId } });
+      await postJson("/api/auth/request", { email: address, intent: { type: "unlock", kitId, aid: analyticsId() } });
       setCode("");
       setStep("sent");
     } catch (err) {
@@ -126,7 +144,7 @@ export function UnlockPanel({ kitId, priceLabel, email, autoCheckout, cancelled,
     setSaveError(null);
     remember(address);
     try {
-      await postJson("/api/auth/request", { email: address, intent: { type: "save", kitId } });
+      await postJson("/api/auth/request", { email: address, intent: { type: "save", kitId, aid: analyticsId() } });
       setSave("sent");
     } catch (err) {
       setSaveError((err as Error).message);
@@ -139,10 +157,36 @@ export function UnlockPanel({ kitId, priceLabel, email, autoCheckout, cancelled,
       <h3 id="unlock-heading" className="text-sm font-medium text-muted-foreground">
         The full kit
       </h3>
-      <p className="mt-1">
-        <span className="text-4xl font-semibold tracking-tight">{priceLabel}</span>
+      <p className="mt-1" data-testid="kit-price">
+        {promoVariant === undefined ? (
+          <span className="inline-block h-10 w-16 animate-pulse rounded-md bg-muted align-bottom" aria-label="Loading price" />
+        ) : promo ? (
+          <>
+            <s className="mr-2 text-2xl text-muted-foreground">
+              <span className="sr-only">Was </span>
+              {priceLabel}
+            </s>
+            <span className="text-4xl font-semibold tracking-tight">
+              <span className="sr-only">now </span>
+              {LAUNCH_PROMO.priceLabel}
+            </span>
+          </>
+        ) : (
+          <span className="text-4xl font-semibold tracking-tight">{priceLabel}</span>
+        )}
         <span className="ml-1.5 text-sm text-muted-foreground">once, no subscription</span>
       </p>
+      {promo ? (
+        <p className="mt-2 rounded-md bg-primary/10 px-3 py-2 text-xs" data-testid="launch-promo">
+          <span className="font-mono font-semibold text-primary">{LAUNCH_PROMO.code}</span> takes £5 off, applied for you at checkout. Launch offer for first-time buyers, while it
+          lasts.
+        </p>
+      ) : null}
+      {fullPriceUrl ? (
+        <p className="mt-2 rounded-md bg-muted px-3 py-2 text-xs" role="status" data-testid="promo-unavailable">
+          {LAUNCH_PROMO.code} can&apos;t be used on this purchase: it&apos;s for first-time buyers and the launch offer may have ended. The kit is {priceLabel}.
+        </p>
+      ) : null}
 
       <ol className="mt-5 space-y-2 text-sm" aria-label="How unlocking works">
         <StepItem n={1} label={signedIn ? `Signed in as ${signedIn}` : "Confirm your email (no password)"} done={!!signedIn} active={!signedIn} />
@@ -162,9 +206,14 @@ export function UnlockPanel({ kitId, priceLabel, email, autoCheckout, cancelled,
       ) : null}
 
       {step === "cta" ? (
-        <Button type="button" className="mt-6 h-11 w-full text-base" onClick={() => (signedIn ? void checkout() : setStep("email"))} disabled={loading}>
+        <Button
+          type="button"
+          className="mt-6 h-11 w-full text-base"
+          onClick={() => (fullPriceUrl ? window.location.assign(fullPriceUrl) : signedIn ? void checkout() : setStep("email"))}
+          disabled={loading || promoVariant === undefined}
+        >
           <Lock aria-hidden="true" />
-          Unlock the full kit, {priceLabel}
+          {promoVariant === undefined ? "Unlock the full kit" : `Unlock the full kit, ${shownPrice}`}
         </Button>
       ) : null}
 

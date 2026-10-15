@@ -1,4 +1,5 @@
 import { analyticsId } from "./analytics";
+import type { Experiments } from "./experiments";
 import type { ProductId } from "./products";
 
 export async function postJson<T>(url: string, body: unknown): Promise<T> {
@@ -8,10 +9,18 @@ export async function postJson<T>(url: string, body: unknown): Promise<T> {
   return data;
 }
 
-/** Creates a Checkout session (the server records checkout_started) and returns where to send the buyer. */
-export async function startCheckout(product: ProductId, kitId?: string): Promise<string> {
-  const { url } = await postJson<{ url: string }>("/api/checkout", { product, kitId, analyticsId: analyticsId() });
-  return url;
+export interface CheckoutStart {
+  url: string;
+  /** "unavailable": the page showed LAUNCH14 but Stripe wouldn't take it, so `url` is a full-price session. */
+  promo?: "applied" | "unavailable" | "none";
+}
+
+/**
+ * Creates a Checkout session (the server records checkout_started) and returns where to send the buyer.
+ * `experiments` is what this page showed; the server applies LAUNCH14 only for the promo treatment.
+ */
+export async function startCheckout(product: ProductId, kitId?: string, experiments: Experiments = {}): Promise<CheckoutStart> {
+  return postJson<CheckoutStart>("/api/checkout", { product, kitId, analyticsId: analyticsId(), experiments });
 }
 
 export function reportClientError(error: Error & { digest?: string }) {
