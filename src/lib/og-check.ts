@@ -40,6 +40,7 @@ export interface OgImageInfo {
   source: "og:image" | "twitter:image";
   /** The tag value wasn't an absolute http(s) URL. */
   relative: boolean;
+  /** An http image on an https page, which browsers and some apps refuse to load. */
   insecure: boolean;
   /** The image URL responded with a readable image. */
   loaded: boolean;
@@ -135,7 +136,7 @@ function imageCheck(image: OgImageInfo | undefined): OgCheck {
   const notes: string[] = [];
   if (image.source === "twitter:image") notes.push("Only twitter:image is set; Facebook, LinkedIn, Slack and iMessage read og:image.");
   if (image.relative) notes.push("The URL is relative. Use the full https:// address; many crawlers ignore relative image URLs.");
-  if (image.insecure) notes.push("The image is served over http. Use https so every app will load it.");
+  if (image.insecure) notes.push("The page is https but the image is http. Serve the image over https so every app will load it.");
   if (notes.length) return { id: "image", status: "warn", label, detail: notes.join(" ") };
   return { id: "image", status: "pass", label, detail: "og:image is set and loads." };
 }

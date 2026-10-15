@@ -71,7 +71,8 @@ async function readImage(tags: OgTags, pageUrl: string): Promise<OgImageInfo | u
   } catch {
     return { url: raw, source, relative, insecure: false, loaded: false, error: "it isn't a valid URL" };
   }
-  const info: OgImageInfo = { url: url.toString(), source, relative, insecure: url.protocol === "http:", loaded: false };
+  const insecure = url.protocol === "http:" && new URL(pageUrl).protocol === "https:";
+  const info: OgImageInfo = { url: url.toString(), source, relative, insecure, loaded: false };
   try {
     const res = await safeFetchBytes(info.url, { accept: "image/avif,image/webp,image/png,image/jpeg,image/*;q=0.8", maxBytes: IMAGE_READ_BYTES, timeoutMs: 6000 });
     info.url = res.url;
