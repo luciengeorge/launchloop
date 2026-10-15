@@ -5,8 +5,10 @@ import { clientIp, rateLimit } from "@/lib/rate-limit";
 
 export const maxDuration = 60;
 
+const PREVIEWS_PER_HOUR = Number(process.env.PREVIEW_RATE_LIMIT_PER_HOUR ?? 12);
+
 export async function POST(req: Request) {
-  const limit = rateLimit(`kits:${clientIp(req)}`, 12, 60 * 60 * 1000);
+  const limit = rateLimit(`kits:${clientIp(req)}`, PREVIEWS_PER_HOUR, 60 * 60 * 1000);
   if (!limit.ok) {
     return Response.json(
       { error: "You've made a lot of previews this hour. Try again shortly." },

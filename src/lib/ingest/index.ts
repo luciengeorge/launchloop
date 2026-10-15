@@ -10,6 +10,8 @@ import { fetchSite, type SiteData } from "./site";
 export { IngestError } from "./safe-fetch";
 
 export interface IngestResult {
+  /** Which source the user pasted; it wins when the two disagree. */
+  primary: "repo" | "site";
   repo?: RepoData;
   site?: SiteData;
   palette: Palette;
@@ -42,6 +44,7 @@ export async function ingest(rawInput: string): Promise<IngestResult> {
 
   if (input === SAMPLE_INPUT) {
     return {
+      primary: "repo",
       repo: sampleRepo,
       site: sampleSite,
       palette: extractPalette({ css: sampleSite.css, themeColor: sampleSite.themeColor }),
@@ -66,7 +69,9 @@ export async function ingest(rawInput: string): Promise<IngestResult> {
     const linked = site.githubUrl ? parseGitHubUrl(site.githubUrl) : null;
     if (linked) {
       try {
-        repo = await fetchRepo(linked.owner, linked.name, warnings);
+        const candidate = await fetchRepo(linked.owner, linked.name, warnings);
+        if (repoMatchesSite(candidate, site)) repo = candidate;
+        else warnings.push(`The page links to ${candidate.url}, but it doesn't look like this app's own repo, so we used the live page only.`);
       } catch (error) {
         warnings.push("The site links to a GitHub repo we couldn't read, so the brief uses the live page only.");
         captureException(error, { stage: "ingest.linkedRepo", url: site.githubUrl });
@@ -75,7 +80,24 @@ export async function ingest(rawInput: string): Promise<IngestResult> {
   }
 
   const palette = site ? extractPalette({ css: site.css, themeColor: site.themeColor }) : DEFAULT_PALETTE;
-  return { repo, site, palette, source: summarise(input, repo, site, warnings) };
+  return { primary: gh ? "repo" : "site", repo, site, palette, source: summarise(input, repo, site, warnings) };
+}
+
+const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+/** A site often links to SDKs or examples; only treat the repo as the app's own if it clearly matches. */
+function repoMatchesSite(repo: RepoData, site: SiteData): boolean {
+  const siteHost = new URL(site.url).hostname.replace(/^www\./, "");
+  if (repo.homepage) {
+    try {
+      if (new URL(repo.homepage).hostname.replace(/^www\./, "") === siteHost) return true;
+    } catch {
+      // Malformed homepage values are common; fall through to name matching.
+    }
+  }
+  const label = slug(siteHost.split(".")[0]);
+  const names = [label, site.siteName ? slug(site.siteName.split(/\s[|·:–—-]\s/)[0]) : ""].filter(Boolean);
+  return names.includes(slug(repo.name));
 }
 
 async function trySite(url: string, warnings: string[]): Promise<SiteData | undefined> {

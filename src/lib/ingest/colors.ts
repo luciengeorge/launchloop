@@ -125,14 +125,14 @@ export function extractPalette({ css, themeColor }: ColorHints): Palette {
     scores.set(key, entry);
   };
 
-  bump(themeColor ? parseColor(themeColor) : null, 40);
+  bump(themeColor ? parseColor(themeColor) : null, 30);
 
   let declaredBackground: RGB | null = null;
   for (const m of css.matchAll(/--([\w-]+)\s*:\s*([^;}]+)/g)) {
     const name = m[1].toLowerCase();
     const rgb = parseColor(m[2]);
     if (!rgb) continue;
-    if (/^(color-)?(primary|brand|accent)(-500|-600)?$/.test(name)) bump(rgb, 25);
+    if (/^(color-)?(primary|brand|accent)(-500|-600)?$/.test(name)) bump(rgb, 35);
     else if (/(primary|brand|accent)/.test(name) && !/foreground|fg|text/.test(name)) bump(rgb, 8);
     if (/^(color-)?background$/.test(name) && !declaredBackground) declaredBackground = rgb;
   }
@@ -145,12 +145,13 @@ export function extractPalette({ css, themeColor }: ColorHints): Palette {
 
   if (ranked.length === 0) return DEFAULT_PALETTE;
 
-  const accent = ranked[0].rgb;
+  let accent = ranked[0].rgb;
   const white: RGB = [255, 255, 255];
   const ink: RGB = [10, 10, 16];
   let background: RGB = declaredBackground ?? mix(accent, ink, 0.9);
   if (contrast(background, accent) < 2.2) background = mix(accent, ink, 0.92);
   const foreground = contrast(background, white) >= contrast(background, ink) ? white : ink;
+  for (let i = 0; i < 6 && contrast(background, accent) < 3; i++) accent = mix(accent, foreground, 0.15);
   const accentForeground = contrast(accent, white) >= contrast(accent, ink) ? white : ink;
   const muted = mix(foreground, background, 0.38);
 

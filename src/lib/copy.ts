@@ -31,6 +31,8 @@ const firstClause = (s: string) => s.split(/(?<=[a-z0-9])[.!?]\s|\s[–—-]\s|;
 const lowerFirst = (s: string) => (s && !/^[A-Z]{2}/.test(s) ? s[0].toLowerCase() + s.slice(1) : s);
 const sentence = (s: string) => (/[.!?]$/.test(s.trim()) ? s.trim() : `${s.trim()}.`);
 const linkFor = (brief: Brief) => brief.url ?? brief.repoUrl ?? "";
+const short = (s: string, max = 64) => fitToLimit(firstClause(s).replace(/\s*\([^)]*\)/g, ""), max);
+const restOf = (s: string) => s.slice(firstClause(s).length).replace(/^[.!?;:\s–—-]+/, "").trim();
 
 function fitX(lines: string[]): string {
   const kept = [...lines];
@@ -41,14 +43,30 @@ function fitX(lines: string[]): string {
   return fitToLimit(kept.join("\n").replace(/\n{3,}/g, "\n\n"), LIMITS.xPost, xLength);
 }
 
+const TRAILING_STOPWORDS = /\s+(and|or|by|the|to|into|for|of|with|a|an|in|on|your|from|straight)$/i;
+
 function featureTitle(feature: string): string {
-  const words = firstClause(feature).replace(/\(.*?\)/g, "").split(/\s+/).slice(0, 5).join(" ");
-  return fitToLimit(words.replace(/[,:]$/, ""), LIMITS.featureTitle);
+  let title = firstClause(feature).replace(/\s*\([^)]*\)/g, "").split(/\s+/).slice(0, 5).join(" ").replace(/[,:;]$/, "");
+  while (TRAILING_STOPWORDS.test(title)) title = title.replace(TRAILING_STOPWORDS, "");
+  return fitToLimit(title, LIMITS.featureTitle);
+}
+
+const firstThatFits = (limit: number, ...candidates: string[]) => candidates.find((c) => charLength(c) <= limit) ?? fitToLimit(candidates[0], limit);
+
+/** Cuts at a natural phrase break rather than mid-sentence, falling back to an ellipsis. */
+function trimToPhrase(text: string, limit: number): string {
+  const clean = text.trim().replace(/[.!]$/, "");
+  if (charLength(clean) <= limit) return clean;
+  const head = clean.slice(0, limit + 1);
+  const breaks = [", ", " with ", " using ", " built ", " that ", " so ", " for ", " and "]
+    .map((b) => head.lastIndexOf(b))
+    .filter((i) => i >= 20);
+  return breaks.length ? clean.slice(0, Math.max(...breaks)) : fitToLimit(clean, limit);
 }
 
 function mockPreview(brief: Brief): Preview {
-  const tagline = fitToLimit(firstClause(brief.oneLiner), LIMITS.phTagline);
-  const lines = [`I just launched ${brief.name}.`, "", sentence(brief.oneLiner), "", ...brief.features.slice(0, 3).map((f) => `→ ${firstClause(f)}`)];
+  const tagline = trimToPhrase(firstClause(brief.oneLiner), LIMITS.phTagline);
+  const lines = [`I just launched ${brief.name}.`, "", sentence(brief.oneLiner), "", ...brief.features.slice(0, 3).map((f) => `→ ${short(f)}`)];
   const link = linkFor(brief);
   if (link) lines.push("", link);
   return { tagline, xPost: fitX(lines) };
@@ -71,8 +89,8 @@ function mockContent(brief: Brief, preview: Preview): KitContent {
   const thread = [
     preview.xPost,
     fitX([`The problem: ${brief.problem}`]),
-    fitX([`How ${brief.name} works:`, "", ...f.slice(0, 3).map((x, i) => `${i + 1}. ${firstClause(x)}`)]),
-    fitX(f.length > 3 ? ["A few more things it does:", "", ...f.slice(3, 6).map((x) => `→ ${firstClause(x)}`)] : [`Who it's for: ${brief.audience}.`, "", `If that's you, ${lowerFirst(brief.oneLiner)}`]),
+    fitX([`How ${brief.name} works:`, "", ...f.slice(0, 3).map((x, i) => `${i + 1}. ${short(x, 70)}`)]),
+    fitX(f.length > 3 ? ["A few more things it does:", "", ...f.slice(3, 6).map((x) => `→ ${short(x, 70)}`)] : [`Who it's for: ${brief.audience}.`, "", `If that's you, ${lowerFirst(brief.oneLiner)}`]),
     fitX([stack ? `Under the hood: ${stack}.` : `Built and shipped by one person.`, ...(proof.length ? ["", ...proof.slice(0, 2).map((p) => sentence(p))] : [])]),
     fitX([`Try it here: ${link || brief.name}`, "", "I'd love blunt feedback. What would make this a must-have for you?"]),
   ];
@@ -86,10 +104,10 @@ function mockContent(brief: Brief, preview: Preview): KitContent {
       `So I built ${brief.name}: ${lowerFirst(sentence(brief.oneLiner))}`,
       "",
       "What it does today:",
-      ...f.slice(0, 4).map((x) => `• ${firstClause(x)}`),
+      ...f.slice(0, 4).map((x) => `• ${short(x, 90)}`),
       ...(stack || proof.length ? ["", [stack && `Built with ${stack}.`, proof[0] && sentence(proof[0])].filter(Boolean).join(" ")] : []),
       "",
-      `I'd really value your honest feedback, especially on ${lowerFirst(firstClause(f[0] ?? "the core feature"))}. What's missing for your workflow?`,
+      `I'd really value your honest feedback, especially on ${lowerFirst(short(f[0] ?? "the core feature"))}. What's missing for your workflow?`,
     ].join("\n"),
     LIMITS.phMakerComment,
   );
@@ -116,11 +134,11 @@ function mockContent(brief: Brief, preview: Preview): KitContent {
 
   return {
     landing: {
-      headline: fitToLimit(firstClause(brief.oneLiner), LIMITS.landingHeadline),
-      subheadline: fitToLimit(`${sentence(brief.problem)} ${brief.name} fixes that for ${brief.audience}.`, LIMITS.landingSubheadline),
+      headline: trimToPhrase(firstClause(brief.oneLiner), LIMITS.landingHeadline),
+      subheadline: fitToLimit(`${restOf(brief.oneLiner) ? sentence(restOf(brief.oneLiner)) : sentence(brief.problem)} Built for ${brief.audience}.`, LIMITS.landingSubheadline),
       cta: fitToLimit(`Try ${brief.name} free`.length <= LIMITS.landingCta ? `Try ${brief.name} free` : "Get started free", LIMITS.landingCta),
       features: landingFeatures,
-      metaTitle: fitToLimit(`${brief.name}: ${preview.tagline}`, LIMITS.metaTitle),
+      metaTitle: firstThatFits(LIMITS.metaTitle, `${brief.name}: ${preview.tagline}`, preview.tagline, brief.name),
       metaDescription: fitToLimit(sentence(brief.oneLiner), LIMITS.metaDescription),
     },
     productHunt: {

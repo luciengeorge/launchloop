@@ -53,7 +53,7 @@ export async function fetchSite(url: string, warnings: string[]): Promise<SiteDa
     }),
   );
 
-  root.querySelectorAll("script, style, noscript, svg").forEach((el) => el.remove());
+  root.querySelectorAll("script, style, noscript, svg, nav, header, footer, [role=navigation]").forEach((el) => el.remove());
   const body = root.querySelector("body") ?? root;
   const text = (sel: string, max: number) => unique(body.querySelectorAll(sel).map((el) => clean(el.text)), max);
 
@@ -75,7 +75,7 @@ export async function fetchSite(url: string, warnings: string[]): Promise<SiteDa
     h1: text("h1", 1)[0],
     headings: text("h2, h3", 10),
     paragraphs,
-    listItems: text("li", 16).filter((li) => li.length < 140),
+    listItems: text("li", 24).filter((li) => li.length < 140 && li.split(/\s+/).length >= 3 && !/^["“'‘]/.test(li)).slice(0, 16),
     prices: unique(page.text.match(/[£$€]\s?\d+(?:\.\d{2})?(?:\s?\/\s?(?:mo|month|yr|year))?/gi) ?? [], 4),
     themeColor: meta(root, "theme-color"),
     githubUrl,
