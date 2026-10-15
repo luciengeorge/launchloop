@@ -27,7 +27,7 @@ export async function POST(req: Request) {
     if (ipCount > PER_IP_PER_HOUR || emailCount > PER_EMAIL_PER_HOUR) return fail(429, "Too many login links requested. Try again in an hour.", "rate");
 
     const token = await createMagicToken(email, next);
-    await sendEmail(magicLinkEmail({ to: email, url: `${deploymentUrl()}/login/verify?token=${encodeURIComponent(token)}` }));
+    await sendEmail(await magicLinkEmail({ to: email, url: `${deploymentUrl()}/login/verify?token=${encodeURIComponent(token)}` }));
   } catch (error) {
     captureException(error, { stage: "api.auth.request" });
     return fail(500, "Couldn't send your login link. Please try again.", "send");

@@ -15,6 +15,8 @@ export interface RepoData {
   readme?: string;
   packageJson?: PackageJson;
   commits: { message: string; date: string }[];
+  /** Latest commit on the default branch, used to dedupe identical repo states. */
+  headSha?: string;
 }
 
 export interface PackageJson {
@@ -126,7 +128,8 @@ export async function fetchRepo(owner: string, name: string, warnings: string[])
   if (pkgRes.ok) repo.packageJson = parsePackageJson(await pkgRes.text(), warnings);
 
   if (commitsRes.ok) {
-    const commits = (await commitsRes.json()) as { commit: { message: string; author?: { date?: string } } }[];
+    const commits = (await commitsRes.json()) as { sha?: string; commit: { message: string; author?: { date?: string } } }[];
+    repo.headSha = commits[0]?.sha;
     repo.commits = commits.map((c) => ({
       message: c.commit.message.split("\n")[0].slice(0, 160),
       date: c.commit.author?.date ?? "",

@@ -88,3 +88,28 @@ async function waitForDraft(id: string): Promise<Draft> {
     if (draft.complete || !isRunning(draft.meta)) return draft;
   }
 }
+
+/** Copies whatever draft sections exist from one kit to another (used when a repo state is reused). */
+export async function copyDraft(fromId: string, toId: string): Promise<Draft> {
+  const draft = await getDraft(fromId);
+  await Promise.all(
+    KIT_SECTIONS.filter((s) => draft.sections[s] !== undefined).map((s) => store().set(sectionKey(toId, s), { [s]: draft.sections[s] }, DRAFT_TTL_SECONDS)),
+  );
+  if (draft.complete) await store().set<DraftMeta>(metaKey(toId), { startedAt: new Date().toISOString(), finishedAt: new Date().toISOString(), provider: draft.meta?.provider, timings: {} }, DRAFT_TTL_SECONDS);
+  return getDraft(toId);
+}
+
+const FULL_GEN_DAILY_CAP = () => Number(process.env.FULL_GEN_DAILY_CAP ?? 300);
+
+/**
+ * Background full-kit generation after a free preview, within a global daily
+ * budget. Past the cap, the kit is generated when the buyer clicks Unlock.
+ */
+export async function speculateDraft(kit: Kit): Promise<"started" | "capped" | "complete"> {
+  if ((await getDraft(kit.id)).complete) return "complete";
+  const day = new Date().toISOString().slice(0, 10);
+  const used = await store().incr(`cap:fullgen:${day}`, 2 * 24 * 60 * 60);
+  if (used > FULL_GEN_DAILY_CAP()) return "capped";
+  await generateDraft(kit);
+  return "started";
+}

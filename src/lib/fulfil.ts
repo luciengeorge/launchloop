@@ -3,7 +3,6 @@ import { addContact } from "./audience";
 import { launchChecklist } from "./copy";
 import { assemble, generateDraft, getDraft } from "./generation";
 import { kitReadyEmail, preorderEmail, sendEmail } from "./email";
-import { siteUrl } from "./env";
 import { recordShipLoop } from "./billing";
 import { getKit, linkKitToUser, normaliseEmail, updateKit } from "./kits";
 import { captureException } from "./observability";
@@ -66,7 +65,7 @@ export async function recordPayment(order: PaidOrder): Promise<void> {
   await store().set<Preorder>(key, { ref: order.ref, email: order.email, product: order.product, createdAt: new Date().toISOString() });
   await addContact(order.email, "preorder", { plan: order.product });
   try {
-    await sendEmail(preorderEmail({ to: order.email, planLabel: PRODUCTS[order.product].priceLabel }));
+    await sendEmail(await preorderEmail({ to: order.email, planLabel: PRODUCTS[order.product].priceLabel }));
   } catch (error) {
     captureException(error, { stage: "fulfil.preorderEmail", ref: order.ref });
   }
@@ -125,9 +124,7 @@ async function runFulfilment(id: string): Promise<void> {
   if (kit.email && !kit.emailedAt) {
     try {
       const zip = await buildKitZip(kit);
-      await sendEmail(
-        kitReadyEmail({ to: kit.email, productName: kit.brief.name, kitUrl: `${siteUrl()}/kit/${kit.id}`, zip: { filename: zipFileName(kit), content: zip } }),
-      );
+      await sendEmail(await kitReadyEmail({ to: kit.email, kit, zip: { filename: zipFileName(kit), content: zip } }));
       await updateKit(id, { emailedAt: new Date().toISOString() });
     } catch (error) {
       captureException(error, { stage: "fulfil.email", kitId: id });

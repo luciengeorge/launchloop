@@ -4,6 +4,7 @@ import { buildBrief, sourceDigest } from "./brief";
 import { generatePreview } from "./copy";
 import { ingest } from "./ingest";
 import type { Kit } from "./schema";
+import { copyDraft } from "./generation";
 import { store } from "./store";
 
 const KIT_TTL_SECONDS = 60 * 60 * 24 * 365;
@@ -38,6 +39,13 @@ export async function createKit(
   opts: { id?: string; ownerEmail?: string } = {},
 ): Promise<Kit> {
   const source = await ingest(input, onStep);
+  const fingerprint = source.source.fingerprint;
+  const reused = fingerprint ? await reuseKit(fingerprint, opts) : null;
+  if (reused) {
+    onStep("brief");
+    onStep("copy");
+    return reused;
+  }
   onStep("brief");
   const { brief, provider } = await buildBrief(source);
   onStep("copy");
@@ -57,6 +65,39 @@ export async function createKit(
     attempts: 0,
   };
   await saveKit(kit);
+  if (opts.ownerEmail) await linkKitToUser(opts.ownerEmail, kit.id);
+  if (fingerprint) await store().set(dedupeKey(fingerprint), kit.id, DEDUPE_TTL_SECONDS);
+  return kit;
+}
+
+const DEDUPE_TTL_SECONDS = 24 * 60 * 60;
+const dedupeKey = (fingerprint: string) => `dedupe:${fingerprint}`;
+
+/**
+ * Same repo at the same commit within 24 hours: reuse the brief, preview and
+ * any full-kit draft, but as a fresh kit so ownership and payment stay separate.
+ */
+async function reuseKit(fingerprint: string, opts: { id?: string; ownerEmail?: string }): Promise<Kit | null> {
+  const sourceId = await store().get<string>(dedupeKey(fingerprint));
+  const source = sourceId ? await getKit(sourceId) : null;
+  if (!source) return null;
+  const kit: Kit = {
+    id: opts.id ?? newId(),
+    createdAt: new Date().toISOString(),
+    status: "preview",
+    source: source.source,
+    brief: source.brief,
+    palette: source.palette,
+    preview: source.preview,
+    digest: source.digest,
+    llm: source.llm,
+    paid: false,
+    attempts: 0,
+    ownerEmail: opts.ownerEmail,
+    reusedFrom: source.id,
+  };
+  await saveKit(kit);
+  await copyDraft(source.id, kit.id);
   if (opts.ownerEmail) await linkKitToUser(opts.ownerEmail, kit.id);
   return kit;
 }

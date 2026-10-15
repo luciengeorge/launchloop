@@ -10,6 +10,7 @@ export type KitErrorCode =
   | "site_http_error"
   | "site_blocked"
   | "site_no_content"
+  | "site_not_html"
   | "llm_failed"
   | "rate_limited"
   | "unknown";
@@ -31,8 +32,12 @@ export const KIT_ERRORS: Record<KitErrorCode, { title: string; fix: string }> = 
     title: "We couldn't find any words on that page.",
     fix: "It probably renders everything with JavaScript. Paste your GitHub repo instead, or add a <title> and meta description to the page.",
   },
+  site_not_html: {
+    title: "That link isn't a web page.",
+    fix: "It points to a file or an API response. Paste your homepage or landing page URL (like https://your-app.com), or your GitHub repo.",
+  },
   llm_failed: { title: "Our AI writer is having a moment.", fix: "Nothing is wrong with your link. Try again in a minute." },
-  rate_limited: { title: "You've made a lot of previews this hour.", fix: "Try again a little later. Your earlier previews are saved." },
+  rate_limited: { title: "You've hit the free preview limit for now.", fix: "Try again in a little while. Your earlier previews are saved under My kits once you log in." },
   unknown: { title: "Something went wrong reading your app.", fix: "Try again. If it keeps happening, email hello@launchloop.dev." },
 };
 

@@ -1,6 +1,6 @@
 import { after } from "next/server";
 import { kitErrorBody } from "@/lib/errors";
-import { generateDraft } from "@/lib/generation";
+import { speculateDraft } from "@/lib/generation";
 import { IngestError } from "@/lib/ingest";
 import { LlmError } from "@/lib/llm";
 import type { Kit } from "@/lib/schema";
@@ -8,14 +8,18 @@ import { cookies } from "next/headers";
 import { ANON_KITS_COOKIE, getSession, readAnonKits, secureCookies } from "@/lib/auth";
 import { createKit, newId } from "@/lib/kits";
 import { captureException } from "@/lib/observability";
-import { clientIp, rateLimit } from "@/lib/rate-limit";
+import { clientIp, sharedRateLimit } from "@/lib/rate-limit";
 
 export const maxDuration = 60;
 
-const PREVIEWS_PER_HOUR = Number(process.env.PREVIEW_RATE_LIMIT_PER_HOUR ?? 12);
+const PREVIEWS_PER_HOUR = Number(process.env.PREVIEW_RATE_LIMIT_PER_HOUR ?? 5);
+const PREVIEWS_PER_DAY = Number(process.env.PREVIEW_RATE_LIMIT_PER_DAY ?? 20);
 
 export async function POST(req: Request) {
-  const limit = rateLimit(`kits:${clientIp(req)}`, PREVIEWS_PER_HOUR, 60 * 60 * 1000);
+  const limit = await sharedRateLimit(`kits:${clientIp(req)}`, [
+    { limit: PREVIEWS_PER_HOUR, seconds: 60 * 60 },
+    { limit: PREVIEWS_PER_DAY, seconds: 24 * 60 * 60 },
+  ]);
   if (!limit.ok) {
     return Response.json(
       kitErrorBody("rate_limited"),
@@ -90,9 +94,9 @@ function streamKit(url: string, opts: { id: string; ownerEmail?: string }): Resp
   });
 }
 
-/** Starts writing the full kit in the background so it's ready the moment the buyer pays. */
+/** Starts writing the full kit in the background (within the daily budget) so it's ready the moment the buyer pays. */
 function speculate(kit: Kit) {
-  after(() => generateDraft(kit).catch((error) => captureException(error, { stage: "kits.speculativeDraft", kitId: kit.id })));
+  after(() => speculateDraft(kit).catch((error) => captureException(error, { stage: "kits.speculativeDraft", kitId: kit.id })));
 }
 
 function toErrorResponse(error: unknown, url: string) {

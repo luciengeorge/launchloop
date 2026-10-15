@@ -79,10 +79,15 @@ test("sample app: blurred preview without leaks, unlock via magic link, instant 
 
   await expect
     .poll(async () => {
-      const { emails } = (await (await request.get("/api/dev/outbox")).json()) as { emails: { to: string; attachments: { filename: string }[] }[] };
-      return emails.find((e) => e.to === email && e.attachments.length)?.attachments[0]?.filename ?? null;
+      const { emails } = (await (await request.get("/api/dev/outbox")).json()) as { emails: { to: string; subject: string; attachments: { filename: string }[] }[] };
+      return emails.find((e) => e.to === email && /launch kit is ready/.test(e.subject))?.attachments[0]?.filename ?? null;
     })
     .toBe("snapshelf-launch-kit.zip");
+  const { emails } = (await (await request.get("/api/dev/outbox")).json()) as { emails: { to: string; subject: string; text: string }[] };
+  const receipt = emails.find((e) => e.to === email && /launch kit is ready/.test(e.subject))!;
+  expect(receipt.subject).toContain("Payment received");
+  expect(receipt.text).toContain(`/account/kits/${kitId}`);
+  expect(receipt.text).toContain("X launch thread");
 });
 
 test("launch checklist: ticks persist to the account, show on /account, and 100% celebrates", async ({ page }) => {

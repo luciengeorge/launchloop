@@ -28,6 +28,10 @@ const routes = {
     res.writeHead(200, { "Content-Type": "text/html" });
     res.end(html({ title: "Brittlebox KITFAIL", description: "Brittlebox backs up your Postgres database every hour and restores it in one click." }));
   },
+  "/data.json": (_req, res) => {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ hello: "world" }));
+  },
   "/gh/users/real-owner": (_req, res) => {
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ login: "real-owner" }));

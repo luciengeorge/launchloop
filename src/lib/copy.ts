@@ -271,26 +271,6 @@ export async function generatePreview(brief: Brief): Promise<{ preview: Preview;
   };
 }
 
-/** Original single-call generation. Kept for profiling against the sectioned path. */
-export async function generateKitContentLegacy(brief: Brief, preview: Preview, digest: string): Promise<{ content: KitContent; provider: string }> {
-  const fallback = mockContent(brief, preview);
-  const { value, provider } = await generateStructured({
-    schema: kitContentSchema,
-    system: SYSTEM,
-    user: `Product brief:\n${briefJson(brief)}\n\nSupporting source material (for facts only):\n${digest}\n\nWrite the full launch kit as JSON with this exact shape:
-{
-  "landing": { "headline" (max ${LIMITS.landingHeadline}), "subheadline" (max ${LIMITS.landingSubheadline}), "cta" (button label, max ${LIMITS.landingCta}), "features": [3-6 × { "title" (max ${LIMITS.featureTitle}), "description" (max ${LIMITS.featureDescription}) }], "metaTitle" (max ${LIMITS.metaTitle}), "metaDescription" (max ${LIMITS.metaDescription}) },
-  "productHunt": { "name" (max ${LIMITS.phName}), "tagline" (use exactly: "${preview.tagline}"), "description" (max ${LIMITS.phDescription}), "makerComment" (first comment from the maker: the story, what it does, an honest ask for feedback; max ${LIMITS.phMakerComment}), "topics": [up to 3 Product Hunt topics] },
-  "xThread": [${LIMITS.xThreadMin}-${LIMITS.xThreadMax} posts, each max ${LIMITS.xPost} weighted chars; post 1 must be exactly: ${JSON.stringify(preview.xPost)}; last post has the link and asks for feedback],
-  "linkedin": "a LinkedIn launch post, strong first line, short paragraphs, max ${LIMITS.linkedin} chars, at most 2 hashtags at the end"
-}`,
-    mock: () => fallback,
-    rubric: contentRubric,
-    stage: "kit",
-  });
-  return { content: enforceContent(value, fallback), provider };
-}
-
 const SECTION_PREFIX: Record<KitSection, string> = { landing: "landing.", productHunt: "productHunt.", xThread: "xThread", linkedin: "linkedin" };
 
 interface SectionSpec<T> {

@@ -1,5 +1,7 @@
 import { isEmail } from "@/lib/audience";
 import { getSession } from "@/lib/auth";
+import { after } from "next/server";
+import { generateDraft } from "@/lib/generation";
 import { getKit } from "@/lib/kits";
 import { captureException } from "@/lib/observability";
 import { createCheckoutUrl } from "@/lib/payments";
@@ -19,6 +21,8 @@ export async function POST(req: Request) {
     if (!kit) return Response.json({ error: "That kit doesn't exist any more. Generate a new preview." }, { status: 404 });
     if (kit.paid) return Response.json({ url: `/account/kits/${kit.id}` });
     kitId = kit.id;
+    // If the background budget was used up, start writing now so it's (nearly) ready after checkout.
+    after(() => generateDraft(kit).catch(() => undefined));
   }
 
   try {

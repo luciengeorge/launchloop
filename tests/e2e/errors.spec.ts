@@ -11,6 +11,7 @@ const CASES = [
   { name: "site that times out", input: `${FIXTURE}/slow`, code: "site_timeout", text: "took too long", fix: "try again" },
   { name: "site returning an error", input: `${FIXTURE}/broken`, code: "site_http_error", text: "HTTP 500", fix: "try your homepage" },
   { name: "site with no usable content", input: `${FIXTURE}/empty`, code: "site_no_content", text: "couldn't find any words", fix: "renders everything with JavaScript" },
+  { name: "link that isn't a web page", input: `${FIXTURE}/data.json`, code: "site_not_html", text: "isn't a web page", fix: "homepage or landing page URL" },
   { name: "LLM failure", input: `${FIXTURE}/llmfail`, code: "llm_failed", text: "AI writer is having a moment", fix: "Nothing is wrong with your link" },
 ];
 
@@ -68,4 +69,16 @@ test("unknown pages and kits get a helpful not-found page", async ({ page }) => 
   await expect(page.getByRole("heading", { name: "This page doesn't exist" })).toBeVisible();
   await page.goto("/kit/doesNotExist1234567");
   await expect(page.getByRole("heading", { name: "We can't find that kit" })).toBeVisible();
+});
+
+test("preview requests are rate limited per IP across the hour", async ({ request }) => {
+  const ip = `203.0.113.${Math.floor(Math.random() * 250) + 1}`;
+  const statuses: number[] = [];
+  for (let i = 0; i < 41; i++) statuses.push((await request.post("/api/kits", { data: { url: "not a url" }, headers: { "x-forwarded-for": ip } })).status());
+  expect(statuses.slice(0, 40).every((s) => s === 422)).toBe(true);
+  expect(statuses[40]).toBe(429);
+  const body = (await (await request.post("/api/kits", { data: { url: "x" }, headers: { "x-forwarded-for": ip } })).json()) as { code: string; fix: string };
+  expect(body.code).toBe("rate_limited");
+  // A different IP is unaffected.
+  expect((await request.post("/api/kits", { data: { url: "not a url" }, headers: { "x-forwarded-for": "198.51.100.7" } })).status()).toBe(422);
 });

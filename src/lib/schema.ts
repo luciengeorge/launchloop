@@ -62,6 +62,8 @@ export interface SourceSummary {
   siteUrl?: string;
   stars?: number;
   commitsAnalysed: number;
+  /** Repo URL + head commit, when known. Identical states reuse one generation for 24 hours. */
+  fingerprint?: string;
   readmeFound: boolean;
   packageJsonFound: boolean;
   pageScraped: boolean;
@@ -83,6 +85,8 @@ export interface Kit {
   email?: string;
   /** Account (lowercased email) the kit belongs to, once claimed or created while logged in. */
   ownerEmail?: string;
+  /** Kit whose generation was reused (same repo and commit within 24 hours). */
+  reusedFrom?: string;
   paymentRef?: string;
   paidAt?: string;
   content?: KitContent;

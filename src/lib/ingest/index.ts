@@ -130,6 +130,7 @@ function summarise(input: string, repo: RepoData | undefined, site: SiteData | u
     siteUrl: site?.url,
     stars: repo?.stars,
     commitsAnalysed: repo?.commits.length ?? 0,
+    fingerprint: input === SAMPLE_INPUT ? "sample@v1" : repo?.headSha ? `${repo.url.toLowerCase()}@${repo.headSha}` : undefined,
     readmeFound: !!repo?.readme,
     packageJsonFound: !!repo?.packageJson,
     pageScraped: !!site,

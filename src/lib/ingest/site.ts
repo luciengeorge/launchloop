@@ -33,7 +33,7 @@ export async function fetchSite(url: string, warnings: string[]): Promise<SiteDa
   const page = await safeFetch(url);
   if (page.status >= 400) throw new IngestError(`Live page returned ${page.status}`, "site_http_error", `That page returned an error (HTTP ${page.status}).`);
   if (page.contentType && !/html|xml|text\/plain/i.test(page.contentType)) {
-    throw new IngestError(`Live page is ${page.contentType}`, "site_no_content", "That link isn't a web page.");
+    throw new IngestError(`Live page is ${page.contentType}`, "site_not_html");
   }
   const root = parse(page.text, { comment: false });
 

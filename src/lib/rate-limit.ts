@@ -1,4 +1,5 @@
 import "server-only";
+import { store } from "./store";
 
 const buckets = new Map<string, { count: number; resetAt: number }>();
 
@@ -20,4 +21,21 @@ export function rateLimit(key: string, limit: number, windowMs: number): { ok: b
 
 export function clientIp(req: Request): string {
   return req.headers.get("x-forwarded-for")?.split(",")[0].trim() || req.headers.get("x-real-ip") || "local";
+}
+
+/**
+ * Fixed-window limits shared across instances via the store (Redis in
+ * production). All windows are counted; the request fails if any is exceeded.
+ */
+export async function sharedRateLimit(key: string, windows: { limit: number; seconds: number }[]): Promise<{ ok: boolean; retryAfterSeconds: number }> {
+  const now = Math.floor(Date.now() / 1000);
+  const counts = await Promise.all(
+    windows.map(async (w) => {
+      const bucket = Math.floor(now / w.seconds);
+      const count = await store().incr(`rl:${key}:${w.seconds}:${bucket}`, w.seconds);
+      return { ...w, count, retryAfter: (bucket + 1) * w.seconds - now };
+    }),
+  );
+  const over = counts.filter((c) => c.count > c.limit);
+  return over.length ? { ok: false, retryAfterSeconds: Math.max(...over.map((c) => c.retryAfter)) } : { ok: true, retryAfterSeconds: 0 };
 }
