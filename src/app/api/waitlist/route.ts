@@ -1,4 +1,5 @@
-import { addContact, isEmail } from "@/lib/audience";
+import { addContact, isEmail, isUndeliverableEmail } from "@/lib/audience";
+import { RESERVED_EMAIL_ERROR } from "@/lib/login-errors";
 import { captureException } from "@/lib/observability";
 import { readBody } from "@/lib/form-body";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
@@ -10,6 +11,7 @@ export async function POST(req: Request) {
   const { data, isForm } = await readBody(req);
   const { email, plan } = data;
   if (!isEmail(email)) return isForm ? Response.redirect(new URL("/ship-loop?joined=0", req.url), 303) : Response.json({ error: "Enter a valid email address." }, { status: 400 });
+  if (isUndeliverableEmail(email)) return isForm ? Response.redirect(new URL("/ship-loop?joined=0", req.url), 303) : Response.json({ error: RESERVED_EMAIL_ERROR }, { status: 400 });
   try {
     await addContact(email, "waitlist", { plan: plan === "yearly" ? "yearly" : "monthly" });
     return isForm ? Response.redirect(new URL("/ship-loop?joined=1", req.url), 303) : Response.json({ ok: true });
