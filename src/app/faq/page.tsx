@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/seo";
 import Link from "next/link";
 import { JsonLd } from "@/components/json-ld";
 import { FAQ } from "@/lib/site";
 
-export const metadata: Metadata = {
-  title: "FAQ",
+export const metadata: Metadata = pageMetadata({
+  title: "LaunchLoop FAQ: launch kits, limits and refunds",
   description: "How LaunchLoop reads your repo, what's in the £19 Launch Kit, which character limits it enforces, refunds, and the Ship Loop subscription.",
-  alternates: { canonical: "/faq" },
-};
+  path: "/faq",
+});
 
 const slug = (q: string) => q.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 

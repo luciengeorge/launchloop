@@ -8,7 +8,8 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { siteUrl } from "@/lib/env";
-import { FAQ, KIT_CONTENTS, SITE } from "@/lib/site";
+import { siteGraph } from "@/lib/structured-data";
+import { FAQ, KIT_CONTENTS } from "@/lib/site";
 
 const KIT_ICONS = [Globe, Megaphone, MessageSquareText, FileText, ImageIcon, ListChecks];
 
@@ -29,21 +30,7 @@ export default function Home() {
   const url = siteUrl();
   return (
     <>
-      <JsonLd
-        data={{
-          "@context": "https://schema.org",
-          "@type": "SoftwareApplication",
-          name: SITE.name,
-          url,
-          applicationCategory: "BusinessApplication",
-          operatingSystem: "Web",
-          description: SITE.description,
-          offers: [
-            { "@type": "Offer", name: "Free preview", price: "0", priceCurrency: "GBP" },
-            { "@type": "Offer", name: "Launch Kit", price: "19.00", priceCurrency: "GBP" },
-          ],
-        }}
-      />
+      <JsonLd data={siteGraph(url)} />
 
       <section id="start" className="relative scroll-mt-20 overflow-hidden border-b border-border/60">
         <div className="bg-grid absolute inset-0 [mask-image:radial-gradient(ellipse_at_top,black_30%,transparent_75%)]" aria-hidden="true" />

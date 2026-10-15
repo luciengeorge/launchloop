@@ -7,8 +7,8 @@ import { siteUrl } from "@/lib/env";
 import { SITE } from "@/lib/site";
 import "./globals.css";
 
-const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
-const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
+const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"], display: "swap" });
+const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"], display: "swap" });
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl()),
@@ -24,13 +24,18 @@ export const metadata: Metadata = {
     description: SITE.description,
     url: "/",
     locale: "en_GB",
+    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: `${SITE.name}: ${SITE.tagline}` }],
   },
-  twitter: { card: "summary_large_image", site: SITE.twitter, title: `${SITE.name}: ${SITE.tagline}`, description: SITE.shortDescription },
+  twitter: { card: "summary_large_image", site: SITE.twitter, title: `${SITE.name}: ${SITE.tagline}`, description: SITE.shortDescription, images: ["/opengraph-image"] },
+  manifest: "/manifest.webmanifest",
+  formatDetection: { telephone: false },
+  category: "technology",
   robots: { index: true, follow: true },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#f2541b",
+  themeColor: "#faf8f5",
+  colorScheme: "light",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
