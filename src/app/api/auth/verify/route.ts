@@ -1,41 +1,26 @@
-import { cookies } from "next/headers";
-import {
-  ANON_KITS_COOKIE,
-  SESSION_COOKIE,
-  SESSION_HINT_COOKIE,
-  SESSION_TTL_SECONDS,
-  consumeMagicToken,
-  encodeSession,
-  readAnonKits,
-  secureCookies,
-  seeOther,
-} from "@/lib/auth";
+import { isEmail } from "@/lib/audience";
+import { consumeLoginCode, consumeMagicToken, seeOther } from "@/lib/auth";
 import { readBody } from "@/lib/form-body";
-import { claimKits } from "@/lib/kits";
-import { captureException } from "@/lib/observability";
+import { completeLogin } from "@/lib/login";
 
 /**
- * Consumes a magic-link token (POST only, so link scanners that prefetch the
- * GET page can't burn it), sets the session and claims this browser's kits.
+ * Consumes a magic-link token or a 6-digit code. POST only, so link scanners that
+ * prefetch the GET page can't burn the token. Form posts get a 303 to the
+ * destination; JSON calls (code entry) get `{ next }`.
  */
 export async function POST(req: Request) {
-  const { data } = await readBody(req);
-  const record = typeof data.token === "string" ? await consumeMagicToken(data.token) : null;
-  if (!record) return seeOther("/login?error=expired");
+  const { data, isForm } = await readBody(req);
 
-  const jar = await cookies();
-  const secure = secureCookies();
-  jar.set(SESSION_COOKIE, encodeSession(record.email), { httpOnly: true, secure, sameSite: "lax", path: "/", maxAge: SESSION_TTL_SECONDS });
-  jar.set(SESSION_HINT_COOKIE, "1", { httpOnly: false, secure, sameSite: "lax", path: "/", maxAge: SESSION_TTL_SECONDS });
-
-  const anon = readAnonKits(jar.get(ANON_KITS_COOKIE)?.value);
-  if (anon.length) {
-    try {
-      await claimKits(record.email, anon);
-    } catch (error) {
-      captureException(error, { stage: "api.auth.verify.claim" });
-    }
-    jar.delete(ANON_KITS_COOKIE);
+  if (typeof data.code === "string" || typeof data.code === "number") {
+    const result = isEmail(data.email) ? await consumeLoginCode(data.email, String(data.code).replace(/\s/g, "")) : null;
+    if (result === "too_many") return isForm ? seeOther("/login?error=code") : Response.json({ error: "Too many wrong codes. Use the link in the email, or request a new code.", code: "too_many" }, { status: 429 });
+    if (!result) return isForm ? seeOther("/login?error=code") : Response.json({ error: "That code isn't right or has expired. Check the latest email.", code: "invalid_code" }, { status: 400 });
+    const next = await completeLogin(result);
+    return isForm ? seeOther(next) : Response.json({ next });
   }
-  return seeOther(record.next ?? "/account");
+
+  const record = typeof data.token === "string" ? await consumeMagicToken(data.token) : null;
+  if (!record) return isForm ? seeOther("/login?error=expired") : Response.json({ error: "That login link has expired." }, { status: 400 });
+  const next = await completeLogin(record);
+  return isForm ? seeOther(next) : Response.json({ next });
 }

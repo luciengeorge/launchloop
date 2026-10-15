@@ -25,6 +25,7 @@ const darkCss = `
     .ll-card { background-color: #18181b !important; border-left-color: #2a2a2e !important; border-right-color: #2a2a2e !important; border-bottom-color: #2a2a2e !important; }
     .ll-text, .ll-heading { color: #f4f4f5 !important; }
     .ll-muted { color: #a1a1aa !important; }
+    .ll-code { color: #f4f4f5 !important; background-color: #232326 !important; border-color: #3a3a3e !important; }
     .ll-hr { border-color: #2a2a2e !important; }
     .ll-panel { background-color: #222226 !important; }
   }

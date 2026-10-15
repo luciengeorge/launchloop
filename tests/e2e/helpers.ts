@@ -2,24 +2,33 @@ import { expect, type APIRequestContext, type Page } from "@playwright/test";
 
 export const uniqueEmail = (tag: string) => `${tag}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@example.com`;
 
-export async function magicLinkFor(request: APIRequestContext, email: string): Promise<string> {
-  let link: string | null = null;
+async function latestLoginMail(request: APIRequestContext, email: string, skip = 0) {
+  let mail: { to: string; subject: string; text: string } | undefined;
   await expect
     .poll(async () => {
       const { emails } = (await (await request.get("/api/dev/outbox")).json()) as { emails: { to: string; subject: string; text: string }[] };
-      const mail = emails.find((e) => e.to === email && e.subject.includes("login link"));
-      link = mail?.text.match(/https?:\/\/\S+\/login\/verify\?token=\S+/)?.[0] ?? null;
-      return link;
+      const matching = emails.filter((e) => e.to === email && e.subject.includes("login link"));
+      mail = matching.length > skip ? matching[0] : undefined;
+      return mail;
     })
-    .not.toBeNull();
-  return link!;
+    .toBeTruthy();
+  return mail!;
+}
+
+export async function magicLinkFor(request: APIRequestContext, email: string, skip = 0): Promise<string> {
+  const mail = await latestLoginMail(request, email, skip);
+  return mail.text.match(/https?:\/\/\S+\/login\/verify\?token=[^\s)\]]+/)![0];
+}
+
+export async function loginCodeFor(request: APIRequestContext, email: string, skip = 0): Promise<string> {
+  const mail = await latestLoginMail(request, email, skip);
+  return mail.text.match(/code[^\d]*?(\d{6})\b/i)![1];
 }
 
 /** Opens the magic link and confirms. Ends wherever the link's `next` points. */
 export async function followMagicLink(page: Page, email: string) {
   const link = await magicLinkFor(page.request, email);
   await page.goto(link);
-  await page.getByRole("button", { name: "Continue to my kits" }).click();
 }
 
 export async function logIn(page: Page, email: string) {

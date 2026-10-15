@@ -71,8 +71,8 @@ export async function renderEmail(node: React.ReactElement): Promise<{ html: str
   return { html, text };
 }
 
-export async function magicLinkEmail(params: { to: string; url: string }): Promise<OutgoingEmail> {
-  return { to: params.to, subject: "Your LaunchLoop login link", ...(await renderEmail(<MagicLinkEmail url={params.url} />)) };
+export async function magicLinkEmail(params: { to: string; url: string; code: string }): Promise<OutgoingEmail> {
+  return { to: params.to, subject: "Your LaunchLoop login link", ...(await renderEmail(<MagicLinkEmail url={params.url} code={params.code} />)) };
 }
 
 export async function kitReadyEmail(params: {

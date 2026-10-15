@@ -11,10 +11,11 @@ test("magic-link login, single-use token, header state and log out", async ({ pa
   await page.getByRole("button", { name: "Email me a login link" }).click();
   const link = await magicLinkFor(page.request, email);
 
-  // Opening the link (GET) does not consume it; confirming does.
+  // A scanner-style GET (no JS, no POST) does not consume it.
+  const scan = await page.request.get(link);
+  expect(scan.ok()).toBe(true);
+  // A real browser auto-submits with no confirm click.
   await page.goto(link);
-  await page.goto(link);
-  await page.getByRole("button", { name: "Continue to my kits" }).click();
   await page.waitForURL(/\/account$/);
   await expect(page.getByRole("heading", { name: "My kits" })).toBeVisible();
   await expect(page.getByText("No kits yet.")).toBeVisible();
@@ -27,7 +28,6 @@ test("magic-link login, single-use token, header state and log out", async ({ pa
 
   // Reusing the same link fails.
   await page.goto(link);
-  await page.getByRole("button", { name: "Continue to my kits" }).click();
   await page.waitForURL(/\/login\?error=expired/);
   await expect(page.getByText("That login link has expired")).toBeVisible();
 
@@ -42,7 +42,6 @@ test("magic-link login, single-use token, header state and log out", async ({ pa
 
 test("tampered tokens and forged session cookies are rejected", async ({ page, context, baseURL }) => {
   await page.goto("/login/verify?token=abc.def");
-  await page.getByRole("button", { name: "Continue to my kits" }).click();
   await page.waitForURL(/\/login\?error=expired/);
 
   const forged = Buffer.from(JSON.stringify({ email: "victim@example.com", exp: Date.now() + 1e9 })).toString("base64url");

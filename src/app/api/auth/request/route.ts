@@ -1,5 +1,5 @@
 import { isEmail } from "@/lib/audience";
-import { createMagicToken, safeNext, seeOther } from "@/lib/auth";
+import { createMagicToken, parseIntent, safeNext, seeOther } from "@/lib/auth";
 import { magicLinkEmail, sendEmail } from "@/lib/email";
 import { deploymentUrl } from "@/lib/env";
 import { readBody } from "@/lib/form-body";
@@ -15,6 +15,7 @@ const PER_EMAIL_PER_HOUR = Number(process.env.MAGIC_LINK_RATE_LIMIT_PER_EMAIL ??
 export async function POST(req: Request) {
   const { data, isForm } = await readBody(req);
   const next = safeNext(data.next);
+  const intent = parseIntent(typeof data.intent === "string" ? safeJson(data.intent) : data.intent);
   const fail = (status: number, error: string, code: string) =>
     isForm ? seeOther(`/login?error=${code}${next ? `&next=${encodeURIComponent(next)}` : ""}`) : Response.json({ error }, { status });
 
@@ -26,11 +27,19 @@ export async function POST(req: Request) {
     const [ipCount, emailCount] = await Promise.all([store().incr(`rl:magic:ip:${clientIp(req)}`, hour), store().incr(`rl:magic:email:${email}`, hour)]);
     if (ipCount > PER_IP_PER_HOUR || emailCount > PER_EMAIL_PER_HOUR) return fail(429, "Too many login links requested. Try again in an hour.", "rate");
 
-    const token = await createMagicToken(email, next);
-    await sendEmail(await magicLinkEmail({ to: email, url: `${deploymentUrl()}/login/verify?token=${encodeURIComponent(token)}` }));
+    const { token, code } = await createMagicToken(email, { next, intent });
+    await sendEmail(await magicLinkEmail({ to: email, code, url: `${deploymentUrl()}/login/verify?token=${encodeURIComponent(token)}` }));
   } catch (error) {
     captureException(error, { stage: "api.auth.request" });
     return fail(500, "Couldn't send your login link. Please try again.", "send");
   }
   return isForm ? seeOther("/login/check-email") : Response.json({ ok: true });
+}
+
+function safeJson(v: string): unknown {
+  try {
+    return JSON.parse(v);
+  } catch {
+    return undefined;
+  }
 }

@@ -31,6 +31,8 @@ export function UnlockPanel({ kitId, priceLabel, email, autoCheckout, cancelled,
   const [address, setAddress] = useState(email ?? "");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [code, setCode] = useState("");
+  const [signedIn, setSignedIn] = useState(email);
   const started = useRef(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -71,6 +73,25 @@ export function UnlockPanel({ kitId, priceLabel, email, autoCheckout, cancelled,
     // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on arrival
   }, []);
 
+  async function verifyCode(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    try {
+      const { next } = await postJson<{ next: string }>("/api/auth/verify", { email: address, code });
+      if (next.startsWith(`/kit/${kitId}`)) {
+        setSignedIn(address);
+        await checkout();
+      } else {
+        setStep("redirecting");
+        window.location.assign(next);
+      }
+    } catch (err) {
+      setError((err as Error).message);
+      setLoading(false);
+    }
+  }
+
   async function sendLink(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
@@ -81,7 +102,8 @@ export function UnlockPanel({ kitId, priceLabel, email, autoCheckout, cancelled,
       // Storage blocked.
     }
     try {
-      await postJson("/api/auth/request", { email: address, next: `/kit/${kitId}?unlock=1` });
+      await postJson("/api/auth/request", { email: address, intent: { type: "unlock", kitId } });
+      setCode("");
       setStep("sent");
     } catch (err) {
       setError((err as Error).message);
@@ -100,8 +122,8 @@ export function UnlockPanel({ kitId, priceLabel, email, autoCheckout, cancelled,
       </p>
 
       <ol className="mt-5 space-y-2 text-sm" aria-label="How unlocking works">
-        <StepItem n={1} label={email ? `Signed in as ${email}` : "Confirm your email (no password)"} done={!!email || step === "sent"} active={!email && step !== "sent"} />
-        <StepItem n={2} label="Pay securely with Stripe" done={false} active={!!email || step === "sent"} />
+        <StepItem n={1} label={signedIn ? `Signed in as ${signedIn}` : "Confirm your email (no password)"} done={!!signedIn} active={!signedIn} />
+        <StepItem n={2} label="Pay securely with Stripe" done={false} active={!!signedIn} />
         <StepItem n={3} label="Your kit unlocks instantly" done={false} active={false} />
       </ol>
 
@@ -123,7 +145,7 @@ export function UnlockPanel({ kitId, priceLabel, email, autoCheckout, cancelled,
           <div className="space-y-1.5">
             <Label htmlFor="unlock-email">Your email</Label>
             <Input ref={inputRef} id="unlock-email" name="email" type="email" required autoComplete="email" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="you@example.com" className="h-10" />
-            <p className="text-xs text-muted-foreground">We&apos;ll email a one-click sign-in link. Your kit and progress live in your account.</p>
+            <p className="text-xs text-muted-foreground">We&apos;ll email a one-click sign-in link and a 6-digit code. Your kit and progress live in your account.</p>
           </div>
           <Button type="submit" className="h-11 w-full text-base" disabled={loading}>
             {loading ? <Loader2 className="animate-spin" /> : null}
@@ -138,7 +160,30 @@ export function UnlockPanel({ kitId, priceLabel, email, autoCheckout, cancelled,
           <p className="flex items-center gap-2 font-medium">
             <Mail className="size-4" aria-hidden="true" /> Check {address}
           </p>
-          <p className="text-muted-foreground">Click the link in the email. It brings you straight back here and on to secure checkout. It expires in 15 minutes.</p>
+          <p className="text-muted-foreground">Type the 6-digit code from the email here, or click its link (on any device) to come straight back to checkout. Both expire in 15 minutes.</p>
+          <form onSubmit={verifyCode} className="flex gap-2">
+            <Label htmlFor="unlock-code" className="sr-only">
+              6-digit code
+            </Label>
+            <Input
+              id="unlock-code"
+              name="code"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              pattern="[0-9]{6}"
+              maxLength={6}
+              required
+              autoFocus
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+              placeholder="123456"
+              className="h-10 bg-background font-mono text-lg tracking-[0.3em]"
+            />
+            <Button type="submit" className="h-10" disabled={loading || code.length !== 6}>
+              {loading ? <Loader2 className="animate-spin" /> : null}
+              Verify
+            </Button>
+          </form>
           <button type="button" className="text-xs font-medium underline underline-offset-4" onClick={() => setStep("email")}>
             Use a different email or resend
           </button>

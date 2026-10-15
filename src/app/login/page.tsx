@@ -12,6 +12,7 @@ const ERRORS: Record<string, string> = {
   rate: "Too many login links requested. Try again in an hour.",
   send: "We couldn't send your login link. Please try again.",
   expired: "That login link has expired or was already used. Request a new one.",
+  code: "That code didn't work or has expired. Request a new login email.",
 };
 
 export default function LoginPage({ searchParams }: PageProps<"/login">) {

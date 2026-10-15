@@ -1,5 +1,5 @@
 import "server-only";
-import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, randomBytes, randomInt, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { connection } from "next/server";
 import { env, forceMock } from "./env";
@@ -33,26 +33,77 @@ function verifySignature(value: string, signature: string): boolean {
   return expected.length === given.length && timingSafeEqual(expected, given);
 }
 
-const tokenKey = (token: string) => `magic:${createHash("sha256").update(token).digest("hex")}`;
+const sha = (v: string) => createHash("sha256").update(v).digest("hex");
+const tokenKey = (token: string) => `magic:${sha(token)}`;
+const codeKey = (email: string) => `magiccode:${sha(normaliseEmail(email))}`;
 
-interface MagicLinkRecord {
+/** What the user was doing when they asked to log in. Stored server-side with the token. */
+export type LoginIntent = { type: "unlock"; kitId: string };
+
+export const KIT_ID_RE = /^[A-Za-z0-9_-]{16,32}$/;
+
+export function parseIntent(value: unknown): LoginIntent | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const v = value as Record<string, unknown>;
+  return v.type === "unlock" && typeof v.kitId === "string" && KIT_ID_RE.test(v.kitId) ? { type: "unlock", kitId: v.kitId } : undefined;
+}
+
+export interface MagicLinkRecord {
   email: string;
   next?: string;
+  intent?: LoginIntent;
   createdAt: string;
 }
 
-/** Creates a signed, single-use token valid for 15 minutes. Only its hash is stored. */
-export async function createMagicToken(email: string, next?: string): Promise<string> {
+interface CodeRecord {
+  codeHash: string;
+  tokenKey: string;
+}
+
+export const CODE_MAX_ATTEMPTS = 5;
+
+/**
+ * Creates a signed, single-use token valid for 15 minutes plus a 6-digit code for
+ * the same login (typed in the original tab). Only hashes are stored; using either
+ * one consumes both.
+ */
+export async function createMagicToken(email: string, opts: { next?: string; intent?: LoginIntent } = {}): Promise<{ token: string; code: string }> {
   const token = randomBytes(32).toString("base64url");
-  await store().set<MagicLinkRecord>(tokenKey(token), { email: normaliseEmail(email), next, createdAt: new Date().toISOString() }, MAGIC_LINK_TTL_SECONDS);
-  return `${token}.${sign(`magic:${token}`)}`;
+  const code = String(randomInt(0, 1_000_000)).padStart(6, "0");
+  const key = tokenKey(token);
+  await store().set<MagicLinkRecord>(key, { email: normaliseEmail(email), next: opts.next, intent: opts.intent, createdAt: new Date().toISOString() }, MAGIC_LINK_TTL_SECONDS);
+  // Latest request wins: an older code stops working, its link still works.
+  await store().set<CodeRecord>(codeKey(email), { codeHash: sign(`code:${normaliseEmail(email)}:${code}`), tokenKey: key }, MAGIC_LINK_TTL_SECONDS);
+  return { token: `${token}.${sign(`magic:${token}`)}`, code };
 }
 
 /** Verifies and consumes a magic-link token. Returns null if invalid, expired or already used. */
 export async function consumeMagicToken(signed: string): Promise<MagicLinkRecord | null> {
   const [token, signature, extra] = signed.split(".");
   if (!token || !signature || extra !== undefined || !verifySignature(`magic:${token}`, signature)) return null;
-  return store().getDel<MagicLinkRecord>(tokenKey(token));
+  const record = await store().getDel<MagicLinkRecord>(tokenKey(token));
+  if (record) {
+    const code = await store().get<CodeRecord>(codeKey(record.email));
+    if (code?.tokenKey === tokenKey(token)) await store().getDel(codeKey(record.email));
+  }
+  return record;
+}
+
+/** Verifies and consumes a 6-digit code. Five wrong guesses burn the code (the link still works). */
+export async function consumeLoginCode(email: string, code: string): Promise<MagicLinkRecord | "too_many" | null> {
+  if (!/^\d{6}$/.test(code)) return null;
+  const key = codeKey(email);
+  const record = await store().get<CodeRecord>(key);
+  if (!record) return null;
+  const attempts = await store().incr(`${key}:attempts:${record.tokenKey}`, MAGIC_LINK_TTL_SECONDS);
+  if (attempts > CODE_MAX_ATTEMPTS) {
+    await store().getDel(key);
+    return "too_many";
+  }
+  if (!verifySignature(`code:${normaliseEmail(email)}:${code}`, record.codeHash)) return null;
+  // getDel makes the code single-use even under concurrent submits.
+  if (!(await store().getDel<CodeRecord>(key))) return null;
+  return store().getDel<MagicLinkRecord>(record.tokenKey);
 }
 
 export interface Session {
