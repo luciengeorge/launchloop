@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/seo";
 import { KitForm } from "@/components/kit-form";
 import { PricingSection } from "@/components/pricing-section";
 
-export const metadata: Metadata = {
-  title: "Pricing",
-  description: "Free preview, a £19 one-off Launch Kit, and Ship Loop at £12/month or £99/year.",
-  alternates: { canonical: "/pricing" },
-};
+export const metadata: Metadata = pageMetadata({
+  title: "Pricing: free preview, £19 Launch Kit, Ship Loop",
+  description: "LaunchLoop pricing: a free preview, a £19 one-off Launch Kit with landing copy, Product Hunt post, X thread, LinkedIn post and images, and Ship Loop at £12/month or £99/year.",
+  path: "/pricing",
+});
 
 export default function PricingPage() {
   return (

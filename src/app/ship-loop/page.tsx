@@ -1,12 +1,13 @@
 import { GitCommitHorizontal, Image as ImageIcon, MailCheck, PenLine } from "lucide-react";
 import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/seo";
 import { ShipLoopPlans } from "@/components/ship-loop-plans";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
   title: "Ship Loop: launch posts for every release",
   description: "Ship Loop watches your repo and drafts new X, LinkedIn and Product Hunt-ready posts plus an on-brand image every time you release. £12/month or £99/year. Join the waitlist or pre-order.",
-  alternates: { canonical: "/ship-loop" },
-};
+  path: "/ship-loop",
+});
 
 const FLOW = [
   { icon: GitCommitHorizontal, title: "You ship", body: "Push a release or tag on your default branch, or update your changelog." },

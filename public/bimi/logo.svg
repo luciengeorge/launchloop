@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" version="1.2" baseProfile="tiny-ps" viewBox="0 0 32 32">
+  <title>LaunchLoop</title>
+  <rect width="32" height="32" fill="#111111"/>
+  <g transform="translate(16 16) scale(0.78) translate(-16 -15.5)">
+    <path d="M10.5 20.5c-2.5-2.5-2.5-6.5 0-9s6.5-2.5 9 0l2 2m0 0V9.5m0 4h-4" fill="none" stroke="#f2541b" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="21.5" cy="21" r="2.4" fill="#ffffff"/>
+  </g>
+</svg>
