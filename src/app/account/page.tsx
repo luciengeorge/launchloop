@@ -1,7 +1,10 @@
+import { Plus } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
+import { KitForm } from "@/components/kit-form";
+import { StartLink } from "@/components/start-link";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -51,11 +54,17 @@ async function Dashboard({ searchParams }: Pick<PageProps<"/account">, "searchPa
             {session.email}
           </p>
         </div>
-        {shipLoop ? (
-          <Badge variant="secondary" data-testid="shiploop-badge">
-            Ship Loop
-          </Badge>
-        ) : null}
+        <div className="flex items-center gap-3">
+          {shipLoop ? (
+            <Badge variant="secondary" data-testid="shiploop-badge">
+              Ship Loop
+            </Badge>
+          ) : null}
+          <StartLink className={buttonVariants({ size: "lg", className: "px-4" })}>
+            <Plus aria-hidden="true" />
+            New kit
+          </StartLink>
+        </div>
       </header>
 
       {showBilling ? (
@@ -86,11 +95,22 @@ async function Dashboard({ searchParams }: Pick<PageProps<"/account">, "searchPa
           </Link>
         </div>
       ) : (
-        <ul className="space-y-4" aria-label="Your kits">
-          {kits.map((kit, i) => (
-            <KitRow key={kit.id} kit={kit} progress={progress[i]} />
-          ))}
-        </ul>
+        <>
+          <ul className="space-y-4" aria-label="Your kits">
+            {kits.map((kit, i) => (
+              <KitRow key={kit.id} kit={kit} progress={progress[i]} />
+            ))}
+          </ul>
+          <section id="start" className="scroll-mt-20 space-y-4 rounded-2xl border border-dashed border-border p-5 sm:p-6" aria-labelledby="new-kit-heading" data-testid="account-new-kit">
+            <div>
+              <h2 id="new-kit-heading" className="text-lg font-semibold">
+                Generate a new kit
+              </h2>
+              <p className="mt-0.5 text-sm text-muted-foreground">Paste a GitHub repo or live site. New kits are saved to this account.</p>
+            </div>
+            <KitForm />
+          </section>
+        </>
       )}
     </div>
   );
