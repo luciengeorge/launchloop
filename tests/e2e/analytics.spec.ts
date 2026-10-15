@@ -9,8 +9,12 @@ interface PhEvent {
   properties: Record<string, unknown>;
 }
 
-// posthog-js drops every event from a likely bot (HeadlessChrome UA or brand, navigator.webdriver).
-test.use({ userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36" });
+test.use({
+  // posthog-js drops every event from a likely bot (HeadlessChrome UA or brand, navigator.webdriver).
+  userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36",
+  // Own preview rate-limit bucket, so these previews don't eat the budget the other specs share.
+  extraHTTPHeaders: { "x-forwarded-for": `198.51.100.${Math.floor(Math.random() * 200) + 20}` },
+});
 test.beforeEach(async ({ context }) => {
   await context.addInitScript(() => {
     Object.defineProperty(Navigator.prototype, "webdriver", { get: () => false });
