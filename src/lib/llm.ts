@@ -1,143 +1,101 @@
 import "server-only";
+import { gateway, type GatewayProviderOptions } from "@ai-sdk/gateway";
+import { generateText, NoObjectGeneratedError, Output } from "ai";
 import type { z } from "zod";
 import { env, forceMock } from "./env";
-import { captureMessage } from "./observability";
+import { captureException, captureMessage } from "./observability";
 
 /**
- * The only module that talks to an LLM. Swap providers with LLM_PROVIDER
- * (openai | anthropic | mock). "openai" speaks the OpenAI chat-completions
- * protocol, so LLM_BASE_URL also covers OpenRouter, Groq, Together, Ollama, etc.
+ * The only module that talks to an LLM. Every call goes through Vercel AI
+ * Gateway via the AI SDK. Authentication is resolved by the gateway provider:
+ * AI_GATEWAY_API_KEY if set, otherwise the Vercel OIDC token (the request's
+ * x-vercel-oidc-token header on Vercel, or VERCEL_OIDC_TOKEN from `vercel env pull`).
  */
-export interface LLMProvider {
-  id: string;
-  complete(input: { system: string; user: string }): Promise<string>;
+export const DEFAULT_MODEL = "anthropic/claude-sonnet-4.5";
+export const DEFAULT_FALLBACK_MODELS = ["openai/gpt-5-mini"];
+
+interface GatewayConfig {
+  model: string;
+  fallbacks: string[];
 }
 
-class OpenAICompatible implements LLMProvider {
-  readonly id: string;
-  constructor(
-    private apiKey: string,
-    private model: string,
-    private baseUrl: string,
-  ) {
-    this.id = `openai:${model}`;
-  }
-
-  async complete({ system, user }: { system: string; user: string }) {
-    const res = await fetch(`${this.baseUrl.replace(/\/$/, "")}/chat/completions`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${this.apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: this.model,
-        temperature: 0.7,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: system },
-          { role: "user", content: user },
-        ],
-      }),
-      signal: AbortSignal.timeout(90_000),
-    });
-    if (!res.ok) throw new Error(`LLM request failed (${res.status}): ${(await res.text()).slice(0, 300)}`);
-    const body = (await res.json()) as { choices: { message: { content: string | null } }[] };
-    return body.choices[0]?.message.content ?? "";
-  }
+export function gatewayConfig(): GatewayConfig | null {
+  if (forceMock || env.llmProvider === "mock") return null;
+  // On Vercel the OIDC token arrives per request rather than as an env var.
+  const hasCredentials = !!env.aiGatewayApiKey || !!process.env.VERCEL_OIDC_TOKEN || process.env.VERCEL === "1";
+  if (!hasCredentials) return null;
+  const fallbacks = env.aiGatewayFallbackModels;
+  return {
+    model: env.aiGatewayModel ?? DEFAULT_MODEL,
+    fallbacks:
+      fallbacks === undefined
+        ? DEFAULT_FALLBACK_MODELS
+        : fallbacks === "none"
+          ? []
+          : fallbacks.split(",").map((m) => m.trim()).filter(Boolean),
+  };
 }
 
-class Anthropic implements LLMProvider {
-  readonly id: string;
-  constructor(
-    private apiKey: string,
-    private model: string,
-    private baseUrl: string,
-  ) {
-    this.id = `anthropic:${model}`;
-  }
-
-  async complete({ system, user }: { system: string; user: string }) {
-    const res = await fetch(`${this.baseUrl.replace(/\/$/, "")}/v1/messages`, {
-      method: "POST",
-      headers: { "x-api-key": this.apiKey, "anthropic-version": "2023-06-01", "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: this.model,
-        max_tokens: 4096,
-        temperature: 0.7,
-        system: `${system}\nRespond with a single JSON object and nothing else.`,
-        messages: [{ role: "user", content: user }],
-      }),
-      signal: AbortSignal.timeout(90_000),
-    });
-    if (!res.ok) throw new Error(`LLM request failed (${res.status}): ${(await res.text()).slice(0, 300)}`);
-    const body = (await res.json()) as { content: { type: string; text?: string }[] };
-    return body.content.map((c) => c.text ?? "").join("");
-  }
-}
-
-export function getProvider(): LLMProvider | null {
-  if (forceMock) return null;
-  const configured = env.llmProvider?.toLowerCase();
-  if (configured === "mock" || !env.llmApiKey) return null;
-  const provider = configured ?? (process.env.ANTHROPIC_API_KEY && !process.env.OPENAI_API_KEY ? "anthropic" : "openai");
-  if (provider === "anthropic") {
-    return new Anthropic(env.llmApiKey, env.llmModel ?? "claude-haiku-4-5", env.llmBaseUrl ?? "https://api.anthropic.com");
-  }
-  return new OpenAICompatible(env.llmApiKey, env.llmModel ?? "gpt-4.1-mini", env.llmBaseUrl ?? "https://api.openai.com/v1");
-}
-
-export const llmLabel = () => getProvider()?.id ?? "mock";
-
-function extractJson(text: string): unknown {
-  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/);
-  const candidate = fenced ? fenced[1] : text;
-  const start = candidate.indexOf("{");
-  const end = candidate.lastIndexOf("}");
-  if (start < 0 || end < start) throw new Error("No JSON object in LLM output");
-  return JSON.parse(candidate.slice(start, end + 1));
-}
+export const llmLabel = () => {
+  const config = gatewayConfig();
+  return config ? `gateway:${config.model}` : "mock";
+};
 
 interface StructuredRequest<T> {
+  /** Sent to the model as the output schema. Keep it to types only: counts and lengths belong in `rubric`. */
   schema: z.ZodType<T>;
   system: string;
   user: string;
-  /** Deterministic output used when no provider is configured. */
+  /** Deterministic output used when no gateway credentials are configured. */
   mock: () => T;
-  /** Rubric check (limits, banned phrases). Problems are fed back for one more attempt. */
+  /** Rubric check (limits, banned phrases). Problems are fed back for another attempt. */
   rubric?: (value: T) => string[];
   maxAttempts?: number;
+  /** For free, non-critical steps: serve the mock output if the gateway is down instead of failing. */
+  mockOnGatewayError?: boolean;
 }
 
-/** Asks for JSON, validates it against the schema and rubric, and retries with the problems listed. */
+/** Generates schema-validated output, checks it against the rubric, and retries with the problems listed. */
 export async function generateStructured<T>(req: StructuredRequest<T>): Promise<{ value: T; provider: string }> {
-  const provider = getProvider();
-  if (!provider) return { value: req.mock(), provider: "mock" };
+  const config = gatewayConfig();
+  if (!config) return { value: req.mock(), provider: "mock" };
 
   const maxAttempts = req.maxAttempts ?? 3;
-  let user = req.user;
-  let lastValid: T | null = null;
-  let lastError = "";
+  let prompt = req.user;
+  let last: { value: T; provider: string } | null = null;
+  let lastProblems = "";
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    const raw = await provider.complete({ system: req.system, user });
     let problems: string[];
     try {
-      const parsed = req.schema.safeParse(extractJson(raw));
-      if (!parsed.success) {
-        problems = parsed.error.issues.map((i) => `${i.path.join(".") || "root"}: ${i.message}`);
-      } else {
-        lastValid = parsed.data;
-        problems = req.rubric?.(parsed.data) ?? [];
-        if (problems.length === 0) return { value: parsed.data, provider: provider.id };
-      }
+      const result = await generateText({
+        model: gateway(config.model),
+        system: req.system,
+        prompt,
+        output: Output.object({ schema: req.schema }),
+        providerOptions: { gateway: { models: config.fallbacks } satisfies GatewayProviderOptions },
+        abortSignal: AbortSignal.timeout(90_000),
+      });
+      last = { value: result.output, provider: `gateway:${result.response.modelId}` };
+      problems = req.rubric?.(result.output) ?? [];
+      if (problems.length === 0) return last;
     } catch (error) {
-      problems = [`Output was not valid JSON (${(error as Error).message}).`];
+      if (!NoObjectGeneratedError.isInstance(error)) {
+        if (req.mockOnGatewayError) {
+          captureException(error, { stage: "llm.gateway", model: config.model, fallback: "mock" });
+          return { value: req.mock(), provider: "mock (gateway unavailable)" };
+        }
+        throw error;
+      }
+      problems = [`Output did not match the required JSON shape (${error.cause instanceof Error ? error.cause.message : "invalid JSON"}).`];
     }
-    lastError = problems.join("; ");
-    user = `${req.user}\n\nYour previous answer had these problems. Fix all of them and return the full corrected JSON:\n- ${problems.join("\n- ")}`;
+    lastProblems = problems.join("; ");
+    prompt = `${req.user}\n\nYour previous answer had these problems. Fix all of them and return the full corrected JSON:\n- ${problems.join("\n- ")}`;
   }
 
-  if (lastValid) {
-    captureMessage("LLM output still failed the rubric; falling back to automatic fixes", { problems: lastError });
-    return { value: lastValid, provider: provider.id };
+  if (last) {
+    captureMessage("LLM output still failed the rubric; falling back to automatic fixes", { problems: lastProblems });
+    return last;
   }
-  throw new Error(`LLM returned unusable output after ${maxAttempts} attempts: ${lastError}`);
+  throw new Error(`LLM returned unusable output after ${maxAttempts} attempts: ${lastProblems}`);
 }

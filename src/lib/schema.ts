@@ -10,14 +10,16 @@ export const paletteSchema = z.object({
 });
 export type Palette = z.infer<typeof paletteSchema>;
 
+// Schemas below are also sent to the model as structured-output schemas, so they
+// hold types only. Lengths and counts are enforced by the rubrics in copy.ts.
 export const briefSchema = z.object({
-  name: z.string().min(1),
-  oneLiner: z.string().min(1),
-  audience: z.string().min(1),
-  problem: z.string().min(1),
-  features: z.array(z.string().min(1)).min(1).max(8),
-  proofPoints: z.array(z.string()).max(8),
-  stack: z.array(z.string()).max(12),
+  name: z.string(),
+  oneLiner: z.string(),
+  audience: z.string(),
+  problem: z.string(),
+  features: z.array(z.string()),
+  proofPoints: z.array(z.string()),
+  stack: z.array(z.string()),
   tone: z.string(),
   url: z.string().optional(),
   repoUrl: z.string().optional(),
@@ -25,32 +27,29 @@ export const briefSchema = z.object({
 export type Brief = z.infer<typeof briefSchema>;
 
 export const previewSchema = z.object({
-  tagline: z.string().min(1),
-  xPost: z.string().min(1),
+  tagline: z.string(),
+  xPost: z.string(),
 });
 export type Preview = z.infer<typeof previewSchema>;
 
 export const kitContentSchema = z.object({
   landing: z.object({
-    headline: z.string().min(1),
-    subheadline: z.string().min(1),
-    cta: z.string().min(1),
-    features: z
-      .array(z.object({ title: z.string().min(1), description: z.string().min(1) }))
-      .min(3)
-      .max(6),
-    metaTitle: z.string().min(1),
-    metaDescription: z.string().min(1),
+    headline: z.string(),
+    subheadline: z.string(),
+    cta: z.string(),
+    features: z.array(z.object({ title: z.string(), description: z.string() })),
+    metaTitle: z.string(),
+    metaDescription: z.string(),
   }),
   productHunt: z.object({
-    name: z.string().min(1),
-    tagline: z.string().min(1),
-    description: z.string().min(1),
-    makerComment: z.string().min(1),
-    topics: z.array(z.string()).max(4),
+    name: z.string(),
+    tagline: z.string(),
+    description: z.string(),
+    makerComment: z.string(),
+    topics: z.array(z.string()),
   }),
-  xThread: z.array(z.string().min(1)).min(3).max(10),
-  linkedin: z.string().min(1),
+  xThread: z.array(z.string()),
+  linkedin: z.string(),
 });
 export type KitContent = z.infer<typeof kitContentSchema>;
 

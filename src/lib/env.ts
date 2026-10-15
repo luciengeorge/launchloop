@@ -22,9 +22,9 @@ export const env = {
   resendSegmentId: read("RESEND_SEGMENT_ID"),
 
   llmProvider: read("LLM_PROVIDER"),
-  llmApiKey: read("LLM_API_KEY") ?? read("OPENAI_API_KEY") ?? read("ANTHROPIC_API_KEY"),
-  llmModel: read("LLM_MODEL"),
-  llmBaseUrl: read("LLM_BASE_URL"),
+  aiGatewayApiKey: read("AI_GATEWAY_API_KEY"),
+  aiGatewayModel: read("AI_GATEWAY_MODEL"),
+  aiGatewayFallbackModels: read("AI_GATEWAY_FALLBACK_MODELS"),
 
   githubToken: read("GITHUB_TOKEN"),
 

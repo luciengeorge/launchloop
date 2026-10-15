@@ -23,7 +23,7 @@ export default function PrivacyPage() {
         <li>Payment details are handled by Stripe. We never see or store your card number.</li>
       </ul>
       <h2>Who we share it with</h2>
-      <p>Stripe (payments), Resend (email), our LLM provider (to generate copy from your public sources) and our hosting provider. We don&apos;t sell data.</p>
+      <p>Stripe (payments), Resend (email), Vercel (hosting) and, through Vercel AI Gateway, the AI model providers that generate copy from your public sources. We don&apos;t sell data.</p>
       <h2>Your choices</h2>
       <p>Newsletter emails include an unsubscribe link. To delete your kit or contact record, email hello@launchloop.dev.</p>
     </article>

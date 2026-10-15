@@ -6,7 +6,7 @@ const baseURL = `http://127.0.0.1:${PORT}`;
 
 /**
  * Smoke tests run against a production build in full mock mode: no Stripe,
- * Resend or LLM keys are used even if they exist in .env.local.
+ * Resend or AI Gateway credentials are used even if they exist in .env.local.
  */
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -40,6 +40,8 @@ export default defineConfig({
         STRIPE_SECRET_KEY: "",
         RESEND_API_KEY: "",
         LLM_PROVIDER: "mock",
+        AI_GATEWAY_API_KEY: "",
+        VERCEL_OIDC_TOKEN: "",
         KV_REST_API_URL: "",
         KV_REST_API_TOKEN: "",
         DATA_DIR: ".data-test",

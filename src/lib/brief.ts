@@ -238,12 +238,14 @@ export async function buildBrief(source: IngestResult): Promise<{ brief: Brief; 
       "You turn raw repository and website material into a short, factual product brief for launch copy. Use only what the material says. If something is unknown, write a cautious, generic statement instead of inventing specifics. Return JSON.",
     user: `Write a product brief as JSON with keys: name (product name, max 30 chars), oneLiner (max 140 chars, what it does and for whom), audience (who it is for), problem (1-2 sentences, the pain it removes), features (3-6 short concrete features actually present in the material, max 120 chars each), tone (3-6 words describing the maker's voice, inferred from the README).\n\nDetected facts: ${JSON.stringify(facts)}\n\nSource material:\n${sourceDigest(source)}`,
     mock: () => fallback,
+    mockOnGatewayError: true,
   });
+  const nonEmpty = Object.fromEntries(Object.entries(value).filter(([, v]) => (typeof v === "string" ? v.trim() : true)));
   return {
     brief: {
       ...fallback,
-      ...value,
-      features: value.features.slice(0, 6),
+      ...nonEmpty,
+      features: value.features.filter((f) => f.trim()).length ? value.features.filter((f) => f.trim()).slice(0, 6) : fallback.features,
       proofPoints: facts.proofPoints,
       stack: facts.stack,
       url: facts.url,

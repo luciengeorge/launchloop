@@ -167,6 +167,7 @@ function guessTopics(brief: Brief): string[] {
 }
 
 function checkText(label: string, text: string, limit: number, problems: string[], measure = charLength) {
+  if (!text.trim()) problems.push(`${label} is empty.`);
   const len = measure(text);
   if (len > limit) problems.push(`${label} is ${len} characters; the limit is ${limit}.`);
   if (containsVoteBegging(text)) problems.push(`${label} asks for votes or upvotes; remove that.`);
@@ -185,6 +186,8 @@ export function previewRubric(p: Preview): string[] {
 export function contentRubric(c: KitContent): string[] {
   const problems: string[] = [];
   const l = c.landing;
+  if (l.features.length < 3 || l.features.length > 6) problems.push(`landing.features has ${l.features.length} items; it must have 3-6.`);
+  if (c.productHunt.topics.length > 3) problems.push(`productHunt.topics has ${c.productHunt.topics.length} items; use at most 3.`);
   checkText("landing.headline", l.headline, LIMITS.landingHeadline, problems);
   checkText("landing.subheadline", l.subheadline, LIMITS.landingSubheadline, problems);
   checkText("landing.cta", l.cta, LIMITS.landingCta, problems);
@@ -213,6 +216,13 @@ export function contentRubric(c: KitContent): string[] {
 /** Final safety net after the LLM: strip vote requests and hard-fit every limit. */
 export function enforceContent(c: KitContent, fallback: KitContent): KitContent {
   const t = (s: string, limit: number) => fitToLimit(stripVoteBegging(s), limit);
+  const fallbackIfEmpty = (s: string, f: string) => (s.trim() ? s : f);
+  c = {
+    ...c,
+    landing: { ...c.landing, headline: fallbackIfEmpty(c.landing.headline, fallback.landing.headline), subheadline: fallbackIfEmpty(c.landing.subheadline, fallback.landing.subheadline), cta: fallbackIfEmpty(c.landing.cta, fallback.landing.cta), metaTitle: fallbackIfEmpty(c.landing.metaTitle, fallback.landing.metaTitle), metaDescription: fallbackIfEmpty(c.landing.metaDescription, fallback.landing.metaDescription) },
+    productHunt: { ...c.productHunt, name: fallbackIfEmpty(c.productHunt.name, fallback.productHunt.name), tagline: fallbackIfEmpty(c.productHunt.tagline, fallback.productHunt.tagline), description: fallbackIfEmpty(c.productHunt.description, fallback.productHunt.description), makerComment: fallbackIfEmpty(c.productHunt.makerComment, fallback.productHunt.makerComment) },
+    linkedin: fallbackIfEmpty(c.linkedin, fallback.linkedin),
+  };
   let thread = c.xThread.map((p) => fitToLimit(stripVoteBegging(p).replace(/(^|\s)#\w+/g, "").trim(), LIMITS.xPost, xLength)).filter(Boolean);
   if (thread.length > LIMITS.xThreadMax) thread = thread.slice(0, LIMITS.xThreadMax);
   for (let i = thread.length; i < LIMITS.xThreadMin; i++) thread.push(fallback.xThread[i] ?? fallback.xThread.at(-1)!);
@@ -248,11 +258,12 @@ export async function generatePreview(brief: Brief): Promise<{ preview: Preview;
     user: `Product brief:\n${briefJson(brief)}\n\nWrite JSON with:\n- tagline: a Product Hunt tagline, max ${LIMITS.phTagline} characters, concrete benefit, no product name, no trailing period.\n- xPost: the opening launch post of an X thread, max ${LIMITS.xPost} weighted characters, includes the link ${linkFor(brief) || "(no link known; omit it)"}, no hashtags.`,
     mock: () => mockPreview(brief),
     rubric: previewRubric,
+    mockOnGatewayError: true,
   });
   return {
     preview: {
-      tagline: fitToLimit(stripVoteBegging(value.tagline).replace(/\.$/, ""), LIMITS.phTagline),
-      xPost: fitToLimit(stripVoteBegging(value.xPost), LIMITS.xPost, xLength),
+      tagline: fitToLimit(stripVoteBegging(value.tagline).replace(/\.$/, "") || mockPreview(brief).tagline, LIMITS.phTagline),
+      xPost: fitToLimit(stripVoteBegging(value.xPost) || mockPreview(brief).xPost, LIMITS.xPost, xLength),
     },
     provider,
   };

@@ -12,7 +12,7 @@ LaunchLoop turns a vibe-coded app into a launch kit. Paste a public GitHub repo 
 
 Every platform limit is enforced (PH tagline 60, description 260, X 280 weighted, LinkedIn 3,000) and vote requests are stripped out. Visitors get a free watermarked preview (the PH tagline plus one X post). The full kit costs **£19** through Stripe Checkout and arrives on a results page, as a ZIP and by email via Resend. `/ship-loop` takes waitlist sign-ups and pre-orders for the £12/month (£99/year) subscription.
 
-Stack: Next.js 16 (App Router, Cache Components), TypeScript, Tailwind v4, shadcn/ui, Stripe, Resend, `@vercel/og`, Playwright.
+Stack: Next.js 16 (App Router, Cache Components), TypeScript, Tailwind v4, shadcn/ui, AI SDK 7 with Vercel AI Gateway, Stripe, Resend, `@vercel/og`, Playwright.
 
 ## Run it locally
 
@@ -27,7 +27,7 @@ No keys are needed. With nothing configured, the app runs end to end in **mock m
 
 | Integration | Without a key |
 | --- | --- |
-| LLM | Deterministic template copy built from the real brief (`src/lib/copy.ts`) |
+| LLM (AI Gateway) | Deterministic template copy built from the real brief (`src/lib/copy.ts`) |
 | Stripe | A local test checkout page at `/checkout/mock` |
 | Resend | Emails (with the ZIP attached) go to a local outbox: `GET /api/dev/outbox` |
 | Storage | JSON files in `./.data` |
@@ -42,7 +42,9 @@ All are optional locally. See [`.env.example`](.env.example) for the full annota
 
 | Variable | Needed for |
 | --- | --- |
-| `LLM_PROVIDER`, `LLM_API_KEY`, `LLM_MODEL`, `LLM_BASE_URL` | Real copy generation. `openai` covers any OpenAI-compatible API; `anthropic` is also built in. |
+| `AI_GATEWAY_API_KEY` | Local copy generation through Vercel AI Gateway. Not needed on Vercel (OIDC) or after `vercel env pull` |
+| `AI_GATEWAY_MODEL`, `AI_GATEWAY_FALLBACK_MODELS` | Primary model (default `anthropic/claude-sonnet-4.5`) and fallbacks (default `openai/gpt-5-mini`; `none` disables) |
+| `LLM_PROVIDER` | Set to `mock` to force template copy even when gateway credentials exist |
 | `STRIPE_SECRET_KEY` | Real Stripe Checkout (use `sk_test_…` for test mode) |
 | `STRIPE_WEBHOOK_SECRET` | Verifying `/api/stripe/webhook` |
 | `STRIPE_PRICE_KIT`, `STRIPE_PRICE_SHIPLOOP_MONTHLY`, `STRIPE_PRICE_SHIPLOOP_YEARLY` | Optional: dashboard Prices instead of inline £19 / £12 / £99 |
@@ -75,7 +77,7 @@ Stripe paid ─▶ recordPayment ─▶ fulfilKit: full copy (LLM + rubric + ret
 | --- | --- |
 | `src/lib/ingest/` | GitHub reader, live-page scraper, brand-colour extraction (hex/rgb/hsl/oklch), SSRF-safe fetch |
 | `src/lib/brief.ts` | Deterministic facts and the LLM product brief |
-| `src/lib/llm.ts` | **The only LLM module.** Provider interface, structured-JSON validation, rubric-driven retries |
+| `src/lib/llm.ts` | **The only LLM module.** AI SDK `generateText` + `Output.object` through the AI Gateway provider, fallback models, rubric-driven retries |
 | `src/lib/copy.ts` | Prompts, mock writer, rubric (limits, vote-begging, hype words), final enforcement |
 | `src/lib/limits.ts` | Platform limits, X weighted length, vote-request stripping |
 | `src/lib/images.tsx` | The three OG images via `@vercel/og`, watermarked until paid |
@@ -84,7 +86,18 @@ Stripe paid ─▶ recordPayment ─▶ fulfilKit: full copy (LLM + rubric + ret
 | `src/lib/email.ts`, `src/lib/audience.ts` | Resend email and contacts, with mock outbox |
 | `src/lib/store.ts` | Key-value store: Upstash REST or local JSON files |
 
-To add an LLM provider, implement `LLMProvider.complete()` in `src/lib/llm.ts` and return it from `getProvider()`.
+## LLM: Vercel AI Gateway
+
+All model calls go through [Vercel AI Gateway](https://vercel.com/docs/ai-gateway) using the AI SDK's `gateway` provider (`@ai-sdk/gateway`), in `src/lib/llm.ts`:
+
+- **Models:** primary `anthropic/claude-sonnet-4.5`, with `openai/gpt-5-mini` as a gateway-level fallback via `providerOptions.gateway.models`. If every provider for the primary fails, the gateway retries on the fallback. Override with `AI_GATEWAY_MODEL` and `AI_GATEWAY_FALLBACK_MODELS` using IDs from `https://ai-gateway.vercel.sh/v1/models`. The model that actually answered is saved on each kit (`kit.llm`, e.g. `gateway:anthropic/claude-sonnet-4.5`).
+- **Auth on Vercel:** automatic OIDC. The provider reads the per-request `x-vercel-oidc-token` header, so no key is needed. Keep "Secure backend access with OIDC federation" enabled in the project settings; it's on by default.
+- **Auth locally:** run `vercel link` (project `launchloop`, team `luciengeorge16`) and `vercel env pull .env.local` to get a `VERCEL_OIDC_TOKEN` (valid ~12 hours; re-pull or use `vercel dev`), or set `AI_GATEWAY_API_KEY`. An API key always takes precedence over OIDC.
+- **Mock mode:** with no `AI_GATEWAY_API_KEY`, no `VERCEL_OIDC_TOKEN` and not running on Vercel, or with `LLM_PROVIDER=mock` / `MOCK_MODE=true`, copy comes from deterministic templates and nothing is sent to the gateway.
+- **Structured output:** `generateText` with `Output.object()` and zod schemas that hold types only. Character limits, thread length and banned phrases are checked by a rubric; failures are fed back for up to three attempts, then hard-enforced.
+- **Degradation:** if the gateway errors on the free preview, the preview falls back to template copy (logged through `captureException`). For paid kits, generation is marked failed and retried automatically (up to three attempts).
+
+To switch models, change the env vars; no code changes are needed.
 
 ## SEO and AI discoverability
 
@@ -125,7 +138,7 @@ Also: `npm run lint`, `npm run typecheck`, `npm run build`.
 
 1. Push this repo and import it in Vercel (framework preset: Next.js; no build settings to change).
 2. Add **Upstash Redis** from the Vercel Marketplace. It injects `KV_REST_API_URL` and `KV_REST_API_TOKEN`. Without it, kits are written to `/tmp` and disappear between invocations.
-3. Add the environment variables: `LLM_*`, `STRIPE_SECRET_KEY`, `RESEND_API_KEY`, `RESEND_FROM` (on a verified domain), `RESEND_SEGMENT_ID` or `RESEND_AUDIENCE_ID`, `GITHUB_TOKEN`, and `NEXT_PUBLIC_SITE_URL` (e.g. `https://launchloop.dev`).
+3. AI Gateway needs no key on Vercel (OIDC). Optionally set `AI_GATEWAY_MODEL` / `AI_GATEWAY_FALLBACK_MODELS`, and make sure the team has AI Gateway credits or BYOK configured. Add the other environment variables: `STRIPE_SECRET_KEY`, `RESEND_API_KEY`, `RESEND_FROM` (on a verified domain), `RESEND_SEGMENT_ID` or `RESEND_AUDIENCE_ID`, `GITHUB_TOKEN`, and `NEXT_PUBLIC_SITE_URL` (e.g. `https://launchloop.dev`).
 4. In Stripe, add a webhook endpoint `https://<your-domain>/api/stripe/webhook` for `checkout.session.completed` and `checkout.session.async_payment_succeeded`, and set `STRIPE_WEBHOOK_SECRET`.
 5. Deploy. Kit generation runs in `after()` with `maxDuration` up to 120s. That works on Vercel's default Fluid compute; on plans with lower limits, reduce it.
 
