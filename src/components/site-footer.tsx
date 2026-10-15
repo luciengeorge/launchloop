@@ -16,7 +16,7 @@ export function SiteFooter() {
           <h2 className="font-medium">Product</h2>
           <ul className="space-y-2 text-muted-foreground">
             <li><Link href="/#start" className="hover:text-foreground">Get a launch kit</Link></li>
-            <li><Link href="/#pricing" className="hover:text-foreground">Pricing</Link></li>
+            <li><Link href="/pricing" className="hover:text-foreground">Pricing</Link></li>
             <li><Link href="/ship-loop" className="hover:text-foreground">Ship Loop (waitlist)</Link></li>
             <li><Link href="/faq" className="hover:text-foreground">FAQ</Link></li>
             <li><Link href="/product-hunt-launch-checklist" className="hover:text-foreground">Product Hunt launch checklist</Link></li>

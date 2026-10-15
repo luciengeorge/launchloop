@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { AccountNav, LogInLink } from "./account-link";
-import { AuthCta } from "./auth-cta";
+import { AuthCta, LaunchKitCta } from "./auth-cta";
 import { Logo } from "./logo";
 
 const NAV = [
@@ -27,7 +27,8 @@ export function SiteHeader() {
           <Suspense fallback={<LogInLink />}>
             <AccountNav />
           </Suspense>
-          <Suspense fallback={null}>
+          {/* The CTA is the static-shell fallback, so every page ships it before the session check streams in. */}
+          <Suspense fallback={<LaunchKitCta />}>
             <AuthCta />
           </Suspense>
         </div>
