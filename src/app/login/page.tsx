@@ -12,7 +12,7 @@ export default function LoginPage({ searchParams }: PageProps<"/login">) {
       <div className="space-y-6 rounded-2xl border border-border bg-card p-6 shadow-sm">
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold tracking-tight">Log in to LaunchLoop</h1>
-          <p className="text-sm text-muted-foreground">We&apos;ll email you a one-time link. No password needed. Kits you made in this browser are saved to your account.</p>
+          <p className="text-sm text-muted-foreground">We&apos;ll email you a sign-in link and a 6-digit code. No password needed. Kits you made in this browser are saved to your account.</p>
         </div>
         <Suspense fallback={<LoginForm />}>
           <LoginFormWithQuery searchParams={searchParams} />
