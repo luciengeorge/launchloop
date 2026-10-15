@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { makeSampleKit } from "./helpers";
 
 test("home page explains the product and offers the input", async ({ page }) => {
   await page.goto("/");
@@ -15,6 +16,15 @@ test("header CTA is on every marketing page and Pricing links agree", async ({ p
     await expect(page.getByRole("banner").getByRole("link", { name: "Get my launch kit" })).toBeVisible();
   }
   await expect(page.getByRole("contentinfo").getByRole("link", { name: "Pricing" })).toHaveAttribute("href", "/pricing");
+});
+
+test("Get my launch kit always opens the start form, even after making a kit", async ({ page }) => {
+  await makeSampleKit(page);
+  await page.goto("/faq");
+  await page.getByRole("banner").getByRole("link", { name: "Get my launch kit" }).click();
+  await page.waitForURL((u) => u.pathname === "/" && u.search === "?plan=kit" && u.hash === "#start");
+  await expect(page.getByLabel("GitHub repo or live site URL")).toBeFocused();
+  await expect(page.locator("#start [data-plan]")).toHaveAttribute("data-plan", "kit");
 });
 
 test("invalid input shows a friendly error", async ({ page }) => {
