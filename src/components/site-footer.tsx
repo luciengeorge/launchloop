@@ -3,6 +3,7 @@ import { SITE } from "@/lib/site";
 import { TOOLS } from "@/lib/tools";
 import { Logo } from "./logo";
 import { NewsletterForm } from "./newsletter-form";
+import { SHIP_LOOP_LINK_LABEL, SoonBadge } from "./soon-badge";
 
 export function SiteFooter() {
   return (
@@ -18,7 +19,12 @@ export function SiteFooter() {
           <ul className="space-y-2 text-muted-foreground">
             <li><Link href="/#start" className="hover:text-foreground">Get a launch kit</Link></li>
             <li><Link href="/pricing" className="hover:text-foreground">Pricing</Link></li>
-            <li><Link href="/ship-loop" className="hover:text-foreground">Ship Loop (soon)</Link></li>
+            <li>
+              <Link href="/ship-loop" aria-label={SHIP_LOOP_LINK_LABEL} className="inline-flex items-center gap-1.5 hover:text-foreground">
+                Ship Loop
+                <SoonBadge />
+              </Link>
+            </li>
             <li><Link href="/faq" className="hover:text-foreground">FAQ</Link></li>
           </ul>
         </nav>

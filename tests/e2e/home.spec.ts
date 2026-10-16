@@ -57,6 +57,18 @@ test("header CTA is on every marketing page and Pricing links agree", async ({ p
   await expect(page.getByRole("contentinfo").getByRole("link", { name: "Pricing" })).toHaveAttribute("href", "/pricing");
 });
 
+test("Ship Loop links carry a Soon badge instead of '(soon)' text", async ({ page, isMobile }) => {
+  await page.goto("/");
+  const regions = isMobile ? [page.getByRole("contentinfo")] : [page.getByRole("banner"), page.getByRole("contentinfo")];
+  for (const region of regions) {
+    const link = region.getByRole("link", { name: "Ship Loop (coming soon)", exact: true });
+    await expect(link).toBeVisible();
+    await expect(link).toHaveAttribute("href", "/ship-loop");
+    await expect(link.getByText("Soon", { exact: true })).toBeVisible();
+    await expect(region.getByText("(soon)")).toHaveCount(0);
+  }
+});
+
 test("Get my launch kit always opens the start form, even after making a kit", async ({ page }) => {
   await makeSampleKit(page);
   await page.goto("/faq");
