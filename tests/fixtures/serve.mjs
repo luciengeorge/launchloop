@@ -110,10 +110,37 @@ function recordPosthog(body) {
   }
 }
 
+/** Every error event the fake Sentry received (SENTRY_DSN=http://public@127.0.0.1:PORT/sentry/1). */
+const sentryEvents = [];
+
+/** An envelope is newline-delimited JSON: envelope header, then item header / item payload pairs. */
+function recordSentry(body) {
+  const raw = body[0] === 0x1f && body[1] === 0x8b ? gunzipSync(body) : body;
+  const lines = raw.toString("utf8").split("\n");
+  for (let i = 1; i + 1 < lines.length; i += 2) {
+    try {
+      if (JSON.parse(lines[i]).type === "event") sentryEvents.push(JSON.parse(lines[i + 1]));
+    } catch {
+      // Attachments and other binary items aren't JSON.
+    }
+  }
+}
+
 createServer(async (req, res) => {
   if (req.url === "/ph/_events") {
     res.writeHead(200, { "Content-Type": "application/json" });
     return res.end(JSON.stringify(phEvents));
+  }
+  if (req.url === "/sentry/_events") {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    return res.end(JSON.stringify(sentryEvents));
+  }
+  if (req.url.startsWith("/sentry/api/")) {
+    const chunks = [];
+    for await (const chunk of req) chunks.push(chunk);
+    if (req.method === "POST") recordSentry(Buffer.concat(chunks));
+    res.writeHead(200, { "Content-Type": "application/json" });
+    return res.end("{}");
   }
   const route = routes[req.url.split("?")[0]];
   if (route) return route(req, res);
