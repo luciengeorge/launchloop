@@ -1,7 +1,5 @@
 import Link from "next/link";
-import { Suspense } from "react";
-import { AccountNav, LogInLink } from "./account-link";
-import { AuthCta, LaunchKitCta } from "./auth-cta";
+import { HeaderAuth } from "./header-auth";
 import { OG_PREVIEW, TAGLINE_CHECKER } from "@/lib/tools";
 import { Logo } from "./logo";
 
@@ -27,13 +25,7 @@ export function SiteHeader() {
           ))}
         </nav>
         <div className="flex items-center gap-3 sm:gap-4">
-          <Suspense fallback={<LogInLink />}>
-            <AccountNav />
-          </Suspense>
-          {/* The CTA is the static-shell fallback, so every page ships it before the session check streams in. */}
-          <Suspense fallback={<LaunchKitCta />}>
-            <AuthCta />
-          </Suspense>
+          <HeaderAuth />
         </div>
       </div>
     </header>
