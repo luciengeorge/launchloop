@@ -8,7 +8,7 @@ test("magic-link login, single-use token, header state and log out", async ({ pa
   await expect(banner.getByRole("link", { name: "Get my launch kit" })).toBeVisible();
   await expect(banner.getByRole("link", { name: "What you get" })).toBeVisible();
   await expect(banner.getByRole("link", { name: "Pricing" })).toBeVisible();
-  await expect(banner.getByRole("link", { name: "Ship Loop" })).toBeVisible();
+  await expect(banner.getByRole("link", { name: "Ship Loop (coming soon)", exact: true })).toBeVisible();
   await expect(banner.getByRole("link", { name: "FAQ" })).toBeVisible();
 
   const email = uniqueEmail("login");
