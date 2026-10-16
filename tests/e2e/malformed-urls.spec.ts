@@ -30,9 +30,12 @@ function rawGet(baseURL: string, path: string): Promise<number> {
   });
 }
 
-test("a raw backslash in the path is a 404", async ({ baseURL }) => {
-  expect(await rawGet(baseURL!, "/opengraph-image\\")).toBe(404);
-  expect(await rawGet(baseURL!, "/tools/og-preview/opengraph-image\\")).toBe(404);
+// On Vercel these reach the proxy and get its 404. `next start` normalises `\` to `/` with a 308 before the
+// proxy runs, so locally we can only check it never falls through to the 500.
+test("a raw backslash in the path is never a 500", async ({ baseURL }) => {
+  for (const path of ["/opengraph-image\\", "/tools/og-preview/opengraph-image\\", "/tools/product-hunt-tagline-checker/opengraph-image\\"]) {
+    expect([404, 308], path).toContain(await rawGet(baseURL!, path));
+  }
 });
 
 test("the real OG images and pages still work", async ({ request }) => {
