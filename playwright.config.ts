@@ -9,6 +9,7 @@ const baseURL = `http://127.0.0.1:${PORT}`;
  * Resend or AI Gateway credentials are used even if they exist in .env.local.
  * PostHog is on but points at the fixture server, which serves no flags (every
  * experiment is control); tests force variants by intercepting /lp-relay/flags.
+ * Server-side Sentry also points at the fixture server, which records the events.
  */
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -58,6 +59,10 @@ export default defineConfig({
         NEXT_PUBLIC_SITE_URL: baseURL,
         NEXT_PUBLIC_POSTHOG_KEY: "phc_playwright",
         NEXT_PUBLIC_POSTHOG_HOST: `http://127.0.0.1:${FIXTURE_PORT}/ph`,
+        // Server errors go to the fixture's fake Sentry; the browser SDK stays off.
+        SENTRY_DSN: `http://public@127.0.0.1:${FIXTURE_PORT}/sentry/1`,
+        NEXT_PUBLIC_SENTRY_DSN: "",
+        SENTRY_TEST_TOKEN: "playwright-sentry-token",
       },
     },
   ],

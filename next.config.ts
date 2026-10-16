@@ -1,3 +1,4 @@
+import { withSentryConfig } from "@sentry/nextjs/config";
 import type { NextConfig } from "next";
 import { POSTHOG_PROXY_PATH, posthogAssetsHost, posthogHost } from "./src/lib/posthog-config";
 
@@ -33,4 +34,10 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+// Source maps upload only when SENTRY_AUTH_TOKEN is set; without it the build still succeeds, with minified stack traces.
+export default withSentryConfig(nextConfig, {
+  org: "lucien-jp",
+  project: "launchloop",
+  silent: !process.env.CI,
+  widenClientFileUpload: true,
+});

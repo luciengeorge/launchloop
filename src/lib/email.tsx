@@ -44,8 +44,7 @@ export async function sendEmail(email: OutgoingEmail): Promise<{ id: string; moc
       attachments: (email.attachments ?? []).map((a) => ({ filename: a.filename, bytes: a.content.byteLength })),
       sentAt: new Date().toISOString(),
     };
-    const outbox = (await store().get<OutboxEntry[]>("outbox")) ?? [];
-    await store().set("outbox", [entry, ...outbox].slice(0, 50));
+    await appendToOutbox(entry);
     console.info(`[launchloop:mock-email] to=${email.to} subject="${email.subject}" attachments=${entry.attachments.length}`);
     return { id: `mock_${Date.now()}`, mock: true };
   }
@@ -64,6 +63,21 @@ export async function sendEmail(email: OutgoingEmail): Promise<{ id: string; moc
   });
   if (error || !data) throw new Error(`Resend send failed: ${error?.message ?? "unknown error"}`);
   return { id: data.id, mock: false };
+}
+
+/**
+ * Mock sends overlap (a login link while a kit-ready email goes out after another response), and a plain
+ * read-then-write would drop one. Queued on globalThis because each route bundle gets its own copy of this module.
+ */
+const OUTBOX_QUEUE = Symbol.for("launchloop.outboxQueue");
+function appendToOutbox(entry: OutboxEntry): Promise<void> {
+  const g = globalThis as { [OUTBOX_QUEUE]?: Promise<unknown> };
+  const next = (g[OUTBOX_QUEUE] ?? Promise.resolve()).then(async () => {
+    const outbox = (await store().get<OutboxEntry[]>("outbox")) ?? [];
+    await store().set("outbox", [entry, ...outbox].slice(0, 50));
+  });
+  g[OUTBOX_QUEUE] = next.catch(() => undefined);
+  return next;
 }
 
 export async function renderEmail(node: React.ReactElement): Promise<{ html: string; text: string }> {

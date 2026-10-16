@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { makeSampleKit } from "./helpers";
+import { logIn, makeSampleKit, uniqueEmail } from "./helpers";
 
 test("home page explains the product and offers the input", async ({ page }) => {
   await page.goto("/");
@@ -8,6 +8,45 @@ test("home page explains the product and offers the input", async ({ page }) => 
   await expect(page.getByRole("button", { name: "Get my free preview" }).first()).toBeVisible();
   await expect(page.getByRole("heading", { name: "Three steps. Pay only for what you need." })).toBeVisible();
   await expect(page.getByText("£19", { exact: true }).first()).toBeVisible();
+});
+
+test("home header when signed out: Log in and Get my launch kit", async ({ page }) => {
+  await page.goto("/");
+  const banner = page.getByRole("banner");
+  await expect(banner.getByRole("link", { name: "Log in" })).toHaveAttribute("href", "/login");
+  await expect(banner.getByRole("link", { name: "Get my launch kit" })).toBeVisible();
+  await expect(banner.getByRole("link", { name: "My kits" })).toHaveCount(0);
+  await expect(banner.getByRole("button", { name: "Log out" })).toHaveCount(0);
+});
+
+test("home header when signed in: My kits and Log out, then back after logging out", async ({ page }) => {
+  await logIn(page, uniqueEmail("homenav"));
+  await page.goto("/");
+  const banner = page.getByRole("banner");
+  await expect(banner.getByRole("link", { name: "My kits" })).toHaveAttribute("href", "/account");
+  await expect(banner.getByRole("button", { name: "Log out" })).toBeVisible();
+  await expect(banner.getByRole("link", { name: "Log in" })).toHaveCount(0);
+  await expect(banner.getByRole("link", { name: "Get my launch kit" })).toHaveCount(0);
+
+  await banner.getByRole("link", { name: "My kits" }).click();
+  await page.waitForURL(/\/account$/);
+  await expect(page.getByRole("heading", { name: "My kits" })).toBeVisible();
+
+  await page.goto("/");
+  await page.getByRole("banner").getByRole("button", { name: "Log out" }).click();
+  await page.waitForURL((u) => u.pathname === "/");
+  await expect(page.getByRole("banner").getByRole("link", { name: "Log in" })).toBeVisible();
+  await expect(page.getByRole("banner").getByRole("link", { name: "Get my launch kit" })).toBeVisible();
+});
+
+test("the home page HTML is the same for everyone, so a CDN-cached copy can't show the wrong header", async ({ page }) => {
+  await logIn(page, uniqueEmail("homecache"));
+  // What the server (or the CDN) sends a signed-in visitor: the signed-out header, fixed up in the browser.
+  const html = await (await page.request.get("/")).text();
+  expect(html).toContain('data-testid="nav-login"');
+  expect(html).not.toContain('data-testid="nav-my-kits"');
+  await page.goto("/");
+  await expect(page.getByRole("banner").getByTestId("nav-my-kits")).toBeVisible();
 });
 
 test("header CTA is on every marketing page and Pricing links agree", async ({ page }) => {
