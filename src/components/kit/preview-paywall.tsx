@@ -11,7 +11,7 @@ interface Props {
   productName: string;
   /** Section sizes, from the speculative draft when it's done, else the template shape. */
   counts: { features: number; xPosts: number; checklistSteps: number };
-  /** The real, free pieces of the kit (the PH tagline and X post 1), shown readable as samples. */
+  /** The real, free pieces of the kit. X post 1 is the sample here; the tagline has its own card at the top of the page. */
   free: { tagline?: string; xPost?: string };
   /** exp_launch14_promo for this kit, streamed in after the page (see kitVariant). */
   launchPromo: Promise<Variant | undefined>;
@@ -21,20 +21,17 @@ interface Props {
 
 const fmt = (n: number) => n.toLocaleString("en-GB");
 
-/** Shown on an unpaid kit once the free preview is done: what £19 unlocks, the free samples, and the single unlock CTA. */
+/** Shown on an unpaid kit once the free preview is done: what £19 unlocks, the free X post, and the single unlock CTA. */
 export function PreviewPaywall({ kitId, productName, counts, free, launchPromo, email, query }: Props) {
   const imageCount = Object.keys(IMAGE_VARIANTS).length;
-  const samples = [
-    free.tagline ? { title: "Your Product Hunt tagline", text: free.tagline } : null,
-    free.xPost ? { title: "Post 1 of your X thread", text: free.xPost } : null,
-  ].filter((s) => s !== null);
+  const samples = free.xPost ? [{ title: "Post 1 of your X thread", text: free.xPost }] : [];
   const sections = [
     { icon: PanelsTopLeft, title: "Landing page copy", detail: `Headline, subheadline, button text, ${counts.features} feature blocks, meta title and description.` },
     {
       icon: Rocket,
       title: "Product Hunt post",
       detail: free.tagline
-        ? `Name, a ${LIMITS.phDescription}-character description, topics and the maker comment. Your tagline is free: it's unlocked below.`
+        ? `Name, a ${LIMITS.phDescription}-character description, topics and the maker comment. Your tagline is free and ready to paste, at the top of this page.`
         : `Name, tagline, a ${LIMITS.phDescription}-character description, topics and the maker comment.`,
     },
     { icon: MessageSquareText, title: "X launch thread", detail: `${Math.max(counts.xPosts - 1, 1)} more posts after the free one, each under ${LIMITS.xPost} characters the way X counts them.` },

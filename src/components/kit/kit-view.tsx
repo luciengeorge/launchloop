@@ -12,6 +12,7 @@ import { getProgress, isOwner } from "@/lib/progress";
 import type { Kit } from "@/lib/schema";
 import { buildTasks, mask, maskContent } from "@/lib/tasks";
 import { KitChecklist } from "./kit-checklist";
+import { FreeTagline } from "./free-tagline";
 import { KitErrorState } from "./kit-error-state";
 import { KitOverview } from "./kit-overview";
 import { PreviewNewsletter } from "./preview-newsletter";
@@ -34,6 +35,7 @@ export async function KitView({ kit, session, query }: Props) {
         <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Launch kit · {kit.source.repoUrl ?? kit.source.siteUrl ?? "sample app"}</p>
         <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">{kit.brief.name}</h1>
       </header>
+      {!kit.paid && kit.preview.tagline ? <FreeTagline tagline={kit.preview.tagline} /> : null}
       <KitOverview kit={kit} />
       {kit.paid ? <PaidKit kit={kit} session={session} query={query} /> : <LockedKit kit={kit} session={session} query={query} />}
     </div>
