@@ -3,8 +3,9 @@ import { addContact } from "./audience";
 import { launchChecklist } from "./copy";
 import { assemble, generateDraft, getDraft } from "./generation";
 import { kitFailedEmail, kitReadyEmail, sendEmail } from "./email";
-import { recordBillingCustomer } from "./billing";
-import { getKit, linkKitToUser, normaliseEmail, updateKit } from "./kits";
+import { assignPaidKit, type KitOwnership } from "./accounts";
+import { getStoredBillingCustomer, recordBillingCustomer } from "./billing";
+import { getKit, normaliseEmail, updateKit } from "./kits";
 import { captureServerEvent, eventUuid } from "./analytics-server";
 import { gatewayErrorType } from "./llm";
 import { captureException, captureExceptionThrottled } from "./observability";
@@ -33,8 +34,12 @@ export interface PaidOrder {
   customerId?: string;
 }
 
-/** Records a successful payment. Fast and idempotent; heavy work happens in `fulfilKit`. */
-export async function recordPayment(order: PaidOrder): Promise<void> {
+export interface RecordedPayment {
+  ownership: KitOwnership;
+}
+
+/** Records a paid kit (the only thing Checkout sells). Fast and idempotent; heavy work happens in `fulfilKit`. */
+export async function recordPayment(order: PaidOrder): Promise<RecordedPayment> {
   if (!order.kitId) throw new Error(`Kit payment ${order.ref} has no kitId`);
   // If the speculative draft is done, unlock in the same write so the kit is visible on the redirect.
   const ready = assemble((await getDraft(order.kitId)).sections);
@@ -53,11 +58,15 @@ export async function recordPayment(order: PaidOrder): Promise<void> {
             : {}),
         },
   );
-  if (order.email) {
-    await linkKitToUser(order.email, order.kitId);
-    await addContact(order.email, "kit");
-    if (order.customerId) await recordBillingCustomer(order.email, order.customerId, "kit");
+  if (!order.email) return { ownership: "none" };
+  const ownership = await assignPaidKit(order.email, order.kitId);
+  await addContact(order.email, "kit");
+  if (order.customerId) {
+    // A guest's email isn't verified, so their purchase never replaces the customer an account already has.
+    const stored = await getStoredBillingCustomer(order.email);
+    if (!stored || stored.customerId === order.customerId) await recordBillingCustomer(order.email, order.customerId, "kit");
   }
+  return { ownership };
 }
 
 export function needsFulfilment(kit: Kit): boolean {

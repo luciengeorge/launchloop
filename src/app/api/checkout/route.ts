@@ -12,6 +12,10 @@ import { resolveKitPromo } from "@/lib/kit-promo";
 import { getKit } from "@/lib/kits";
 import { captureException, captureMessage } from "@/lib/observability";
 import { checkoutPrice, createCheckoutUrl } from "@/lib/payments";
+import { clientIp, sharedRateLimit } from "@/lib/rate-limit";
+
+/** Signed-out kit checkouts create live Stripe sessions without a login, so they're capped per IP. */
+const GUEST_CHECKOUTS_PER_HOUR = Number(process.env.CHECKOUT_RATE_LIMIT_PER_HOUR ?? 20);
 
 export async function POST(req: Request) {
   const body = (await req.json().catch(() => ({}))) as { product?: unknown; kitId?: unknown; email?: unknown; analyticsId?: unknown; experiments?: unknown; fallbacks?: unknown };
@@ -20,11 +24,14 @@ export async function POST(req: Request) {
 
   const session = await getSession();
   const email = session?.email ?? (isEmail(body.email) ? body.email : undefined);
-  // Kits are bought from an account so they land in /account and progress can be saved.
-  if (!session) return Response.json({ error: "Confirm your email first so your kit is saved to your account.", code: "login_required" }, { status: 401 });
+  // Guests can buy too: Checkout collects their email and the webhook links the kit to it (see accounts.ts).
+  if (!session) {
+    const limit = await sharedRateLimit(`checkout:${clientIp(req)}`, [{ limit: GUEST_CHECKOUTS_PER_HOUR, seconds: 60 * 60 }]);
+    if (!limit.ok) return Response.json({ error: "Too many checkout attempts. Try again in a few minutes.", code: "rate_limited" }, { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } });
+  }
   const kit = typeof body.kitId === "string" ? await getKit(body.kitId) : null;
   if (!kit) return Response.json({ error: "That kit doesn't exist any more. Generate a new preview." }, { status: 404 });
-  if (kit.paid) return Response.json({ url: `/account/kits/${kit.id}` });
+  if (kit.paid) return Response.json({ url: session ? `/account/kits/${kit.id}` : `/kit/${kit.id}` });
   const kitId = kit.id;
   const attribution = kit.attribution;
   // If the background budget was used up, start writing now so it's (nearly) ready after checkout.

@@ -59,6 +59,7 @@ All are optional locally. See [`.env.example`](.env.example) for the full annota
 | `OG_PREVIEW_RATE_LIMIT_PER_HOUR` | OG preview tool checks per IP per hour (default 60) |
 | `NEWSLETTER_RATE_LIMIT_PER_HOUR` | Newsletter signups per IP per hour, shared across instances (default 10) |
 | `NEWSLETTER_WELCOME_DAILY_CAP` | Newsletter welcome emails per day across everyone (default 200). Past it, signups still subscribe without the email |
+| `CHECKOUT_RATE_LIMIT_PER_HOUR` | Optional: signed-out kit checkouts per IP per hour (default 20) |
 | `PREVIEW_GLOBAL_DAILY_CAP` | Optional spend cap: free previews and tagline generations across all visitors per UTC day (default 1500). Past it, `/api/kits` and `/api/tools/taglines` return 503 `code: "busy"` ("LaunchLoop is very busy right now, try again in a bit"). Paid kit generation is never capped by it |
 | `FREE_PREVIEWS_DISABLED` | Optional kill switch: `1` turns off free previews and tagline generations with the same `busy` response. Paid kit generation keeps running. Unset = on |
 | `KIT_RETRY_BACKOFF_MS` | Optional: waits between paid kit generation attempts, comma-separated milliseconds (default `10000,30000`). See "Paid kit failures" |
@@ -97,6 +98,15 @@ stripe listen --forward-to localhost:3417/api/stripe/webhook   # prints STRIPE_W
 
 Pay with card `4242 4242 4242 4242`. The webhook isn't required locally: the Checkout success URL (`/api/checkout/return`) verifies the session server-side and starts fulfilment. The webhook is the backstop if the buyer closes the tab.
 
+### Guest checkout
+
+Signed-out visitors can buy the kit without logging in. Checkout has no customer or account behind it and Stripe collects the email; the kit id, UTMs and LAUNCH14 metadata are the same as for signed-in buyers. Guest sessions use `customer_creation: "if_required"` (no Stripe Customer; the email comes back in `customer_details`), except when LAUNCH14 is applied: it's first-time-only, which Stripe's API reference says is invalid without a Customer, so those keep `"always"`. Once paid (webhook or success URL), the kit goes to that email (`src/lib/accounts.ts`):
+
+- an email that has logged in before (`user:<email>:account`, or an existing kit index) gets the kit in its account straight away;
+- any other email gets a pending purchase (`pending:<email>:kits`), claimed into the account on that address's first magic-link login. A signed-in session already sees its pending purchases in My kits.
+
+The buyer lands on `/checkout/success`, which offers a magic link prefilled with the email from the Checkout session. Signed-in buyers still land on `/account/kits/[id]?paid=1`.
+
 ## How it works
 
 ```
@@ -115,6 +125,7 @@ Stripe paid ─▶ recordPayment ─▶ fulfilKit: full copy (LLM + rubric + ret
 | `src/lib/images.tsx` | The three OG images via `@vercel/og`, watermarked until paid |
 | `src/lib/fulfil.ts` | Idempotent post-payment generation and email |
 | `src/lib/payments.ts` | Stripe Checkout (or the mock checkout URL) |
+| `src/lib/accounts.ts` | Accounts (emails that have logged in), and guest purchases waiting for their email's first login |
 | `src/lib/email.ts`, `src/lib/audience.ts` | Resend email and contacts, with mock outbox |
 | `src/lib/store.ts` | Key-value store: Upstash REST or local JSON files |
 

@@ -54,6 +54,7 @@ export default defineConfig({
         PREVIEW_RATE_LIMIT_PER_HOUR: "40",
         PREVIEW_RATE_LIMIT_PER_DAY: "60",
         MAGIC_LINK_RATE_LIMIT_PER_IP: "500",
+        CHECKOUT_RATE_LIMIT_PER_HOUR: "500",
         AUTH_SECRET: "playwright-test-secret",
         MOCK_LLM_FAILURES: "true",
         KIT_RETRY_BACKOFF_MS: "200,400",

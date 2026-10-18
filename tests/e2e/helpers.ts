@@ -61,14 +61,23 @@ export async function makeSampleKit(page: Page): Promise<string> {
   return new URL(page.url()).pathname.split("/").pop()!;
 }
 
-/** Unlock → magic link → mock checkout → unlocked kit in /account. Works logged in or out. */
+/** Signed out: "Log in first" → email → magic link sent (the unlock button is enabled once the panel has hydrated). */
+export async function requestUnlockLogin(page: Page, email: string, price = "£19") {
+  await expect(page.getByRole("button", { name: `Unlock the full kit, ${price}` })).toBeEnabled();
+  await page.getByTestId("unlock-login-first").click();
+  await page.getByLabel("Your email").fill(email);
+  await page.getByRole("button", { name: "Continue to checkout" }).click();
+  await expect(page.getByTestId("unlock-panel")).toHaveAttribute("data-step", "sent");
+}
+
+/** Log in first (if signed out) → magic link → mock checkout → unlocked kit in /account. Works logged in or out. */
 export async function unlockAndPay(page: Page, kitId: string, email: string) {
-  await page.getByRole("button", { name: "Unlock the full kit, £19" }).click();
-  if (await page.getByLabel("Your email").isVisible().catch(() => false)) {
-    await page.getByLabel("Your email").fill(email);
-    await page.getByRole("button", { name: "Continue to checkout" }).click();
-    await expect(page.getByTestId("unlock-panel")).toHaveAttribute("data-step", "sent");
+  await expect(page.getByRole("button", { name: "Unlock the full kit, £19" })).toBeEnabled();
+  if (await page.getByTestId("unlock-login-first").isVisible()) {
+    await requestUnlockLogin(page, email);
     await followMagicLink(page, email);
+  } else {
+    await page.getByRole("button", { name: "Unlock the full kit, £19" }).click();
   }
   await page.waitForURL(/\/checkout\/mock/);
   await expect(page.getByLabel("Email for your receipt and kit")).toHaveValue(email);

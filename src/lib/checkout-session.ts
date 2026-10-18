@@ -44,6 +44,13 @@ export interface SessionInput {
   promotionCode?: string;
 }
 
+/**
+ * A guest kit purchase needs no Customer: the email comes back in customer_details and the webhook links the
+ * kit by it. LAUNCH14 is first-time-only, and Stripe's API reference says such codes are invalid on sessions
+ * that don't create a Customer, so a session carrying it keeps "always".
+ */
+export const guestCustomerCreation = (promotionCode?: string) => (promotionCode ? ("always" as const) : ("if_required" as const));
+
 export function sessionParams({ product, priceId, metadata, customer, email, successUrl, cancelUrl, promotionCode }: SessionInput): Stripe.Checkout.SessionCreateParams {
   const item = PRODUCTS[product];
   return {
@@ -62,7 +69,7 @@ export function sessionParams({ product, priceId, metadata, customer, email, suc
     ],
     // A Customer lets buyers manage billing in the Customer Portal from /account. Stripe rejects
     // `customer` alongside `customer_email` or `customer_creation`.
-    ...(customer ? { customer } : { customer_email: email, customer_creation: "always" as const }),
+    ...(customer ? { customer } : { customer_email: email, customer_creation: guestCustomerCreation(promotionCode) }),
     // No free-text promotion code field: kit buyers only get LAUNCH14 through the promo experiment
     // (a field would let the control arm type it too).
     ...(promotionCode && product === "kit" ? { discounts: [{ promotion_code: promotionCode }] } : {}),

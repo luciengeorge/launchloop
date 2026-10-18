@@ -4,10 +4,11 @@ import { captureServerEvent, eventUuid, resolveDistinctId } from "@/lib/analytic
 import { attributionProperties } from "@/lib/attribution";
 import { env } from "@/lib/env";
 import { featureProperties, parseExperiments, parseFallbacks } from "@/lib/experiments";
-import { fulfilKit, recordPayment } from "@/lib/fulfil";
+import type { KitOwnership } from "@/lib/accounts";
+import { fulfilKit, recordPayment, type RecordedPayment } from "@/lib/fulfil";
 import { captureException, logEvent } from "@/lib/observability";
 import { deployEnv, stripeEventDecision } from "@/lib/deploy-env";
-import { sessionPromoCode, stripe } from "@/lib/payments";
+import { isPaidSession, sessionPromoCode, stripe } from "@/lib/payments";
 import { isProductId, type ProductId } from "@/lib/products";
 import { store } from "@/lib/store";
 
@@ -42,8 +43,9 @@ export async function POST(req: Request) {
   }
 
   const session = event.data.object;
-  // Session id and payment status only: no emails, names or customer details in the logs.
-  const log = (outcome: Outcome) => logEvent("stripe.webhook", { eventId: event.id, type: event.type, sessionId: session.id, paymentStatus: session.payment_status, outcome });
+  // Session id, payment status and where the kit went only: no emails, names or customer details in the logs.
+  const log = (outcome: Outcome, ownership?: KitOwnership) =>
+    logEvent("stripe.webhook", { eventId: event.id, type: event.type, sessionId: session.id, paymentStatus: session.payment_status, outcome, ownership });
 
   const decision = stripeEventDecision({ metadataEnv: session.metadata?.env, livemode: event.livemode, current: deployEnv(), secretKey: env.stripeSecretKey });
   if (!decision.handle) {
@@ -57,8 +59,7 @@ export async function POST(req: Request) {
 
   const product = session.metadata?.product;
   const kitId = session.metadata?.kitId;
-  // A 100%-off Checkout completes with "no_payment_required": it's a purchase like any other.
-  if (session.payment_status !== "paid" && session.payment_status !== "no_payment_required") {
+  if (!isPaidSession(session)) {
     // An async payment method (bank debit) settles later as checkout.session.async_payment_succeeded.
     await markHandled(event.id);
     log("awaiting_payment");
@@ -70,8 +71,10 @@ export async function POST(req: Request) {
     return Response.json({ received: true });
   }
 
+  let recorded: RecordedPayment;
   try {
-    await recordPayment({
+    // Guest checkouts have no account behind them: the kit goes to the email Stripe collected (see accounts.ts).
+    recorded = await recordPayment({
       product,
       kitId,
       email: session.customer_details?.email ?? session.customer_email ?? undefined,
@@ -98,7 +101,7 @@ export async function POST(req: Request) {
     );
   }
   after(() => trackCompleted(s, session, product));
-  log("fulfilled");
+  log("fulfilled", recorded.ownership);
   return Response.json({ received: true });
 }
 

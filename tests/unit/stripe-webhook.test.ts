@@ -7,7 +7,7 @@ const m = vi.hoisted(() => {
     kv,
     pending,
     after: vi.fn((fn: () => unknown) => void pending.push(Promise.resolve().then(fn))),
-    recordPayment: vi.fn<(order: unknown) => Promise<void>>(async () => {}),
+    recordPayment: vi.fn<(order: unknown) => Promise<{ ownership?: "account" | "pending" | "none" }>>(async () => ({ ownership: "pending" })),
     fulfilKit: vi.fn<(id: string) => Promise<void>>(async () => {}),
     captureServerEvent: vi.fn<(event: string, params: unknown) => Promise<void>>(async () => {}),
     captureException: vi.fn(),
@@ -17,7 +17,8 @@ const m = vi.hoisted(() => {
 vi.mock("server-only", () => ({}));
 vi.mock("next/server", () => ({ after: m.after }));
 vi.mock("@/lib/env", () => ({ env: { stripeWebhookSecret: "whsec_unit", stripeSecretKey: "sk_test_unit" } }));
-vi.mock("@/lib/payments", () => ({
+vi.mock("@/lib/payments", async (importOriginal) => ({
+  ...(await importOriginal<object>()),
   // Signature checks are Stripe's job; the test body is the event itself.
   stripe: () => ({ webhooks: { constructEvent: (body: string) => JSON.parse(body) } }),
   sessionPromoCode: async () => undefined,
@@ -91,7 +92,7 @@ describe("Stripe webhook", () => {
     const [completed] = eventsNamed("checkout_completed");
     expect(completed.properties).toMatchObject({ plan: "kit", amount: 1900, stripeSessionId: event.data.object.id, utm_source: "hn" });
 
-    expect(logLines()).toEqual([{ event: "stripe.webhook", eventId: event.id, type: "checkout.session.completed", sessionId: event.data.object.id, paymentStatus: "paid", outcome: "fulfilled" }]);
+    expect(logLines()).toEqual([{ event: "stripe.webhook", eventId: event.id, type: "checkout.session.completed", sessionId: event.data.object.id, paymentStatus: "paid", outcome: "fulfilled", ownership: "pending" }]);
     expect(JSON.stringify(logLines())).not.toMatch(/buyer@example\.com|cus_1|whsec|sk_test/);
   });
 

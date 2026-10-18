@@ -17,6 +17,7 @@ export interface KeyValueStore {
   /** Increments a counter, setting its TTL when it is first created. Returns the new value. */
   incr(key: string, ttlSeconds: number): Promise<number>;
   sAdd(key: string, member: string): Promise<void>;
+  sRem(key: string, member: string): Promise<void>;
   sMembers(key: string): Promise<string[]>;
 }
 
@@ -87,6 +88,13 @@ class FileStore implements KeyValueStore {
     });
   }
 
+  sRem(key: string, member: string): Promise<void> {
+    return this.serial(async () => {
+      const members = (await this.get<string[]>(key)) ?? [];
+      if (members.includes(member)) await this.set(key, members.filter((m) => m !== member));
+    });
+  }
+
   async sMembers(key: string): Promise<string[]> {
     return (await this.get<string[]>(key)) ?? [];
   }
@@ -137,6 +145,10 @@ class RedisRestStore implements KeyValueStore {
     await this.command(["SADD", key, member]);
   }
 
+  async sRem(key: string, member: string): Promise<void> {
+    await this.command(["SREM", key, member]);
+  }
+
   async sMembers(key: string): Promise<string[]> {
     return (await this.command<string[] | null>(["SMEMBERS", key])) ?? [];
   }
@@ -165,6 +177,9 @@ class PrefixedStore implements KeyValueStore {
   }
   sAdd(key: string, member: string) {
     return this.inner.sAdd(this.k(key), member);
+  }
+  sRem(key: string, member: string) {
+    return this.inner.sRem(this.k(key), member);
   }
   sMembers(key: string) {
     return this.inner.sMembers(this.k(key));

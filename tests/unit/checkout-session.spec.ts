@@ -4,7 +4,7 @@ import { RecurringPriceError, SHIP_LOOP_WAITLIST_ONLY, assertOneTimePrice, check
 const urls = { successUrl: "https://launchloop.dev/api/checkout/return?session_id={CHECKOUT_SESSION_ID}", cancelUrl: "https://launchloop.dev/kit/k1?checkout=cancelled" };
 
 test.describe("Checkout session params", () => {
-  test("kit: unchanged one-time payment, signed in and signed out", () => {
+  test("kit: one-time payment, signed in (account's Customer) and signed out (guest, no Customer created)", () => {
     const metadata = { product: "kit", env: "production", kitId: "k1" };
     const line = { price: "price_kit", quantity: 1 };
     expect(sessionParams({ product: "kit", priceId: "price_kit", metadata, customer: "cus_1", email: "a@b.co", ...urls })).toEqual({
@@ -20,7 +20,7 @@ test.describe("Checkout session params", () => {
       mode: "payment",
       line_items: [line],
       customer_email: "a@b.co",
-      customer_creation: "always",
+      customer_creation: "if_required",
       metadata,
       payment_intent_data: { metadata },
       success_url: urls.successUrl,
@@ -42,6 +42,10 @@ test.describe("Checkout session params", () => {
     expect(kit.discounts).toEqual([{ promotion_code: "promo_launch14" }]);
     expect(kit).not.toHaveProperty("allow_promotion_codes");
     expect(sessionParams({ product: "kit", priceId: "price_kit", metadata: {}, ...urls })).not.toHaveProperty("discounts");
+    // LAUNCH14 is first-time-only, which Stripe says is invalid without a Customer, so a guest session carrying it creates one.
+    const guestPromo = sessionParams({ product: "kit", priceId: "price_kit", metadata: {}, promotionCode: "promo_launch14", ...urls });
+    expect(guestPromo).toMatchObject({ customer_creation: "always", discounts: [{ promotion_code: "promo_launch14" }] });
+    expect(guestPromo).not.toHaveProperty("customer");
   });
 
   test("recurring prices are refused in payment mode", () => {

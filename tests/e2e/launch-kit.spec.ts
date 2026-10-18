@@ -61,7 +61,7 @@ test("sample app: blurred preview without leaks, unlock via magic link, instant 
   await expect(page.getByTestId("unlock-panel")).toBeVisible();
   page.removeAllListeners("response");
 
-  // Unlock → email → magic link → straight on to checkout with the email prefilled.
+  // Log in first → email → magic link → straight on to checkout with the email prefilled.
   const email = `buyer-${Date.now()}@example.com`;
   await unlockAndPay(page, kitId, email);
 
@@ -199,10 +199,15 @@ test("progress can't be written by someone who isn't the owner", async ({ page, 
   expect(res.status()).toBe(403);
 });
 
-test("kit checkout requires an account", async ({ request, page }) => {
+test("kit checkout works without an account, but not for a kit that doesn't exist", async ({ request, page }) => {
   const kitId = await makeSampleKit(page);
   const res = await request.post("/api/checkout", { data: { product: "kit", kitId } });
-  expect(res.status()).toBe(401);
+  expect(res.status()).toBe(200);
+  const url = new URL(((await res.json()) as { url: string }).url, "http://x");
+  expect(url.pathname).toBe("/checkout/mock");
+  expect(url.searchParams.get("kitId")).toBe(kitId);
+  expect(url.searchParams.get("email")).toBeNull();
+  expect((await request.post("/api/checkout", { data: { product: "kit", kitId: "doesNotExist1234567" } })).status()).toBe(404);
 });
 
 test("live site ingest picks up the page copy and brand colour", async ({ page }) => {

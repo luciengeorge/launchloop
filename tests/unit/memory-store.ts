@@ -51,6 +51,11 @@ export class MemoryStore implements KeyValueStore {
     if (!members.includes(member)) await this.set(key, [...members, member]);
   }
 
+  async sRem(key: string, member: string): Promise<void> {
+    const members = (await this.get<string[]>(key)) ?? [];
+    if (members.includes(member)) await this.set(key, members.filter((m) => m !== member));
+  }
+
   async sMembers(key: string): Promise<string[]> {
     return (await this.get<string[]>(key)) ?? [];
   }
