@@ -10,7 +10,7 @@ LaunchLoop turns a vibe-coded app into a launch kit. Paste a public GitHub repo 
 - Three on-brand social images rendered with `@vercel/og` (1200×630, 1600×900, 1270×760 PH gallery) in colours pulled from the site's CSS
 - A launch-day checklist
 
-Every platform limit is enforced (PH tagline 60, description 260, X 280 weighted, LinkedIn 3,000) and vote requests are stripped out. Visitors get a free watermarked preview (the PH tagline plus one X post). The full kit costs **£19** through Stripe Checkout and arrives on a results page, as a ZIP and by email via Resend. `/ship-loop` takes waitlist sign-ups and pre-orders for the £12/month (£99/year) subscription.
+Every platform limit is enforced (PH tagline 60, description 260, X 280 weighted, LinkedIn 3,000) and vote requests are stripped out. Visitors get a free watermarked preview (the PH tagline plus one X post). The full kit costs **£19** through Stripe Checkout and arrives on a results page, as a ZIP and by email via Resend. `/ship-loop` takes waitlist sign-ups (tagged `shiploop_waitlist`) for the planned £12/month (£99/year) subscription; no page starts a Ship Loop checkout until it's fixed.
 
 Stack: Next.js 16 (App Router, Cache Components), TypeScript, Tailwind v4, shadcn/ui, AI SDK 7 with Vercel AI Gateway, Stripe, Resend, `@vercel/og`, Playwright.
 
@@ -149,10 +149,11 @@ Two PostHog multivariate flags (50/50, variants `control` and `treatment`), eval
 
 | Flag | Where | `control` | `treatment` |
 | --- | --- | --- | --- |
-| `exp_launch14_promo` | Kit paywall (`UnlockPanel`) | £19, and kit Checkout has no promotion code field | £19 struck through, £14 with `LAUNCH14`; kit Checkout gets `discounts: [{ promotion_code }]` |
-| `exp_shiploop_success_upsell` | Kit success page (`/account/kits/[id]?paid=1`, buyer only) | Unchanged | Soft Ship Loop card: £99/year pre-order (Checkout for `STRIPE_PRICE_SHIPLOOP_YEARLY`) or the free waitlist |
+| `exp_launch14_promo` | Kit paywall (`UnlockPanel`), and server-side on the header CTA, home, `/pricing`, `/faq`, `/ship-loop` and the kit form (`KitPrice`) | £19, and kit Checkout has no promotion code field | £19 struck through, £14 with `LAUNCH14`; kit Checkout gets `discounts: [{ promotion_code }]` |
+| `exp_shiploop_success_upsell` | Kit success page (`/account/kits/[id]?paid=1`, buyer only) | Unchanged | Soft Ship Loop card with the waitlist capture (no checkout) |
 
 - **LAUNCH14 lives in Stripe.** The code's terms (amount, kit only, first-time customers, redemption cap, expiry) are set on the coupon and promotion code in the dashboard; the app only sends the promotion code id (`STRIPE_PROMO_LAUNCH14`, else looked up by code). If Stripe turns the code down, or no active code exists, the buyer gets a £19 session and the paywall says so before redirecting. Turn the flag off (or roll it to 100% `control`) when the code expires.
+- **Marketing pages read the promo flag on the server.** `isLaunchPromoOn()` (`src/lib/launch-promo-server.ts`) evaluates `exp_launch14_promo` for one fixed id, so it's only meaningful at a 0% or 100% rollout. It's cached with a 60 s revalidate (the pages are static and pick up a flip within a minute or two, no deploy), and any error or a 1.5 s timeout shows the plain £19. A kit checkout that arrives without a promo variant gets the same answer, so a £14 seen on home or `/pricing` is the Stripe total. PostHog serves no flags to bot user agents (including `HeadlessChrome`), so browser-side checks with a headless browser see control unless they set a normal user agent.
 - **The variant is reported by the browser.** `/api/checkout` trusts the `experiments` it's sent. With a fresh id per page load anyone could reload until they see the promo anyway, so the Stripe-side limits are the guard, not the flag.
 - **Toggling.** In PostHog (project LaunchLoop EU): Feature flags → the flag → set the release condition's variant split (e.g. `control` 100% to stop the test, `treatment` 100% to ship it) or disable the flag (everyone sees control). Changes apply on the next page load; no deploy.
 
@@ -180,10 +181,10 @@ Playwright builds the app into `.next-test` and runs it on port 3418 in forced m
 - analytics: UTMs on `$pageview` and later events, and one anonymous id from a landing page through to the server-side `checkout_completed` (the fixture server records what the fake PostHog receives at `/ph/_events`)
 - the full sample flow: preview → mock checkout → full kit, with every character counter within its limit, no "upvote" anywhere, ZIP download, all three images and the email in the outbox
 - live-page ingestion: name, features and brand colour
-- Ship Loop waitlist and pre-order
+- Ship Loop waitlist
 - the SEO endpoints
 
-Also: `npm run lint`, `npm run typecheck`, `npm run build`.
+Also: `npm test` (node-only unit tests in `tests/unit`, no browser or server), `npm run lint`, `npm run typecheck`, `npm run build`. `.github/workflows/ci.yml` runs all of them plus the e2e suite.
 
 ## Deploy to Vercel
 
