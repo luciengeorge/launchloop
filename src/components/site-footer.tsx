@@ -1,8 +1,10 @@
 import Link from "next/link";
+import { GUIDES, guidePath } from "@/lib/guides";
+import { PAGES } from "@/lib/pages";
 import { SITE } from "@/lib/site";
 import { TOOLS } from "@/lib/tools";
+import { FooterNewsletter } from "./footer-newsletter";
 import { Logo } from "./logo";
-import { NewsletterForm } from "./newsletter-form";
 import { SHIP_LOOP_LINK_LABEL, SoonBadge } from "./soon-badge";
 
 export function SiteFooter() {
@@ -12,7 +14,7 @@ export function SiteFooter() {
         <div className="space-y-4">
           <Logo />
           <p className="max-w-sm text-sm text-muted-foreground">{SITE.shortDescription} Built for makers shipping with Cursor, Lovable, Bolt and v0.</p>
-          <NewsletterForm />
+          <FooterNewsletter />
         </div>
         <nav aria-label="Product" className="space-y-3 text-sm">
           <h2 className="font-medium">Product</h2>
@@ -34,8 +36,11 @@ export function SiteFooter() {
             {TOOLS.map((tool) => (
               <li key={tool.path}><Link href={tool.path} className="hover:text-foreground">{tool.title}</Link></li>
             ))}
-            <li><Link href="/product-hunt-launch-checklist" className="hover:text-foreground">Product Hunt launch checklist</Link></li>
-            <li><Link href="/how-to-launch-a-vibe-coded-app" className="hover:text-foreground">How to launch a vibe-coded app</Link></li>
+            {GUIDES.map((g) => (
+              <li key={g.slug}><Link href={guidePath(g)} className="hover:text-foreground">{g.title}</Link></li>
+            ))}
+            <li><Link href={PAGES.tools.path} className="hover:text-foreground">All free tools</Link></li>
+            <li><Link href={PAGES.guides.path} className="hover:text-foreground">All guides</Link></li>
           </ul>
         </nav>
         <nav aria-label="Company" className="space-y-3 text-sm">

@@ -3,7 +3,7 @@ import type Stripe from "stripe";
 import { captureServerEvent, eventUuid, resolveDistinctId } from "@/lib/analytics-server";
 import { attributionProperties } from "@/lib/attribution";
 import { env } from "@/lib/env";
-import { featureProperties, parseExperiments } from "@/lib/experiments";
+import { featureProperties, parseExperiments, parseFallbacks } from "@/lib/experiments";
 import { fulfilKit, recordPayment } from "@/lib/fulfil";
 import { captureException, logEvent } from "@/lib/observability";
 import { deployEnv, stripeEventDecision } from "@/lib/deploy-env";
@@ -129,7 +129,7 @@ async function trackCompleted(s: Stripe, session: Stripe.Checkout.Session, produ
       mock: false,
       stripeSessionId: session.id,
       ...(promoCode ? { promo_code: promoCode } : {}),
-      ...featureProperties(parseExperiments(m)),
+      ...featureProperties(parseExperiments(m), parseFallbacks(m.fallbacks)),
     },
   });
 }

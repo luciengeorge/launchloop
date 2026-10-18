@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { type APIRequestContext, expect, type Page, test } from "@playwright/test";
 
 test("home has title, description and Open Graph tags", async ({ page }) => {
   await page.goto("/");
@@ -26,12 +26,148 @@ test("robots, sitemap and llms.txt", async ({ request }) => {
   expect(text).toContain("£19");
 });
 
+type JsonLdNode = { "@type": string; [key: string]: unknown };
+
+async function jsonLdNodes(page: Page): Promise<JsonLdNode[]> {
+  const blocks = await page.locator('script[type="application/ld+json"]').allTextContents();
+  return blocks.flatMap((raw) => {
+    const data = JSON.parse(raw);
+    expect(data["@context"]).toBe("https://schema.org");
+    return data["@graph"] ?? [data];
+  });
+}
+
+function findNode<T>(nodes: JsonLdNode[], type: string): T {
+  const node = nodes.find((n) => n["@type"] === type);
+  expect(node, type).toBeTruthy();
+  return node as unknown as T;
+}
+
+async function sitemapPaths(request: APIRequestContext): Promise<{ paths: string[]; xml: string }> {
+  const xml = await (await request.get("/sitemap.xml")).text();
+  return { xml, paths: [...xml.matchAll(/<loc>(.*?)<\/loc>/g)].map((m) => new URL(m[1]).pathname) };
+}
+
 test("FAQ page ships FAQPage JSON-LD", async ({ page }) => {
   await page.goto("/faq");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Frequently asked questions");
-  const jsonLd = JSON.parse((await page.locator('script[type="application/ld+json"]').textContent()) ?? "{}");
-  expect(jsonLd["@type"]).toBe("FAQPage");
-  expect(jsonLd.mainEntity.length).toBeGreaterThan(5);
+  const faq = findNode<{ mainEntity: unknown[] }>(await jsonLdNodes(page), "FAQPage");
+  expect(faq.mainEntity.length).toBeGreaterThan(5);
+});
+
+test("sitemap lists every indexable page once, with lastmod, and no redirecting URLs", async ({ request }) => {
+  const { xml, paths } = await sitemapPaths(request);
+  const expected = [
+    "/",
+    "/pricing",
+    "/ship-loop",
+    "/faq",
+    "/guides",
+    "/tools",
+    "/tools/product-hunt-tagline-checker",
+    "/tools/og-preview",
+    "/product-hunt-launch-checklist",
+    "/how-to-launch-a-vibe-coded-app",
+    "/privacy",
+    "/terms",
+  ];
+  expect(paths).toEqual(expect.arrayContaining(expected));
+  expect(new Set(paths).size).toBe(paths.length);
+  expect(xml.match(/<lastmod>\d{4}-\d{2}-\d{2}/g)?.length).toBe(paths.length);
+  for (const path of ["/product-hunt-tagline-checker", "/og-preview", "/blog", "/login", "/account"]) expect(paths).not.toContain(path);
+  for (const path of paths) expect((await request.get(path, { maxRedirects: 0 })).status(), path).toBe(200);
+});
+
+test("every sitemap page has unique, well-sized metadata with a self canonical and matching social tags", async ({ page, request }) => {
+  const { paths } = await sitemapPaths(request);
+  const titles = new Set<string>();
+  const descriptions = new Set<string>();
+  for (const path of paths) {
+    await page.goto(path);
+    const title = await page.title();
+    const description = (await page.locator('meta[name="description"]').getAttribute("content")) ?? "";
+    expect(title.length, `${path} title "${title}"`).toBeGreaterThanOrEqual(50);
+    expect(title.length, `${path} title "${title}"`).toBeLessThanOrEqual(60);
+    expect(description.length, `${path} description`).toBeGreaterThanOrEqual(120);
+    expect(description.length, `${path} description`).toBeLessThanOrEqual(160);
+    titles.add(title);
+    descriptions.add(description);
+
+    const self = path === "/" ? /^http:\/\/127\.0\.0\.1:\d+\/?$/ : new RegExp(`^http://127\\.0\\.0\\.1:\\d+${path}$`);
+    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", self);
+    await expect(page.locator('meta[property="og:url"]')).toHaveAttribute("content", self);
+    await expect(page.locator('meta[property="og:title"]')).toHaveAttribute("content", title);
+    await expect(page.locator('meta[property="og:description"]')).toHaveAttribute("content", description);
+    await expect(page.locator('meta[name="twitter:title"]')).toHaveAttribute("content", title);
+    await expect(page.locator('meta[name="twitter:card"]')).toHaveAttribute("content", "summary_large_image");
+    await expect(page.locator('meta[name="robots"]')).toHaveCount(1);
+    await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", "index, follow");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
+
+    const image = new URL((await page.locator('meta[property="og:image"]').first().getAttribute("content")) ?? "");
+    const res = await request.get(image.pathname);
+    expect(res.status(), `${path} og:image`).toBe(200);
+    expect(res.headers()["content-type"]).toBe("image/png");
+  }
+  expect(titles.size).toBe(paths.length);
+  expect(descriptions.size).toBe(paths.length);
+});
+
+test("trailing slashes, /blog and the old tool aliases redirect permanently", async ({ request }) => {
+  const redirects: [string, string][] = [
+    ["/pricing/", "/pricing"],
+    ["/faq/?ref=x", "/faq?ref=x"],
+    ["/tools/og-preview/", "/tools/og-preview"],
+    ["/blog", "/guides"],
+    ["/blog/anything", "/guides"],
+    ["/product-hunt-tagline-checker", "/tools/product-hunt-tagline-checker"],
+    ["/og-preview", "/tools/og-preview"],
+  ];
+  for (const [from, to] of redirects) {
+    const res = await request.get(from, { maxRedirects: 0 });
+    expect(res.status(), from).toBe(308);
+    const location = new URL(res.headers()["location"], "http://x");
+    expect(`${location.pathname}${location.search}`, from).toBe(to);
+  }
+});
+
+test("404 page has a 404 status, one noindex tag and no canonical", async ({ page }) => {
+  const res = await page.goto("/no-such-page");
+  expect(res?.status()).toBe(404);
+  await expect(page.locator('meta[name="robots"]')).toHaveCount(1);
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", "noindex");
+  await expect(page.locator('link[rel="canonical"]')).toHaveCount(0);
+});
+
+test("guides and tools hubs link every guide and tool", async ({ page, request }) => {
+  const { paths } = await sitemapPaths(request);
+  await page.goto("/guides");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Launch guides");
+  for (const path of ["/product-hunt-launch-checklist", "/how-to-launch-a-vibe-coded-app"]) await expect(page.locator(`main a[href="${path}"]`).first()).toBeVisible();
+  expect((await jsonLdNodes(page)).map((n) => n["@type"])).toEqual(expect.arrayContaining(["CollectionPage", "BreadcrumbList"]));
+
+  await page.goto("/tools");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Free launch tools");
+  for (const path of paths.filter((p) => p.startsWith("/tools/"))) await expect(page.locator(`main a[href="${path}"]`).first()).toBeVisible();
+
+  await page.goto("/product-hunt-launch-checklist");
+  await page.getByRole("navigation", { name: "Breadcrumb" }).getByRole("link", { name: "Guides" }).click();
+  await expect(page).toHaveURL(/\/guides$/);
+});
+
+test("pricing and Ship Loop ship product JSON-LD with GBP offers and breadcrumbs", async ({ page }) => {
+  for (const [path, name] of [
+    ["/pricing", "LaunchLoop"],
+    ["/ship-loop", "Ship Loop"],
+  ]) {
+    await page.goto(path);
+    const nodes = await jsonLdNodes(page);
+    const app = findNode<{ name: string; offers: { price: string; priceCurrency: string }[] }>(nodes, "SoftwareApplication");
+    expect(app.name).toBe(name);
+    expect(app.offers.length).toBeGreaterThan(1);
+    for (const offer of app.offers) expect(offer).toMatchObject({ priceCurrency: "GBP", price: expect.stringMatching(/^\d+(\.\d{2})?$/) });
+    expect(nodes.map((n) => n["@type"])).toContain("BreadcrumbList");
+  }
 });
 
 test("site OG image renders", async ({ request }) => {

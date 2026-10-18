@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { isLaunchPromoOn } from "@/lib/launch-promo-server";
 import { HeaderAuth } from "./header-auth";
 import { OG_PREVIEW, TAGLINE_CHECKER } from "@/lib/tools";
 import { Logo } from "./logo";
@@ -15,12 +16,13 @@ const NAV: NavItem[] = [
   { href: "/faq", label: "FAQ" },
 ];
 
-export function SiteHeader() {
+export async function SiteHeader() {
+  const promo = await isLaunchPromoOn();
   return (
     <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur">
-      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
-        <Logo />
-        <nav aria-label="Main" className="hidden items-center gap-6 text-sm text-muted-foreground md:flex">
+      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-2 px-4 sm:gap-4 sm:px-6">
+        <Logo compact />
+        <nav aria-label="Main" className="hidden items-center gap-4 text-sm text-muted-foreground md:flex lg:gap-6">
           {NAV.map((item) => (
             <Link
               key={item.href}
@@ -33,8 +35,8 @@ export function SiteHeader() {
             </Link>
           ))}
         </nav>
-        <div className="flex items-center gap-3 sm:gap-4">
-          <HeaderAuth />
+        <div className="flex items-center gap-2.5 sm:gap-4">
+          <HeaderAuth promo={promo} />
         </div>
       </div>
     </header>

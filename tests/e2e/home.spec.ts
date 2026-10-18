@@ -19,6 +19,27 @@ test("home header when signed out: Log in and Get my launch kit", async ({ page 
   await expect(banner.getByRole("button", { name: "Log out" })).toHaveCount(0);
 });
 
+test("phones: the home page doesn't scroll sideways, the header CTA fits and Log in stays on one line", async ({ page }) => {
+  // The test build has the launch promo flag off, so this is the plain "Get my launch kit, £19" CTA.
+  for (const width of [360, 375, 390, 400]) {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto("/");
+    const cta = page.getByRole("banner").getByRole("link", { name: "Get my launch kit, £19" });
+    await expect(cta).toBeVisible();
+    const layout = await page.evaluate(() => {
+      const login = document.querySelector("[data-testid=nav-login]")!;
+      const text = document.createRange();
+      text.selectNodeContents(login);
+      const cta = document.querySelector("header a[data-plan=kit]")!.getBoundingClientRect();
+      return { scrollWidth: document.documentElement.scrollWidth, clientWidth: document.documentElement.clientWidth, loginLines: text.getClientRects().length, ctaRight: cta.right, ctaHeight: cta.height };
+    });
+    expect(layout.scrollWidth, `document wider than a ${width}px viewport`).toBeLessThanOrEqual(layout.clientWidth);
+    expect(layout.ctaRight, `header CTA overflows a ${width}px viewport`).toBeLessThanOrEqual(layout.clientWidth);
+    expect(layout.ctaHeight, `header CTA wraps at ${width}px`).toBeLessThanOrEqual(36);
+    expect(layout.loginLines, `Log in wraps at ${width}px`).toBe(1);
+  }
+});
+
 test("home header when signed in: My kits and Log out, then back after logging out", async ({ page }) => {
   await logIn(page, uniqueEmail("homenav"));
   await page.goto("/");
@@ -83,6 +104,11 @@ test("invalid input shows a friendly error", async ({ page }) => {
   await page.getByLabel("GitHub repo or live site URL").fill("not a url");
   await page.getByRole("button", { name: "Get my free preview" }).first().click();
   await expect(page.getByTestId("kit-error")).toContainText("Paste something like github.com/you/your-app");
+
+  // Switching the input (here to a site URL) clears the error about the old one.
+  await page.getByLabel("GitHub repo or live site URL").fill("https://your-app.com");
+  await expect(page.getByTestId("kit-error")).toHaveCount(0);
+  await expect(page.getByLabel("GitHub repo or live site URL")).not.toHaveAttribute("aria-invalid");
 });
 
 test("newsletter signup succeeds", async ({ page }) => {

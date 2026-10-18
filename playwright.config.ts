@@ -1,4 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
+import { SERVER_LOG } from "./tests/e2e/server-log";
 
 const PORT = 3418;
 const FIXTURE_PORT = 3419;
@@ -23,8 +24,8 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
   projects: [
-    { name: "desktop", use: { ...devices["Desktop Chrome"] } },
-    { name: "mobile", use: { ...devices["Pixel 7"] }, testMatch: /(home|tagline-checker|og-preview)\.spec\.ts/ },
+    { name: "desktop", use: { ...devices["Desktop Chrome"] }, testIgnore: /newsletter-mobile\.spec\.ts/ },
+    { name: "mobile", use: { ...devices["Pixel 7"] }, testMatch: /(home|tagline-checker|og-preview|newsletter-mobile)\.spec\.ts/ },
   ],
   webServer: [
     {
@@ -33,7 +34,8 @@ export default defineConfig({
       reuseExistingServer: !process.env.CI,
     },
     {
-      command: `rm -rf .data-test && npx next build && npx next start -p ${PORT}`,
+      // The log copy lets tests catch errors Next.js only logs, like Date.now() before a dynamic boundary; stderr keeps it in the reporter.
+      command: `rm -rf .data-test && npx next build && npx next start -p ${PORT} 2>&1 | tee ${SERVER_LOG} >&2`,
       url: baseURL,
       timeout: 240_000,
       reuseExistingServer: !process.env.CI,
