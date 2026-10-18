@@ -11,6 +11,7 @@ test.describe("Checkout session params", () => {
       mode: "payment",
       line_items: [line],
       customer: "cus_1",
+      adaptive_pricing: { enabled: false },
       metadata,
       payment_intent_data: { metadata },
       success_url: urls.successUrl,
@@ -21,6 +22,7 @@ test.describe("Checkout session params", () => {
       line_items: [line],
       customer_email: "a@b.co",
       customer_creation: "if_required",
+      adaptive_pricing: { enabled: false },
       metadata,
       payment_intent_data: { metadata },
       success_url: urls.successUrl,
@@ -30,6 +32,18 @@ test.describe("Checkout session params", () => {
     expect(sessionParams({ product: "kit", metadata, ...urls }).line_items).toEqual([
       { quantity: 1, price_data: { currency: "gbp", unit_amount: 1900, product_data: { name: "LaunchLoop Launch Kit", description: expect.any(String) } } },
     ]);
+  });
+
+  test("Adaptive Pricing is off on every kit session, so Checkout charges the GBP price the site shows", () => {
+    const input = { product: "kit", priceId: "price_kit", metadata: {}, ...urls } as const;
+    for (const params of [
+      sessionParams({ ...input, customer: "cus_1" }),
+      sessionParams({ ...input, email: "a@b.co" }),
+      sessionParams({ ...input, customer: "cus_1", promotionCode: "promo_launch14" }),
+      sessionParams({ ...input, promotionCode: "promo_launch14" }),
+    ]) {
+      expect(params.adaptive_pricing).toEqual({ enabled: false });
+    }
   });
 
   test("promo codes: LAUNCH14 only on kit sessions in the treatment", () => {
