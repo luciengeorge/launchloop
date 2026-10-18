@@ -1,5 +1,6 @@
 import { expect, test, type APIRequestContext, type BrowserContext, type Page, type Request } from "@playwright/test";
-import { logIn, magicLinkFor, makeSampleKit, uniqueEmail } from "./helpers";
+import { HERO_HEADLINE_CONTROL, HERO_HEADLINE_TEST } from "../../src/lib/hero-headline";
+import { logIn, magicLinkFor, makeSampleKit, setHeroHeadline, uniqueEmail } from "./helpers";
 
 type Variant = "control" | "treatment";
 
@@ -103,14 +104,15 @@ test("promo treatment: £19 struck through, £14 with LAUNCH14, kept through the
   await other.close();
 });
 
+// posthog-js drops every event from a likely bot (HeadlessChrome UA or brand, navigator.webdriver).
+const userAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36";
+const notABot = (context: BrowserContext) =>
+  context.addInitScript(() => {
+    Object.defineProperty(Navigator.prototype, "webdriver", { get: () => false });
+    Object.defineProperty(Navigator.prototype, "userAgentData", { get: () => undefined });
+  });
+
 test.describe("promo bucketing", () => {
-  // posthog-js drops every event from a likely bot (HeadlessChrome UA or brand, navigator.webdriver).
-  const userAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36";
-  const notABot = (context: BrowserContext) =>
-    context.addInitScript(() => {
-      Object.defineProperty(Navigator.prototype, "webdriver", { get: () => false });
-      Object.defineProperty(Navigator.prototype, "userAgentData", { get: () => undefined });
-    });
   test.use({ userAgent });
   test.beforeEach(({ context }) => notABot(context));
 
@@ -319,4 +321,144 @@ test("Ship Loop upsell treatment: a waitlist capture after paying, no pre-order 
   await page.waitForLoadState("networkidle");
   await expect(page.getByTestId("ship-loop-upsell")).toHaveCount(0);
   expect(checkouts).toHaveLength(0);
+});
+
+test.describe("hero headline (exp_hero_headline)", () => {
+  test.use({ userAgent });
+  test.beforeEach(async ({ context }) => {
+    await notABot(context);
+    // Every home h1 text that was ever painted visible, frame by frame, and when the load event fired.
+    await context.addInitScript(() => {
+      const w = window as unknown as { __seenHeadlines: string[]; __loadAt?: number };
+      w.__seenHeadlines = [];
+      addEventListener("load", () => (w.__loadAt = performance.now()), { once: true });
+      const tick = () => {
+        for (const h1 of location.pathname === "/" ? document.querySelectorAll("main #start h1") : []) {
+          const text = h1.textContent ?? "";
+          if (getComputedStyle(h1).visibility === "visible" && !w.__seenHeadlines.includes(text)) w.__seenHeadlines.push(text);
+        }
+        requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    });
+  });
+  test.afterEach(({ request }) => setHeroHeadline(request, null));
+
+  const headline = (page: Page) => page.getByRole("main").getByRole("heading", { level: 1 });
+  const seenHeadlines = (page: Page) => page.evaluate(() => (window as unknown as { __seenHeadlines: string[] }).__seenHeadlines);
+  const SUBHEADLINE = "LaunchLoop reads your repo's README, package.json and recent commits, plus your live site";
+
+  /** This page's anonymous id, from its own $pageview (sent once the SDK has loaded after the page). */
+  async function pageId(page: Page, before: number): Promise<string> {
+    let id: string | undefined;
+    await expect
+      .poll(async () => {
+        const view = (await phEvents(page.request)).slice(before).find((e) => e.event === "$pageview" && e.properties.$pathname === "/");
+        id = view && distinctId(view);
+        return id;
+      })
+      .toBeTruthy();
+    return id!;
+  }
+
+  const heroEvents = async (request: APIRequestContext, id: string) =>
+    (await phEvents(request)).filter((e) => distinctId(e) === id && (e.properties.$feature_flag === "exp_hero_headline" || e.properties.flag === "exp_hero_headline"));
+
+  test("no flag (production until it's created): the current headline, never anything else, and nothing recorded", async ({ page }) => {
+    const before = (await phEvents(page.request)).length;
+    await page.goto("/");
+    await expect(headline(page)).toHaveText(HERO_HEADLINE_CONTROL);
+    await expect(headline(page).locator("span.text-primary")).toHaveText("Get your whole launch.");
+    const id = await pageId(page, before);
+    // Give a stray exposure or fallback time to arrive before checking there isn't one.
+    await page.waitForTimeout(1000);
+    expect(await heroEvents(page.request, id)).toEqual([]);
+    expect(await seenHeadlines(page)).toEqual([HERO_HEADLINE_CONTROL]);
+  });
+
+  test("forced test: only the h1 changes, with no swap, and the exposure joins preview_started on the page's id", async ({ page }) => {
+    await setHeroHeadline(page.request, "test");
+    const before = (await phEvents(page.request)).length;
+    await page.goto("/");
+    await expect(headline(page)).toHaveText(HERO_HEADLINE_TEST);
+    await expect(page.getByRole("main").getByText(SUBHEADLINE)).toBeVisible();
+    await expect(page.getByRole("button", { name: "Get my free preview" }).first()).toBeVisible();
+    await expect(page.getByRole("button", { name: "Try a sample app" })).toBeVisible();
+
+    const id = await pageId(page, before);
+    await expect.poll(async () => (await heroEvents(page.request, id)).map((e) => e.event)).toEqual(["$feature_flag_called"]);
+    const [exposure] = await heroEvents(page.request, id);
+    expect(exposure.properties).toMatchObject({ $feature_flag_response: "test", "$feature/exp_hero_headline": "test" });
+    // The exposure waited for the SDK to load after the page, as before: it didn't pull posthog-js in early.
+    const timing = await page.evaluate(() => ({
+      loadAt: (window as unknown as { __loadAt: number }).__loadAt,
+      flagsAt: performance.getEntriesByType("resource").find((e) => e.name.includes("/lp-relay/flags"))?.startTime,
+    }));
+    expect(timing.flagsAt).toBeGreaterThan(timing.loadAt);
+    expect(await seenHeadlines(page)).toEqual([HERO_HEADLINE_TEST]);
+
+    await page.getByRole("button", { name: "Try a sample app" }).click();
+    await page.waitForURL(/\/kit\/[\w-]+$/);
+    await expect.poll(async () => (await phEvents(page.request)).some((e) => e.event === "preview_started" && distinctId(e) === id)).toBe(true);
+  });
+
+  test("forced control: the current headline, with a control exposure", async ({ page }) => {
+    await setHeroHeadline(page.request, "control");
+    const before = (await phEvents(page.request)).length;
+    await page.goto("/");
+    await expect(headline(page)).toHaveText(HERO_HEADLINE_CONTROL);
+    const id = await pageId(page, before);
+    await expect.poll(async () => (await heroEvents(page.request, id)).map((e) => [e.event, e.properties.$feature_flag_response])).toEqual([["$feature_flag_called", "control"]]);
+  });
+
+  test("PostHog slower than the headline's budget: control, logged as flag_fallback rather than an exposure", async ({ page }) => {
+    await setHeroHeadline(page.request, "test", 2000);
+    const before = (await phEvents(page.request)).length;
+    await page.goto("/");
+    await expect(headline(page)).toHaveText(HERO_HEADLINE_CONTROL);
+    const id = await pageId(page, before);
+    await expect.poll(async () => (await heroEvents(page.request, id)).map((e) => e.event)).toEqual(["flag_fallback"]);
+    expect((await heroEvents(page.request, id))[0].properties).toMatchObject({ variant: "control", reason: "timeout", fallback: true });
+    expect(await seenHeadlines(page)).toEqual([HERO_HEADLINE_CONTROL]);
+  });
+
+  test("a flag that gives this view no variant: control, logged as flag_fallback (unassigned)", async ({ page }) => {
+    await setHeroHeadline(page.request, false);
+    const before = (await phEvents(page.request)).length;
+    await page.goto("/");
+    await expect(headline(page)).toHaveText(HERO_HEADLINE_CONTROL);
+    const id = await pageId(page, before);
+    await expect.poll(async () => (await heroEvents(page.request, id)).map((e) => [e.event, e.properties.reason])).toEqual([["flag_fallback", "unassigned"]]);
+  });
+
+  test("coming back to the home page client-side keeps the headline this page load showed", async ({ page }) => {
+    await setHeroHeadline(page.request, "test");
+    await page.goto("/");
+    await expect(headline(page)).toHaveText(HERO_HEADLINE_TEST);
+    await page.waitForLoadState("networkidle");
+    // The next server render would be control, but this page load already showed test.
+    await setHeroHeadline(page.request, "control");
+    await page.evaluate(() => ((window as unknown as { __samePage: boolean }).__samePage = true));
+    await page.getByRole("banner").getByRole("link", { name: "Pricing" }).click();
+    await page.waitForURL((u) => u.pathname === "/pricing");
+    await page.getByRole("banner").getByRole("link", { name: "LaunchLoop" }).first().click();
+    await page.waitForURL((u) => u.pathname === "/");
+    await expect(headline(page)).toHaveText(HERO_HEADLINE_TEST);
+    expect(await page.evaluate(() => (window as unknown as { __samePage?: boolean }).__samePage)).toBe(true);
+    expect(await seenHeadlines(page)).toEqual([HERO_HEADLINE_TEST]);
+  });
+
+  test("doesn't touch the other experiments: the kit paywall and checkout are as before", async ({ page }) => {
+    await setHeroHeadline(page.request, "test");
+    await logIn(page, uniqueEmail("hero-isolation"));
+    const kitId = await makeSampleKit(page);
+    await expect(page.getByTestId("kit-price")).toContainText("£19");
+    await expect(page.getByTestId("launch-promo")).toHaveCount(0);
+    const checkout = page.waitForRequest(isCheckout);
+    await page.getByRole("button", { name: "Unlock the full kit, £19" }).click();
+    expect(checkoutBody(await checkout)).toMatchObject({ product: "kit", experiments: {}, fallbacks: [] });
+    await page.waitForURL(/\/checkout\/mock\?product=kit/);
+    expect(new URL(page.url()).searchParams.get("kitId")).toBe(kitId);
+    expect(new URL(page.url()).searchParams.get("promo")).toBeNull();
+  });
 });

@@ -54,6 +54,16 @@ export async function logIn(page: Page, email: string) {
   await expect(page.getByTestId("account-email")).toHaveText(email);
 }
 
+/**
+ * Sets exp_hero_headline in the fake PostHog for every home page view (each is bucketed on a fresh `hero:<uuid>`),
+ * optionally answering late. `false`: the flag exists but gives no variant. `null`: no flag at all, as in
+ * production until it's created, and the fixture's default.
+ */
+export async function setHeroHeadline(request: APIRequestContext, variant: "control" | "test" | false | null, delayMs = 0) {
+  const flags = variant === null ? {} : { exp_hero_headline: variant };
+  await request.post("http://127.0.0.1:3419/ph/_flags", { data: { distinctId: "hero:*", flags, delayMs } });
+}
+
 export async function makeSampleKit(page: Page): Promise<string> {
   await page.goto("/");
   await page.getByRole("button", { name: "Try a sample app" }).click();

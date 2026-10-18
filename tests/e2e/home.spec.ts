@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
-import { logIn, makeSampleKit, uniqueEmail } from "./helpers";
+import { HERO_HEADLINE_CONTROL, HERO_HEADLINE_TEST } from "../../src/lib/hero-headline";
+import { logIn, makeSampleKit, setHeroHeadline, uniqueEmail } from "./helpers";
 
 test("home page explains the product and offers the input", async ({ page }) => {
   await page.goto("/");
@@ -8,6 +9,23 @@ test("home page explains the product and offers the input", async ({ page }) => 
   await expect(page.getByRole("button", { name: "Get my free preview" }).first()).toBeVisible();
   await expect(page.getByRole("heading", { name: "Three steps. Pay only for what you need." })).toBeVisible();
   await expect(page.getByText("£19", { exact: true }).first()).toBeVisible();
+});
+
+test.describe("exp_hero_headline test arm", () => {
+  test.afterEach(({ request }) => setHeroHeadline(request, null));
+
+  test("only the h1 changes, and the page still fits phones", async ({ page, isMobile }) => {
+    await setHeroHeadline(page.request, "test");
+    for (const width of isMobile ? [360, 412] : [1280]) {
+      await page.setViewportSize({ width, height: 844 });
+      await page.goto("/");
+      await expect(page.getByRole("heading", { level: 1 })).toHaveText(HERO_HEADLINE_TEST);
+      await expect(page.getByLabel("GitHub repo or live site URL")).toBeVisible();
+      await expect(page.getByRole("button", { name: "Get my free preview" }).first()).toBeVisible();
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+      expect(overflow, `document wider than a ${width}px viewport`).toBeLessThanOrEqual(0);
+    }
+  });
 });
 
 test("home header when signed out: Log in and Get my launch kit", async ({ page }) => {
@@ -164,5 +182,13 @@ test.describe("without JavaScript", () => {
     await page.getByRole("button", { name: "Subscribe" }).click();
     await page.waitForURL(/subscribed=1/);
     expect(page.url()).not.toContain("example.com");
+  });
+
+  test("the headline still shows: control, since the streamed variant needs JavaScript to swap in", async ({ page }) => {
+    await setHeroHeadline(page.request, "test");
+    await page.goto("/");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(HERO_HEADLINE_CONTROL);
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await setHeroHeadline(page.request, null);
   });
 });
