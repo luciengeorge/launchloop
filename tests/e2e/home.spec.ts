@@ -19,6 +19,22 @@ test("home header when signed out: Log in and Get my launch kit", async ({ page 
   await expect(banner.getByRole("button", { name: "Log out" })).toHaveCount(0);
 });
 
+test("phones: the home page doesn't scroll sideways and Log in stays on one line", async ({ page }) => {
+  for (const width of [360, 390, 400]) {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto("/");
+    await expect(page.getByRole("banner").getByRole("link", { name: "Get my launch kit" })).toBeVisible();
+    const layout = await page.evaluate(() => {
+      const login = document.querySelector("[data-testid=nav-login]")!;
+      const text = document.createRange();
+      text.selectNodeContents(login);
+      return { scrollWidth: document.documentElement.scrollWidth, clientWidth: document.documentElement.clientWidth, loginLines: text.getClientRects().length };
+    });
+    expect(layout.scrollWidth, `document wider than a ${width}px viewport`).toBeLessThanOrEqual(layout.clientWidth);
+    expect(layout.loginLines, `Log in wraps at ${width}px`).toBe(1);
+  }
+});
+
 test("home header when signed in: My kits and Log out, then back after logging out", async ({ page }) => {
   await logIn(page, uniqueEmail("homenav"));
   await page.goto("/");
