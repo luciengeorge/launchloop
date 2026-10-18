@@ -234,7 +234,7 @@ export function TaglineChecker() {
           </form>
 
           {error ? (
-            <Alert variant="destructive" role="alert" id={`${ids}-error`} data-testid="tagline-error" data-code={error.code}>
+            <Alert variant={error.code === "busy" ? "default" : "destructive"} role="alert" id={`${ids}-error`} data-testid="tagline-error" data-code={error.code}>
               <AlertDescription>
                 <p className="font-medium text-foreground">{error.message}</p>
                 {error.fix ? <p className="mt-1">{error.fix}</p> : null}

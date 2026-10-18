@@ -15,6 +15,7 @@ export type KitErrorCode =
   | "site_not_html"
   | "llm_failed"
   | "rate_limited"
+  | "busy"
   | "unknown";
 
 export const KIT_ERRORS: Record<KitErrorCode, { title: string; fix: string }> = {
@@ -42,6 +43,10 @@ export const KIT_ERRORS: Record<KitErrorCode, { title: string; fix: string }> = 
   rate_limited: {
     title: "You've used your free previews for now.",
     fix: `You can run ${PREVIEW_LIMITS.perHour} an hour and ${PREVIEW_LIMITS.perDay} a day. Try again later, or unlock the full kit for an app you've already previewed.`,
+  },
+  busy: {
+    title: "LaunchLoop is very busy right now, try again in a bit.",
+    fix: "Free previews are paused for a little while. Kits you've already unlocked aren't affected.",
   },
   unknown: { title: "Something went wrong reading your app.", fix: "Try again. If it keeps happening, email hello@launchloop.dev." },
 };

@@ -56,6 +56,8 @@ All are optional locally. See [`.env.example`](.env.example) for the full annota
 | `NEXT_PUBLIC_SITE_URL` | Canonical URLs, sitemap, email links |
 | `MOCK_MODE` | Force everything into mock mode |
 | `PREVIEW_RATE_LIMIT_PER_HOUR` | Free previews per IP per hour (default 12) |
+| `PREVIEW_GLOBAL_DAILY_CAP` | Optional spend cap: free previews and tagline generations across all visitors per UTC day (default 1500). Past it, `/api/kits` and `/api/tools/taglines` return 503 `code: "busy"` ("LaunchLoop is very busy right now, try again in a bit"). Paid kit generation is never capped by it |
+| `FREE_PREVIEWS_DISABLED` | Optional kill switch: `1` turns off free previews and tagline generations with the same `busy` response. Paid kit generation keeps running. Unset = on |
 | `SENTRY_DSN` | Reserved for Sentry (see "Error logging") |
 | `NEXT_PUBLIC_POSTHOG_KEY`, `NEXT_PUBLIC_POSTHOG_HOST` | Conversion analytics (see "Analytics"). Host defaults to `https://eu.i.posthog.com` |
 
@@ -182,6 +184,12 @@ Playwright builds the app into `.next-test` and runs it on port 3418 in forced m
 - live-page ingestion: name, features and brand colour
 - Ship Loop waitlist and pre-order
 - the SEO endpoints
+
+Unit tests (Vitest, `tests/unit/`) cover the free-preview gate against an in-memory store:
+
+```bash
+npm test
+```
 
 Also: `npm run lint`, `npm run typecheck`, `npm run build`.
 

@@ -8,18 +8,13 @@ import { cookies } from "next/headers";
 import { ANON_KITS_COOKIE, getSession, readAnonKits, secureCookies } from "@/lib/auth";
 import { createKit, newId } from "@/lib/kits";
 import { captureException } from "@/lib/observability";
-import { freePreviewLimit } from "@/lib/rate-limit";
+import { freePreviewGate } from "@/lib/rate-limit";
 
 export const maxDuration = 60;
 
 export async function POST(req: Request) {
-  const limit = await freePreviewLimit(req);
-  if (!limit.ok) {
-    return Response.json(
-      kitErrorBody("rate_limited"),
-      { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } },
-    );
-  }
+  const refused = await freePreviewGate(req);
+  if (refused) return refused;
 
   let url: unknown;
   try {

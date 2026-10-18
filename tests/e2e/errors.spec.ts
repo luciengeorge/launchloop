@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { kitErrorBody } from "../../src/lib/errors";
 import { followMagicLink } from "./helpers";
 
 const FIXTURE = "http://127.0.0.1:3419";
@@ -82,4 +83,17 @@ test("preview requests are rate limited per IP across the hour", async ({ reques
   expect(body.code).toBe("rate_limited");
   // A different IP is unaffected.
   expect((await request.post("/api/kits", { data: { url: "not a url" }, headers: { "x-forwarded-for": "198.51.100.7" } })).status()).toBe(422);
+});
+
+test("busy (global cap or kill switch) shows the friendly notice, not an error", async ({ page }) => {
+  await page.route("**/api/kits", (route) => route.fulfill({ status: 503, json: kitErrorBody("busy") }));
+  await page.goto("/");
+  await page.getByLabel("GitHub repo or live site URL").fill("github.com/acme/app");
+  await page.getByRole("button", { name: "Get my free preview" }).first().click();
+  const alert = page.getByTestId("kit-error");
+  await expect(alert).toHaveAttribute("data-code", "busy");
+  await expect(alert).toContainText("LaunchLoop is very busy right now, try again in a bit.");
+  await expect(alert).toContainText("Kits you've already unlocked aren't affected");
+  await expect(alert).not.toHaveClass(/text-destructive/);
+  await expect(page.getByLabel("GitHub repo or live site URL")).toBeEnabled();
 });

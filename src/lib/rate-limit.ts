@@ -1,4 +1,5 @@
 import "server-only";
+import { kitErrorBody } from "./errors";
 import { PREVIEW_LIMITS } from "./site";
 import { store } from "./store";
 
@@ -33,6 +34,40 @@ export function freePreviewLimit(req: Request) {
     { limit: PREVIEWS_PER_HOUR, seconds: 60 * 60 },
     { limit: PREVIEWS_PER_DAY, seconds: 24 * 60 * 60 },
   ]);
+}
+
+const DEFAULT_GLOBAL_DAILY_CAP = 1500;
+
+/** A missing or malformed value falls back to the default rather than switching the cap off. */
+function globalDailyCap(): number {
+  const raw = process.env.PREVIEW_GLOBAL_DAILY_CAP?.trim();
+  const cap = raw ? Number(raw) : NaN;
+  return Number.isFinite(cap) && cap >= 0 ? cap : DEFAULT_GLOBAL_DAILY_CAP;
+}
+
+/** Kill switch: FREE_PREVIEWS_DISABLED=1 stops every free LLM call without touching paid generation. */
+export const freePreviewsDisabled = () => process.env.FREE_PREVIEWS_DISABLED?.trim() === "1";
+
+/** Spend cap shared by every IP: free previews and tool generations per UTC day. */
+async function overGlobalDailyCap(): Promise<boolean> {
+  const day = new Date().toISOString().slice(0, 10);
+  const used = await store().incr(`cap:previews:${day}`, 2 * 24 * 60 * 60);
+  return used > globalDailyCap();
+}
+
+const busy = () => Response.json(kitErrorBody("busy"), { status: 503 });
+
+/**
+ * Runs before any free LLM work (the preview and the free tools). Returns the response to send
+ * when the request is refused, or null to go ahead. Paid generation never goes through here.
+ * The per-IP limit is checked first so one noisy IP can't use up the global cap for everyone.
+ */
+export async function freePreviewGate(req: Request): Promise<Response | null> {
+  if (freePreviewsDisabled()) return busy();
+  const limit = await freePreviewLimit(req);
+  if (!limit.ok) return Response.json(kitErrorBody("rate_limited"), { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } });
+  if (await overGlobalDailyCap()) return busy();
+  return null;
 }
 
 const OG_PREVIEWS_PER_HOUR = Number(process.env.OG_PREVIEW_RATE_LIMIT_PER_HOUR ?? 60);

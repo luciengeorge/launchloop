@@ -107,6 +107,7 @@ function imageError(error: IngestError): string {
     case "github_unavailable":
     case "llm_failed":
     case "rate_limited":
+    case "busy":
     case "unknown":
       return "we couldn't reach it";
     default: {
