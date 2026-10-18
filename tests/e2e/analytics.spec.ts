@@ -1,5 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
-import { uniqueEmail } from "./helpers";
+import { expect, test, type Page, type Request } from "@playwright/test";
+import { makeSampleKit, uniqueEmail } from "./helpers";
 
 const FIXTURE = "http://127.0.0.1:3419";
 
@@ -142,29 +142,39 @@ test("the preview request carries first-touch UTMs and the referring domain from
   expect(body.attribution.utm_content).toHaveLength(200);
 });
 
-test("navigating before the PostHog SDK loads still records the landing pageview and keeps its UTMs", async ({ page }) => {
-  const campaign = `early-nav-${Date.now()}`;
-  let sdkRequested!: () => void;
-  const requested = new Promise<void>((resolve) => (sdkRequested = resolve));
+/**
+ * Holds back the lazily loaded PostHog SDK chunk (only posthog-js contains `$lib_version`) until `release()`.
+ * `requested` resolves when the page asks for it: after the load event, or earlier if something needs PostHog.
+ */
+async function holdPostHogSdk(page: Page) {
+  let markRequested!: () => void;
+  const requested = new Promise<void>((resolve) => (markRequested = resolve));
   let release!: () => void;
   const released = new Promise<void>((resolve) => (release = resolve));
-  // Hold back the lazily loaded SDK chunk (only posthog-js contains `$lib_version`) until after the navigation.
   await page.route("**/_next/static/**/*.js", async (route) => {
     const response = await route.fetch();
     const body = await response.text();
     if (body.includes("$lib_version")) {
-      sdkRequested();
+      markRequested();
       await released;
     }
     await route.fulfill({ response, body });
   });
+  return { requested, release };
+}
+
+const isCheckout = (r: Request) => r.method() === "POST" && new URL(r.url()).pathname === "/api/checkout";
+
+test("navigating before the PostHog SDK loads still records the landing pageview and keeps its UTMs", async ({ page }) => {
+  const campaign = `early-nav-${Date.now()}`;
+  const sdk = await holdPostHogSdk(page);
 
   await page.goto(`/?utm_source=hn&utm_medium=social&utm_campaign=${campaign}`);
   // The SDK is only requested after the load event, so the page has hydrated and the link navigates client-side.
-  await requested;
+  await sdk.requested;
   await page.getByRole("banner").getByRole("link", { name: "Pricing" }).click();
   await page.waitForURL((u) => u.pathname === "/pricing");
-  release();
+  sdk.release();
 
   let pageviews: PhEvent[] = [];
   await expect
@@ -175,8 +185,74 @@ test("navigating before the PostHog SDK loads still records the landing pageview
     .toEqual(["/", "/pricing"]);
   const landing = pageviews.find((e) => e.properties.$pathname === "/")!;
   const pricing = pageviews.find((e) => e.properties.$pathname === "/pricing")!;
-  expect(landing.properties).toMatchObject({ utm_source: "hn", utm_medium: "social" });
+  expect(landing.properties).toMatchObject({ utm_source: "hn", utm_medium: "social", env: expect.any(String), is_webdriver: false });
   expect(landing.properties.$current_url).toContain(`utm_campaign=${campaign}`);
   expect(pricing.properties.utm_source).toBe("hn");
   expect(distinctId(pricing)).toBe(distinctId(landing));
+});
+
+test("a preview started before the PostHog SDK loads: its events wait for the SDK, and first touch and the server trace don't", async ({ page }) => {
+  const campaign = `early-preview-${Date.now()}`;
+  const pageErrors: Error[] = [];
+  page.on("pageerror", (error) => pageErrors.push(error));
+  const sdk = await holdPostHogSdk(page);
+
+  await page.goto(`/?utm_source=hn&utm_medium=social&utm_campaign=${campaign}&qa=1`, { referer: "https://news.ycombinator.com/item?id=1" });
+  await sdk.requested;
+  const kitRequest = page.waitForRequest((r) => r.url().endsWith("/api/kits") && r.method() === "POST");
+  await page.getByRole("button", { name: "Try a sample app" }).click();
+  const body = (await kitRequest).postDataJSON() as { attribution: Record<string, string> };
+  expect(body.attribution).toMatchObject({ utm_source: "hn", utm_medium: "social", utm_campaign: campaign, referring_domain: "news.ycombinator.com" });
+  await page.waitForURL(/\/kit\/[\w-]+$/);
+  const kitId = new URL(page.url()).pathname.split("/").pop()!;
+
+  // Queued, not dropped: nothing for this visit has reached PostHog while the SDK is held.
+  expect((await phEvents(page)).filter((e) => e.properties.utm_campaign === campaign)).toEqual([]);
+  sdk.release();
+
+  const started = await campaignEvent(page, campaign, "preview_started");
+  const completed = await campaignEvent(page, campaign, "preview_completed");
+  expect(started.properties).toMatchObject({ source: "sample", utm_source: "hn", qa: true });
+  expect(completed.properties.kitId).toBe(kitId);
+  let landing: PhEvent | undefined;
+  await expect
+    .poll(async () => {
+      landing = (await phEvents(page)).find((e) => e.event === "$pageview" && e.properties.$pathname === "/" && e.properties.utm_campaign === campaign);
+      return landing;
+    })
+    .toBeTruthy();
+  expect(distinctId(started)).toBe(distinctId(landing!));
+  expect(distinctId(completed)).toBe(distinctId(landing!));
+
+  // The server traces the preview whatever the browser SDKs are doing.
+  await expect
+    .poll(async () => {
+      const spans = (await (await page.request.get(`${FIXTURE}/sentry/_spans`)).json()) as { name: string; attributes?: Record<string, { value: unknown }> }[];
+      return spans.some((s) => s.name === "kits.request" && s.attributes?.["kit.id"]?.value === kitId);
+    })
+    .toBe(true);
+  expect(pageErrors).toEqual([]);
+});
+
+test("a guest checkout started before the PostHog SDK loads waits for it and joins the funnel on the page's id", async ({ page }) => {
+  const kitId = await makeSampleKit(page);
+  const sdk = await holdPostHogSdk(page);
+  await page.goto(`/kit/${kitId}`);
+  await sdk.requested;
+
+  const unlock = page.getByRole("button", { name: "Unlock the full kit, £19" });
+  await expect(unlock).toBeEnabled();
+  const checkout = page.waitForRequest(isCheckout);
+  await unlock.click();
+  // The checkout request carries the page's analytics id, so it waits for the SDK rather than going without one.
+  await page.waitForTimeout(500);
+  expect(page.url()).toContain(`/kit/${kitId}`);
+  sdk.release();
+
+  const analyticsId = ((await checkout).postDataJSON() as { analyticsId?: string }).analyticsId;
+  expect(analyticsId).toBeTruthy();
+  await page.waitForURL(/\/checkout\/mock\?product=kit/);
+  expect((await serverEvent(page, analyticsId!, "checkout_started")).properties).toMatchObject({ product_type: "kit", amount: 1900 });
+  const pageview = await serverEvent(page, analyticsId!, "$pageview");
+  expect(pageview.properties.$pathname).toBe("/kit/[id]");
 });
