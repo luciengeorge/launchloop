@@ -17,13 +17,13 @@ export const metadata: Metadata = {
   description: SITE.description,
   applicationName: SITE.name,
   keywords: ["launch kit", "Product Hunt launch", "launch copy", "OG image generator", "vibe coding", "indie hackers", "X thread", "landing page copy"],
-  alternates: { canonical: "/" },
+  // No canonical, og:url or robots here: every child inherits them, so the 404 and noindex pages would canonicalise to the
+  // home page and the 404 would carry a conflicting robots tag. Indexable pages set their own through pageMetadata.
   openGraph: {
     type: "website",
     siteName: SITE.name,
     title: `${SITE.name}: ${SITE.tagline}`,
     description: SITE.description,
-    url: "/",
     locale: "en_GB",
     images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: `${SITE.name}: ${SITE.tagline}` }],
   },
@@ -31,7 +31,6 @@ export const metadata: Metadata = {
   manifest: "/manifest.webmanifest",
   formatDetection: { telephone: false },
   category: "technology",
-  robots: { index: true, follow: true },
 };
 
 export const viewport: Viewport = {

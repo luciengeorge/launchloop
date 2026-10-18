@@ -1,4 +1,5 @@
 import { Check, FileText, GitBranch, Globe, Image as ImageIcon, ListChecks, Megaphone, MessageSquareText, ShieldCheck } from "lucide-react";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { JsonLd } from "@/components/json-ld";
 import { KitForm } from "@/components/kit-form";
@@ -8,9 +9,13 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { siteUrl } from "@/lib/env";
+import { PAGES } from "@/lib/pages";
+import { pageMetadata } from "@/lib/seo";
 import { siteGraph } from "@/lib/structured-data";
 import { FAQ, KIT_CONTENTS } from "@/lib/site";
 import { OG_PREVIEW, TAGLINE_CHECKER } from "@/lib/tools";
+
+export const metadata: Metadata = pageMetadata(PAGES.home);
 
 const KIT_ICONS = [Globe, Megaphone, MessageSquareText, FileText, ImageIcon, ListChecks];
 
