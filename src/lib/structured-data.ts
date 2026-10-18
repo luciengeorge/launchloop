@@ -1,32 +1,9 @@
 import { SITE } from "@/lib/site";
 
 const SHIP_LOOP_DESCRIPTION =
-  "A subscription for after launch, coming soon. Every time you ship a release, Ship Loop drafts an X post, a LinkedIn post, a changelog blurb and an image in your colours, and emails them to you to approve or edit. It never posts for you.";
+  "Coming soon, with a free waitlist. Every time you ship a release, Ship Loop drafts an X post, a LinkedIn post, a changelog blurb and an image in your colours, and emails them to you to approve or edit. It never posts for you.";
 
-function shipLoopOffers(base: string) {
-  return [
-    {
-      "@type": "Offer",
-      name: "Ship Loop monthly",
-      price: "12.00",
-      priceCurrency: "GBP",
-      url: `${base}/ship-loop`,
-      availability: "https://schema.org/PreOrder",
-      priceSpecification: { "@type": "UnitPriceSpecification", price: "12.00", priceCurrency: "GBP", billingDuration: "P1M", unitCode: "MON" },
-    },
-    {
-      "@type": "Offer",
-      name: "Ship Loop yearly",
-      price: "99.00",
-      priceCurrency: "GBP",
-      url: `${base}/ship-loop`,
-      availability: "https://schema.org/PreOrder",
-      priceSpecification: { "@type": "UnitPriceSpecification", price: "99.00", priceCurrency: "GBP", billingDuration: "P1Y", unitCode: "ANN" },
-    },
-  ];
-}
-
-/** LaunchLoop itself, with every plan as an Offer. Shared by the home and pricing pages under one @id. */
+/** LaunchLoop itself, with what's on sale as Offers. Shared by the home and pricing pages under one @id. */
 export function launchLoopApp(base: string) {
   return {
     "@type": "SoftwareApplication",
@@ -41,12 +18,11 @@ export function launchLoopApp(base: string) {
     offers: [
       { "@type": "Offer", name: "Free preview", price: "0", priceCurrency: "GBP", url: `${base}/#start`, availability: "https://schema.org/InStock" },
       { "@type": "Offer", name: "Launch Kit (one-off)", price: "19.00", priceCurrency: "GBP", url: `${base}/pricing`, availability: "https://schema.org/InStock" },
-      ...shipLoopOffers(base),
     ],
   };
 }
 
-/** Ship Loop as its own product, for the /ship-loop page. */
+/** Ship Loop as its own product, for the /ship-loop page. No offers: it's a free waitlist, not on sale. */
 export function shipLoopApp(base: string) {
   return {
     "@type": "SoftwareApplication",
@@ -59,7 +35,6 @@ export function shipLoopApp(base: string) {
     description: SHIP_LOOP_DESCRIPTION,
     publisher: { "@id": `${base}/#organization` },
     isRelatedTo: { "@id": `${base}/#app` },
-    offers: shipLoopOffers(base),
   };
 }
 

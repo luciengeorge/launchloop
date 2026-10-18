@@ -4,7 +4,7 @@ import { resend } from "./email";
 import { captureException } from "./observability";
 import { store } from "./store";
 
-export type ContactSource = "newsletter" | "waitlist" | "preorder" | "kit";
+export type ContactSource = "newsletter" | "waitlist" | "kit";
 
 export const isEmail = (v: unknown): v is string =>
   typeof v === "string" && v.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v);

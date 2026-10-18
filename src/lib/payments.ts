@@ -5,7 +5,7 @@ import { deployEnv, stripeEventDecision } from "./deploy-env";
 import { env, isStripeMock } from "./env";
 import { withAnalyticsId, type ExperimentKey, type Experiments } from "./experiments";
 import { captureException, captureMessage } from "./observability";
-import { PreorderUnavailableError, assertOneTimePrice, launchPromoDue, preorderAvailable, sessionParams, type SessionInput } from "./checkout-session";
+import { assertOneTimePrice, launchPromoDue, sessionParams, type SessionInput } from "./checkout-session";
 import { LAUNCH_PROMO, chargedPence, isProductId, type ProductId } from "./products";
 
 let client: Stripe | null = null;
@@ -17,7 +17,6 @@ export function stripe(): Stripe | null {
 
 const priceIds: Record<ProductId, string | undefined> = {
   kit: env.stripePriceKit,
-  shiploop_preorder: env.stripePriceShipLoopPreorder,
 };
 
 /** What Checkout charges, for analytics. "inline" means no STRIPE_PRICE_* is set. */
@@ -141,24 +140,12 @@ async function createSession(s: Stripe, params: Stripe.Checkout.SessionCreatePar
 
 const oneTimePrices = new Set<string>();
 
-/** Throws RecurringPriceError for a recurring price, and PreorderUnavailableError when the pre-order price isn't in this Stripe account (a live id on test keys). */
+/** Throws RecurringPriceError for a recurring price. */
 async function checkOneTimePrice(s: Stripe, priceId: string, product: ProductId): Promise<void> {
   if (oneTimePrices.has(priceId)) return;
-  let price: Stripe.Price;
-  try {
-    price = await s.prices.retrieve(priceId);
-  } catch (error) {
-    if (product === "shiploop_preorder" && error instanceof Stripe.errors.StripeInvalidRequestError && error.code === "resource_missing") {
-      throw new PreorderUnavailableError(`STRIPE_PRICE_SHIPLOOP_PREORDER (${priceId}) is not in this Stripe account`, { cause: error });
-    }
-    throw error;
-  }
-  assertOneTimePrice(price, product);
+  assertOneTimePrice(await s.prices.retrieve(priceId), product);
   oneTimePrices.add(priceId);
 }
-
-/** Whether to show the Ship Loop pre-order CTA. STRIPE_PRICE_SHIPLOOP_PREORDER is required in production; without it the page falls back to the waitlist. */
-export const shipLoopPreorderOpen = () => preorderAvailable(!isStripeMock(), env.stripePriceShipLoopPreorder);
 
 let promoIdCache: string | undefined;
 

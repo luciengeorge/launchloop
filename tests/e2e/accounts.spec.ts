@@ -174,18 +174,6 @@ test("kits paid for with an email show up for that account with downloads and bi
   await fresh.close();
 });
 
-test("Ship Loop subscribers get a Manage billing button", async ({ page }) => {
-  const email = uniqueEmail("shiploop");
-  await page.goto("/checkout/mock?product=shiploop_preorder");
-  await page.getByLabel("Email for your receipt and kit").fill(email);
-  await page.getByRole("button", { name: /Pay/ }).click();
-  await page.waitForURL(/\/ship-loop\/thanks/);
-
-  await logIn(page, email);
-  await page.getByRole("button", { name: "Manage billing" }).click();
-  await expectBillingToastOnce(page, "unavailable in test mode");
-});
-
 test("billing redirect notes toast once and leave the URL clean", async ({ page }) => {
   await logIn(page, uniqueEmail("flash"));
   await page.goto("/account?billing=error");

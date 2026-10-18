@@ -23,18 +23,15 @@ export async function GET(req: Request) {
     if (!checkoutDecision(session).handle) return Response.redirect(new URL("/?checkout=error", url), 303);
     const product = session.metadata?.product;
     const kitId = session.metadata?.kitId;
-    if (session.payment_status !== "paid" || !isProductId(product)) {
+    if (session.payment_status !== "paid" || !isProductId(product) || !kitId) {
       return Response.redirect(new URL(kitId ? `/kit/${kitId}?checkout=pending` : "/ship-loop?checkout=pending", url), 303);
     }
     // Same anonymous id on the success page, so its flags and any upsell checkout join this purchase.
     const aid = session.metadata?.ph_distinct_id;
     const email = session.customer_details?.email ?? session.customer_email ?? undefined;
     await recordPayment({ product, kitId, email, ref: session.id, customerId: typeof session.customer === "string" ? session.customer : session.customer?.id });
-    if (product === "kit" && kitId) {
-      after(() => fulfilKit(kitId));
-      return Response.redirect(new URL(withAnalyticsId(`/account/kits/${kitId}?paid=1`, aid), url), 303);
-    }
-    return Response.redirect(new URL(withAnalyticsId(`/ship-loop/thanks?plan=${product}`, aid), url), 303);
+    after(() => fulfilKit(kitId));
+    return Response.redirect(new URL(withAnalyticsId(`/account/kits/${kitId}?paid=1`, aid), url), 303);
   } catch (error) {
     captureException(error, { stage: "api.checkout.return", sessionId });
     return Response.redirect(new URL("/?checkout=error", url), 303);

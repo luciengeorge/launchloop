@@ -8,7 +8,6 @@ import { buttonVariants } from "@/components/ui/button";
 import { siteUrl } from "@/lib/env";
 import { isLaunchPromoOn } from "@/lib/launch-promo-server";
 import { PAGES } from "@/lib/pages";
-import { shipLoopPreorderOpen } from "@/lib/payments";
 import { pageMetadata } from "@/lib/seo";
 import { breadcrumbs, shipLoopApp } from "@/lib/structured-data";
 
@@ -21,7 +20,7 @@ const FLOW = [
   { icon: MailCheck, title: "You approve.", body: "One email. Approve it as is or edit it, then post it yourself. Nothing is posted for you." },
 ];
 
-const comparison = (promo: boolean, preorder: boolean) => [
+const comparison = (promo: boolean) => [
   { label: "When", kit: "Launch day", loop: "Every release after" },
   {
     label: "Price",
@@ -33,43 +32,30 @@ const comparison = (promo: boolean, preorder: boolean) => [
     loop: "£12/month or £99/year (planned)",
   },
   { label: "You get", kit: "A full launch pack for one app", loop: "Draft posts and an image per release" },
-  { label: "Status", kit: "Available now", loop: preorder ? "Coming soon, founding pre-orders open" : "Coming soon, not on sale yet" },
+  { label: "Status", kit: "Available now", loop: "Coming soon, not on sale yet" },
 ];
 
 export default async function ShipLoopPage() {
   const base = siteUrl();
   const promo = await isLaunchPromoOn();
-  const preorder = shipLoopPreorderOpen();
   return (
     <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
       <JsonLd data={{ "@context": "https://schema.org", "@graph": [shipLoopApp(base), breadcrumbs(base, [{ name: "Ship Loop", path: PAGES.shipLoop.path }])] }} />
       <div className="grid gap-12 lg:grid-cols-[1fr_420px] lg:items-start">
         <div className="space-y-8">
           <div className="space-y-4">
-            <p className="font-mono text-xs uppercase tracking-widest text-primary">Coming soon · {preorder ? "Waitlist and founding pre-orders open" : "Waitlist open"}</p>
+            <p className="font-mono text-xs uppercase tracking-widest text-primary">Coming soon · Waitlist open</p>
             <h1 className="text-balance text-4xl font-semibold tracking-tight sm:text-5xl">You launched once. Now keep shipping in public.</h1>
             <p className="max-w-xl text-lg text-muted-foreground">
               Every time you ship a release, Ship Loop drafts an X post, a LinkedIn post, a changelog blurb and an image in your colours. You get one email. You approve or
               edit, then you post.
             </p>
             <div className="flex flex-wrap items-center gap-3 pt-2">
-              {preorder ? (
-                <a href="#plans" className={buttonVariants({ size: "lg", className: "px-5" })}>
-                  Pre-order Ship Loop, £99
-                </a>
-              ) : null}
-              <a href="#waitlist" className={buttonVariants({ variant: preorder ? "outline" : "default", size: "lg", className: "px-5" })}>
+              <a href="#waitlist" className={buttonVariants({ size: "lg", className: "px-5" })}>
                 Join the waitlist
               </a>
             </div>
-            {preorder ? (
-              <p className="text-sm text-muted-foreground">
-                Founding pre-order: £99 once, covering your first year of Ship Loop once it launches. Refunded in full if Ship Loop isn&apos;t live within 12 months. After that
-                first year, Ship Loop is £12/month or £99/year.
-              </p>
-            ) : (
-              <p className="text-sm text-muted-foreground">Ship Loop is coming soon. Get notified when it launches. Planned pricing: £12/month or £99/year.</p>
-            )}
+            <p className="text-sm text-muted-foreground">Ship Loop is coming soon. Join the waitlist, we&apos;ll email you when it launches. Planned pricing: £12/month or £99/year.</p>
           </div>
           <h2 className="sr-only">How Ship Loop works</h2>
           <ol className="grid gap-4 sm:grid-cols-2">
@@ -82,7 +68,6 @@ export default async function ShipLoopPage() {
             ))}
           </ol>
           <ul className="space-y-2 text-sm text-muted-foreground">
-            <li>• Bought a £19 Launch Kit? Subscribe within 14 days of buying and we credit the full £19.</li>
             <li>• Drafts only. We never post for you or ask anyone for upvotes.</li>
             <li>• Public GitHub repos at launch. Private repos via a GitHub App later.</li>
           </ul>
@@ -99,7 +84,7 @@ export default async function ShipLoopPage() {
                 </tr>
               </thead>
               <tbody className="text-muted-foreground">
-                {comparison(promo, preorder).map((row) => (
+                {comparison(promo).map((row) => (
                   <tr key={row.label} className="border-b border-border/60 last:border-0">
                     <th scope="row" className="py-2 pr-4 font-medium text-foreground">{row.label}</th>
                     <td className="py-2 pr-4">{row.kit}</td>
@@ -109,7 +94,7 @@ export default async function ShipLoopPage() {
               </tbody>
             </table>
             <p className="mt-4 text-sm text-muted-foreground">
-              Most people buy the kit to launch, then add Ship Loop. Subscribe within 14 days of buying a kit and we credit the £19.
+              Buy the kit to launch today. Ship Loop is for the releases after: join the waitlist, we&apos;ll email you when it launches.
             </p>
             <div className="mt-4 flex flex-wrap gap-3">
               <StartLink plan="kit" className={buttonVariants({ variant: "outline" })}>
@@ -121,7 +106,7 @@ export default async function ShipLoopPage() {
             </div>
           </section>
         </div>
-        <ShipLoopPlans preorderOpen={preorder} />
+        <ShipLoopPlans />
       </div>
     </div>
   );

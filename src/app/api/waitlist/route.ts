@@ -3,7 +3,8 @@ import { RESERVED_EMAIL_ERROR } from "@/lib/login-errors";
 import { captureException } from "@/lib/observability";
 import { readBody } from "@/lib/form-body";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
-import { WAITLIST_TAG, isWaitlistSource, type WaitlistResponse } from "@/lib/waitlist";
+import { store } from "@/lib/store";
+import { WAITLIST_MEMBERS_KEY, WAITLIST_TAG, isWaitlistSource, type WaitlistResponse } from "@/lib/waitlist";
 
 export async function POST(req: Request) {
   if (!rateLimit(`waitlist:${clientIp(req)}`, 10, 60 * 60 * 1000).ok) {
@@ -19,6 +20,7 @@ export async function POST(req: Request) {
       signup_source: isWaitlistSource(source) ? source : "ship_loop_page",
       plan: plan === "yearly" ? "yearly" : "monthly",
     });
+    await store().sAdd(WAITLIST_MEMBERS_KEY, email.trim().toLowerCase());
     if (isForm) return Response.redirect(new URL(`/ship-loop?joined=${existing ? "dup" : "1"}#waitlist`, req.url), 303);
     return Response.json({ ok: true, duplicate: existing } satisfies WaitlistResponse);
   } catch (error) {
