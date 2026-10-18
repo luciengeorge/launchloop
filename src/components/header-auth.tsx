@@ -34,10 +34,10 @@ export function HeaderAuth({ promo }: { promo: boolean }) {
           Log in
         </Link>
         {promo ? (
-          // Two prices don't fit next to the logo and "Log in" on a 375px screen with the full label.
+          // Two prices don't fit beside the logo and "Log in" on a phone, or beside the nav links from md to lg, with the full label.
           <StartLink plan="kit" className={ctaCls}>
-            <span className="sm:hidden">Get kit, </span>
-            <span className="max-sm:hidden">Get my launch kit, </span>
+            <span className="sm:max-md:hidden lg:hidden">Get kit, </span>
+            <span className="max-sm:hidden md:max-lg:hidden">Get my launch kit, </span>
             <KitPrice promo />
           </StartLink>
         ) : (
