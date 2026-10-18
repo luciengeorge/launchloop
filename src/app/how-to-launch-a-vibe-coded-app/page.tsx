@@ -2,11 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { GuideLayout } from "@/components/guide-layout";
 import { guide } from "@/lib/guides";
+import { guidePage } from "@/lib/pages";
 import { pageMetadata } from "@/lib/seo";
 
 const g = guide("how-to-launch-a-vibe-coded-app");
 
-export const metadata: Metadata = pageMetadata({ title: g.metaTitle, description: g.description, path: `/${g.slug}`, type: "article" });
+export const metadata: Metadata = pageMetadata(guidePage(g));
 
 export default function VibeCodedLaunchPage() {
   return (

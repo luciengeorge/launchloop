@@ -65,8 +65,10 @@ test("login CTA locks with a loading state while the link is sent", async ({ pag
     await route.continue();
   });
   await page.goto("/login");
-  await page.getByLabel("Email").fill(uniqueEmail("cta"));
   const submit = page.getByTestId("login-submit");
+  // The streamed form can still sit beside its Suspense fallback just after load.
+  await expect(submit).toHaveCount(1);
+  await page.getByLabel("Email").fill(uniqueEmail("cta"));
   // Locators wait for pending navigations, so read the in-flight state from inside the page.
   const inFlight = await submit.evaluate(async (b: HTMLButtonElement) => {
     b.click();

@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { GUIDES, guidePath } from "@/lib/guides";
+import { PAGES } from "@/lib/pages";
 import { SITE } from "@/lib/site";
 import { TOOLS } from "@/lib/tools";
 import { Logo } from "./logo";
@@ -34,10 +36,11 @@ export function SiteFooter() {
             {TOOLS.map((tool) => (
               <li key={tool.path}><Link href={tool.path} className="hover:text-foreground">{tool.title}</Link></li>
             ))}
-            <li><Link href="/product-hunt-launch-checklist" className="hover:text-foreground">Product Hunt launch checklist</Link></li>
-            <li><Link href="/how-to-launch-a-vibe-coded-app" className="hover:text-foreground">How to launch a vibe-coded app</Link></li>
-            <li><Link href="/show-hn-launch-checklist" className="hover:text-foreground">Show HN launch checklist</Link></li>
-            <li><Link href="/how-to-write-a-product-hunt-tagline" className="hover:text-foreground">How to write a Product Hunt tagline</Link></li>
+            {GUIDES.map((g) => (
+              <li key={g.slug}><Link href={guidePath(g)} className="hover:text-foreground">{g.title}</Link></li>
+            ))}
+            <li><Link href={PAGES.tools.path} className="hover:text-foreground">All free tools</Link></li>
+            <li><Link href={PAGES.guides.path} className="hover:text-foreground">All guides</Link></li>
           </ul>
         </nav>
         <nav aria-label="Company" className="space-y-3 text-sm">

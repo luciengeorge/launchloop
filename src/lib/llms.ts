@@ -1,4 +1,4 @@
-import { GUIDES } from "@/lib/guides";
+import { GUIDES, guidePath } from "@/lib/guides";
 import { FAQ, KIT_CONTENTS, SITE } from "@/lib/site";
 import { TOOLS } from "@/lib/tools";
 
@@ -35,6 +35,8 @@ The kit is delivered on a results page, as a ZIP download and by email.
 - [Pricing](${base}/pricing): free preview, £19 Launch Kit, Ship Loop plans
 - [Ship Loop](${base}/ship-loop): the upcoming subscription, waitlist and pre-order
 - [FAQ](${base}/faq): answers to common questions
+- [Guides](${base}/guides): every launch guide in one list
+- [Free tools](${base}/tools): every free tool in one list
 - [Privacy](${base}/privacy)
 - [Terms](${base}/terms)
 
@@ -44,7 +46,7 @@ ${TOOLS.map((t) => `- [${t.title}](${base}${t.path}): ${t.description}`).join("\
 
 ## Guides
 
-${GUIDES.map((g) => `- [${g.title}](${base}/${g.slug}): ${g.description}`).join("\n")}
+${GUIDES.map((g) => `- [${g.title}](${base}${guidePath(g)}): ${g.description}`).join("\n")}
 `;
   const tail = full
     ? `

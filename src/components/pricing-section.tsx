@@ -107,12 +107,13 @@ function PricingPage() {
   return (
     <>
       <h1 id="pricing-heading" className="text-3xl font-semibold tracking-tight sm:text-4xl">
-        Pricing
+        LaunchLoop pricing
       </h1>
       <p className="mt-3 text-lg text-muted-foreground">Try it free. Pay £19 once to launch. Ship Loop is for after launch.</p>
       <PricingTimeline className="mt-4" />
       <div className="mt-10 grid gap-4 lg:grid-cols-3 lg:gap-6">
         <PriceCard
+          heading="h2"
           name="Free preview"
           price="£0"
           body="See a taste of your launch before you pay."
@@ -120,6 +121,7 @@ function PricingPage() {
           cta={freeCta}
         />
         <PriceCard
+          heading="h2"
           featured
           badge="Most people start here"
           name="Launch Kit"
@@ -132,6 +134,7 @@ function PricingPage() {
         <div className="flex flex-col gap-3 lg:border-l lg:border-dashed lg:border-border lg:pl-6" data-testid="ship-loop-plan">
           <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">After launch</p>
           <PriceCard
+            heading="h2"
             muted
             badge="Coming soon"
             name="Ship Loop"
@@ -156,7 +159,8 @@ function PricingPage() {
   );
 }
 
-function PriceCard(props: {
+function PriceCard({ heading: Heading = "h3", ...props }: {
+  heading?: "h2" | "h3";
   name: string;
   price: string;
   suffix?: string;
@@ -171,7 +175,7 @@ function PriceCard(props: {
   return (
     <article className={`flex flex-1 flex-col rounded-2xl border p-6 ${tone}`}>
       <div className="flex items-center justify-between gap-2">
-        <h3 className="font-medium">{props.name}</h3>
+        <Heading className="font-medium">{props.name}</Heading>
         {props.badge ? <Badge variant={props.featured ? "default" : "outline"}>{props.badge}</Badge> : null}
       </div>
       <p className="mt-4">
