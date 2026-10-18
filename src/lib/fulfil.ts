@@ -3,8 +3,9 @@ import { addContact } from "./audience";
 import { launchChecklist } from "./copy";
 import { assemble, generateDraft, getDraft } from "./generation";
 import { kitReadyEmail, preorderEmail, sendEmail } from "./email";
-import { recordBillingCustomer, recordShipLoop } from "./billing";
-import { getKit, linkKitToUser, normaliseEmail, updateKit } from "./kits";
+import { assignPaidKit, type KitOwnership } from "./accounts";
+import { getStoredBillingCustomer, recordBillingCustomer, recordShipLoop } from "./billing";
+import { getKit, normaliseEmail, updateKit } from "./kits";
 import { captureException } from "./observability";
 import { PRODUCTS, type ProductId } from "./products";
 import type { Kit } from "./schema";
@@ -30,8 +31,13 @@ export interface Preorder {
   createdAt: string;
 }
 
+export interface RecordedPayment {
+  /** Kit purchases only. */
+  ownership?: KitOwnership;
+}
+
 /** Records a successful payment. Fast and idempotent; heavy work happens in `fulfilKit`. */
-export async function recordPayment(order: PaidOrder): Promise<void> {
+export async function recordPayment(order: PaidOrder): Promise<RecordedPayment> {
   if (order.product === "kit") {
     if (!order.kitId) throw new Error(`Kit payment ${order.ref} has no kitId`);
     // If the speculative draft is done, unlock in the same write so the kit is visible on the redirect.
@@ -51,18 +57,21 @@ export async function recordPayment(order: PaidOrder): Promise<void> {
               : {}),
           },
     );
-    if (order.email) {
-      await linkKitToUser(order.email, order.kitId);
-      await addContact(order.email, "kit");
-      if (order.customerId) await recordBillingCustomer(order.email, order.customerId, "kit");
+    if (!order.email) return { ownership: "none" };
+    const ownership = await assignPaidKit(order.email, order.kitId);
+    await addContact(order.email, "kit");
+    if (order.customerId) {
+      // A guest's email isn't verified, so their purchase never replaces the customer an account already has.
+      const stored = await getStoredBillingCustomer(order.email);
+      if (!stored || stored.customerId === order.customerId) await recordBillingCustomer(order.email, order.customerId, "kit");
     }
-    return;
+    return { ownership };
   }
 
   const key = `preorder:${order.ref}`;
   if (!order.email) throw new Error(`Pre-order ${order.ref} has no email`);
   await recordShipLoop(order.email, { product: order.product, ref: order.ref, customerId: order.customerId, since: new Date().toISOString() });
-  if (await store().get<Preorder>(key)) return;
+  if (await store().get<Preorder>(key)) return {};
   await store().set<Preorder>(key, { ref: order.ref, email: order.email, product: order.product, createdAt: new Date().toISOString() });
   await addContact(order.email, "preorder", { plan: order.product });
   try {
@@ -70,6 +79,7 @@ export async function recordPayment(order: PaidOrder): Promise<void> {
   } catch (error) {
     captureException(error, { stage: "fulfil.preorderEmail", ref: order.ref });
   }
+  return {};
 }
 
 export function needsFulfilment(kit: Kit): boolean {

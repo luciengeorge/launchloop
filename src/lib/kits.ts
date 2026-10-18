@@ -165,13 +165,27 @@ async function reuseKit(fingerprint: string, opts: KitOptions): Promise<Kit | nu
 
 export const normaliseEmail = (email: string) => email.trim().toLowerCase();
 const userKitsKey = (email: string) => `user:${normaliseEmail(email)}:kits`;
+/** Paid kits bought as a guest by an email that has no account yet, claimed on its first login (see accounts.ts). */
+const pendingKitsKey = (email: string) => `pending:${normaliseEmail(email)}:kits`;
 
 /** Adds a kit to an account's index. Idempotent. */
 export async function linkKitToUser(email: string, kitId: string): Promise<void> {
   await store().sAdd(userKitsKey(email), kitId);
 }
 
-export const listUserKitIds = (email: string) => store().sMembers(userKitsKey(email));
+export const listLinkedKitIds = (email: string) => store().sMembers(userKitsKey(email));
+export const addPendingKit = (email: string, kitId: string) => store().sAdd(pendingKitsKey(email), kitId);
+export const removePendingKit = (email: string, kitId: string) => store().sRem(pendingKitsKey(email), kitId);
+export const listPendingKitIds = (email: string) => store().sMembers(pendingKitsKey(email));
+
+/**
+ * Kits a signed-in email can open: its index plus any guest purchases not claimed yet. Only called with a
+ * session's (verified) email, so a purchase is visible even before the login that claims it.
+ */
+export async function listUserKitIds(email: string): Promise<string[]> {
+  const [linked, pending] = await Promise.all([listLinkedKitIds(email), listPendingKitIds(email)]);
+  return [...new Set([...linked, ...pending])];
+}
 
 export async function listUserKits(email: string): Promise<Kit[]> {
   const ids = await listUserKitIds(email);

@@ -1,6 +1,7 @@
 import "server-only";
 import { cookies } from "next/headers";
 import { after } from "next/server";
+import { claimPendingKits, recordLogin } from "./accounts";
 import { ANON_KITS_COOKIE, SESSION_COOKIE, SESSION_HINT_COOKIE, SESSION_TTL_SECONDS, encodeSession, readAnonKits, secureCookies, type MagicLinkRecord } from "./auth";
 import { ensureStripeCustomer } from "./billing";
 import { isStripeMock } from "./env";
@@ -31,13 +32,21 @@ export async function completeLogin(record: MagicLinkRecord): Promise<string> {
     });
   }
 
+  let claimed: string[] = [];
+  // Record the account before claiming, so a guest purchase recorded meanwhile goes straight to the account.
+  try {
+    await recordLogin(record.email);
+    claimed = await claimPendingKits(record.email);
+  } catch (error) {
+    captureException(error, { stage: "auth.login.claimPending" });
+  }
+
   const anon = readAnonKits(jar.get(ANON_KITS_COOKIE)?.value);
   const intentKit = record.intent?.kitId;
   const toClaim = [...new Set([...anon, ...(intentKit ? [intentKit] : [])])];
-  let claimed: string[] = [];
   if (toClaim.length) {
     try {
-      claimed = await claimKits(record.email, toClaim);
+      claimed = [...claimed, ...(await claimKits(record.email, toClaim))];
     } catch (error) {
       captureException(error, { stage: "auth.login.claim" });
     }
