@@ -24,6 +24,11 @@ export function captureMessage(message: string, context?: ErrorContext) {
   console.warn(`[launchloop:warn] ${message}`, context ?? {});
 }
 
+/** One JSON line in the runtime logs, so it can be searched and filtered without a log drain. Callers pass no PII. */
+export function logEvent(event: string, fields: Record<string, string | number | boolean | null | undefined>) {
+  console.info(JSON.stringify({ event, ...fields }));
+}
+
 /** A serverless instance can be frozen as soon as the response is sent, taking queued events with it. */
 function flushAfterResponse() {
   try {

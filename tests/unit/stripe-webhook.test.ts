@@ -57,10 +57,12 @@ async function deliver(event: object) {
   return res;
 }
 
+const logLines = () => (console.info as unknown as { mock: { calls: string[][] } }).mock.calls.map(([line]) => JSON.parse(line) as Record<string, unknown>);
 const eventsNamed = (name: string) => m.captureServerEvent.mock.calls.filter(([event]) => event === name).map(([, params]) => params as { uuid?: string; properties: Record<string, unknown> });
 
 beforeEach(() => {
   vi.stubEnv("VERCEL_ENV", "");
+  vi.spyOn(console, "info").mockImplementation(() => {});
   vi.spyOn(console, "error").mockImplementation(() => {});
   vi.clearAllMocks();
 });
@@ -70,7 +72,7 @@ afterEach(() => {
 });
 
 describe("Stripe webhook", () => {
-  it("records, fulfils and tracks a paid kit checkout", async () => {
+  it("records, fulfils and tracks a paid kit checkout, and logs one line without PII", async () => {
     const event = checkoutEvent({});
     const res = await deliver(event);
 
@@ -79,6 +81,9 @@ describe("Stripe webhook", () => {
     expect(m.fulfilKit).toHaveBeenCalledWith("kit_abc");
     const [completed] = eventsNamed("checkout_completed");
     expect(completed.properties).toMatchObject({ plan: "kit", amount: 1900, stripeSessionId: event.data.object.id, utm_source: "hn" });
+
+    expect(logLines()).toEqual([{ event: "stripe.webhook", eventId: event.id, type: "checkout.session.completed", sessionId: event.data.object.id, paymentStatus: "paid", outcome: "fulfilled" }]);
+    expect(JSON.stringify(logLines())).not.toMatch(/buyer@example\.com|cus_1|whsec|sk_test/);
   });
 
   it("treats a 100%-off checkout (no_payment_required) as paid, with amount 0", async () => {
@@ -88,11 +93,20 @@ describe("Stripe webhook", () => {
     expect(m.recordPayment).toHaveBeenCalledTimes(1);
     expect(m.fulfilKit).toHaveBeenCalledWith("kit_abc");
     expect(eventsNamed("checkout_completed")[0].properties).toMatchObject({ amount: 0, plan: "kit" });
+    expect(logLines()[0]).toMatchObject({ paymentStatus: "no_payment_required", outcome: "fulfilled" });
   });
 
   it("waits for async payments instead of fulfilling an unpaid session", async () => {
     await deliver(checkoutEvent({ payment_status: "unpaid" }));
     expect(m.recordPayment).not.toHaveBeenCalled();
     expect(eventsNamed("checkout_completed")).toHaveLength(0);
+    expect(logLines()[0]).toMatchObject({ outcome: "awaiting_payment" });
+  });
+
+  it("logs and ignores other event types and other environments' sessions", async () => {
+    await deliver({ id: "evt_other", type: "invoice.paid", livemode: false, data: { object: {} } });
+    await deliver(checkoutEvent({ metadata: { product: "kit", kitId: "kit_abc", env: "production" } }));
+    expect(m.recordPayment).not.toHaveBeenCalled();
+    expect(logLines().map((l) => l.outcome)).toEqual(["ignored_type", "ignored_env"]);
   });
 });
