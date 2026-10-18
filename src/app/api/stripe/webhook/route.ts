@@ -35,7 +35,9 @@ export async function POST(req: Request) {
     if (!decision.handle) return Response.json({ received: true, ignored: decision.reason });
     const product = session.metadata?.product;
     const kitId = session.metadata?.kitId;
-    if (session.payment_status === "paid" && isProductId(product)) {
+    // A 100%-off Checkout completes with "no_payment_required": it's a purchase like any other.
+    const settled = session.payment_status === "paid" || session.payment_status === "no_payment_required";
+    if (settled && isProductId(product)) {
       try {
         await recordPayment({
           product,
@@ -68,7 +70,7 @@ async function trackCompleted(s: Stripe, session: Stripe.Checkout.Session, produ
       kitId: m.kitId,
       ...attributionProperties(m),
       price_id: m.price_id ?? "unknown",
-      amount: session.amount_total ?? 0,
+      amount: session.payment_status === "no_payment_required" ? 0 : (session.amount_total ?? 0),
       currency: session.currency ?? "gbp",
       isLoggedIn: m.logged_in === "1",
       mock: false,
