@@ -1,12 +1,11 @@
 "use client";
 
-import Link from "next/link";
-import { CheckoutButton } from "@/components/checkout-button";
-import { buttonVariants } from "@/components/ui/button";
+import { PreorderButton } from "@/components/preorder-button";
+import { WaitlistForm } from "@/components/waitlist-form";
 import { EXPERIMENTS } from "@/lib/experiments";
 import { useExperiment } from "@/lib/use-experiment";
 
-/** exp_shiploop_success_upsell: a soft Ship Loop offer on the kit success page. Control renders nothing. */
+/** exp_shiploop_success_upsell: a soft Ship Loop offer on the kit success page (waitlist, plus the £99 pre-order when `preorderOpen`). Control renders nothing. */
 export function ShipLoopUpsell({ preorderOpen }: { preorderOpen: boolean }) {
   if (useExperiment(EXPERIMENTS.shipLoopUpsell) !== "treatment") return null;
   return (
@@ -15,24 +14,25 @@ export function ShipLoopUpsell({ preorderOpen }: { preorderOpen: boolean }) {
         You&apos;re in. Your kit is on its way to your inbox.
       </h2>
       <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-        Want help actually shipping it? Ship Loop is the weekly accountability loop for getting your launch out the door.
+        Want help actually shipping it? Ship Loop drafts a post and an image for every release after launch.
       </p>
       <p className="mt-3 text-sm">
-        <span className="font-medium">Founding pre-order: £99, one time.</span> It covers your first year of Ship Loop once it launches.
+        <span className="font-medium">Ship Loop is coming soon.</span> Get notified when it launches. Nothing to pay now.
       </p>
-      <div className="mt-4 flex flex-wrap items-center gap-3">
-        {preorderOpen ? (
-          <CheckoutButton product="shiploop_preorder" className="h-10 px-4" experiments={{ [EXPERIMENTS.shipLoopUpsell]: "treatment" }}>
+      {preorderOpen ? (
+        <div className="mt-4 space-y-2" data-testid="upsell-preorder">
+          <p className="text-sm">
+            <span className="font-medium">Or pre-order as a founding member: £99, one time.</span> It covers your first year of Ship Loop once it launches.
+          </p>
+          <PreorderButton className="h-10 px-4" experiments={{ [EXPERIMENTS.shipLoopUpsell]: "treatment" }}>
             Pre-order Ship Loop, £99 one-time
-          </CheckoutButton>
-        ) : null}
-        <Link href="/ship-loop#waitlist" className={buttonVariants({ variant: "ghost", className: "h-10 px-3" })}>
-          Not yet? Join the free waitlist
-        </Link>
-      </div>
-      <p className="mt-3 text-xs text-muted-foreground">
-        Fully refundable on request until Ship Loop launches; auto-refunded in full if Ship Loop is not live within 12 months of the pre-order.
-      </p>
+          </PreorderButton>
+          <p className="text-xs text-muted-foreground">
+            Fully refundable on request until Ship Loop launches; auto-refunded in full if Ship Loop is not live within 12 months of the pre-order.
+          </p>
+        </div>
+      ) : null}
+      <WaitlistForm source="kit_upsell" plan="yearly" className="mt-4 max-w-md" />
     </section>
   );
 }

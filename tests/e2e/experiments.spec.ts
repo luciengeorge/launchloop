@@ -79,19 +79,30 @@ test("Ship Loop upsell control: the success page is unchanged", async ({ page })
   await expect(page.getByTestId("ship-loop-upsell")).toHaveCount(0);
 });
 
-test("Ship Loop upsell treatment: soft £99 one-time pre-order after paying, only on the success page", async ({ page }) => {
+test("Ship Loop upsell treatment: waitlist capture plus the £99 one-time pre-order after paying, only on the success page", async ({ page }) => {
   await forceFlags(page, { exp_shiploop_success_upsell: "treatment" });
   await logIn(page, uniqueEmail("upsell-treatment"));
   const kitId = await makeSampleKit(page);
   await payKit(page, kitId, "£19");
+  const checkouts: Request[] = [];
+  page.on("request", (req) => {
+    if (isCheckout(req)) checkouts.push(req);
+  });
 
   const upsell = page.getByTestId("ship-loop-upsell");
   await expect(upsell.getByRole("heading")).toHaveText("You're in. Your kit is on its way to your inbox.");
-  await expect(upsell).toContainText("Ship Loop is the weekly accountability loop for getting your launch out the door.");
-  await expect(upsell).toContainText("Founding pre-order: £99, one time. It covers your first year of Ship Loop once it launches.");
-  await expect(upsell).toContainText("auto-refunded in full if Ship Loop is not live within 12 months of the pre-order");
-  await expect(upsell).not.toContainText(/for life/i);
-  await expect(upsell.getByRole("link", { name: "Not yet? Join the free waitlist" })).toHaveAttribute("href", "/ship-loop#waitlist");
+  await expect(upsell).toContainText("Ship Loop is coming soon. Get notified when it launches.");
+  // Mock mode sells the pre-order, so the upsell offers it next to the waitlist.
+  const preorder = upsell.getByTestId("upsell-preorder");
+  await expect(preorder).toContainText("Or pre-order as a founding member: £99, one time. It covers your first year of Ship Loop once it launches.");
+  await expect(preorder).toContainText("auto-refunded in full if Ship Loop is not live within 12 months of the pre-order");
+
+  const waitlist = page.waitForRequest((req) => req.method() === "POST" && new URL(req.url()).pathname === "/api/waitlist");
+  await upsell.getByRole("textbox", { name: "Email" }).fill(uniqueEmail("upsell-waitlist"));
+  await upsell.getByRole("button", { name: "Join the waitlist" }).click();
+  expect((await waitlist).postDataJSON()).toMatchObject({ source: "kit_upsell" });
+  await expect(upsell.getByTestId("waitlist-status")).toHaveText("You're on the waitlist. We'll email you when Ship Loop launches.");
+  expect(checkouts).toHaveLength(0);
 
   // Not on a later visit to the same kit.
   await page.goto(`/account/kits/${kitId}`);

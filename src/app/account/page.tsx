@@ -12,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { getSession } from "@/lib/auth";
 import { getShipLoop, hasBillingAccess } from "@/lib/billing";
 import { IMAGE_VARIANTS, type ImageVariant } from "@/lib/image-variants";
+import { isLaunchPromoOn } from "@/lib/launch-promo-server";
 import { listUserKits } from "@/lib/kits";
 import { getProgress } from "@/lib/progress";
 import { buildTasks, countableTasks } from "@/lib/tasks";
@@ -32,7 +33,7 @@ export default function AccountPage() {
 async function Dashboard() {
   const session = await getSession();
   if (!session) redirect("/login?next=/account");
-  const [kits, shipLoop] = await Promise.all([listUserKits(session.email), getShipLoop(session.email)]);
+  const [kits, shipLoop, promo] = await Promise.all([listUserKits(session.email), getShipLoop(session.email), isLaunchPromoOn()]);
   const progress = await Promise.all(kits.map((k) => (k.paid && k.content ? kitProgress(k) : null)));
   const showBilling = await hasBillingAccess(
     session.email,
@@ -97,7 +98,7 @@ async function Dashboard() {
               </h2>
               <p className="mt-0.5 text-sm text-muted-foreground">Paste a GitHub repo or live site. New kits are saved to this account.</p>
             </div>
-            <KitForm />
+            <KitForm promo={promo} />
           </section>
         </>
       )}

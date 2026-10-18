@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useSyncExternalStore } from "react";
 import { buttonVariants } from "@/components/ui/button";
 import { hasSessionHint } from "@/lib/session-hint";
+import { KitPrice } from "./kit-price";
 import { StartLink } from "./start-link";
 
 const linkCls = "inline-flex h-8 items-center text-sm leading-5 text-muted-foreground transition-colors hover:text-foreground";
@@ -24,7 +25,7 @@ function subscribe(onChange: () => void) {
  * (including CDN-cached ones like the home page) can stay fully static. The server always renders the signed-out
  * state; the real session is still checked by /account and every API that needs it.
  */
-export function HeaderAuth() {
+export function HeaderAuth({ promo }: { promo: boolean }) {
   const signedIn = useSyncExternalStore(subscribe, hasSessionHint, () => false);
   if (!signedIn) {
     return (
@@ -32,9 +33,18 @@ export function HeaderAuth() {
         <Link href="/login" className={linkCls} data-testid="nav-login">
           Log in
         </Link>
-        <StartLink plan="kit" className={ctaCls}>
-          Get my launch kit, £19
-        </StartLink>
+        {promo ? (
+          // Two prices don't fit next to the logo and "Log in" on a 375px screen with the full label.
+          <StartLink plan="kit" className={`${ctaCls} max-sm:px-3`}>
+            <span className="sm:hidden">Get kit, </span>
+            <span className="max-sm:hidden">Get my launch kit, </span>
+            <KitPrice promo />
+          </StartLink>
+        ) : (
+          <StartLink plan="kit" className={ctaCls}>
+            Get my launch kit, <KitPrice promo={false} />
+          </StartLink>
+        )}
       </>
     );
   }
