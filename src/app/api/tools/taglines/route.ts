@@ -6,7 +6,7 @@ import { LlmError } from "@/lib/llm";
 import { captureException } from "@/lib/observability";
 import { freePreviewGate } from "@/lib/rate-limit";
 
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 /** Free tagline checker, generate mode: repo or URL → three Product Hunt taglines. Shares the free preview's limits. */
 export async function POST(req: Request) {

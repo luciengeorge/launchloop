@@ -200,6 +200,6 @@ Also: `npm run lint`, `npm run typecheck`, `npm run build`.
 2. Add **Upstash Redis** from the Vercel Marketplace. It injects `KV_REST_API_URL` and `KV_REST_API_TOKEN`. Without it, kits are written to `/tmp` and disappear between invocations.
 3. AI Gateway needs no key on Vercel (OIDC). Optionally set `AI_GATEWAY_MODEL` / `AI_GATEWAY_FALLBACK_MODELS`, and make sure the team has AI Gateway credits or BYOK configured. Add the other environment variables: `STRIPE_SECRET_KEY`, `RESEND_API_KEY`, `RESEND_FROM` (on a verified domain), `RESEND_SEGMENT_ID` or `RESEND_AUDIENCE_ID`, `GITHUB_TOKEN`, and `NEXT_PUBLIC_SITE_URL` (e.g. `https://launchloop.dev`).
 4. In Stripe, add a webhook endpoint `https://<your-domain>/api/stripe/webhook` for `checkout.session.completed` and `checkout.session.async_payment_succeeded`, and set `STRIPE_WEBHOOK_SECRET`.
-5. Deploy. Kit generation runs in `after()` with `maxDuration` up to 120s. That works on Vercel's default Fluid compute; on plans with lower limits, reduce it.
+5. Deploy. Kit generation runs in `after()` with `maxDuration` up to 120s; the free preview (`/api/kits`) and tagline generator (`/api/tools/taglines`) allow 300s, the Hobby limit with Fluid compute. Each model attempt times out after 45s. On plans with lower limits, reduce them.
 
 For a production launch-day discount, create a promotion code in Stripe; Checkout has `allow_promotion_codes` turned on.

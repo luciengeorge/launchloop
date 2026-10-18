@@ -10,7 +10,7 @@ import { createKit, newId } from "@/lib/kits";
 import { captureException } from "@/lib/observability";
 import { freePreviewGate } from "@/lib/rate-limit";
 
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 export async function POST(req: Request) {
   const refused = await freePreviewGate(req);

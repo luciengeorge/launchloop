@@ -15,6 +15,11 @@ export const DEFAULT_MODEL = "anthropic/claude-sonnet-4.5";
 export const DEFAULT_FALLBACK_MODELS = ["openai/gpt-5-mini"];
 /** Used for the smaller kit sections, where latency matters more than depth. */
 export const DEFAULT_FAST_MODEL = "anthropic/claude-haiku-4.5";
+/**
+ * Per attempt. A free preview makes two calls (brief, then preview) of up to three attempts each,
+ * so the worst case (6 x 45s) still fits the 300s maxDuration on /api/kits with time for ingest.
+ */
+const ATTEMPT_TIMEOUT_MS = 45_000;
 
 /** Any failure to get usable output from the model. Callers turn this into a friendly message. */
 export class LlmError extends Error {
@@ -118,7 +123,7 @@ export async function generateStructured<T>(req: StructuredRequest<T>): Promise<
         output: Output.object({ schema: req.schema }),
         maxOutputTokens,
         providerOptions: { gateway: { models: fallbacks } satisfies GatewayProviderOptions },
-        abortSignal: AbortSignal.timeout(90_000),
+        abortSignal: AbortSignal.timeout(ATTEMPT_TIMEOUT_MS),
       });
       last = { value: result.output, provider: `gateway:${result.response.modelId}` };
       problems = req.rubric?.(result.output) ?? [];
