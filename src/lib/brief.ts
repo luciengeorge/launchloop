@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { IngestResult } from "./ingest";
 import { COMMIT_SAMPLE, type RepoData } from "./ingest/github";
 import { generateStructured } from "./llm";
+import { pricingProofPoint } from "./prices";
 import { briefSchema, type Brief } from "./schema";
 import { detectStack } from "./stack";
 
@@ -143,7 +144,8 @@ export function extractFacts({ repo, site, primary }: IngestResult): Facts {
     }
   }
   if (repo?.license) proofPoints.push(`Open source (${repo.license})`);
-  if (site?.prices.length) proofPoints.push(`Pricing on site: ${site.prices.join(", ")}`);
+  const pricing = pricingProofPoint(site?.prices ?? []);
+  if (pricing) proofPoints.push(pricing);
 
   const problem = firstParagraph(readme ? readmeSection(readme, /why|problem|motivation/i) : undefined)?.split(/(?<=[.!?])\s+/)[0];
 

@@ -1,5 +1,6 @@
 import "server-only";
 import { parse, type HTMLElement } from "node-html-parser";
+import { normalisePrices, PRICE_RE } from "../prices";
 import { IngestError, safeFetch } from "./safe-fetch";
 
 export interface SiteData {
@@ -94,9 +95,8 @@ export async function fetchSite(url: string, warnings: string[]): Promise<SiteDa
   };
 }
 
-const PRICE_RE = /[£$€]\s?\d+(?:\.\d{2})?(?:\s?\/\s?(?:mo|month|yr|year))?/gi;
 const PRICING_WORD = /^(pricing|plans|prices)$/i;
-const matchPrices = (text: string) => unique(text.match(PRICE_RE) ?? [], 4);
+const matchPrices = (text: string) => normalisePrices(text.match(PRICE_RE) ?? []);
 
 /** A same-site link to /pricing (or /plans), the signal that the product actually charges. */
 export function findPricingLink(root: HTMLElement, pageUrl: string): string | undefined {
