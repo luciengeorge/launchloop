@@ -1,86 +1,10 @@
 import "server-only";
 import { z } from "zod";
 import type { IngestResult } from "./ingest";
-import { COMMIT_SAMPLE, type PackageJson, type RepoData } from "./ingest/github";
+import { COMMIT_SAMPLE, type RepoData } from "./ingest/github";
 import { generateStructured } from "./llm";
 import { briefSchema, type Brief } from "./schema";
-
-const STACK_MAP: Record<string, string> = {
-  next: "Next.js",
-  react: "React",
-  vue: "Vue",
-  nuxt: "Nuxt",
-  svelte: "Svelte",
-  "@sveltejs/kit": "SvelteKit",
-  astro: "Astro",
-  vite: "Vite",
-  "@remix-run/react": "Remix",
-  tailwindcss: "Tailwind CSS",
-  "@supabase/supabase-js": "Supabase",
-  convex: "Convex",
-  firebase: "Firebase",
-  prisma: "Prisma",
-  "@prisma/client": "Prisma",
-  "drizzle-orm": "Drizzle",
-  stripe: "Stripe",
-  openai: "OpenAI",
-  "@anthropic-ai/sdk": "Anthropic",
-  ai: "Vercel AI SDK",
-  "@clerk/nextjs": "Clerk",
-  "next-auth": "Auth.js",
-  "better-auth": "Better Auth",
-  "tesseract.js": "Tesseract.js",
-  "three": "Three.js",
-  expo: "Expo",
-  "react-native": "React Native",
-  electron: "Electron",
-  "@tauri-apps/api": "Tauri",
-  hono: "Hono",
-  express: "Express",
-};
-
-/** Frameworks and build tools that legitimately live in devDependencies. Servers and SDKs there are usually test or example fixtures. */
-const DEV_STACK = new Set(["next", "react", "vue", "nuxt", "svelte", "@sveltejs/kit", "astro", "vite", "@remix-run/react", "tailwindcss", "prisma", "electron", "@tauri-apps/api", "expo", "react-native"]);
-
-/** GitHub topics that name a stack, used when package.json can't tell us. */
-const TOPIC_STACK: Record<string, string> = {
-  nextjs: "Next.js",
-  react: "React",
-  reactjs: "React",
-  vue: "Vue",
-  vuejs: "Vue",
-  nuxt: "Nuxt",
-  svelte: "Svelte",
-  sveltekit: "SvelteKit",
-  astro: "Astro",
-  vite: "Vite",
-  remix: "Remix",
-  tailwindcss: "Tailwind CSS",
-  supabase: "Supabase",
-  convex: "Convex",
-  prisma: "Prisma",
-  electron: "Electron",
-  tauri: "Tauri",
-  expo: "Expo",
-  "react-native": "React Native",
-};
-
-/** Monorepo and tooling roots list every package's build and test tooling in devDependencies, so those say nothing about the product. */
-const MONOREPO_TOOLS = ["turbo", "lerna", "nx"];
-const isToolingRoot = (pkg: PackageJson) =>
-  pkg.workspaces !== undefined ||
-  MONOREPO_TOOLS.some((t) => t in (pkg.devDependencies ?? {})) ||
-  (!Object.keys(pkg.dependencies ?? {}).length && Object.keys(pkg.devDependencies ?? {}).length > 40);
-
-function detectStack(repo: RepoData | undefined): string[] {
-  const pkg = repo?.packageJson;
-  const runtime = Object.keys(pkg?.dependencies ?? {});
-  const dev = pkg && !isToolingRoot(pkg) ? Object.keys(pkg.devDependencies ?? {}).filter((d) => DEV_STACK.has(d)) : [];
-  const stack = [...runtime, ...dev].map((d) => STACK_MAP[d]).filter(Boolean);
-  if (!stack.length) stack.push(...(repo?.topics ?? []).map((t) => TOPIC_STACK[t]).filter(Boolean));
-  if (!stack.length && repo?.language) stack.push(repo.language);
-  return [...new Set(stack)];
-}
+import { detectStack } from "./stack";
 
 const DAY_MS = 86_400_000;
 
