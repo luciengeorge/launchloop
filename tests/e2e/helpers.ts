@@ -33,6 +33,8 @@ export async function followMagicLink(page: Page, email: string) {
 
 export async function logIn(page: Page, email: string) {
   await page.goto("/login");
+  // The streamed form can still sit beside its Suspense fallback just after load; typing into the fallback is lost.
+  await expect(page.getByTestId("login-submit")).toHaveCount(1);
   await page.getByLabel("Email").fill(email);
   await page.getByRole("button", { name: "Email me a login link" }).click();
   await expect(page.getByRole("heading", { name: "Check your email" })).toBeVisible();
