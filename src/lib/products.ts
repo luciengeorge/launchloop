@@ -1,4 +1,4 @@
-export type ProductId = "kit" | "shiploop_preorder";
+export type ProductId = "kit";
 
 export interface Product {
   id: ProductId;
@@ -16,18 +16,11 @@ export const PRODUCTS: Record<ProductId, Product> = {
     amountPence: 1900,
     priceLabel: "£19",
   },
-  shiploop_preorder: {
-    id: "shiploop_preorder",
-    name: "Ship Loop founding pre-order",
-    description: "One-time £99 payment covering your first year of Ship Loop once it launches. Refunded in full if Ship Loop isn't live within 12 months.",
-    amountPence: 9900,
-    priceLabel: "£99 one-time",
-  },
 };
 
 export const isProductId = (v: unknown): v is ProductId => typeof v === "string" && v in PRODUCTS;
 
-/** The kit, or the Ship Loop pre-order. */
+/** Analytics `product_type`. Ship Loop is a waitlist, so every purchase is the kit. */
 export type ProductType = "kit" | "shiploop";
 export const productType = (product: ProductId): ProductType => (product === "kit" ? "kit" : "shiploop");
 

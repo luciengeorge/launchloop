@@ -10,7 +10,7 @@ LaunchLoop turns a vibe-coded app into a launch kit. Paste a public GitHub repo 
 - Three on-brand social images rendered with `@vercel/og` (1200×630, 1600×900, 1270×760 PH gallery) in colours pulled from the site's CSS
 - A launch-day checklist
 
-Every platform limit is enforced (PH tagline 60, description 260, X 280 weighted, LinkedIn 3,000) and vote requests are stripped out. Visitors get a free watermarked preview (the PH tagline plus one X post). The full kit costs **£19** through Stripe Checkout and arrives on a results page, as a ZIP and by email via Resend. `/ship-loop` takes waitlist sign-ups (tagged `shiploop_waitlist`) for the planned £12/month (£99/year) subscription; no page starts a Ship Loop checkout until it's fixed.
+Every platform limit is enforced (PH tagline 60, description 260, X 280 weighted, LinkedIn 3,000) and vote requests are stripped out. Visitors get a free watermarked preview (the PH tagline plus one X post). The full kit costs **£19** through Stripe Checkout and arrives on a results page, as a ZIP and by email via Resend. Ship Loop (`/ship-loop`) is a free waitlist only: sign-ups are tagged `shiploop_waitlist` and emailed if and when it launches. Nothing about Ship Loop is for sale, and `/api/checkout` answers any non-kit product with a 400 and the waitlist message.
 
 Stack: Next.js 16 (App Router, Cache Components), TypeScript, Tailwind v4, shadcn/ui, AI SDK 7 with Vercel AI Gateway, Stripe, Resend, `@vercel/og`, Playwright.
 
@@ -48,9 +48,8 @@ All are optional locally. See [`.env.example`](.env.example) for the full annota
 | `STRIPE_SECRET_KEY` | Real Stripe Checkout (use `sk_test_…` for test mode) |
 | `STRIPE_WEBHOOK_SECRET` | Verifying `/api/stripe/webhook` |
 | `STRIPE_PRICE_KIT` | Optional: a dashboard Price instead of the inline £19 |
-| `STRIPE_PRICE_SHIPLOOP_PREORDER` | Required in production: the one-time £99 Ship Loop founding pre-order price (one-time only, Checkout runs in payment mode). Without it, real-Stripe deployments hide the pre-order CTA and show the waitlist |
 | `STRIPE_PROMO_LAUNCH14` | Optional: the LAUNCH14 promotion code id (`promo_…`). Without it, Checkout looks up the active code named `LAUNCH14` (see "Experiments") |
-| `RESEND_API_KEY`, `RESEND_FROM`, `RESEND_REPLY_TO` | Sending kit and pre-order emails |
+| `RESEND_API_KEY`, `RESEND_FROM`, `RESEND_REPLY_TO` | Sending kit and sign-in emails |
 | `RESEND_SEGMENT_ID` or `RESEND_AUDIENCE_ID` | Storing newsletter, waitlist and buyer contacts in Resend |
 | `GITHUB_TOKEN` | Optional: GitHub API limit goes from 60 to 5,000 requests/hour |
 | `KV_REST_API_URL`, `KV_REST_API_TOKEN` | **Production storage** (Upstash Redis / Vercel KV) |
@@ -164,7 +163,7 @@ Vercel Web Analytics and Speed Insights count page views and performance. PostHo
 | `preview_completed` | Browser, preview stream done | the above plus `kitId`, `durationMs` |
 | `preview_failed` | Browser, preview error | the above plus `code` |
 | `newsletter_subscribed` | Browser, newsletter form success (no-JS posts aren't counted) | `placement` (footer / preview), `welcome` (sent / existing / skipped: whether this signup sent the welcome email) |
-| `checkout_started` | Server, `/api/checkout` once a session URL exists | `plan` (kit / shiploop_preorder), `product_type` (kit / shiploop), `kitId`, `price_id`, `amount` in pence (after any discount), `currency`, `isLoggedIn`, `mock`, `promo_code` / `promo` when LAUNCH14 was due, `$feature/<flag>` for the variants the page showed (`fallback/<flag>` when it served a fallback) |
+| `checkout_started` | Server, `/api/checkout` once a session URL exists | `plan` (kit), `product_type` (kit / shiploop), `kitId`, `price_id`, `amount` in pence (after any discount), `currency`, `isLoggedIn`, `mock`, `promo_code` / `promo` when LAUNCH14 was due, `$feature/<flag>` for the variants the page showed (`fallback/<flag>` when it served a fallback) |
 | `checkout_completed` | Server, Stripe webhook (`checkout.session.completed` / `async_payment_succeeded` with `payment_status: paid`), or `/api/checkout/mock` in test mode | the above plus `stripeSessionId`. `amount` is Stripe's `amount_total`; `promo_code` is LAUNCH14 (kit only; Checkout has no promotion code field) |
 
 **`checkout_completed` is the purchase event**: it only fires once Stripe confirms the payment, from the webhook, so it doesn't depend on the buyer's browser coming back. Filter `mock = false` and `env = production` for real revenue. No email or other buyer details are sent.
@@ -203,7 +202,7 @@ Two PostHog multivariate flags (50/50, variants `control` and `treatment`). Unti
 | Flag | Where | `control` | `treatment` |
 | --- | --- | --- | --- |
 | `exp_launch14_promo` | Kit paywall (`UnlockPanel`), and server-side on the header CTA, home, `/pricing`, `/faq`, `/ship-loop` and the kit form (`KitPrice`) | £19, and kit Checkout has no promotion code field | £19 struck through, £14 with `LAUNCH14`; kit Checkout gets `discounts: [{ promotion_code }]` |
-| `exp_shiploop_success_upsell` | Kit success page (`/account/kits/[id]?paid=1`, buyer only) | Unchanged | Soft Ship Loop card with the waitlist capture, plus the £99 one-time founding pre-order (Checkout for `STRIPE_PRICE_SHIPLOOP_PREORDER`) when that price is set |
+| `exp_shiploop_success_upsell` | Kit success page (`/account/kits/[id]?paid=1`, buyer only) | Unchanged | Soft Ship Loop card with the waitlist capture (no checkout) |
 
 - **LAUNCH14 lives in Stripe.** The code's terms (amount, kit only, first-time customers, redemption cap, expiry) are set on the coupon and promotion code in the dashboard; the app only sends the promotion code id (`STRIPE_PROMO_LAUNCH14`, else looked up by code). If Stripe turns the code down, or no active code exists, the buyer gets a £19 session and the paywall says so before redirecting. Turn the flag off (or roll it to 100% `control`) when the code expires.
 - **Marketing pages read the promo flag on the server.** `isLaunchPromoOn()` (`src/lib/launch-promo-server.ts`) evaluates `exp_launch14_promo` for one fixed id, so it's only meaningful at a 0% or 100% rollout. It's cached with a 60 s revalidate (the pages are static and pick up a flip within a minute or two, no deploy), and any error or a 1.5 s timeout shows the plain £19. Kit checkouts don't use it: they resolve the kit's own assignment (next point), which matches the marketing pages at a 0% or 100% rollout, so a £14 seen on home or `/pricing` is then the Stripe total. PostHog serves no flags to bot user agents (including `HeadlessChrome`), so browser-side checks with a headless browser see control unless they set a normal user agent.
@@ -218,6 +217,15 @@ Two PostHog multivariate flags (50/50, variants `control` and `treatment`). Unti
 - **Limits.** Signups are limited per IP through the shared store (`NEWSLETTER_RATE_LIMIT_PER_HOUR`), and welcome emails have a global daily cap (`NEWSLETTER_WELCOME_DAILY_CAP`). Past the cap the contact is still added; the skip is logged.
 - **Plain form posts** (no JS, or before hydration) are redirected back with `?subscribed=1`, or `?subscribed=0&error=<code>` and a `#hash` that reveals the message without JavaScript. `next` is only honoured as a same-origin path, checked after URL parsing in `newsletterReturnPath`, which builds every redirect.
 - On a page with the £19 unlock panel, the footer's Subscribe button is an outline button so the unlock button is the only primary one.
+
+## Ship Loop waitlist
+
+Ship Loop is a free waitlist; nothing about it is sold. `/ship-loop` and the kit upsell post to `/api/waitlist`, which writes to the shared store (Upstash Redis in production and preview):
+
+- `contact:waitlist:<email>`: `{ email, source: "waitlist", tag: "shiploop_waitlist", signup_source, plan, createdAt }`. A repeat signup keeps the first `createdAt` and answers `duplicate: true`.
+- `contacts:waitlist`: a set of every waitlist email. `SMEMBERS contacts:waitlist` is the launch mailing list.
+
+Preview keys carry the `preview:` prefix. The contact is also added to the Resend audience/segment, which is shared with newsletter and buyer contacts, so the store is the source of truth for who joined the waitlist.
 
 ## Error logging
 
@@ -259,4 +267,4 @@ Also: `npm run lint`, `npm run typecheck`, `npm run build`. `.github/workflows/c
 4. In Stripe, add a webhook endpoint `https://<your-domain>/api/stripe/webhook` for `checkout.session.completed` and `checkout.session.async_payment_succeeded`, and set `STRIPE_WEBHOOK_SECRET`.
 5. Deploy. Kit generation runs in `after()` with `maxDuration` up to 120s; the free preview (`/api/kits`) and tagline generator (`/api/tools/taglines`) allow 300s, the Hobby limit with Fluid compute. Each model attempt times out after 45s. On plans with lower limits, reduce them.
 
-Checkout has no promotion code field. Kit discounts only come from the LAUNCH14 experiment (`discounts` on the session), and the Ship Loop pre-order never takes a discount.
+Checkout has no promotion code field. Kit discounts only come from the LAUNCH14 experiment (`discounts` on the session).

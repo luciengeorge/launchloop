@@ -82,7 +82,7 @@ vi.mock("@/lib/analytics-server", () => ({
 }));
 vi.mock("@/lib/fulfil", async (importOriginal) => ({ ...(await importOriginal<object>()), fulfilKit: m.fulfilKit }));
 vi.mock("@/lib/audience", () => ({ isEmail: (v: unknown) => typeof v === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v), addContact: m.addContact }));
-vi.mock("@/lib/email", () => ({ sendEmail: vi.fn(), kitReadyEmail: vi.fn(), preorderEmail: vi.fn() }));
+vi.mock("@/lib/email", () => ({ sendEmail: vi.fn(), kitReadyEmail: vi.fn(), kitFailedEmail: vi.fn() }));
 vi.mock("@/lib/generation", () => ({
   generateDraft: vi.fn(async () => ({ sections: {}, complete: false })),
   getDraft: async () => ({ sections: {}, complete: false }),
@@ -223,6 +223,16 @@ describe("/api/checkout without a user", () => {
     expect(fullPrice).toMatchObject({ customer_creation: "if_required" });
     expect(fullPrice.discounts).toBeUndefined();
     expect(fullPrice.metadata.promo_code).toBeUndefined();
+  });
+
+  it("sells a guest the kit only: every Ship Loop or other product is a 400 before Stripe or the rate limit", async () => {
+    for (const product of ["shiploop_monthly", "shiploop_yearly", "shiploop_preorder", undefined]) {
+      const res = await postCheckout({ product, kitId: KIT_ID });
+      expect(res.status).toBe(400);
+      expect(await res.json()).toMatchObject({ code: "waitlist_only" });
+    }
+    expect(m.createSession).not.toHaveBeenCalled();
+    expect([...m.kv.keys()].filter((k) => k.startsWith("rl:"))).toEqual([]);
   });
 
   it("still ties a signed-in checkout to the account's Stripe customer", async () => {

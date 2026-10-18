@@ -79,9 +79,10 @@ describe("attribution passthrough: landing page to the checkout_completed event"
     expect(attributionMetadata(undefined)).toEqual({});
   });
 
-  it("adds no UTM metadata to a session without a kit", async () => {
-    await createCheckoutUrl({ product: "kit", origin: "https://launchloop.dev", analyticsId: "ph_1", isLoggedIn: false, experiments: {}, fallbacks: [], attribution: { utm_source: "hn" } });
+  it("adds no UTM metadata for a kit without attribution (older kits)", async () => {
+    await createCheckoutUrl({ product: "kit", origin: "https://launchloop.dev", kitId: "kit_old", analyticsId: "ph_1", isLoggedIn: false, experiments: {}, fallbacks: [] });
     const params = stripe.create.mock.calls[0]![0] as { metadata: Record<string, string> };
-    expect(params.metadata.utm_source).toBeUndefined();
+    expect(params.metadata.kitId).toBe("kit_old");
+    expect(Object.keys(params.metadata).filter((k) => k.startsWith("utm_") || k === "referring_domain")).toEqual([]);
   });
 });

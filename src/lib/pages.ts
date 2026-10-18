@@ -43,14 +43,14 @@ export const PAGES = {
     title: "Pricing: free preview, £19 kit and Ship Loop",
     description:
       "Try LaunchLoop free, then pay £19 once for a full launch kit: landing copy, Product Hunt post, X thread, LinkedIn post and images. Ship Loop is coming soon.",
-    updated: "2026-10-15",
+    updated: "2026-10-18",
     card: { eyebrow: "Pricing", headline: "Try it free. Pay £19 once to launch." },
   }),
   shipLoop: core({
     path: "/ship-loop",
     title: "Ship Loop: draft posts for every release",
     description:
-      "Coming soon: Ship Loop drafts an X post, LinkedIn post, changelog blurb and image for every release. Founding pre-order: £99 once, or join the waitlist.",
+      "Coming soon: Ship Loop drafts an X post, LinkedIn post, changelog blurb and image for every release. Join the free waitlist, we'll email you when it launches.",
     updated: "2026-10-18",
     card: { eyebrow: "Ship Loop · Coming soon", headline: "Draft posts and an image for every release" },
   }),
@@ -58,7 +58,7 @@ export const PAGES = {
     path: "/faq",
     title: "FAQ: launch kits, character limits and refunds",
     description: "How LaunchLoop reads your repo, what's in the £19 Launch Kit, which character limits it enforces, refunds, and the Ship Loop subscription.",
-    updated: "2026-10-15",
+    updated: "2026-10-18",
     card: { eyebrow: "FAQ", headline: "Launch kits, character limits and refunds" },
   }),
   guides: core({
@@ -82,15 +82,15 @@ export const PAGES = {
     title: "Privacy policy: what we collect and why",
     description:
       "What data LaunchLoop collects when you preview or buy a launch kit, why we need it, who we share it with, how long we keep it and how to use your rights.",
-    updated: "2026-10-15",
+    updated: "2026-10-18",
     card: { eyebrow: "Privacy", headline: "What we collect and why" },
   }),
   terms: core({
     path: "/terms",
     title: "Terms of service: previews, kits and refunds",
     description:
-      "The terms for using LaunchLoop: the free preview and its limits, buying a £19 Launch Kit, refunds within 14 days, and pre-ordering the Ship Loop subscription.",
-    updated: "2026-10-15",
+      "The terms for using LaunchLoop: the free preview and its limits, buying a £19 Launch Kit, refunds within 14 days, and the free Ship Loop waitlist.",
+    updated: "2026-10-18",
     card: { eyebrow: "Terms", headline: "Previews, kits and refunds" },
   }),
 } satisfies Record<string, SitePage>;
