@@ -86,6 +86,37 @@ test("no Ship Loop surface offers a pre-order or a £99 buy, repeats the old pro
   expect(checkouts).toHaveLength(0);
 });
 
+test("waitlist card: sticky below the header on desktop, still usable on short screens, stacked below lg", async ({ page }) => {
+  const plans = page.locator("#plans");
+  const email = plans.getByRole("textbox", { name: "Email" });
+  const headerBottom = async () => {
+    const box = (await page.locator("header").first().boundingBox())!;
+    return box.y + box.height;
+  };
+
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/ship-loop");
+  await page.locator("#compare-heading").evaluate((el) => window.scrollTo(0, el.getBoundingClientRect().top + window.scrollY - 120));
+  await expect(plans).toBeInViewport({ ratio: 1 });
+  expect((await plans.boundingBox())!.y).toBeGreaterThanOrEqual(await headerBottom());
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+  await expect(email).toBeInViewport();
+  await expect(plans.getByRole("button", { name: "Join the waitlist" })).toBeInViewport();
+
+  await page.setViewportSize({ width: 1280, height: 420 });
+  await page.locator("#compare-heading").evaluate((el) => window.scrollTo(0, el.getBoundingClientRect().top + window.scrollY - 120));
+  const card = (await plans.boundingBox())!;
+  expect(card.y).toBeGreaterThanOrEqual(await headerBottom());
+  expect(card.y + card.height).toBeLessThanOrEqual(420);
+  await plans.getByRole("button", { name: "Join the waitlist" }).scrollIntoViewIfNeeded();
+  await expect(email).toBeInViewport({ ratio: 1 });
+  await expect(plans.getByRole("button", { name: "Join the waitlist" })).toBeInViewport({ ratio: 1 });
+
+  await page.setViewportSize({ width: 768, height: 800 });
+  expect(await plans.evaluate((el) => getComputedStyle(el.parentElement!).position)).toBe("static");
+  expect(await plans.evaluate((el) => getComputedStyle(el).overflowY)).toBe("visible");
+});
+
 test("/api/checkout and the mock checkout answer every non-kit product with a 400 and the waitlist message, never a 502", async ({ request }) => {
   for (const url of ["/api/checkout", "/api/checkout/mock"]) {
     for (const product of ["shiploop_monthly", "shiploop_yearly", "shiploop_preorder", "anything", undefined]) {
