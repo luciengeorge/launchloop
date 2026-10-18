@@ -53,6 +53,16 @@ export const llmLabel = () => {
   return config ? `gateway:${config.model}` : "mock";
 };
 
+/**
+ * Per-call output budgets. A JSON answer at every rubric limit measures about 310 tokens for the
+ * brief, 80 for the preview, 45 for three taglines, 300-440 for the landing, Product Hunt and X
+ * sections and 650 for LinkedIn (3,000 chars), in English. Each budget leaves room for a first
+ * attempt that overshoots the limits by half and for denser tokenizers; CJK copy runs about 3x
+ * and relies on the doubling retry. Reasoning models (the gpt-5-mini fallback) count reasoning
+ * tokens against this budget too, so the retry also covers them.
+ */
+export const OUTPUT_TOKENS = { brief: 800, preview: 400, kitSection: 1500, linkedin: 2500 } as const;
+
 interface StructuredRequest<T> {
   /** Sent to the model as the output schema. Keep it to types only: counts and lengths belong in `rubric`. */
   schema: z.ZodType<T>;
@@ -62,6 +72,8 @@ interface StructuredRequest<T> {
   mock: () => T;
   /** Rubric check (limits, banned phrases). Problems are fed back for another attempt. */
   rubric?: (value: T) => string[];
+  /** Output budget for one attempt; see OUTPUT_TOKENS. Doubled for the next attempt if the model hits it. */
+  maxOutputTokens: number;
   maxAttempts?: number;
   /** For free, non-critical steps: serve the mock output if the gateway is down instead of failing. */
   mockOnGatewayError?: boolean;
@@ -94,6 +106,7 @@ export async function generateStructured<T>(req: StructuredRequest<T>): Promise<
   let prompt = req.user;
   let last: { value: T; provider: string } | null = null;
   let lastProblems = "";
+  let maxOutputTokens = req.maxOutputTokens;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     let problems: string[];
@@ -103,6 +116,7 @@ export async function generateStructured<T>(req: StructuredRequest<T>): Promise<
         system: req.system,
         prompt,
         output: Output.object({ schema: req.schema }),
+        maxOutputTokens,
         providerOptions: { gateway: { models: fallbacks } satisfies GatewayProviderOptions },
         abortSignal: AbortSignal.timeout(90_000),
       });
@@ -117,7 +131,13 @@ export async function generateStructured<T>(req: StructuredRequest<T>): Promise<
         }
         throw new LlmError(`Gateway call failed: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
       }
-      problems = [`Output did not match the required JSON shape (${error.cause instanceof Error ? error.cause.message : "invalid JSON"}).`];
+      if (error.finishReason === "length") {
+        captureMessage("LLM output hit maxOutputTokens; retrying with double the budget", { stage: req.stage, model, maxOutputTokens });
+        maxOutputTokens *= 2;
+        problems = ["Your answer was cut off before the JSON was complete. Return the complete JSON and keep every field within its limit."];
+      } else {
+        problems = [`Output did not match the required JSON shape (${error.cause instanceof Error ? error.cause.message : "invalid JSON"}).`];
+      }
     }
     lastProblems = problems.join("; ");
     prompt = `${req.user}\n\nYour previous answer had these problems. Fix all of them and return the full corrected JSON:\n- ${problems.join("\n- ")}`;

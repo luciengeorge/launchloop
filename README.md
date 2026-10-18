@@ -99,6 +99,7 @@ All model calls go through [Vercel AI Gateway](https://vercel.com/docs/ai-gatewa
 - **Auth locally:** run `vercel link` (project `launchloop`, team `luciengeorge16`) and `vercel env pull .env.local` to get a `VERCEL_OIDC_TOKEN` (valid ~12 hours; re-pull or use `vercel dev`), or set `AI_GATEWAY_API_KEY`. An API key always takes precedence over OIDC.
 - **Mock mode:** with no `AI_GATEWAY_API_KEY`, no `VERCEL_OIDC_TOKEN` and not running on Vercel, or with `LLM_PROVIDER=mock` / `MOCK_MODE=true`, copy comes from deterministic templates and nothing is sent to the gateway.
 - **Structured output:** `generateText` with `Output.object()` and zod schemas that hold types only. Character limits, thread length and banned phrases are checked by a rubric; failures are fed back for up to three attempts, then hard-enforced.
+- **Output budgets:** every call sets `maxOutputTokens` (`OUTPUT_TOKENS` in `src/lib/llm.ts`): brief 800, preview and taglines 400, kit sections 1500, LinkedIn 2500. At the rubric limits the JSON measures roughly 310, 80, 45, 300 to 440 and 650 tokens. If an answer is still cut off (`finishReason: "length"`, e.g. CJK copy or a reasoning-model fallback), the next attempt gets double the budget.
 - **Degradation:** if the gateway errors on the free preview, the preview falls back to template copy (logged through `captureException`). For paid kits, generation is marked failed and retried automatically (up to three attempts).
 
 To switch models, change the env vars; no code changes are needed.

@@ -1,6 +1,6 @@
 import "server-only";
 import { LIMITS, charLength, containsVoteBegging, fitToLimit, stripVoteBegging, xLength } from "./limits";
-import { generateStructured } from "./llm";
+import { OUTPUT_TOKENS, generateStructured } from "./llm";
 import { z } from "zod";
 import { kitContentSchema, previewSchema, type Brief, type KitContent, type KitSection, type Preview } from "./schema";
 import { checkTagline, taglineProblems } from "./tagline-check";
@@ -261,6 +261,7 @@ export async function generatePreview(brief: Brief): Promise<{ preview: Preview;
     mock: () => mockPreview(brief),
     rubric: previewRubric,
     mockOnGatewayError: true,
+    maxOutputTokens: OUTPUT_TOKENS.preview,
     stage: "preview",
   });
   return {
@@ -337,6 +338,7 @@ export async function generateTaglines(brief: Brief): Promise<{ taglines: string
     mock: () => ({ taglines: fallback }),
     rubric: (v) => taglinesRubric(v, brief),
     mockOnGatewayError: true,
+    maxOutputTokens: OUTPUT_TOKENS.preview,
     stage: "preview",
   });
   return { taglines: pickTaglines(value.taglines, brief, fallback), provider };
@@ -347,6 +349,8 @@ const SECTION_PREFIX: Record<KitSection, string> = { landing: "landing.", produc
 interface SectionSpec<T> {
   schema: z.ZodType<T>;
   speed: "main" | "fast";
+  /** Defaults to OUTPUT_TOKENS.kitSection. */
+  maxOutputTokens?: number;
   prompt: (brief: Brief, preview: Preview) => string;
   toContent: (value: T) => Partial<KitContent>;
 }
@@ -376,6 +380,7 @@ const SECTIONS: { [K in KitSection]: SectionSpec<unknown> } = {
   linkedin: {
     schema: z.object({ post: z.string() }),
     speed: "fast",
+    maxOutputTokens: OUTPUT_TOKENS.linkedin,
     prompt: () => `Write a LinkedIn launch post as JSON: { "post": "strong first line, short paragraphs, max ${LIMITS.linkedin} chars, at most 2 hashtags at the end" }`,
     toContent: (v) => ({ linkedin: (v as { post: string }).post }),
   },
@@ -391,6 +396,7 @@ export async function generateKitSection(section: KitSection, brief: Brief, prev
   const { value, provider } = await generateStructured<unknown>({
     schema: spec.schema,
     speed: spec.speed,
+    maxOutputTokens: spec.maxOutputTokens ?? OUTPUT_TOKENS.kitSection,
     stage: "kit",
     system: SYSTEM,
     user: `Product brief:\n${briefJson(brief)}\n\nSupporting source material (for facts only):\n${digest}\n\n${spec.prompt(brief, preview)}`,
