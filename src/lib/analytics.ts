@@ -26,6 +26,9 @@ export interface ClientEvents {
   };
 }
 
+/** Landing with ?qa=1 tags every event on this page load as QA traffic. */
+const QA_PARAM = "qa";
+
 const key = process.env.NEXT_PUBLIC_POSTHOG_KEY;
 
 /**
@@ -37,7 +40,8 @@ const key = process.env.NEXT_PUBLIC_POSTHOG_KEY;
  */
 export function initAnalytics() {
   if (!key || posthog.__loaded) return;
-  const handoff = new URLSearchParams(window.location.search).get(ANALYTICS_ID_PARAM);
+  const params = new URLSearchParams(window.location.search);
+  const handoff = params.get(ANALYTICS_ID_PARAM);
   posthog.init(key, {
     ...(isAnalyticsId(handoff) ? { bootstrap: { distinctID: handoff } } : {}),
     api_host: POSTHOG_PROXY_PATH,
@@ -55,7 +59,12 @@ export function initAnalytics() {
     disable_surveys: true,
     before_send: scrubEvent,
   });
-  posthog.register({ env: process.env.NEXT_PUBLIC_VERCEL_ENV ?? "development" });
+  posthog.register({
+    env: process.env.NEXT_PUBLIC_VERCEL_ENV ?? "development",
+    // posthog-js already drops events when this is true unless its bot filter is turned off.
+    is_webdriver: navigator.webdriver === true,
+    ...(params.get(QA_PARAM) === "1" ? { qa: true } : {}),
+  });
 }
 
 function scrubEvent(event: CaptureResult | null): CaptureResult | null {
