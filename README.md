@@ -55,11 +55,23 @@ All are optional locally. See [`.env.example`](.env.example) for the full annota
 | `KV_REST_API_URL`, `KV_REST_API_TOKEN` | **Production storage** (Upstash Redis / Vercel KV) |
 | `NEXT_PUBLIC_SITE_URL` | Canonical URLs, sitemap, email links |
 | `MOCK_MODE` | Force everything into mock mode |
-| `PREVIEW_RATE_LIMIT_PER_HOUR` | Free previews per IP per hour (default 12) |
+| `PREVIEW_RATE_LIMIT_PER_HOUR`, `PREVIEW_RATE_LIMIT_PER_DAY` | Free previews per IP per hour (default 5) and per UTC day (default 20). See "Free preview limits" |
 | `PREVIEW_GLOBAL_DAILY_CAP` | Optional spend cap: free previews and tagline generations across all visitors per UTC day (default 1500). Past it, `/api/kits` and `/api/tools/taglines` return 503 `code: "busy"` ("LaunchLoop is very busy right now, try again in a bit"). Paid kit generation is never capped by it |
 | `FREE_PREVIEWS_DISABLED` | Optional kill switch: `1` turns off free previews and tagline generations with the same `busy` response. Paid kit generation keeps running. Unset = on |
 | `SENTRY_DSN` | Reserved for Sentry (see "Error logging") |
 | `NEXT_PUBLIC_POSTHOG_KEY`, `NEXT_PUBLIC_POSTHOG_HOST` | Conversion analytics (see "Analytics"). Host defaults to `https://eu.i.posthog.com` |
+
+### Free preview limits
+
+`freePreviewGate` in `src/lib/rate-limit.ts` guards every free LLM call (`/api/kits` and `/api/tools/taglines`); paid kit generation never goes through it. In order:
+
+1. `FREE_PREVIEWS_DISABLED=1` returns 503 `busy`.
+2. The input is validated first, so a malformed URL returns 422 without using a slot. A valid URL that fails later (a missing repo) still counts: it costs a GitHub API call, and refunding it would let one IP drain the shared GitHub quota.
+3. The sample app (`sample`) skips both counters; it's served from the 24-hour dedupe cache.
+4. Per IP, fixed hourly and UTC-daily windows in the store. IPv6 addresses are keyed by their /64. A refusal is a 429 with a `Retry-After` header and `retryAfterSeconds` in the body, and the form says "Try again in N min".
+5. The global daily cap (`cap:previews:<UTC day>`, `PREVIEW_GLOBAL_DAILY_CAP`) returns 503 `busy`. It's checked after the per-IP limit so one noisy IP can't use it up.
+
+**Store errors fail closed.** If Upstash errors, the gate returns 503 `busy` and reports the error to Sentry (`stage: rate-limit.store`) rather than letting the request through. Kits and briefs live in the same store, so failing open would spend model calls on previews that can't be saved, and would drop abuse protection exactly when nobody's watching.
 
 ### Testing Stripe locally
 
@@ -186,7 +198,7 @@ Playwright builds the app into `.next-test` and runs it on port 3418 in forced m
 - Ship Loop waitlist and pre-order
 - the SEO endpoints
 
-Unit tests (Vitest, `tests/unit/`) cover the free-preview gate against an in-memory store:
+Unit tests (Vitest, `tests/unit/`) run against an in-memory store: the free-preview gate, the `/api/kits` rate limit (6th request in an hour and 21st in a day get a 429 with `Retry-After`; Upstash errors fail closed) and the LLM output budgets:
 
 ```bash
 npm test

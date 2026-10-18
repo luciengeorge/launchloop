@@ -146,8 +146,8 @@ export function KitForm() {
       </div>
 
       {error ? (
-        // "busy" is our capacity, not the visitor's mistake, so it isn't styled as an error.
-        <Alert variant={error.code === "busy" ? "default" : "destructive"} role="alert" id="kit-form-error" data-testid="kit-error" data-code={error.code} className="text-left">
+        // Capacity and limits ("Try again in N min") aren't the visitor's mistake, so they aren't styled as errors.
+        <Alert variant={error.code === "busy" || error.code === "rate_limited" ? "default" : "destructive"} role="alert" id="kit-form-error" data-testid="kit-error" data-code={error.code} className="text-left">
           <AlertDescription>
             <p className="font-medium text-foreground">{error.message}</p>
             {error.fix ? <p className="mt-1">{error.fix}</p> : null}

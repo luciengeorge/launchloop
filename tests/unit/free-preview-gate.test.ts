@@ -3,10 +3,14 @@ import { MemoryStore } from "./memory-store";
 
 const kv = vi.hoisted(() => ({ store: undefined as unknown }));
 vi.mock("@/lib/store", () => ({ store: () => kv.store }));
+vi.mock("@/lib/observability", () => ({ captureException: vi.fn(), captureMessage: vi.fn() }));
 
-const { freePreviewGate } = await import("@/lib/rate-limit");
+const { captureException } = await import("@/lib/observability");
+const { clientIp, freePreviewGate, ipv6Prefix64 } = await import("@/lib/rate-limit");
+const { waitLabel } = await import("@/lib/errors");
 
 const request = (ip: string) => new Request("http://localhost/api/kits", { method: "POST", headers: { "x-forwarded-for": ip } });
+const REPO = "https://github.com/acme/app";
 let mem: MemoryStore;
 
 beforeEach(() => {
@@ -17,7 +21,7 @@ beforeEach(() => {
 describe("kill switch", () => {
   it("FREE_PREVIEWS_DISABLED=1 refuses with the friendly busy message and consumes nothing", async () => {
     vi.stubEnv("FREE_PREVIEWS_DISABLED", "1");
-    const res = await freePreviewGate(request("203.0.113.1"));
+    const res = await freePreviewGate(request("203.0.113.1"), REPO);
     expect(res?.status).toBe(503);
     expect(await res?.json()).toMatchObject({ code: "busy", error: "LaunchLoop is very busy right now, try again in a bit." });
     expect(mem.keys()).toEqual([]);
@@ -25,15 +29,15 @@ describe("kill switch", () => {
 
   it("any other value leaves previews on", async () => {
     vi.stubEnv("FREE_PREVIEWS_DISABLED", "0");
-    expect(await freePreviewGate(request("203.0.113.1"))).toBeNull();
+    expect(await freePreviewGate(request("203.0.113.1"), REPO)).toBeNull();
   });
 });
 
 describe("global daily cap", () => {
   it("returns 503 busy once the day's previews across all IPs pass PREVIEW_GLOBAL_DAILY_CAP", async () => {
     vi.stubEnv("PREVIEW_GLOBAL_DAILY_CAP", "3");
-    for (const ip of ["198.51.100.1", "198.51.100.2", "198.51.100.3"]) expect(await freePreviewGate(request(ip))).toBeNull();
-    const res = await freePreviewGate(request("198.51.100.4"));
+    for (const ip of ["198.51.100.1", "198.51.100.2", "198.51.100.3"]) expect(await freePreviewGate(request(ip), REPO)).toBeNull();
+    const res = await freePreviewGate(request("198.51.100.4"), REPO);
     expect(res?.status).toBe(503);
     expect((await res?.json()).code).toBe("busy");
     expect(mem.keys()).toContain(`cap:previews:${new Date().toISOString().slice(0, 10)}`);
@@ -42,16 +46,75 @@ describe("global daily cap", () => {
   it("requests refused by the per-IP limit don't use up the global cap", async () => {
     vi.stubEnv("PREVIEW_GLOBAL_DAILY_CAP", "6");
     const statuses = [];
-    for (let i = 0; i < 10; i++) statuses.push((await freePreviewGate(request("198.51.100.9")))?.status ?? 200);
+    for (let i = 0; i < 10; i++) statuses.push((await freePreviewGate(request("198.51.100.9"), REPO))?.status ?? 200);
     expect(statuses).toEqual([200, 200, 200, 200, 200, 429, 429, 429, 429, 429]);
-    expect(await freePreviewGate(request("198.51.100.10"))).toBeNull();
+    expect(await freePreviewGate(request("198.51.100.10"), REPO)).toBeNull();
   });
 
   it("defaults to 1500 when unset or malformed", async () => {
     vi.stubEnv("PREVIEW_GLOBAL_DAILY_CAP", "lots");
     const day = new Date().toISOString().slice(0, 10);
     await mem.set(`cap:previews:${day}`, 1499);
-    expect(await freePreviewGate(request("192.0.2.1"))).toBeNull();
-    expect((await freePreviewGate(request("192.0.2.2")))?.status).toBe(503);
+    expect(await freePreviewGate(request("192.0.2.1"), REPO)).toBeNull();
+    expect((await freePreviewGate(request("192.0.2.2"), REPO))?.status).toBe(503);
+  });
+});
+
+describe("what counts", () => {
+  it("invalid input is refused with 422 before a slot is used", async () => {
+    const res = await freePreviewGate(request("192.0.2.5"), "not a url");
+    expect(res?.status).toBe(422);
+    expect((await res?.json()).code).toBe("invalid_url");
+    expect(mem.keys()).toEqual([]);
+  });
+
+  it("the sample app counts against neither limit", async () => {
+    for (let i = 0; i < 30; i++) expect(await freePreviewGate(request("192.0.2.6"), i % 2 ? "sample" : " Sample ")).toBeNull();
+    expect(mem.keys()).toEqual([]);
+  });
+});
+
+describe("store failures", () => {
+  it("fails closed with busy and reports to Sentry when Upstash errors", async () => {
+    mem.failing = true;
+    const res = await freePreviewGate(request("192.0.2.7"), REPO);
+    expect(res?.status).toBe(503);
+    expect((await res?.json()).code).toBe("busy");
+    expect(captureException).toHaveBeenCalledWith(expect.objectContaining({ message: "KV command failed with 503" }), { stage: "rate-limit.store" });
+  });
+});
+
+describe("IPv6 keys", () => {
+  it("cuts addresses to their /64", () => {
+    expect(ipv6Prefix64("2001:db8:a:b:1:2:3:4")).toBe("2001:db8:a:b::/64");
+    expect(ipv6Prefix64("2001:DB8:000A:b::9")).toBe("2001:db8:a:b::/64");
+    expect(ipv6Prefix64("2001:db8::1")).toBe("2001:db8:0:0::/64");
+    expect(ipv6Prefix64("::1")).toBe("0:0:0:0::/64");
+    expect(ipv6Prefix64("[2001:db8:a:b::1]")).toBe("2001:db8:a:b::/64");
+    expect(ipv6Prefix64("fe80::1%eth0")).toBe("fe80:0:0:0::/64");
+    expect(ipv6Prefix64("64:ff9b::192.0.2.1")).toBe("64:ff9b:0:0::/64");
+    expect(ipv6Prefix64("::ffff:192.0.2.1")).toBe("192.0.2.1");
+    expect(ipv6Prefix64("not:an:ip")).toBe("not:an:ip");
+  });
+
+  it("clientIp keys IPv6 by /64 and leaves IPv4 alone", () => {
+    expect(clientIp(request("2001:db8:a:b:ffff::1, 10.0.0.1"))).toBe("2001:db8:a:b::/64");
+    expect(clientIp(request("203.0.113.9"))).toBe("203.0.113.9");
+  });
+
+  it("addresses in one /64 share a budget", async () => {
+    const statuses = [];
+    for (let i = 1; i <= 6; i++) statuses.push((await freePreviewGate(request(`2001:db8:5:6::${i.toString(16)}`), REPO))?.status ?? 200);
+    expect(statuses).toEqual([200, 200, 200, 200, 200, 429]);
+    expect(await freePreviewGate(request("2001:db8:5:7::1"), REPO)).toBeNull();
+  });
+});
+
+describe("waitLabel", () => {
+  it("rounds up to minutes, then hours", () => {
+    expect(waitLabel(1)).toBe("1 min");
+    expect(waitLabel(1380)).toBe("23 min");
+    expect(waitLabel(3600)).toBe("60 min");
+    expect(waitLabel(5 * 3600)).toBe("5 hours");
   });
 });

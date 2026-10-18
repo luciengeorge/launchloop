@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { kitErrorBody } from "../../src/lib/errors";
+import { kitErrorBody, rateLimitedBody } from "../../src/lib/errors";
 import { followMagicLink } from "./helpers";
 
 const FIXTURE = "http://127.0.0.1:3419";
@@ -73,16 +73,36 @@ test("unknown pages and kits get a helpful not-found page", async ({ page }) => 
   await expect(page.getByRole("heading", { name: "We can't find that kit" })).toBeVisible();
 });
 
-test("preview requests are rate limited per IP across the hour", async ({ request }) => {
+test("preview requests are rate limited per IP across the hour; invalid URLs and the sample don't count", async ({ request }) => {
   const ip = `203.0.113.${Math.floor(Math.random() * 250) + 1}`;
+  const post = (url: string, from = ip) => request.post("/api/kits", { data: { url }, headers: { "x-forwarded-for": from } });
+  for (let i = 0; i < 5; i++) expect((await post("not a url")).status()).toBe(422);
+  expect((await post("sample")).status()).toBe(201);
+  // A missing repo is a valid request that costs a GitHub call, so it counts.
   const statuses: number[] = [];
-  for (let i = 0; i < 41; i++) statuses.push((await request.post("/api/kits", { data: { url: "not a url" }, headers: { "x-forwarded-for": ip } })).status());
+  for (let i = 0; i < 41; i++) statuses.push((await post("github.com/real-owner/secret-repo")).status());
   expect(statuses.slice(0, 40).every((s) => s === 422)).toBe(true);
   expect(statuses[40]).toBe(429);
-  const body = (await (await request.post("/api/kits", { data: { url: "x" }, headers: { "x-forwarded-for": ip } })).json()) as { code: string; fix: string };
+  const res = await post("github.com/real-owner/secret-repo");
+  const body = (await res.json()) as { code: string; fix: string; retryAfterSeconds: number };
   expect(body.code).toBe("rate_limited");
+  expect(body.retryAfterSeconds).toBeGreaterThan(0);
+  expect(res.headers()["retry-after"]).toBe(String(body.retryAfterSeconds));
+  expect(body.fix).toMatch(/Try again in \d+ (min|hours)/);
   // A different IP is unaffected.
-  expect((await request.post("/api/kits", { data: { url: "not a url" }, headers: { "x-forwarded-for": "198.51.100.7" } })).status()).toBe(422);
+  expect((await post("not a url", "198.51.100.7")).status()).toBe(422);
+});
+
+test("rate limited previews say when to try again", async ({ page }) => {
+  await page.route("**/api/kits", (route) => route.fulfill({ status: 429, headers: { "Retry-After": "1380" }, json: rateLimitedBody(1380) }));
+  await page.goto("/");
+  await page.getByLabel("GitHub repo or live site URL").fill("github.com/acme/app");
+  await page.getByRole("button", { name: "Get my free preview" }).first().click();
+  const alert = page.getByTestId("kit-error");
+  await expect(alert).toHaveAttribute("data-code", "rate_limited");
+  await expect(alert).toContainText("You've used your free previews for now.");
+  await expect(alert).toContainText("Try again in 23 min");
+  await expect(alert).not.toHaveClass(/text-destructive/);
 });
 
 test("busy (global cap or kill switch) shows the friendly notice, not an error", async ({ page }) => {

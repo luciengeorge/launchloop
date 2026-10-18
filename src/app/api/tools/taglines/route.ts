@@ -10,9 +10,6 @@ export const maxDuration = 300;
 
 /** Free tagline checker, generate mode: repo or URL → three Product Hunt taglines. Shares the free preview's limits. */
 export async function POST(req: Request) {
-  const refused = await freePreviewGate(req);
-  if (refused) return refused;
-
   let url: unknown;
   try {
     ({ url } = (await req.json()) as { url?: unknown });
@@ -22,6 +19,8 @@ export async function POST(req: Request) {
   if (typeof url !== "string" || !url.trim()) {
     return Response.json(kitErrorBody("invalid_url", "Paste a GitHub repo URL or your live site URL."), { status: 400 });
   }
+  const refused = await freePreviewGate(req, url);
+  if (refused) return refused;
 
   try {
     const brief = await briefFor(url);

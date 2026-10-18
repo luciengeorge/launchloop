@@ -1,5 +1,8 @@
 import "server-only";
-import { kitErrorBody } from "./errors";
+import { kitErrorBody, rateLimitedBody } from "./errors";
+import { IngestError, normaliseInput } from "./ingest";
+import { SAMPLE_INPUT } from "./ingest/sample";
+import { captureException } from "./observability";
 import { PREVIEW_LIMITS } from "./site";
 import { store } from "./store";
 
@@ -21,8 +24,29 @@ export function rateLimit(key: string, limit: number, windowMs: number): { ok: b
   return { ok: true, retryAfterSeconds: 0 };
 }
 
+/** The key rate limits count against. IPv6 addresses are cut to their /64, since one subscriber usually gets a whole /64. */
 export function clientIp(req: Request): string {
-  return req.headers.get("x-forwarded-for")?.split(",")[0].trim() || req.headers.get("x-real-ip") || "local";
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim() || req.headers.get("x-real-ip") || "local";
+  return ip.includes(":") ? ipv6Prefix64(ip) : ip;
+}
+
+/** "2001:db8:a:b:1:2:3:4" and "2001:db8:a:b::9" both give "2001:db8:a:b::/64". IPv4-mapped addresses give the IPv4. */
+export function ipv6Prefix64(raw: string): string {
+  const ip = raw.replace(/^\[|\]$/g, "").split("%")[0].toLowerCase();
+  const mapped = ip.match(/^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/);
+  if (mapped) return mapped[1];
+  const halves = ip.split("::");
+  if (halves.length > 2) return ip;
+  const parts = (s: string | undefined) => (s ? s.split(":") : []);
+  // An embedded IPv4 tail (64:ff9b::1.2.3.4) takes the room of two groups.
+  const width = (groups: string[]) => groups.reduce((n, g) => n + (g.includes(".") ? 2 : 1), 0);
+  const head = parts(halves[0]);
+  const tail = halves.length === 2 ? parts(halves[1]) : [];
+  const missing = 8 - width(head) - width(tail);
+  if (missing < 0 || (halves.length === 1 && missing !== 0)) return ip;
+  const groups = [...head, ...Array<string>(missing).fill("0"), ...tail].slice(0, 4);
+  if (!groups.every((g) => /^[0-9a-f]{1,4}$/.test(g))) return ip;
+  return `${groups.map((g) => parseInt(g, 16).toString(16)).join(":")}::/64`;
 }
 
 const PREVIEWS_PER_HOUR = Number(process.env.PREVIEW_RATE_LIMIT_PER_HOUR ?? PREVIEW_LIMITS.perHour);
@@ -60,13 +84,34 @@ const busy = () => Response.json(kitErrorBody("busy"), { status: 503 });
 /**
  * Runs before any free LLM work (the preview and the free tools). Returns the response to send
  * when the request is refused, or null to go ahead. Paid generation never goes through here.
- * The per-IP limit is checked first so one noisy IP can't use up the global cap for everyone.
+ *
+ * - The input is validated before anything is counted, so a malformed URL never uses up a slot.
+ *   Inputs that fail later (a missing repo) still count: they cost a GitHub API call, and refunding
+ *   them would let one IP drain the shared GitHub quota.
+ * - The sample app is exempt from both counters: it's served from the 24-hour dedupe cache.
+ * - The per-IP limit is checked first so one noisy IP can't use up the global cap for everyone.
+ * - Fails closed: if the store (Upstash) errors, the request gets the "busy" 503 and Sentry gets
+ *   the error. Kits and briefs live in the same store, so failing open would spend model calls on
+ *   previews that can't be saved, and drop abuse protection exactly when nobody's watching.
  */
-export async function freePreviewGate(req: Request): Promise<Response | null> {
+export async function freePreviewGate(req: Request, rawInput: string): Promise<Response | null> {
   if (freePreviewsDisabled()) return busy();
-  const limit = await freePreviewLimit(req);
-  if (!limit.ok) return Response.json(kitErrorBody("rate_limited"), { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } });
-  if (await overGlobalDailyCap()) return busy();
+  let input: string;
+  try {
+    input = normaliseInput(rawInput);
+  } catch (error) {
+    if (error instanceof IngestError) return Response.json(kitErrorBody(error.code, error.userMessage), { status: 422 });
+    throw error;
+  }
+  if (input === SAMPLE_INPUT) return null;
+  try {
+    const limit = await freePreviewLimit(req);
+    if (!limit.ok) return Response.json(rateLimitedBody(limit.retryAfterSeconds), { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } });
+    if (await overGlobalDailyCap()) return busy();
+  } catch (error) {
+    captureException(error, { stage: "rate-limit.store" });
+    return busy();
+  }
   return null;
 }
 

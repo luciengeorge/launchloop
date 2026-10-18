@@ -55,6 +55,20 @@ export interface KitErrorBody {
   error: string;
   code: KitErrorCode;
   fix: string;
+  /** Only on rate_limited: when the visitor's limit resets, also sent as the Retry-After header. */
+  retryAfterSeconds?: number;
 }
 
 export const kitErrorBody = (code: KitErrorCode, title?: string): KitErrorBody => ({ error: title ?? KIT_ERRORS[code].title, code, fix: KIT_ERRORS[code].fix });
+
+/** "23 min" up to an hour and a half, then "5 hours". Never "0 min". */
+export function waitLabel(seconds: number): string {
+  const minutes = Math.max(1, Math.ceil(seconds / 60));
+  return minutes <= 90 ? `${minutes} min` : `${Math.round(minutes / 60)} hours`;
+}
+
+export const rateLimitedBody = (retryAfterSeconds: number): KitErrorBody => ({
+  ...kitErrorBody("rate_limited"),
+  fix: `You can run ${PREVIEW_LIMITS.perHour} an hour and ${PREVIEW_LIMITS.perDay} a day. Try again in ${waitLabel(retryAfterSeconds)}, or unlock the full kit for an app you've already previewed.`,
+  retryAfterSeconds,
+});
