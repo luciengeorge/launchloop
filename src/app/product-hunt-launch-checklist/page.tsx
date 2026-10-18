@@ -2,11 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { GuideLayout } from "@/components/guide-layout";
 import { guide } from "@/lib/guides";
+import { guidePage } from "@/lib/pages";
 import { pageMetadata } from "@/lib/seo";
 
 const g = guide("product-hunt-launch-checklist");
 
-export const metadata: Metadata = pageMetadata({ title: g.metaTitle, description: g.description, path: `/${g.slug}`, type: "article" });
+export const metadata: Metadata = pageMetadata(guidePage(g));
 
 export default function ProductHuntChecklistPage() {
   return (
@@ -31,7 +32,8 @@ export default function ProductHuntChecklistPage() {
         <li><strong>Name:</strong> the product name only, no tagline stuffed in.</li>
         <li>
           <strong>Tagline: 60 characters maximum.</strong> Say what it does and for whom. &ldquo;AI-powered platform for productivity&rdquo; says nothing; &ldquo;Turn your GitHub repo into a launch kit&rdquo; says something.
-          Test yours with the free <Link href="/tools/product-hunt-tagline-checker">Product Hunt tagline checker</Link>.
+          Test yours with the free <Link href="/tools/product-hunt-tagline-checker">Product Hunt tagline checker</Link>, and see{" "}
+          <Link href="/how-to-write-a-product-hunt-tagline">how to write a Product Hunt tagline</Link> for formulas and examples.
         </li>
         <li><strong>Description: 260 characters maximum.</strong> The problem, what the product does about it, and one concrete detail that only your product can claim.</li>
         <li><strong>Topics:</strong> up to three that match where your users browse.</li>
@@ -53,6 +55,7 @@ export default function ProductHuntChecklistPage() {
       <p>
         Product Hunt explicitly bans asking for upvotes, and its systems discount votes that look coordinated: lots of new accounts, or people arriving from a direct link to vote.
         Hacker News has the same rule and also bans asking for comments. Ask people to <em>check it out</em>, never to vote (or, on HN, to comment). Do not buy votes or join vote-swap groups.
+        Launching on Hacker News too? Follow the <Link href="/show-hn-launch-checklist">Show HN launch checklist</Link>.
       </p>
 
       <h2 id="launch-day">Launch day</h2>
