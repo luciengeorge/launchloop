@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 const NEW_GUIDES = [
   { path: "/show-hn-launch-checklist", h1: "The Show HN launch checklist", title: /^Show HN checklist: how to post on Show HN · LaunchLoop$/ },
-  { path: "/how-to-write-a-product-hunt-tagline", h1: "How to write a Product Hunt tagline", title: /^How to write a Product Hunt tagline \(with examples\) · LaunchLoop$/ },
+  { path: "/how-to-write-a-product-hunt-tagline", h1: "How to write a Product Hunt tagline", title: /^How to write a Product Hunt tagline: examples · LaunchLoop$/ },
 ] as const;
 
 for (const guide of NEW_GUIDES) {
@@ -11,7 +11,13 @@ for (const guide of NEW_GUIDES) {
     expect(res?.status()).toBe(200);
     await expect(page).toHaveTitle(guide.title);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(guide.h1);
-    await expect(page.locator('meta[name="description"]')).toHaveAttribute("content", /.{120,}/);
+    const title = await page.title();
+    expect(title.length, title).toBeGreaterThanOrEqual(50);
+    expect(title.length, title).toBeLessThanOrEqual(59);
+    const description = (await page.locator('meta[name="description"]').getAttribute("content")) ?? "";
+    expect(description.length, description).toBeGreaterThanOrEqual(138);
+    expect(description.length, description).toBeLessThanOrEqual(158);
+    expect(`${title} ${description}`).not.toMatch(/[\u2013\u2014]/);
     await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", new RegExp(`${guide.path}$`));
     await expect(page.locator('meta[property="og:url"]')).toHaveAttribute("content", new RegExp(`${guide.path}$`));
     await expect(page.locator('meta[property="og:type"]')).toHaveAttribute("content", "article");
