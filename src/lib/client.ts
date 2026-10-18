@@ -1,5 +1,5 @@
 import { analyticsId } from "./analytics";
-import type { ExperimentKey, Experiments, Served } from "./experiments";
+import type { ExperimentKey, Served } from "./experiments";
 
 export async function postJson<T>(url: string, body: unknown): Promise<T> {
   const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -18,7 +18,7 @@ export interface CheckoutStart {
  * Creates a Checkout session (the server records checkout_started) and returns where to send the buyer.
  * `served` is what this page showed for other experiments, logged as is. The kit promo
  * (exp_launch14_promo) is never sent: the server resolves it and decides LAUNCH14.
- * Kit only: the Ship Loop pre-order goes through startPreorderCheckout.
+ * Kit only: Ship Loop is a free waitlist, and /api/checkout rejects anything else.
  */
 export async function startCheckout(product: "kit", kitId: string, served: Partial<Record<ExperimentKey, Served>> = {}): Promise<CheckoutStart> {
   const entries = Object.entries(served) as [ExperimentKey, Served][];
@@ -31,10 +31,6 @@ export async function startCheckout(product: "kit", kitId: string, served: Parti
   });
 }
 
-/** The one-time £99 Ship Loop founding pre-order. Pages only offer it when STRIPE_PRICE_SHIPLOOP_PREORDER is set (or in mock mode). */
-export async function startPreorderCheckout(experiments: Experiments = {}): Promise<CheckoutStart> {
-  return postJson<CheckoutStart>("/api/checkout", { product: "shiploop_preorder", analyticsId: analyticsId(), experiments });
-}
 
 export function reportClientError(error: Error & { digest?: string }) {
   try {

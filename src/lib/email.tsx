@@ -6,7 +6,6 @@ import { KitReadyEmail } from "../emails/kit-ready";
 import { LOGO_CID, LOGO_PNG_BASE64 } from "../emails/logo-data";
 import { MagicLinkEmail } from "../emails/magic-link";
 import { NewsletterWelcomeEmail } from "../emails/newsletter-welcome";
-import { ShipLoopWelcomeEmail } from "../emails/ship-loop-welcome";
 import { LEAD_MAGNET } from "./newsletter";
 import { PRODUCTS } from "./products";
 import type { Kit } from "./schema";
@@ -125,10 +124,3 @@ export async function newsletterWelcomeEmail(params: { to: string }): Promise<Ou
   return { to: params.to, subject: "Your launch-day checklist", ...(await renderEmail(<NewsletterWelcomeEmail checklistUrl={checklistUrl} />)) };
 }
 
-export async function preorderEmail(params: { to: string; planLabel: string }): Promise<OutgoingEmail> {
-  return {
-    to: params.to,
-    subject: "You're in: Ship Loop pre-order confirmed",
-    ...(await renderEmail(<ShipLoopWelcomeEmail planLabel={params.planLabel} shipLoopUrl={`${deploymentUrl()}/ship-loop`} accountUrl={`${deploymentUrl()}/account`} />)),
-  };
-}

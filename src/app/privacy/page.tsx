@@ -40,7 +40,7 @@ export default function PrivacyPage() {
           README, plus your page&apos;s title, description, headings and a few paragraphs). Stored with Upstash. A paid kit is kept until you ask us to delete it.
         </li>
         <li>
-          <strong>Your email address,</strong> if you buy a kit, sign in, pre-order Ship Loop, or join the waitlist or newsletter. We keep it until you unsubscribe or ask us to
+          <strong>Your email address,</strong> if you buy a kit, sign in, or join the Ship Loop waitlist or the newsletter. We keep it until you unsubscribe or ask us to
           delete it.
         </li>
         <li>
@@ -101,8 +101,8 @@ export default function PrivacyPage() {
       <h2>Emails we send</h2>
       <ul className="list-disc space-y-2 pl-5">
         <li>Kit buyers: your kit, receipts and sign-in links.</li>
-        <li>Ship Loop pre-orders and waitlist: news about Ship Loop, and a reminder before billing starts.</li>
-        <li>Newsletter: only if you signed up for it. Buying a kit, pre-ordering or joining the waitlist doesn&apos;t sign you up. Every newsletter has an unsubscribe link.</li>
+        <li>Ship Loop waitlist: an email if and when Ship Loop launches.</li>
+        <li>Newsletter: only if you signed up for it. Buying a kit or joining the waitlist doesn&apos;t sign you up. Every newsletter has an unsubscribe link.</li>
       </ul>
 
       <h2>Your rights</h2>
