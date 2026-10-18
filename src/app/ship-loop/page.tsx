@@ -106,7 +106,10 @@ export default async function ShipLoopPage() {
             </div>
           </section>
         </div>
-        <ShipLoopPlans />
+        {/* top-[4.5rem] clears the sticky site header (h-14 plus its border) with a 1rem gap. */}
+        <div className="lg:sticky lg:top-[4.5rem] lg:self-start">
+          <ShipLoopPlans />
+        </div>
       </div>
     </div>
   );
