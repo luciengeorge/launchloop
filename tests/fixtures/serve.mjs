@@ -69,6 +69,12 @@ const routes = {
   "/og/broken-image": ogPage(`<meta property="og:title" content="Brokenpic" /><meta property="og:image" content="${origin}/og/missing.png" />`),
   "/og/none": ogPage(""),
   "/slow": (_req, res) => setTimeout(() => res.end("<title>Too late</title>"), 5000),
+  // Slow but inside SITE_FETCH_TIMEOUT_MS, so a preview is still being written for a moment after it's accepted.
+  "/slowish": (_req, res) =>
+    setTimeout(() => {
+      res.writeHead(200, { "Content-Type": "text/html" });
+      res.end(html({ title: "Tortoisely", description: "Tortoisely reminds your team about stale pull requests before they rot." }));
+    }, 1200),
   "/broken": (_req, res) => {
     res.writeHead(500, { "Content-Type": "text/html" });
     res.end("<h1>Internal error</h1>");
