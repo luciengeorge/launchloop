@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { PreorderUnavailableError, RecurringPriceError, assertOneTimePrice, preorderAvailable, sessionParams } from "../../src/lib/checkout-session";
+import { PreorderUnavailableError, RecurringPriceError, assertOneTimePrice, launchPromoDue, preorderAvailable, sessionParams } from "../../src/lib/checkout-session";
 
 const urls = { successUrl: "https://launchloop.dev/api/checkout/return?session_id={CHECKOUT_SESSION_ID}", cancelUrl: "https://launchloop.dev/ship-loop?checkout=cancelled" };
 
@@ -39,7 +39,6 @@ test.describe("Checkout session params", () => {
       mode: "payment",
       line_items: [{ price: "price_pre", quantity: 1 }],
       customer: "cus_1",
-      allow_promotion_codes: true,
       metadata,
       payment_intent_data: { metadata },
       success_url: urls.successUrl,
@@ -49,6 +48,23 @@ test.describe("Checkout session params", () => {
     const signedOut = sessionParams({ product: "shiploop_preorder", priceId: "price_pre", metadata, ...urls });
     expect(signedOut).toMatchObject({ mode: "payment", customer_creation: "always", payment_intent_data: { metadata } });
     expect(signedOut).not.toHaveProperty("customer");
+  });
+
+  test("promo codes: LAUNCH14 only on kit sessions, never on the Ship Loop pre-order", () => {
+    const treatment = { exp_launch14_promo: "treatment" } as const;
+    expect(launchPromoDue("kit", treatment)).toBe(true);
+    expect(launchPromoDue("kit", { exp_launch14_promo: "control" })).toBe(false);
+    expect(launchPromoDue("kit", {})).toBe(false);
+    expect(launchPromoDue("shiploop_preorder", treatment)).toBe(false);
+
+    const kit = sessionParams({ product: "kit", priceId: "price_kit", metadata: { product: "kit", promo_code: "LAUNCH14" }, customer: "cus_1", promotionCode: "promo_launch14", ...urls });
+    expect(kit.discounts).toEqual([{ promotion_code: "promo_launch14" }]);
+    expect(kit).not.toHaveProperty("allow_promotion_codes");
+    expect(sessionParams({ product: "kit", priceId: "price_kit", metadata: {}, ...urls })).not.toHaveProperty("discounts");
+
+    const preorder = sessionParams({ product: "shiploop_preorder", priceId: "price_pre", metadata: {}, promotionCode: "promo_launch14", ...urls });
+    expect(preorder).not.toHaveProperty("discounts");
+    expect(preorder).not.toHaveProperty("allow_promotion_codes");
   });
 
   test("shiploop_preorder without its price refuses rather than charging an inline price", () => {

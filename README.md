@@ -120,7 +120,7 @@ Vercel Web Analytics and Speed Insights count page views and performance. PostHo
 | `preview_completed` | Browser, preview stream done | the above plus `kitId`, `durationMs` |
 | `preview_failed` | Browser, preview error | the above plus `code` |
 | `checkout_started` | Server, `/api/checkout` once a session URL exists | `plan` (kit / shiploop_preorder), `product_type` (kit / shiploop), `kitId`, `price_id`, `amount` in pence (after any discount), `currency`, `isLoggedIn`, `mock`, `promo_code` / `promo` when LAUNCH14 was due, `$feature/<flag>` for the variants the page showed |
-| `checkout_completed` | Server, Stripe webhook (`checkout.session.completed` / `async_payment_succeeded` with `payment_status: paid`), or `/api/checkout/mock` in test mode | the above plus `stripeSessionId`. `amount` is Stripe's `amount_total`; `promo_code` is LAUNCH14 or a code the buyer typed (Ship Loop) |
+| `checkout_completed` | Server, Stripe webhook (`checkout.session.completed` / `async_payment_succeeded` with `payment_status: paid`), or `/api/checkout/mock` in test mode | the above plus `stripeSessionId`. `amount` is Stripe's `amount_total`; `promo_code` is LAUNCH14 (kit only; Checkout has no promotion code field) |
 
 **`checkout_completed` is the purchase event**: it only fires once Stripe confirms the payment, from the webhook, so it doesn't depend on the buyer's browser coming back. Filter `mock = false` and `env = production` for real revenue. No email or other buyer details are sent.
 
@@ -194,4 +194,4 @@ Also: `npm run lint`, `npm run typecheck`, `npm run build`.
 4. In Stripe, add a webhook endpoint `https://<your-domain>/api/stripe/webhook` for `checkout.session.completed` and `checkout.session.async_payment_succeeded`, and set `STRIPE_WEBHOOK_SECRET`.
 5. Deploy. Kit generation runs in `after()` with `maxDuration` up to 120s. That works on Vercel's default Fluid compute; on plans with lower limits, reduce it.
 
-For a production launch-day discount, create a promotion code in Stripe; Checkout has `allow_promotion_codes` turned on.
+Checkout has no promotion code field. Kit discounts only come from the LAUNCH14 experiment (`discounts` on the session), and the Ship Loop pre-order never takes a discount.

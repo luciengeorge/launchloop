@@ -88,7 +88,7 @@ test("Ship Loop upsell treatment: soft £99 one-time pre-order after paying, onl
   const upsell = page.getByTestId("ship-loop-upsell");
   await expect(upsell.getByRole("heading")).toHaveText("You're in. Your kit is on its way to your inbox.");
   await expect(upsell).toContainText("Ship Loop is the weekly accountability loop for getting your launch out the door.");
-  await expect(upsell).toContainText("Founding pre-order: £99, one time.");
+  await expect(upsell).toContainText("Founding pre-order: £99, one time. It covers your first year of Ship Loop once it launches.");
   await expect(upsell).toContainText("auto-refunded in full if Ship Loop is not live within 12 months of the pre-order");
   await expect(upsell).not.toContainText(/for life/i);
   await expect(upsell.getByRole("link", { name: "Not yet? Join the free waitlist" })).toHaveAttribute("href", "/ship-loop#waitlist");

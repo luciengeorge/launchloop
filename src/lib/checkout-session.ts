@@ -1,4 +1,5 @@
 import type Stripe from "stripe";
+import { EXPERIMENTS, type Experiments } from "./experiments";
 import { PRODUCTS, type ProductId } from "./products";
 
 /**
@@ -22,6 +23,9 @@ export class RecurringPriceError extends Error {
 /** Mock mode sells the pre-order through the mock checkout; real Stripe needs STRIPE_PRICE_SHIPLOOP_PREORDER (there is no inline fallback). */
 export const preorderAvailable = (stripeConfigured: boolean, preorderPriceId: string | undefined) => !stripeConfigured || !!preorderPriceId;
 
+/** LAUNCH14 is only for kit sessions in the exp_launch14_promo treatment. The Ship Loop pre-order never takes a discount. */
+export const launchPromoDue = (product: ProductId, experiments: Experiments) => product === "kit" && experiments[EXPERIMENTS.launchPromo] === "treatment";
+
 export function assertOneTimePrice(price: Pick<Stripe.Price, "id" | "type">, product: ProductId): void {
   if (price.type !== "one_time") throw new RecurringPriceError(price.id, product);
 }
@@ -34,9 +38,11 @@ export interface SessionInput {
   email?: string;
   successUrl: string;
   cancelUrl: string;
+  /** LAUNCH14's promotion code id. Only applied to the kit. */
+  promotionCode?: string;
 }
 
-export function sessionParams({ product, priceId, metadata, customer, email, successUrl, cancelUrl }: SessionInput): Stripe.Checkout.SessionCreateParams {
+export function sessionParams({ product, priceId, metadata, customer, email, successUrl, cancelUrl, promotionCode }: SessionInput): Stripe.Checkout.SessionCreateParams {
   if (product === "shiploop_preorder" && !priceId) throw new PreorderUnavailableError("STRIPE_PRICE_SHIPLOOP_PREORDER is not set");
   const item = PRODUCTS[product];
   return {
@@ -56,9 +62,9 @@ export function sessionParams({ product, priceId, metadata, customer, email, suc
     // A Customer lets buyers manage billing in the Customer Portal from /account. Stripe rejects
     // `customer` alongside `customer_email` or `customer_creation`.
     ...(customer ? { customer } : { customer_email: email, customer_creation: "always" as const }),
-    // Kit buyers only get a code through the promo experiment; a free-text field would let the
-    // control arm type LAUNCH14 too.
-    ...(product === "kit" ? {} : { allow_promotion_codes: true }),
+    // No free-text promotion code field: kit buyers only get LAUNCH14 through the promo experiment
+    // (a field would let the control arm type it too), and the Ship Loop pre-order takes no codes.
+    ...(promotionCode && product === "kit" ? { discounts: [{ promotion_code: promotionCode }] } : {}),
     metadata,
     payment_intent_data: { metadata },
     success_url: successUrl,
