@@ -1,4 +1,5 @@
 import "server-only";
+import { phase } from "../kit-tracing";
 import { captureException } from "../observability";
 import type { Palette, SourceSummary } from "../schema";
 import { DEFAULT_PALETTE, extractPalette } from "./colors";
@@ -60,7 +61,7 @@ export async function ingest(rawInput: string, onStep: (step: IngestStep) => voi
 
   if (gh) {
     onStep("repo");
-    repo = await fetchRepo(gh.owner, gh.name, warnings);
+    repo = await tracedRepo(gh.owner, gh.name, warnings);
     const homepage = repo.homepage ?? repo.packageJson?.homepage;
     if (homepage && /^https?:\/\//.test(homepage)) {
       onStep("site");
@@ -71,13 +72,13 @@ export async function ingest(rawInput: string, onStep: (step: IngestStep) => voi
   } else {
     onStep("site");
     // The pasted site is the only source, so its failure is the user's error to see.
-    site = await fetchSite(input, warnings);
+    site = await tracedSite(input, warnings);
     if (!hasUsableContent(site)) throw new IngestError(`No usable content at ${input}`, "site_no_content");
     const linked = site.githubUrl ? parseGitHubUrl(site.githubUrl) : null;
     if (linked) {
       onStep("repo");
       try {
-        const candidate = await fetchRepo(linked.owner, linked.name, warnings);
+        const candidate = await tracedRepo(linked.owner, linked.name, warnings);
         if (repoMatchesSite(candidate, site)) repo = candidate;
         else warnings.push(`The page links to ${candidate.url}, but it doesn't look like this app's own repo, so we used the live page only.`);
       } catch (error) {
@@ -90,6 +91,13 @@ export async function ingest(rawInput: string, onStep: (step: IngestStep) => voi
   const palette = site ? extractPalette({ css: site.css, themeColor: site.themeColor }) : DEFAULT_PALETTE;
   return { primary: gh ? "repo" : "site", repo, site, palette, source: summarise(input, repo, site, warnings) };
 }
+
+/** Repo URLs are public, so the span names the repo; a site is recorded by host only. */
+const tracedRepo = (owner: string, name: string, warnings: string[]) =>
+  phase("ingest.github", "http.client.github", { "kit.repo": `${owner}/${name}` }, () => fetchRepo(owner, name, warnings));
+
+const tracedSite = (url: string, warnings: string[]) =>
+  phase("ingest.site", "http.client.site", { "kit.site_host": URL.parse(url)?.host ?? "[unparseable]" }, () => fetchSite(url, warnings));
 
 function hasUsableContent(site: SiteData): boolean {
   const words = [site.title, site.description, site.h1, ...site.headings, ...site.paragraphs, ...site.listItems].filter(Boolean).join(" ");
@@ -115,7 +123,7 @@ function repoMatchesSite(repo: RepoData, site: SiteData): boolean {
 
 async function trySite(url: string, warnings: string[]): Promise<SiteData | undefined> {
   try {
-    return await fetchSite(url, warnings);
+    return await tracedSite(url, warnings);
   } catch (error) {
     warnings.push(`Couldn't load the live page at ${url}.`);
     if (!(error instanceof IngestError)) captureException(error, { stage: "ingest.site", url });

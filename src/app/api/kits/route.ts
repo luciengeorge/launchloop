@@ -6,6 +6,7 @@ import { LlmError } from "@/lib/llm";
 import type { Kit } from "@/lib/schema";
 import { cookies } from "next/headers";
 import { ANON_KITS_COOKIE, getSession, readAnonKits, secureCookies } from "@/lib/auth";
+import { type KitRequestTrace, phase, previewSourceOf, safeInput, traceKitRequest } from "@/lib/kit-tracing";
 import { createKit, markKitFailed, markKitPending, newId } from "@/lib/kits";
 import { captureException } from "@/lib/observability";
 import { freePreviewLimit } from "@/lib/rate-limit";
@@ -13,70 +14,86 @@ import { freePreviewLimit } from "@/lib/rate-limit";
 export const maxDuration = 60;
 
 export async function POST(req: Request) {
-  const limit = await freePreviewLimit(req);
-  if (!limit.ok) {
-    return Response.json(
-      kitErrorBody("rate_limited"),
-      { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } },
-    );
-  }
+  return traceKitRequest({ maxDurationSeconds: maxDuration }, async (trace) => {
+    const limit = await phase("kits.rate_limit", "rate_limit", {}, () => freePreviewLimit(req));
+    if (!limit.ok) {
+      trace.end({ status: "error", code: "rate_limited" });
+      return Response.json(
+        kitErrorBody("rate_limited"),
+        { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } },
+      );
+    }
 
-  let url: unknown;
-  try {
-    ({ url } = (await req.json()) as { url?: unknown });
-  } catch {
-    return Response.json(kitErrorBody("invalid_url", "Send JSON like { \"url\": \"https://github.com/you/app\" }."), { status: 400 });
-  }
-  if (typeof url !== "string" || !url.trim()) {
-    return Response.json(kitErrorBody("invalid_url", "Paste a GitHub repo URL or your live site URL."), { status: 400 });
-  }
+    let url: unknown;
+    try {
+      ({ url } = (await req.json()) as { url?: unknown });
+    } catch {
+      trace.end({ status: "error", code: "invalid_url" });
+      return Response.json(kitErrorBody("invalid_url", "Send JSON like { \"url\": \"https://github.com/you/app\" }."), { status: 400 });
+    }
+    if (typeof url !== "string" || !url.trim()) {
+      trace.end({ status: "error", code: "invalid_url" });
+      return Response.json(kitErrorBody("invalid_url", "Paste a GitHub repo URL or your live site URL."), { status: 400 });
+    }
 
-  // Opt-in progress stream: newline-delimited JSON events, starting with {type:"accepted"} and ending
-  // with {type:"done"} or {type:"error"}. The id is fixed up front so it can go in the cookie before the stream starts.
-  const id = newId();
-  const session = await getSession();
-  const opts = { id, ownerEmail: session?.email };
-  if (!session) {
-    // Remember anonymous kits so they can be claimed on login.
-    const jar = await cookies();
-    const ids = [...readAnonKits(jar.get(ANON_KITS_COOKIE)?.value), id].slice(-50);
-    jar.set(ANON_KITS_COOKIE, ids.join(","), { httpOnly: true, secure: secureCookies(), sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 365 });
-  }
+    // Opt-in progress stream: newline-delimited JSON events, starting with {type:"accepted"} and ending
+    // with {type:"done"} or {type:"error"}. The id is fixed up front so it can go in the cookie before the stream starts.
+    const id = newId();
+    const session = await getSession();
+    const opts = { id, ownerEmail: session?.email };
+    const stream = !!req.headers.get("accept")?.includes("application/x-ndjson");
+    trace.set({ "kit.source": previewSourceOf(url), "kit.input": safeInput(url), "kit.id": id, "kit.logged_in": !!session, "kit.stream": stream });
+    if (!session) {
+      // Remember anonymous kits so they can be claimed on login.
+      const jar = await cookies();
+      const ids = [...readAnonKits(jar.get(ANON_KITS_COOKIE)?.value), id].slice(-50);
+      jar.set(ANON_KITS_COOKIE, ids.join(","), { httpOnly: true, secure: secureCookies(), sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 365 });
+    }
 
-  if (req.headers.get("accept")?.includes("application/x-ndjson")) return streamKit(url, opts);
+    if (stream) return streamKit(url, opts, trace);
 
-  try {
-    const kit = await createKit(url, undefined, opts);
-    speculate(kit);
-    return Response.json({ id: kit.id, url: `/kit/${kit.id}` }, { status: 201 });
-  } catch (error) {
-    const { status, body } = toErrorResponse(error, url);
-    return Response.json(body, { status });
-  }
+    try {
+      const kit = await createKit(url, undefined, opts);
+      speculate(kit);
+      trace.end({ status: "ok" });
+      return Response.json({ id: kit.id, url: `/kit/${kit.id}` }, { status: 201 });
+    } catch (error) {
+      const { status, body } = toErrorResponse(error, url);
+      trace.end({ status: "error", code: body.code });
+      return Response.json(body, { status });
+    }
+  });
 }
 
-function streamKit(url: string, opts: { id: string; ownerEmail?: string }): Response {
+function streamKit(url: string, opts: { id: string; ownerEmail?: string }, trace: KitRequestTrace): Response {
   const encoder = new TextEncoder();
   const body = new ReadableStream<Uint8Array>({
     async start(controller) {
+      let disconnected = false;
       const send = (event: Record<string, unknown>) => {
         try {
           controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
         } catch {
           // Client went away; keep generating so the kit still gets saved.
+          if (!disconnected) trace.set({ "kit.client_disconnected": true });
+          disconnected = true;
         }
       };
       try {
         // Marked before "accepted" so a client that loses the stream and opens /kit/[id] finds it.
-        await markKitPending(opts.id).catch((error) => captureException(error, { stage: "api.kits.markPending", kitId: opts.id }));
+        await phase("db.kit.mark_pending", "db", {}, () => markKitPending(opts.id)).catch((error) =>
+          captureException(error, { stage: "api.kits.markPending", kitId: opts.id }),
+        );
         send({ type: "accepted", id: opts.id });
         const kit = await createKit(url, (step) => send({ type: "step", step }), opts);
         speculate(kit);
         send({ type: "done", id: kit.id, url: `/kit/${kit.id}` });
+        trace.end({ status: "ok" });
       } catch (error) {
         const { status, body } = toErrorResponse(error, url);
         await markKitFailed(opts.id, body).catch(() => undefined);
         send({ type: "error", status, ...body });
+        trace.end({ status: "error", code: body.code });
       } finally {
         try {
           controller.close();
@@ -100,9 +117,9 @@ function speculate(kit: Kit) {
 function toErrorResponse(error: unknown, url: string) {
   if (error instanceof IngestError) return { status: 422, body: kitErrorBody(error.code, error.userMessage) };
   if (error instanceof LlmError) {
-    captureException(error, { stage: "api.kits.create.llm", url });
+    captureException(error, { stage: "api.kits.create.llm", input: safeInput(url), code: "llm_failed" });
     return { status: 503, body: kitErrorBody("llm_failed") };
   }
-  captureException(error, { stage: "api.kits.create", url });
+  captureException(error, { stage: "api.kits.create", input: safeInput(url), code: "unknown" });
   return { status: 500, body: kitErrorBody("unknown") };
 }

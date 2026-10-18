@@ -116,8 +116,9 @@ function recordPosthog(body) {
   }
 }
 
-/** Every error event the fake Sentry received (SENTRY_DSN=http://public@127.0.0.1:PORT/sentry/1). */
+/** Every error/message event and streamed span the fake Sentry received (SENTRY_DSN=http://public@127.0.0.1:PORT/sentry/1). */
 const sentryEvents = [];
+const sentrySpans = [];
 
 /** An envelope is newline-delimited JSON: envelope header, then item header / item payload pairs. */
 function recordSentry(body) {
@@ -125,7 +126,10 @@ function recordSentry(body) {
   const lines = raw.toString("utf8").split("\n");
   for (let i = 1; i + 1 < lines.length; i += 2) {
     try {
-      if (JSON.parse(lines[i]).type === "event") sentryEvents.push(JSON.parse(lines[i + 1]));
+      const type = JSON.parse(lines[i]).type;
+      if (type === "event") sentryEvents.push(JSON.parse(lines[i + 1]));
+      // Span v2 container: { items: [{ name, trace_id, status, attributes: { key: { type, value } } }] }.
+      if (type === "span") sentrySpans.push(...(JSON.parse(lines[i + 1]).items ?? []));
     } catch {
       // Attachments and other binary items aren't JSON.
     }
@@ -140,6 +144,10 @@ createServer(async (req, res) => {
   if (req.url === "/sentry/_events") {
     res.writeHead(200, { "Content-Type": "application/json" });
     return res.end(JSON.stringify(sentryEvents));
+  }
+  if (req.url === "/sentry/_spans") {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    return res.end(JSON.stringify(sentrySpans));
   }
   if (req.url.startsWith("/sentry/api/")) {
     const chunks = [];

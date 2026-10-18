@@ -3,6 +3,7 @@ import { gateway, type GatewayProviderOptions } from "@ai-sdk/gateway";
 import { generateText, NoObjectGeneratedError, Output } from "ai";
 import type { z } from "zod";
 import { env, forceMock } from "./env";
+import { phase } from "./kit-tracing";
 import { captureException, captureMessage } from "./observability";
 
 /**
@@ -83,6 +84,14 @@ function simulatedFailure(req: StructuredRequest<unknown>): boolean {
 /** Generates schema-validated output, checks it against the rubric, and retries with the problems listed. */
 export async function generateStructured<T>(req: StructuredRequest<T>): Promise<{ value: T; provider: string }> {
   const config = gatewayConfig();
+  const model = config ? (req.speed === "fast" ? config.fastModel : config.model) : "mock";
+  // Prompts and outputs stay out of telemetry; the span records which call it was, the model and the outcome.
+  return phase(`llm.${req.stage ?? "call"}`, "gen_ai.generate", { "llm.stage": req.stage, "llm.speed": req.speed ?? "main", "llm.model": model }, () =>
+    runStructured(req, config),
+  );
+}
+
+async function runStructured<T>(req: StructuredRequest<T>, config: GatewayConfig | null): Promise<{ value: T; provider: string }> {
   if (!config) {
     if (simulatedFailure(req as StructuredRequest<unknown>)) throw new LlmError("Simulated LLM failure");
     return { value: req.mock(), provider: "mock" };
@@ -98,14 +107,16 @@ export async function generateStructured<T>(req: StructuredRequest<T>): Promise<
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     let problems: string[];
     try {
-      const result = await generateText({
-        model: gateway(model),
-        system: req.system,
-        prompt,
-        output: Output.object({ schema: req.schema }),
-        providerOptions: { gateway: { models: fallbacks } satisfies GatewayProviderOptions },
-        abortSignal: AbortSignal.timeout(90_000),
-      });
+      const result = await phase("llm.attempt", "gen_ai.generate_text", { "llm.stage": req.stage, "llm.model": model, "llm.attempt": attempt }, () =>
+        generateText({
+          model: gateway(model),
+          system: req.system,
+          prompt,
+          output: Output.object({ schema: req.schema }),
+          providerOptions: { gateway: { models: fallbacks } satisfies GatewayProviderOptions },
+          abortSignal: AbortSignal.timeout(90_000),
+        }),
+      );
       last = { value: result.output, provider: `gateway:${result.response.modelId}` };
       problems = req.rubric?.(result.output) ?? [];
       if (problems.length === 0) return last;
