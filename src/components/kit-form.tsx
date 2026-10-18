@@ -38,7 +38,10 @@ export function KitForm({ promo }: { promo: boolean }) {
   // ?url= prefills the input, e.g. when a free tool hands over the repo it just read.
   useEffect(() => {
     const focusForm = (nextPlan?: StartPlan) => {
-      if (nextPlan) setPlan(nextPlan);
+      if (nextPlan) {
+        setPlan(nextPlan);
+        setError(null);
+      }
       const anchor = document.getElementById("start") ?? inputRef.current;
       anchor?.scrollIntoView({ behavior: "smooth", block: "start" });
       inputRef.current?.focus({ preventScroll: true });
@@ -49,6 +52,7 @@ export function KitForm({ promo }: { promo: boolean }) {
       const prefill = params.get("url")?.trim();
       if (urlPlan) setPlan(urlPlan);
       if (prefill) setUrl(prefill);
+      if (urlPlan || prefill) setError(null);
       if (location.hash === "#start" || urlPlan) requestAnimationFrame(() => focusForm(urlPlan));
     };
     const onStart = (e: Event) => focusForm((e as CustomEvent<{ plan?: StartPlan }>).detail?.plan ?? "free");
@@ -107,7 +111,11 @@ export function KitForm({ promo }: { promo: boolean }) {
           ref={inputRef}
           name="url"
           value={url}
-          onChange={(e) => setUrl(e.target.value)}
+          onChange={(e) => {
+            setUrl(e.target.value);
+            // An error is about the input that was sent; once it changes (repo to site, say) it no longer applies.
+            setError(null);
+          }}
           placeholder="github.com/you/your-app or your-app.com"
           autoComplete="url"
           inputMode="url"

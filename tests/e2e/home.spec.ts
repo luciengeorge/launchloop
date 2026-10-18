@@ -99,6 +99,11 @@ test("invalid input shows a friendly error", async ({ page }) => {
   await page.getByLabel("GitHub repo or live site URL").fill("not a url");
   await page.getByRole("button", { name: "Get my free preview" }).first().click();
   await expect(page.getByTestId("kit-error")).toContainText("Paste something like github.com/you/your-app");
+
+  // Switching the input (here to a site URL) clears the error about the old one.
+  await page.getByLabel("GitHub repo or live site URL").fill("https://your-app.com");
+  await expect(page.getByTestId("kit-error")).toHaveCount(0);
+  await expect(page.getByLabel("GitHub repo or live site URL")).not.toHaveAttribute("aria-invalid");
 });
 
 test("newsletter signup succeeds", async ({ page }) => {

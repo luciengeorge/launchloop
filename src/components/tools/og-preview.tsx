@@ -149,7 +149,10 @@ export function OgPreview() {
           <Input
             id={`${ids}-url`}
             value={url}
-            onChange={(e) => setUrl(e.target.value)}
+            onChange={(e) => {
+              setUrl(e.target.value);
+              setError(null);
+            }}
             placeholder="your-app.com"
             autoComplete="url"
             inputMode="url"
