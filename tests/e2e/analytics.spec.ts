@@ -74,6 +74,26 @@ test("$pageview carries utm_source / utm_medium / utm_campaign, and later events
   expect((await campaignEvent(page, campaign, "preview_completed")).properties.utm_source).toBe("x");
 });
 
+test("newsletter_subscribed says which signup it came from: footer or post-preview", async ({ page }) => {
+  const campaign = `news-${Date.now()}`;
+  await page.goto(`/?utm_source=newsletter-test&utm_campaign=${campaign}`);
+  await page.waitForLoadState("networkidle");
+  await page.getByRole("contentinfo").getByLabel("Weekly launch teardowns").fill(uniqueEmail("ph-footer"));
+  await page.getByRole("contentinfo").getByRole("button", { name: "Subscribe" }).click();
+  expect((await campaignEvent(page, campaign, "newsletter_subscribed")).properties.placement).toBe("footer");
+
+  const previewCampaign = `${campaign}-preview`;
+  await page.goto(`/?utm_source=newsletter-test&utm_campaign=${previewCampaign}`);
+  await page.getByRole("button", { name: "Try a sample app" }).click();
+  await page.waitForURL(/\/kit\/[\w-]+$/);
+  const signup = page.getByTestId("preview-newsletter");
+  await signup.getByLabel("Email for the launch-day checklist").fill(uniqueEmail("ph-preview"));
+  await signup.getByRole("button", { name: "Send me the checklist" }).click();
+  const event = await campaignEvent(page, previewCampaign, "newsletter_subscribed");
+  expect(event.properties.placement).toBe("preview");
+  expect(JSON.stringify(event)).not.toContain("@example.com");
+});
+
 test("header CTA from another page keeps the visitor's id and UTMs, through to the server-side purchase event", async ({ page }) => {
   const campaign = `hn-${Date.now()}`;
   await page.goto(`/faq?utm_source=hn&utm_medium=social&utm_campaign=${campaign}`);
