@@ -11,7 +11,7 @@ export default function PrivacyPage() {
   return (
     <article className="mx-auto max-w-3xl space-y-6 px-4 py-16 leading-relaxed sm:px-6 [&_a]:font-medium [&_a]:text-foreground [&_a]:underline [&_a]:underline-offset-4 [&_h2]:mt-8 [&_h2]:text-xl [&_h2]:font-semibold [&_li]:text-muted-foreground [&_p]:text-muted-foreground [&_strong]:text-foreground">
       <h1 className="text-4xl font-semibold tracking-tight">Privacy policy</h1>
-      <p>Last updated 15 October 2026. This page explains what LaunchLoop does with your data, in plain English.</p>
+      <p>Last updated 18 October 2026. This page explains what LaunchLoop does with your data, in plain English.</p>
 
       <h2>Who we are</h2>
       <p>
@@ -89,7 +89,12 @@ export default function PrivacyPage() {
         <li>PostHog (product analytics: how people move from a free preview to a purchase)</li>
         <li>Upstash (our database: kits, email sign-ups, sign-in links and rate limits)</li>
         <li>Sentry (error tracking)</li>
-        <li>AI model providers (currently Anthropic, with OpenAI as a backup), reached through Vercel AI Gateway, which turn your public sources into copy.</li>
+        <li>
+          AI model providers, reached through Vercel AI Gateway, which turn your public sources into copy. We use Anthropic&apos;s Claude Sonnet 4.5 for most writing and
+          Claude Haiku 4.5 for shorter sections. Each falls back to the other, then to OpenAI&apos;s GPT-5 mini. The gateway may run Claude through Anthropic, Amazon Web
+          Services or Google Cloud, and GPT-5 mini through OpenAI or Microsoft Azure. Every request is set so it only goes to providers that don&apos;t train on your
+          data. If none of them can answer, we show an error; we never pass off template text as AI-written copy.
+        </li>
       </ul>
       <p>
         Some of these companies are based in the US or process data there. Where your data leaves the UK, it&apos;s covered by the transfer safeguards in each provider&apos;s
