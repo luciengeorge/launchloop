@@ -17,7 +17,7 @@ const m = vi.hoisted(() => {
     retrieveCustomer: vi.fn(async (id: string) => ({ id, deleted: false })),
     fulfilKit: vi.fn<(id: string) => Promise<void>>(async () => {}),
     addContact: vi.fn(async () => {}),
-    captureServerEvent: vi.fn(async () => {}),
+    captureServerEvent: vi.fn<(event: string, params: unknown) => Promise<void>>(async () => {}),
     captureException: vi.fn(),
   };
 });
