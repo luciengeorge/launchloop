@@ -2,13 +2,14 @@ import { GitCommitHorizontal, Image as ImageIcon, MailCheck, PenLine } from "luc
 import type { Metadata } from "next";
 import { pageMetadata } from "@/lib/seo";
 import { ShipLoopPlans } from "@/components/ship-loop-plans";
+import { shipLoopPreorderOpen } from "@/lib/payments";
 import { StartLink } from "@/components/start-link";
 import { buttonVariants } from "@/components/ui/button";
 
 export const metadata: Metadata = pageMetadata({
   title: "Ship Loop: draft posts for every release",
   description:
-    "Coming soon. Every time you ship a release, Ship Loop drafts an X post, a LinkedIn post, a changelog blurb and an image in your colours, then emails them to you to approve. It never posts for you. £12/month or £99/year. Join the waitlist or pre-order.",
+    "Coming soon. Every time you ship a release, Ship Loop drafts an X post, a LinkedIn post, a changelog blurb and an image in your colours, then emails them to you to approve. It never posts for you. £12/month or £99/year from launch. Join the waitlist or pre-order for £99, one time.",
   path: "/ship-loop",
 });
 
@@ -21,7 +22,7 @@ const FLOW = [
 
 const COMPARISON = [
   { label: "When", kit: "Launch day", loop: "Every release after" },
-  { label: "Price", kit: "£19 once", loop: "£12/month or £99/year" },
+  { label: "Price", kit: "£19 once", loop: "£12/month or £99/year from launch" },
   { label: "You get", kit: "A full launch pack for one app", loop: "Draft posts and an image per release" },
   { label: "Status", kit: "Available now", loop: "Coming soon" },
 ];
@@ -46,7 +47,10 @@ export default function ShipLoopPage() {
                 Join the free waitlist
               </a>
             </div>
-            <p className="text-sm text-muted-foreground">£12/month or £99/year. Pre-orders are refundable in full until Ship Loop launches.</p>
+            <p className="text-sm text-muted-foreground">
+              Founding pre-order: £99, one time, for your first year. The subscription (£12/month or £99/year) starts at launch. Pre-orders are refundable in full until Ship
+              Loop launches.
+            </p>
           </div>
           <ol className="grid gap-4 sm:grid-cols-2">
             {FLOW.map(({ icon: Icon, title, body }) => (
@@ -97,7 +101,7 @@ export default function ShipLoopPage() {
             </div>
           </section>
         </div>
-        <ShipLoopPlans />
+        <ShipLoopPlans preorderOpen={shipLoopPreorderOpen()} />
       </div>
     </div>
   );

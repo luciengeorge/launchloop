@@ -47,7 +47,8 @@ All are optional locally. See [`.env.example`](.env.example) for the full annota
 | `LLM_PROVIDER` | Set to `mock` to force template copy even when gateway credentials exist |
 | `STRIPE_SECRET_KEY` | Real Stripe Checkout (use `sk_test_…` for test mode) |
 | `STRIPE_WEBHOOK_SECRET` | Verifying `/api/stripe/webhook` |
-| `STRIPE_PRICE_KIT`, `STRIPE_PRICE_SHIPLOOP_MONTHLY`, `STRIPE_PRICE_SHIPLOOP_YEARLY` | Optional: dashboard Prices instead of inline £19 / £12 / £99 |
+| `STRIPE_PRICE_KIT` | Optional: a dashboard Price instead of the inline £19 |
+| `STRIPE_PRICE_SHIPLOOP_PREORDER` | Required in production: the one-time £99 Ship Loop founding pre-order price (one-time only, Checkout runs in payment mode). Without it, real-Stripe deployments hide the pre-order CTA and show the waitlist |
 | `STRIPE_PROMO_LAUNCH14` | Optional: the LAUNCH14 promotion code id (`promo_…`). Without it, Checkout looks up the active code named `LAUNCH14` (see "Experiments") |
 | `RESEND_API_KEY`, `RESEND_FROM`, `RESEND_REPLY_TO` | Sending kit and pre-order emails |
 | `RESEND_SEGMENT_ID` or `RESEND_AUDIENCE_ID` | Storing newsletter, waitlist and buyer contacts in Resend |
@@ -118,7 +119,7 @@ Vercel Web Analytics and Speed Insights count page views and performance. PostHo
 | `preview_started` | Browser, kit form submit | `source` (github / site / sample), `plan` (free / kit intent), `isLoggedIn` |
 | `preview_completed` | Browser, preview stream done | the above plus `kitId`, `durationMs` |
 | `preview_failed` | Browser, preview error | the above plus `code` |
-| `checkout_started` | Server, `/api/checkout` once a session URL exists | `plan` (kit / shiploop_monthly / shiploop_yearly), `product_type` (kit / shiploop), `kitId`, `price_id`, `amount` in pence (after any discount), `currency`, `isLoggedIn`, `mock`, `promo_code` / `promo` when LAUNCH14 was due, `$feature/<flag>` for the variants the page showed |
+| `checkout_started` | Server, `/api/checkout` once a session URL exists | `plan` (kit / shiploop_preorder), `product_type` (kit / shiploop), `kitId`, `price_id`, `amount` in pence (after any discount), `currency`, `isLoggedIn`, `mock`, `promo_code` / `promo` when LAUNCH14 was due, `$feature/<flag>` for the variants the page showed |
 | `checkout_completed` | Server, Stripe webhook (`checkout.session.completed` / `async_payment_succeeded` with `payment_status: paid`), or `/api/checkout/mock` in test mode | the above plus `stripeSessionId`. `amount` is Stripe's `amount_total`; `promo_code` is LAUNCH14 or a code the buyer typed (Ship Loop) |
 
 **`checkout_completed` is the purchase event**: it only fires once Stripe confirms the payment, from the webhook, so it doesn't depend on the buyer's browser coming back. Filter `mock = false` and `env = production` for real revenue. No email or other buyer details are sent.
@@ -150,7 +151,7 @@ Two PostHog multivariate flags (50/50, variants `control` and `treatment`), eval
 | Flag | Where | `control` | `treatment` |
 | --- | --- | --- | --- |
 | `exp_launch14_promo` | Kit paywall (`UnlockPanel`) | £19, and kit Checkout has no promotion code field | £19 struck through, £14 with `LAUNCH14`; kit Checkout gets `discounts: [{ promotion_code }]` |
-| `exp_shiploop_success_upsell` | Kit success page (`/account/kits/[id]?paid=1`, buyer only) | Unchanged | Soft Ship Loop card: £99/year pre-order (Checkout for `STRIPE_PRICE_SHIPLOOP_YEARLY`) or the free waitlist |
+| `exp_shiploop_success_upsell` | Kit success page (`/account/kits/[id]?paid=1`, buyer only) | Unchanged | Soft Ship Loop card: £99 one-time founding pre-order (Checkout for `STRIPE_PRICE_SHIPLOOP_PREORDER`) or the free waitlist |
 
 - **LAUNCH14 lives in Stripe.** The code's terms (amount, kit only, first-time customers, redemption cap, expiry) are set on the coupon and promotion code in the dashboard; the app only sends the promotion code id (`STRIPE_PROMO_LAUNCH14`, else looked up by code). If Stripe turns the code down, or no active code exists, the buyer gets a £19 session and the paywall says so before redirecting. Turn the flag off (or roll it to 100% `control`) when the code expires.
 - **The variant is reported by the browser.** `/api/checkout` trusts the `experiments` it's sent. With a fresh id per page load anyone could reload until they see the promo anyway, so the Stripe-side limits are the guard, not the flag.

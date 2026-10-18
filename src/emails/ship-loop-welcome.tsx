@@ -15,5 +15,5 @@ export function ShipLoopWelcomeEmail({ planLabel, shipLoopUrl, accountUrl }: { p
   );
 }
 
-ShipLoopWelcomeEmail.PreviewProps = { planLabel: "£12/month", shipLoopUrl: "https://launchloop.dev/ship-loop", accountUrl: "https://launchloop.dev/account" };
+ShipLoopWelcomeEmail.PreviewProps = { planLabel: "£99 one-time", shipLoopUrl: "https://launchloop.dev/ship-loop", accountUrl: "https://launchloop.dev/account" };
 export default ShipLoopWelcomeEmail;

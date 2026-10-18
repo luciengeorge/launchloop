@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth";
 import { ensureStripeCustomer } from "@/lib/billing";
 import { isStripeMock } from "@/lib/env";
 import { after } from "next/server";
+import { PreorderUnavailableError } from "@/lib/checkout-session";
 import { featureProperties, parseExperiments } from "@/lib/experiments";
 import { generateDraft } from "@/lib/generation";
 import { getKit } from "@/lib/kits";
@@ -57,6 +58,9 @@ export async function POST(req: Request) {
     return Response.json({ url, promo });
   } catch (error) {
     captureException(error, { stage: "api.checkout", product, kitId });
+    if (error instanceof PreorderUnavailableError) {
+      return Response.json({ error: "Ship Loop pre-orders aren't open right now. Join the waitlist and we'll email you when they are.", code: "preorder_unavailable" }, { status: 503 });
+    }
     return Response.json({ error: "Couldn't start checkout. Please try again." }, { status: 502 });
   }
 }

@@ -13,7 +13,7 @@ export async function POST(req: Request) {
   if (!isEmail(email)) return isForm ? Response.redirect(new URL("/ship-loop?joined=0", req.url), 303) : Response.json({ error: "Enter a valid email address." }, { status: 400 });
   if (isUndeliverableEmail(email)) return isForm ? Response.redirect(new URL("/ship-loop?joined=0", req.url), 303) : Response.json({ error: RESERVED_EMAIL_ERROR }, { status: 400 });
   try {
-    await addContact(email, "waitlist", { plan: plan === "yearly" ? "yearly" : "monthly" });
+    await addContact(email, "waitlist", { plan: plan === "yearly" ? "yearly" : "monthly", tag: "shiploop_waitlist" });
     return isForm ? Response.redirect(new URL("/ship-loop?joined=1", req.url), 303) : Response.json({ ok: true });
   } catch (error) {
     captureException(error, { stage: "api.waitlist" });

@@ -7,7 +7,7 @@ import { EXPERIMENTS } from "@/lib/experiments";
 import { useExperiment } from "@/lib/use-experiment";
 
 /** exp_shiploop_success_upsell: a soft Ship Loop offer on the kit success page. Control renders nothing. */
-export function ShipLoopUpsell() {
+export function ShipLoopUpsell({ preorderOpen }: { preorderOpen: boolean }) {
   if (useExperiment(EXPERIMENTS.shipLoopUpsell) !== "treatment") return null;
   return (
     <section className="rounded-2xl border border-border bg-muted/40 p-5 sm:p-6" aria-labelledby="ship-loop-upsell-heading" data-testid="ship-loop-upsell">
@@ -18,12 +18,14 @@ export function ShipLoopUpsell() {
         Want help actually shipping it? Ship Loop is the weekly accountability loop for getting your launch out the door.
       </p>
       <p className="mt-3 text-sm">
-        <span className="font-medium">Founding price: £99/year.</span> Pre-order now and you&apos;re charged today; we start when Ship Loop opens.
+        <span className="font-medium">Founding pre-order: £99, one time.</span> Pay once today for your first year; your subscription starts when Ship Loop launches.
       </p>
       <div className="mt-4 flex flex-wrap items-center gap-3">
-        <CheckoutButton product="shiploop_yearly" className="h-10 px-4" experiments={{ [EXPERIMENTS.shipLoopUpsell]: "treatment" }}>
-          Pre-order Ship Loop, £99/yr
-        </CheckoutButton>
+        {preorderOpen ? (
+          <CheckoutButton product="shiploop_preorder" className="h-10 px-4" experiments={{ [EXPERIMENTS.shipLoopUpsell]: "treatment" }}>
+            Pre-order Ship Loop, £99 one-time
+          </CheckoutButton>
+        ) : null}
         <Link href="/ship-loop#waitlist" className={buttonVariants({ variant: "ghost", className: "h-10 px-3" })}>
           Not yet? Join the free waitlist
         </Link>
