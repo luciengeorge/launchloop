@@ -3,8 +3,9 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { KitView as SharedKitView } from "@/components/kit/kit-view";
 import { getSession } from "@/lib/auth";
+import { KitPending } from "@/components/kit/kit-pending";
 import { KitSkeleton } from "@/components/kit/kit-skeleton";
-import { getKit } from "@/lib/kits";
+import { getKit, getPendingKit } from "@/lib/kits";
 
 export const metadata: Metadata = {
   title: "Your launch kit",
@@ -24,6 +25,10 @@ export default function KitPage({ params, searchParams }: PageProps<"/kit/[id]">
 async function KitView({ params, searchParams }: Pick<PageProps<"/kit/[id]">, "params" | "searchParams">) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
   const [kit, session] = await Promise.all([getKit(id), getSession()]);
-  if (!kit) notFound();
+  if (!kit) {
+    const pending = await getPendingKit(id);
+    if (pending) return <KitPending kitId={id} initial={pending} />;
+    notFound();
+  }
   return <SharedKitView kit={kit} session={session} query={query} />;
 }

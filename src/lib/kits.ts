@@ -2,6 +2,7 @@ import "server-only";
 import { randomBytes } from "node:crypto";
 import { buildBrief, sourceDigest } from "./brief";
 import { generatePreview } from "./copy";
+import type { KitErrorBody } from "./errors";
 import { ingest } from "./ingest";
 import type { Brief, Kit } from "./schema";
 import { copyDraft } from "./generation";
@@ -35,6 +36,36 @@ export async function updateKit(id: string, patch: Partial<Kit> | ((kit: Kit) =>
   const next = { ...kit, ...(typeof patch === "function" ? patch(kit) : patch) };
   await saveKit(next);
   return next;
+}
+
+/**
+ * A streamed preview the client was told about ({type:"accepted"}) but that isn't saved yet,
+ * so /kit/[id] can wait for it if the stream drops instead of showing not-found.
+ */
+export type PendingKit = { state: "generating" } | ({ state: "failed" } & KitErrorBody);
+
+const PENDING_TTL_SECONDS = 10 * 60;
+/** Past the route's maxDuration plus slack, a preview still marked generating has died with its function. */
+const PENDING_STALE_MS = 90_000;
+const pendingKey = (id: string) => `kitpending:${id}`;
+
+export async function markKitPending(id: string): Promise<void> {
+  await store().set(pendingKey(id), { state: "generating", startedAt: Date.now() }, PENDING_TTL_SECONDS);
+}
+
+export async function markKitFailed(id: string, body: KitErrorBody): Promise<void> {
+  await store().set(pendingKey(id), { state: "failed", ...body }, PENDING_TTL_SECONDS);
+}
+
+export async function getPendingKit(id: string): Promise<PendingKit | null> {
+  if (!isValidKitId(id)) return null;
+  const pending = await store().get<PendingKit & { startedAt?: number }>(pendingKey(id));
+  if (!pending) return null;
+  if (pending.state === "generating" && Date.now() - (pending.startedAt ?? 0) > PENDING_STALE_MS) {
+    return { state: "failed", error: "Your preview stopped before it finished.", code: "unknown", fix: "Make a new preview. It usually takes under 30 seconds." };
+  }
+  if (pending.state === "failed") return { state: "failed", error: pending.error, code: pending.code, fix: pending.fix };
+  return { state: "generating" };
 }
 
 /** Free step: ingest, brief and the watermarked preview. The paid kit is generated after checkout. */

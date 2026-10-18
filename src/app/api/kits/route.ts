@@ -6,7 +6,7 @@ import { LlmError } from "@/lib/llm";
 import type { Kit } from "@/lib/schema";
 import { cookies } from "next/headers";
 import { ANON_KITS_COOKIE, getSession, readAnonKits, secureCookies } from "@/lib/auth";
-import { createKit, newId } from "@/lib/kits";
+import { createKit, markKitFailed, markKitPending, newId } from "@/lib/kits";
 import { captureException } from "@/lib/observability";
 import { freePreviewLimit } from "@/lib/rate-limit";
 
@@ -31,8 +31,8 @@ export async function POST(req: Request) {
     return Response.json(kitErrorBody("invalid_url", "Paste a GitHub repo URL or your live site URL."), { status: 400 });
   }
 
-  // Opt-in progress stream: newline-delimited JSON events, ending with {type:"done"} or {type:"error"}.
-  // The id is fixed up front so it can go in the cookie before the stream starts.
+  // Opt-in progress stream: newline-delimited JSON events, starting with {type:"accepted"} and ending
+  // with {type:"done"} or {type:"error"}. The id is fixed up front so it can go in the cookie before the stream starts.
   const id = newId();
   const session = await getSession();
   const opts = { id, ownerEmail: session?.email };
@@ -67,11 +67,15 @@ function streamKit(url: string, opts: { id: string; ownerEmail?: string }): Resp
         }
       };
       try {
+        // Marked before "accepted" so a client that loses the stream and opens /kit/[id] finds it.
+        await markKitPending(opts.id).catch((error) => captureException(error, { stage: "api.kits.markPending", kitId: opts.id }));
+        send({ type: "accepted", id: opts.id });
         const kit = await createKit(url, (step) => send({ type: "step", step }), opts);
         speculate(kit);
         send({ type: "done", id: kit.id, url: `/kit/${kit.id}` });
       } catch (error) {
         const { status, body } = toErrorResponse(error, url);
+        await markKitFailed(opts.id, body).catch(() => undefined);
         send({ type: "error", status, ...body });
       } finally {
         try {
