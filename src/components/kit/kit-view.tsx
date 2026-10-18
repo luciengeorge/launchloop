@@ -12,6 +12,7 @@ import { buildTasks, mask, maskContent } from "@/lib/tasks";
 import { KitChecklist } from "./kit-checklist";
 import { KitErrorState } from "./kit-error-state";
 import { KitOverview } from "./kit-overview";
+import { PreviewNewsletter } from "./preview-newsletter";
 import { PreviewPaywall } from "./preview-paywall";
 import { ShipLoopUpsell } from "./ship-loop-upsell";
 
@@ -67,6 +68,8 @@ async function LockedKit({ kit, session, query }: Props) {
         email={session?.email}
         query={query}
       />
+      {/* Arriving with ?unlock=1 means they're already on their way to checkout. */}
+      {query.unlock === "1" ? null : <PreviewNewsletter kitId={kit.id} query={query} />}
       <div data-testid="locked-kit">
         <KitChecklist kitId={kit.id} productName={kit.brief.name} tasks={tasks} locked persist="local" initialDone={[]} />
       </div>

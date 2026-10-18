@@ -1,5 +1,6 @@
 import posthog, { type CaptureResult } from "posthog-js";
 import { ANALYTICS_ID_PARAM, isAnalyticsId } from "./experiments";
+import type { NewsletterPlacement, WelcomeOutcome } from "./newsletter";
 import { POSTHOG_PROXY_PATH, posthogUiHost } from "./posthog-config";
 import { scrubProperties } from "./scrub-url";
 import type { StartPlan } from "./start-intent";
@@ -11,6 +12,7 @@ export interface ClientEvents {
   preview_started: { source: PreviewSource; plan: StartPlan; isLoggedIn: boolean };
   preview_completed: { kitId: string; source: PreviewSource; plan: StartPlan; isLoggedIn: boolean; durationMs: number };
   preview_failed: { code: string; source: PreviewSource; plan: StartPlan; isLoggedIn: boolean; durationMs: number };
+  newsletter_subscribed: { placement: NewsletterPlacement; welcome: WelcomeOutcome };
 }
 
 const key = process.env.NEXT_PUBLIC_POSTHOG_KEY;
