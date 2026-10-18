@@ -1,13 +1,15 @@
 import Link from "next/link";
 import { JsonLd } from "@/components/json-ld";
 import { siteUrl } from "@/lib/env";
-import { GUIDES, type Guide } from "@/lib/guides";
+import { GUIDES, guidePath, type Guide } from "@/lib/guides";
+import { guidePage, PAGES } from "@/lib/pages";
 import { SITE } from "@/lib/site";
 import { breadcrumbs } from "@/lib/structured-data";
 
 export function GuideLayout({ guide, children }: { guide: Guide; children: React.ReactNode }) {
   const base = siteUrl();
-  const url = `${base}/${guide.slug}`;
+  const page = guidePage(guide);
+  const url = `${base}${page.path}`;
   const others = GUIDES.filter((g) => g.slug !== guide.slug);
   return (
     <article className="mx-auto max-w-3xl px-4 py-16 sm:px-6">
@@ -22,19 +24,23 @@ export function GuideLayout({ guide, children }: { guide: Guide; children: React
               description: guide.description,
               url,
               mainEntityOfPage: url,
-              image: `${base}/opengraph-image`,
+              image: `${base}${page.image.url}`,
               datePublished: guide.updated,
               dateModified: guide.updated,
               inLanguage: "en-GB",
               author: { "@type": "Organization", name: SITE.name, url: `${base}/` },
               publisher: { "@id": `${base}/#organization`, "@type": "Organization", name: SITE.name, logo: { "@type": "ImageObject", url: `${base}/icons/icon-512.png` } },
             },
-            breadcrumbs(base, [{ name: guide.title, path: `/${guide.slug}` }]),
+            breadcrumbs(base, [
+              { name: "Guides", path: PAGES.guides.path },
+              { name: guide.title, path: page.path },
+            ]),
           ],
         }}
       />
       <nav aria-label="Breadcrumb" className="text-sm text-muted-foreground">
-        <Link href="/" className="hover:text-foreground">Home</Link> <span aria-hidden="true">/</span> <span>Guides</span>
+        <Link href="/" className="hover:text-foreground">Home</Link> <span aria-hidden="true">/</span>{" "}
+        <Link href={PAGES.guides.path} className="hover:text-foreground">Guides</Link> <span aria-hidden="true">/</span> <span aria-current="page">{guide.title}</span>
       </nav>
       <header className="mt-4 space-y-3">
         <h1 className="text-balance text-4xl font-semibold tracking-tight">{guide.title}</h1>
@@ -56,19 +62,19 @@ export function GuideLayout({ guide, children }: { guide: Guide; children: React
           Get a free preview
         </Link>
       </aside>
-      {others.length > 0 && (
-        <nav aria-label="More guides" className="mt-10 text-sm">
-          <h2 className="font-medium">More guides</h2>
-          <ul className="mt-2 space-y-1">
-            {others.map((g) => (
-              <li key={g.slug}>
-                <Link href={`/${g.slug}`} className="text-muted-foreground underline underline-offset-4 hover:text-foreground">{g.title}</Link>
-              </li>
-            ))}
-            <li><Link href="/faq" className="text-muted-foreground underline underline-offset-4 hover:text-foreground">LaunchLoop FAQ</Link></li>
-          </ul>
-        </nav>
-      )}
+      <nav aria-label="More guides" className="mt-10 text-sm">
+        <h2 className="font-medium">More guides</h2>
+        <ul className="mt-2 space-y-1">
+          {others.map((g) => (
+            <li key={g.slug}>
+              <Link href={guidePath(g)} className="text-muted-foreground underline underline-offset-4 hover:text-foreground">{g.title}</Link>
+            </li>
+          ))}
+          <li><Link href={PAGES.guides.path} className="text-muted-foreground underline underline-offset-4 hover:text-foreground">All launch guides</Link></li>
+          <li><Link href={PAGES.tools.path} className="text-muted-foreground underline underline-offset-4 hover:text-foreground">Free launch tools</Link></li>
+          <li><Link href="/faq" className="text-muted-foreground underline underline-offset-4 hover:text-foreground">LaunchLoop FAQ</Link></li>
+        </ul>
+      </nav>
     </article>
   );
 }

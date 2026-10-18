@@ -1,19 +1,16 @@
 import type { Metadata } from "next";
+import { PAGES } from "@/lib/pages";
 import { pageMetadata } from "@/lib/seo";
 import { PREVIEW_LIMITS, SITE } from "@/lib/site";
 
-export const metadata: Metadata = pageMetadata({
-  title: "Terms of service",
-  description: "The terms for using LaunchLoop, the free preview, buying a Launch Kit and pre-ordering Ship Loop.",
-  path: "/terms",
-});
+export const metadata: Metadata = pageMetadata(PAGES.terms);
 
 const mail = <a href={`mailto:${SITE.email}`}>{SITE.email}</a>;
 
 export default function TermsPage() {
   return (
     <article className="mx-auto max-w-3xl space-y-6 px-4 py-16 leading-relaxed sm:px-6 [&_a]:font-medium [&_a]:text-foreground [&_a]:underline [&_a]:underline-offset-4 [&_h2]:mt-8 [&_h2]:text-xl [&_h2]:font-semibold [&_li]:text-muted-foreground [&_p]:text-muted-foreground [&_strong]:text-foreground">
-      <h1 className="text-4xl font-semibold tracking-tight">Terms</h1>
+      <h1 className="text-4xl font-semibold tracking-tight">Terms of service</h1>
       <p>
         Last updated 15 October 2026. These terms are between you and Lucien George, a sole trader trading as LaunchLoop (&quot;we&quot; or &quot;us&quot;). Contact: {mail}.
       </p>

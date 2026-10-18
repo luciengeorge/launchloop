@@ -6,15 +6,13 @@ import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { siteUrl } from "@/lib/env";
 import { OG_IMAGE, OG_MIN } from "@/lib/og-check";
+import { PAGES, toolPage } from "@/lib/pages";
 import { pageMetadata } from "@/lib/seo";
 import { SITE } from "@/lib/site";
-import { breadcrumbs } from "@/lib/structured-data";
+import { breadcrumbs, faqPage } from "@/lib/structured-data";
 import { OG_FAQ, OG_PREVIEW as tool, TAGLINE_CHECKER } from "@/lib/tools";
 
-export const metadata: Metadata = {
-  ...pageMetadata({ title: tool.metaTitle, description: tool.description, path: tool.path, image: { url: `${tool.path}/opengraph-image`, alt: tool.imageAlt } }),
-  robots: { index: true, follow: true },
-};
+export const metadata: Metadata = pageMetadata(toolPage(tool));
 
 const SIZE = `${OG_IMAGE.width}×${OG_IMAGE.height}`;
 
@@ -69,18 +67,18 @@ export default function OgPreviewPage() {
               offers: { "@type": "Offer", price: "0", priceCurrency: "GBP", availability: "https://schema.org/InStock" },
               publisher: { "@id": `${base}/#organization`, "@type": "Organization", name: SITE.name, url: `${base}/` },
             },
-            {
-              "@type": "FAQPage",
-              "@id": `${url}#faq`,
-              mainEntity: OG_FAQ.map((item) => ({ "@type": "Question", name: item.q, acceptedAnswer: { "@type": "Answer", text: item.a } })),
-            },
-            breadcrumbs(base, [{ name: tool.title, path: tool.path }]),
+            faqPage(`${url}#faq`, OG_FAQ),
+            breadcrumbs(base, [
+              { name: "Tools", path: PAGES.tools.path },
+              { name: tool.title, path: tool.path },
+            ]),
           ],
         }}
       />
 
       <nav aria-label="Breadcrumb" className="text-sm text-muted-foreground">
-        <Link href="/" className="hover:text-foreground">Home</Link> <span aria-hidden="true">/</span> <span>Tools</span> <span aria-hidden="true">/</span>{" "}
+        <Link href="/" className="hover:text-foreground">Home</Link> <span aria-hidden="true">/</span>{" "}
+        <Link href={PAGES.tools.path} className="hover:text-foreground">Tools</Link> <span aria-hidden="true">/</span>{" "}
         <span aria-current="page">OG preview</span>
       </nav>
 
@@ -158,7 +156,9 @@ export default function OgPreviewPage() {
         <p>
           The <Link href="/product-hunt-launch-checklist">Product Hunt launch checklist</Link> covers every size and launch-day step, and the{" "}
           <Link href={TAGLINE_CHECKER.path}>Product Hunt tagline checker</Link> gets your 60-character tagline right. Built with Cursor, Lovable, Bolt or v0? Read{" "}
-          <Link href="/how-to-launch-a-vibe-coded-app">how to launch a vibe-coded app</Link> for the other SEO basics AI builders skip.
+          <Link href="/how-to-launch-a-vibe-coded-app">how to launch a vibe-coded app</Link> for the other SEO basics AI builders skip. Posting a Show HN? Hacker News lists
+          plain text links, but readers share the good ones on X and Slack, where this card shows up. The <Link href="/show-hn-launch-checklist">Show HN launch checklist</Link>{" "}
+          covers the rest.
         </p>
 
         <h2 id="faq">OG preview FAQ</h2>
