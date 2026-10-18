@@ -78,9 +78,9 @@ export function traceKitRequest<T>(opts: { maxDurationSeconds: number }, fn: (tr
     const timer = setTimeout(() => {
       if (ended) return;
       const context = { stage: "api.kits.timeout_risk", elapsedMs: Date.now() - startedAt, maxDurationSeconds: opts.maxDurationSeconds, source };
-      captureMessage("Kit preview is close to the function timeout", context);
+      captureMessage("Kit preview slow (>60s)", context);
       span.setAttribute("kit.timeout_risk", true);
-      Sentry.captureMessage("Kit preview is close to the function timeout", { level: "warning", tags: { stage: context.stage }, extra: context });
+      Sentry.captureMessage("Kit preview slow (>60s)", { level: "warning", tags: { stage: context.stage }, extra: context });
       void Sentry.flush(2000);
     }, PREVIEW_SLOW_WARNING_MS);
     timer.unref?.();
