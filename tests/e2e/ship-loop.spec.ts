@@ -74,7 +74,8 @@ test("no Ship Loop surface offers a pre-order or a £99 buy, repeats the old pro
   await expect(page).toHaveURL(/#waitlist$/);
   for (const plan of ["Monthly", /Yearly/]) {
     await page.getByRole("radio", { name: plan }).click();
-    await expect(page.locator("#plans").getByRole("button")).toHaveText(["Monthly", "Yearly (save 31%)", "Join the waitlist"]);
+    // The plan toggles are radios; the waitlist is the card's only button.
+    await expect(page.locator("#plans").getByRole("button")).toHaveText(["Join the waitlist"]);
   }
 
   await page.goto("/pricing");
