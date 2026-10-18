@@ -15,6 +15,8 @@ test.use({
   // Own preview rate-limit bucket, so these previews don't eat the budget the other specs share.
   extraHTTPHeaders: { "x-forwarded-for": `198.51.100.${Math.floor(Math.random() * 200) + 20}` },
 });
+// holdPostHogSdk's handler can still be running when a test ends; detach it without waiting so it can't fail the next test.
+test.afterEach(async ({ page }) => page.unrouteAll({ behavior: "ignoreErrors" }));
 test.beforeEach(async ({ context }) => {
   await context.addInitScript(() => {
     Object.defineProperty(Navigator.prototype, "webdriver", { get: () => false });
@@ -152,13 +154,18 @@ async function holdPostHogSdk(page: Page) {
   let release!: () => void;
   const released = new Promise<void>((resolve) => (release = resolve));
   await page.route("**/_next/static/**/*.js", async (route) => {
-    const response = await route.fetch();
-    const body = await response.text();
-    if (body.includes("$lib_version")) {
-      markRequested();
-      await released;
+    try {
+      const response = await route.fetch();
+      const body = await response.text();
+      if (body.includes("$lib_version")) {
+        markRequested();
+        await released;
+      }
+      await route.fulfill({ response, body });
+    } catch {
+      // The page moved on (on to checkout, or the test ended) while this chunk was in flight.
+      await route.continue().catch(() => {});
     }
-    await route.fulfill({ response, body });
   });
   return { requested, release };
 }
