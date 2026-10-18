@@ -1,27 +1,23 @@
 import type { Metadata } from "next";
-import { pageMetadata } from "@/lib/seo";
 import Link from "next/link";
 import { JsonLd } from "@/components/json-ld";
+import { siteUrl } from "@/lib/env";
+import { PAGES } from "@/lib/pages";
+import { pageMetadata } from "@/lib/seo";
 import { FAQ } from "@/lib/site";
+import { breadcrumbs, faqPage } from "@/lib/structured-data";
 
-export const metadata: Metadata = pageMetadata({
-  title: "FAQ: launch kits, character limits and refunds",
-  description: "How LaunchLoop reads your repo, what's in the £19 Launch Kit, which character limits it enforces, refunds, and the Ship Loop subscription.",
-  path: "/faq",
-});
+const page = PAGES.faq;
+
+export const metadata: Metadata = pageMetadata(page);
 
 const slug = (q: string) => q.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
 export default function FaqPage() {
+  const base = siteUrl();
   return (
     <article className="mx-auto max-w-3xl px-4 py-16 sm:px-6">
-      <JsonLd
-        data={{
-          "@context": "https://schema.org",
-          "@type": "FAQPage",
-          mainEntity: FAQ.map((item) => ({ "@type": "Question", name: item.q, acceptedAnswer: { "@type": "Answer", text: item.a } })),
-        }}
-      />
+      <JsonLd data={{ "@context": "https://schema.org", "@graph": [faqPage(`${base}${page.path}#faq`, FAQ), breadcrumbs(base, [{ name: "FAQ", path: page.path }])] }} />
       <header className="space-y-3">
         <h1 className="text-4xl font-semibold tracking-tight">Frequently asked questions</h1>
         <p className="text-muted-foreground">

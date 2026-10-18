@@ -1,17 +1,16 @@
 import { GitCommitHorizontal, Image as ImageIcon, MailCheck, PenLine } from "lucide-react";
 import type { Metadata } from "next";
-import { pageMetadata } from "@/lib/seo";
+import { JsonLd } from "@/components/json-ld";
 import { ShipLoopPlans } from "@/components/ship-loop-plans";
-import { shipLoopPreorderOpen } from "@/lib/payments";
 import { StartLink } from "@/components/start-link";
 import { buttonVariants } from "@/components/ui/button";
+import { siteUrl } from "@/lib/env";
+import { PAGES } from "@/lib/pages";
+import { shipLoopPreorderOpen } from "@/lib/payments";
+import { pageMetadata } from "@/lib/seo";
+import { breadcrumbs, shipLoopApp } from "@/lib/structured-data";
 
-export const metadata: Metadata = pageMetadata({
-  title: "Ship Loop: draft posts for every release",
-  description:
-    "Coming soon. Every time you ship a release, Ship Loop drafts an X post, a LinkedIn post, a changelog blurb and an image in your colours, then emails them to you to approve. It never posts for you. £12/month or £99/year from launch. Join the waitlist or pre-order for £99, one time.",
-  path: "/ship-loop",
-});
+export const metadata: Metadata = pageMetadata(PAGES.shipLoop);
 
 const FLOW = [
   { icon: GitCommitHorizontal, title: "You ship.", body: "Push a release or tag on your default branch, or update your changelog." },
@@ -28,8 +27,10 @@ const COMPARISON = [
 ];
 
 export default function ShipLoopPage() {
+  const base = siteUrl();
   return (
     <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
+      <JsonLd data={{ "@context": "https://schema.org", "@graph": [shipLoopApp(base), breadcrumbs(base, [{ name: "Ship Loop", path: PAGES.shipLoop.path }])] }} />
       <div className="grid gap-12 lg:grid-cols-[1fr_420px] lg:items-start">
         <div className="space-y-8">
           <div className="space-y-4">
@@ -52,11 +53,12 @@ export default function ShipLoopPage() {
               Loop launches.
             </p>
           </div>
+          <h2 className="sr-only">How Ship Loop works</h2>
           <ol className="grid gap-4 sm:grid-cols-2">
             {FLOW.map(({ icon: Icon, title, body }) => (
               <li key={title} className="rounded-2xl border border-border bg-card p-5">
                 <Icon className="size-5 text-primary" aria-hidden="true" />
-                <h2 className="mt-3 font-medium">{title}</h2>
+                <h3 className="mt-3 font-medium">{title}</h3>
                 <p className="mt-1 text-sm text-muted-foreground">{body}</p>
               </li>
             ))}
