@@ -174,6 +174,9 @@ export function kitSuccessPath(kitId: string, sessionRef: string, signedIn: bool
   return signedIn ? `/account/kits/${kitId}?paid=1` : `/checkout/success?${new URLSearchParams({ kit: kitId, session_id: sessionRef })}`;
 }
 
+/** A 100%-off Checkout completes with "no_payment_required": it's a purchase like any other. */
+export const isPaidSession = (session: Pick<Stripe.Checkout.Session, "payment_status">) => session.payment_status === "paid" || session.payment_status === "no_payment_required";
+
 /** Whether this deployment owns a Checkout session (see stripeEventDecision). */
 export function checkoutDecision(session: Stripe.Checkout.Session) {
   return stripeEventDecision({ metadataEnv: session.metadata?.env, livemode: session.livemode, current: deployEnv(), secretKey: env.stripeSecretKey });

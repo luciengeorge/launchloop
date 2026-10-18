@@ -4,7 +4,7 @@ import { withAnalyticsId } from "@/lib/experiments";
 import { fulfilKit, recordPayment } from "@/lib/fulfil";
 import { normaliseEmail } from "@/lib/kits";
 import { captureException } from "@/lib/observability";
-import { checkoutDecision, kitSuccessPath, stripe } from "@/lib/payments";
+import { checkoutDecision, isPaidSession, kitSuccessPath, stripe } from "@/lib/payments";
 import { isProductId } from "@/lib/products";
 
 export const maxDuration = 120;
@@ -25,7 +25,7 @@ export async function GET(req: Request) {
     if (!checkoutDecision(session).handle) return Response.redirect(new URL("/?checkout=error", url), 303);
     const product = session.metadata?.product;
     const kitId = session.metadata?.kitId;
-    if (session.payment_status !== "paid" || !isProductId(product)) {
+    if (!isPaidSession(session) || !isProductId(product)) {
       return Response.redirect(new URL(kitId ? `/kit/${kitId}?checkout=pending` : "/ship-loop?checkout=pending", url), 303);
     }
     // Same anonymous id on the success page, so its flags and any upsell checkout join this purchase.

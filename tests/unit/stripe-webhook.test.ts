@@ -17,7 +17,8 @@ const m = vi.hoisted(() => {
 vi.mock("server-only", () => ({}));
 vi.mock("next/server", () => ({ after: m.after }));
 vi.mock("@/lib/env", () => ({ env: { stripeWebhookSecret: "whsec_unit", stripeSecretKey: "sk_test_unit" } }));
-vi.mock("@/lib/payments", () => ({
+vi.mock("@/lib/payments", async (importOriginal) => ({
+  ...(await importOriginal<object>()),
   // Signature checks are Stripe's job; the test body is the event itself.
   stripe: () => ({ webhooks: { constructEvent: (body: string) => JSON.parse(body) } }),
   sessionPromoCode: async () => undefined,

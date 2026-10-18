@@ -352,4 +352,22 @@ describe("return URL", () => {
     const signedIn = await checkoutReturn(new Request(`http://x/api/checkout/return?session_id=${event.data.object.id}`));
     expect(signedIn.headers.get("location")).toBe(`http://x/account/kits/${KIT_ID}?paid=1&aid=ph_guest`);
   });
+
+  it("treats a 100%-off (no_payment_required) session as paid, like the webhook, and still waits on an unpaid one", async () => {
+    const unpaid = guestEvent({ payment_status: "unpaid" }).data.object;
+    m.retrieveSession.mockResolvedValueOnce(unpaid);
+    const pending = await checkoutReturn(new Request(`http://x/api/checkout/return?session_id=${unpaid.id}`));
+    expect(pending.headers.get("location")).toBe(`http://x/kit/${KIT_ID}?checkout=pending`);
+    expect(kit().paid).toBe(false);
+
+    const free = guestEvent({ payment_status: "no_payment_required", amount_total: 0 }).data.object;
+    m.retrieveSession.mockResolvedValueOnce(free);
+    const res = await checkoutReturn(new Request(`http://x/api/checkout/return?session_id=${free.id}`));
+
+    expect(res.headers.get("location")).toBe(`http://x/checkout/success?kit=${KIT_ID}&session_id=${free.id}&aid=ph_guest`);
+    expect(kit()).toMatchObject({ paid: true, paymentRef: free.id, ownerEmail: BUYER });
+    expect(members(`pending:${BUYER}:kits`)).toEqual([KIT_ID]);
+    await flush();
+    expect(m.fulfilKit).toHaveBeenCalledWith(KIT_ID);
+  });
 });

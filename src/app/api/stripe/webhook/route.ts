@@ -8,7 +8,7 @@ import type { KitOwnership } from "@/lib/accounts";
 import { fulfilKit, recordPayment, type RecordedPayment } from "@/lib/fulfil";
 import { captureException, logEvent } from "@/lib/observability";
 import { deployEnv, stripeEventDecision } from "@/lib/deploy-env";
-import { sessionPromoCode, stripe } from "@/lib/payments";
+import { isPaidSession, sessionPromoCode, stripe } from "@/lib/payments";
 import { isProductId, type ProductId } from "@/lib/products";
 import { store } from "@/lib/store";
 
@@ -59,8 +59,7 @@ export async function POST(req: Request) {
 
   const product = session.metadata?.product;
   const kitId = session.metadata?.kitId;
-  // A 100%-off Checkout completes with "no_payment_required": it's a purchase like any other.
-  if (session.payment_status !== "paid" && session.payment_status !== "no_payment_required") {
+  if (!isPaidSession(session)) {
     // An async payment method (bank debit) settles later as checkout.session.async_payment_succeeded.
     await markHandled(event.id);
     log("awaiting_payment");
