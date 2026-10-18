@@ -12,7 +12,7 @@ export default function TermsPage() {
     <article className="mx-auto max-w-3xl space-y-6 px-4 py-16 leading-relaxed sm:px-6 [&_a]:font-medium [&_a]:text-foreground [&_a]:underline [&_a]:underline-offset-4 [&_h2]:mt-8 [&_h2]:text-xl [&_h2]:font-semibold [&_li]:text-muted-foreground [&_p]:text-muted-foreground [&_strong]:text-foreground">
       <h1 className="text-4xl font-semibold tracking-tight">Terms of service</h1>
       <p>
-        Last updated 15 October 2026. These terms are between you and Lucien George, a sole trader trading as LaunchLoop (&quot;we&quot; or &quot;us&quot;). Contact: {mail}.
+        Last updated 18 October 2026. These terms are between you and Lucien George, a sole trader trading as LaunchLoop (&quot;we&quot; or &quot;us&quot;). Contact: {mail}.
       </p>
 
       <h2>What LaunchLoop does</h2>
@@ -44,24 +44,10 @@ export default function TermsPage() {
       </p>
       <p>This doesn&apos;t affect your legal rights, for example if a kit is faulty or not as described.</p>
 
-      <h2>Ship Loop pre-orders (coming soon)</h2>
-      <p>Ship Loop costs £12 a month or £99 a year.</p>
-      <ul className="list-disc space-y-2 pl-5">
-        <li>When you pre-order, we charge your first month or first year, whichever you choose.</li>
-        <li>Your paid period starts on the day Ship Loop launches, not the day you pre-order.</li>
-        <li>Until Ship Loop launches you can ask for a full refund at any time, for any reason. Email {mail}.</li>
-        <li>If Ship Loop isn&apos;t live within 12 months of your pre-order, we&apos;ll refund you in full without you asking.</li>
-        <li>We&apos;ll email you before regular billing starts.</li>
-      </ul>
+      <h2>Ship Loop (coming soon)</h2>
       <p>
-        <strong>Kit credit.</strong> If you bought a Launch Kit and start Ship Loop within 14 days of buying it, we take £19 off your first Ship Loop payment. The credit has no
-        cash value.
-      </p>
-
-      <h2>Ship Loop subscriptions</h2>
-      <p>
-        Once live, Ship Loop renews automatically each month or year until you cancel. You can cancel any time from your account or by emailing {mail}. Cancelling stops the next
-        payment and you keep access until the end of the period you&apos;ve paid for. We&apos;ll remind you before an annual plan renews.
+        Ship Loop isn&apos;t on sale and we don&apos;t take payment for it. You can join the free waitlist, and we&apos;ll email you if and when it launches. Joining
+        doesn&apos;t commit you to anything. If Ship Loop ever goes on sale, its terms will be published here first.
       </p>
       <p>
         Ship Loop only makes drafts. It emails them to you to approve or edit. Approving a draft doesn&apos;t publish it anywhere: you post it yourself. It never posts for you.

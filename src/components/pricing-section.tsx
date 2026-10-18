@@ -22,7 +22,7 @@ const SHIP_LOOP_ITEMS = [
   "Drafts an X post, LinkedIn post and changelog blurb",
   "A fresh image in your colours for each one",
   "Emailed to you to approve or edit. We never post for you",
-  "Bought a kit? Join within 14 days of buying and we credit the £19",
+  "Free waitlist: we'll email you when it launches",
 ];
 
 export function PricingTimeline({ promo, className = "" }: { promo: boolean; className?: string }) {
@@ -101,7 +101,7 @@ function HomeStrip({ promo }: { promo: boolean }) {
           name="3. Ship Loop"
           price="from £12"
           suffix="/month, planned"
-          body="For after launch. Every time you release, we draft an X post, a LinkedIn post, a changelog blurb and an image, and email them to you to approve. Subscribe within 14 days of buying a kit and we credit your £19."
+          body="For after launch. Every time you release, we draft an X post, a LinkedIn post, a changelog blurb and an image, and email them to you to approve. Join the waitlist, we'll email you when it launches."
           cta={
             <Link href="/ship-loop" className={buttonVariants({ variant: "outline", className: "w-full" })}>
               Join the free waitlist

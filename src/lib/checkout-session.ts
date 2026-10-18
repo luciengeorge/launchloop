@@ -7,11 +7,6 @@ import { PRODUCTS, type ProductId } from "./products";
  * unit-test them. Every product is a one-time payment: Checkout's payment mode rejects recurring prices.
  */
 
-/** The Ship Loop pre-order can't be sold here: STRIPE_PRICE_SHIPLOOP_PREORDER is missing or not in this Stripe account. */
-export class PreorderUnavailableError extends Error {
-  name = "PreorderUnavailableError";
-}
-
 /** A recurring price reached payment-mode Checkout, which Stripe would reject. A STRIPE_PRICE_* env var points at the wrong price. */
 export class RecurringPriceError extends Error {
   name = "RecurringPriceError";
@@ -20,10 +15,17 @@ export class RecurringPriceError extends Error {
   }
 }
 
-/** Mock mode sells the pre-order through the mock checkout; real Stripe needs STRIPE_PRICE_SHIPLOOP_PREORDER (there is no inline fallback). */
-export const preorderAvailable = (stripeConfigured: boolean, preorderPriceId: string | undefined) => !stripeConfigured || !!preorderPriceId;
+export const SHIP_LOOP_WAITLIST_ONLY = "Ship Loop isn't on sale. Join the waitlist, we'll email you when it launches.";
 
-/** LAUNCH14 is only for kit sessions in the exp_launch14_promo treatment. The Ship Loop pre-order never takes a discount. */
+/**
+ * The kit is the only thing Checkout sells. Ship Loop (monthly, yearly, pre-order or anything else) is a free waitlist,
+ * so every other product gets a 400 with the waitlist message before Stripe is touched.
+ */
+export function checkoutRejection(product: unknown): { status: 400; error: string; code: "waitlist_only" } | null {
+  return product === "kit" ? null : { status: 400, error: SHIP_LOOP_WAITLIST_ONLY, code: "waitlist_only" };
+}
+
+/** LAUNCH14 is only for kit sessions in the exp_launch14_promo treatment. */
 export const launchPromoDue = (product: ProductId, experiments: Experiments) => product === "kit" && experiments[EXPERIMENTS.launchPromo] === "treatment";
 
 export function assertOneTimePrice(price: Pick<Stripe.Price, "id" | "type">, product: ProductId): void {
@@ -43,7 +45,6 @@ export interface SessionInput {
 }
 
 export function sessionParams({ product, priceId, metadata, customer, email, successUrl, cancelUrl, promotionCode }: SessionInput): Stripe.Checkout.SessionCreateParams {
-  if (product === "shiploop_preorder" && !priceId) throw new PreorderUnavailableError("STRIPE_PRICE_SHIPLOOP_PREORDER is not set");
   const item = PRODUCTS[product];
   return {
     mode: "payment",
@@ -63,7 +64,7 @@ export function sessionParams({ product, priceId, metadata, customer, email, suc
     // `customer` alongside `customer_email` or `customer_creation`.
     ...(customer ? { customer } : { customer_email: email, customer_creation: "always" as const }),
     // No free-text promotion code field: kit buyers only get LAUNCH14 through the promo experiment
-    // (a field would let the control arm type it too), and the Ship Loop pre-order takes no codes.
+    // (a field would let the control arm type it too).
     ...(promotionCode && product === "kit" ? { discounts: [{ promotion_code: promotionCode }] } : {}),
     metadata,
     payment_intent_data: { metadata },

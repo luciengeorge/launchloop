@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { expect, test, type Page, type Request } from "@playwright/test";
 
-/** Every POST to /api/checkout this page makes. Only the £99 pre-order button may start a Ship Loop checkout. */
+/** Every POST to /api/checkout this page makes. Ship Loop is a free waitlist, so no Ship Loop surface may make one. */
 function recordCheckouts(page: Page): Request[] {
   const checkouts: Request[] = [];
   page.on("request", (req) => {
@@ -11,16 +11,21 @@ function recordCheckouts(page: Page): Request[] {
   return checkouts;
 }
 
-test("waitlist signup: joined, then already on the list, tagged with the plan and source", async ({ page }) => {
+/** A record in the e2e server's file store (DATA_DIR=.data-test, dev: prefix). */
+async function stored<T>(key: string): Promise<T> {
+  const file = path.join(".data-test", `dev:${key}`.replace(/[^a-zA-Z0-9_.-]/g, "_") + ".json");
+  return (JSON.parse(await readFile(file, "utf8")) as { value: T }).value;
+}
+
+test("waitlist signup: stored with email, timestamp and shiploop_waitlist tag; a repeat is a duplicate, not a second entry", async ({ page }) => {
   const checkouts = recordCheckouts(page);
   await page.goto("/ship-loop");
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Ship Loop is coming soon" })).toBeVisible();
-  // Monthly is waitlist only, even with pre-orders open.
+  await expect(page.locator("#plans")).toContainText("Join the waitlist, we'll email you when it launches.");
   await page.getByRole("radio", { name: "Monthly" }).click();
   await expect(page.getByText("£12", { exact: true })).toBeVisible();
   await expect(page.getByText("Planned pricing", { exact: true })).toBeVisible();
-  await expect(page.locator("#plans").getByRole("button", { name: /pre-order/i })).toHaveCount(0);
 
   const email = `wait-${Date.now()}@example.com`;
   const plans = page.locator("#plans");
@@ -29,16 +34,18 @@ test("waitlist signup: joined, then already on the list, tagged with the plan an
   await plans.getByRole("button", { name: "Join the waitlist" }).click();
   expect((await request).postDataJSON()).toMatchObject({ email, plan: "monthly", source: "ship_loop_page" });
   await expect(plans.getByTestId("waitlist-status")).toHaveText("You're on the waitlist. We'll email you when Ship Loop launches.");
-  // The e2e server's file store (DATA_DIR=.data-test, dev: prefix).
-  const file = path.join(".data-test", `dev:contact:waitlist:${email}`.replace(/[^a-zA-Z0-9_.-]/g, "_") + ".json");
-  const { value } = JSON.parse(await readFile(file, "utf8")) as { value: Record<string, string> };
-  expect(value).toMatchObject({ email, source: "waitlist", plan: "monthly", tag: "shiploop_waitlist", signup_source: "ship_loop_page" });
+  const first = await stored<Record<string, string>>(`contact:waitlist:${email}`);
+  expect(first).toMatchObject({ email, source: "waitlist", plan: "monthly", tag: "shiploop_waitlist", signup_source: "ship_loop_page" });
+  expect(Date.parse(first.createdAt)).toBeGreaterThan(Date.now() - 60_000);
+  expect(await stored<string[]>("contacts:waitlist")).toContain(email);
 
   await page.reload();
-  await page.getByRole("radio", { name: "Monthly" }).click();
   await plans.getByRole("textbox", { name: "Email" }).fill(email.toUpperCase());
   await plans.getByRole("button", { name: "Join the waitlist" }).click();
   await expect(plans.getByTestId("waitlist-status")).toHaveText("You're already on the waitlist. We'll email you when Ship Loop launches.");
+  const again = await stored<Record<string, string>>(`contact:waitlist:${email}`);
+  expect(again).toMatchObject({ email, tag: "shiploop_waitlist", plan: "yearly", createdAt: first.createdAt });
+  expect((await stored<string[]>("contacts:waitlist")).filter((e) => e === email)).toHaveLength(1);
   expect(checkouts).toHaveLength(0);
 });
 
@@ -52,20 +59,24 @@ test("waitlist signup: a server error is shown and the form stays", async ({ pag
   await expect(plans.getByRole("button", { name: "Join the waitlist" })).toBeEnabled();
 });
 
-test("home and /pricing offer no pre-order and start no checkout", async ({ page }) => {
+test("no Ship Loop surface offers a pre-order or a £99 buy, repeats the old promises, or calls /api/checkout", async ({ page }) => {
   const checkouts = recordCheckouts(page);
-  for (const path of ["/pricing", "/"]) {
+  for (const path of ["/ship-loop", "/pricing", "/", "/faq", "/terms", "/privacy"]) {
     await page.goto(path);
-    await expect(page.getByRole("button", { name: /pre-order/i })).toHaveCount(0);
-    await expect(page.getByRole("link", { name: /pre-order/i })).toHaveCount(0);
-    await expect(page.locator("main")).not.toContainText(/charged today|pre-order/i);
+    for (const role of ["button", "link"] as const) {
+      await expect(page.getByRole(role, { name: /pre-?order|£99|buy ship loop|subscribe to ship loop/i }), `${path} ${role}`).toHaveCount(0);
+    }
+    await expect(page.locator("main"), path).not.toContainText(/pre-?order|charged today|first year|within 12 months of|credit (the|your)( full)? £19/i);
   }
 
   await page.goto("/ship-loop");
   await page.getByRole("link", { name: "Join the waitlist" }).first().click();
   await expect(page).toHaveURL(/#waitlist$/);
-  await page.getByRole("radio", { name: "Monthly" }).click();
-  await page.getByRole("radio", { name: /Yearly/ }).click();
+  for (const plan of ["Monthly", /Yearly/]) {
+    await page.getByRole("radio", { name: plan }).click();
+    // The plan toggles are radios; the waitlist is the card's only button.
+    await expect(page.locator("#plans").getByRole("button")).toHaveText(["Join the waitlist"]);
+  }
 
   await page.goto("/pricing");
   const shipLoop = page.getByTestId("ship-loop-plan");
@@ -75,28 +86,12 @@ test("home and /pricing offer no pre-order and start no checkout", async ({ page
   expect(checkouts).toHaveLength(0);
 });
 
-test("£99 one-time founding pre-order on Yearly through mock checkout", async ({ page, request }) => {
-  await page.goto("/ship-loop");
-  const preorder = page.getByTestId("preorder");
-  await expect(preorder.getByText("£99", { exact: true })).toBeVisible();
-  await expect(preorder.getByText("one-time founding pre-order", { exact: true })).toBeVisible();
-  await expect(preorder).toContainText("It covers your first year of Ship Loop once it launches.");
-  await expect(preorder).toContainText("isn't live within 12 months of your pre-order, we refund you in full automatically");
-  await page.getByRole("button", { name: "Pre-order Ship Loop, £99 one-time" }).click();
-  await page.waitForURL(/\/checkout\/mock\?product=shiploop_preorder/);
-  const email = `pre-${Date.now()}@example.com`;
-  await page.getByLabel("Email for your receipt and kit").fill(email);
-  await page.getByRole("button", { name: "Pay £99 (test mode)" }).click();
-  await page.waitForURL(/\/ship-loop\/thanks/);
-  await expect(page.getByRole("heading", { name: /founding member/ })).toBeVisible();
-
-  const { emails } = (await (await request.get("/api/dev/outbox")).json()) as { emails: { to: string; subject: string }[] };
-  expect(emails.find((e) => e.to === email)?.subject).toContain("Ship Loop pre-order confirmed");
-});
-
-test("/api/checkout answers a Ship Loop plan it doesn't sell with 400, never a 502", async ({ request }) => {
-  for (const product of ["shiploop_monthly", "shiploop_yearly"]) {
-    const res = await request.post("/api/checkout", { data: { product } });
-    expect(res.status()).toBe(400);
+test("/api/checkout and the mock checkout answer every non-kit product with a 400 and the waitlist message, never a 502", async ({ request }) => {
+  for (const url of ["/api/checkout", "/api/checkout/mock"]) {
+    for (const product of ["shiploop_monthly", "shiploop_yearly", "shiploop_preorder", "anything", undefined]) {
+      const res = await request.post(url, { data: { product, email: "buyer@launchloop.dev" } });
+      expect(res.status(), `${url} ${product}`).toBe(400);
+      expect(await res.json()).toEqual({ error: "Ship Loop isn't on sale. Join the waitlist, we'll email you when it launches.", code: "waitlist_only" });
+    }
   }
 });

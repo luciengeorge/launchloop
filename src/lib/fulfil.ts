@@ -2,15 +2,14 @@ import "server-only";
 import { addContact } from "./audience";
 import { launchChecklist } from "./copy";
 import { assemble, generateDraft, getDraft } from "./generation";
-import { kitFailedEmail, kitReadyEmail, preorderEmail, sendEmail } from "./email";
-import { recordBillingCustomer, recordShipLoop } from "./billing";
+import { kitFailedEmail, kitReadyEmail, sendEmail } from "./email";
+import { recordBillingCustomer } from "./billing";
 import { getKit, linkKitToUser, normaliseEmail, updateKit } from "./kits";
 import { captureServerEvent, eventUuid } from "./analytics-server";
 import { gatewayErrorType } from "./llm";
 import { captureException, captureExceptionThrottled } from "./observability";
-import { PRODUCTS, type ProductId } from "./products";
+import type { ProductId } from "./products";
 import type { Kit } from "./schema";
-import { store } from "./store";
 import { buildKitZip, zipFileName } from "./zip";
 
 const STALE_GENERATION_MS = 3 * 60_000;
@@ -34,52 +33,30 @@ export interface PaidOrder {
   customerId?: string;
 }
 
-export interface Preorder {
-  ref: string;
-  email: string;
-  product: ProductId;
-  createdAt: string;
-}
-
 /** Records a successful payment. Fast and idempotent; heavy work happens in `fulfilKit`. */
 export async function recordPayment(order: PaidOrder): Promise<void> {
-  if (order.product === "kit") {
-    if (!order.kitId) throw new Error(`Kit payment ${order.ref} has no kitId`);
-    // If the speculative draft is done, unlock in the same write so the kit is visible on the redirect.
-    const ready = assemble((await getDraft(order.kitId)).sections);
-    await updateKit(order.kitId, (kit) =>
-      kit.paid
-        ? { email: kit.email ?? order.email, ownerEmail: kit.ownerEmail ?? (order.email ? normaliseEmail(order.email) : undefined) }
-        : {
-            paid: true,
-            status: "paid",
-            email: order.email,
-            ownerEmail: kit.ownerEmail ?? (order.email ? normaliseEmail(order.email) : undefined),
-            paymentRef: order.ref,
-            paidAt: new Date().toISOString(),
-            ...(ready
-              ? { status: "ready" as const, content: ready, checklist: launchChecklist(kit.brief), generatedAt: new Date().toISOString(), readyAt: new Date().toISOString() }
-              : {}),
-          },
-    );
-    if (order.email) {
-      await linkKitToUser(order.email, order.kitId);
-      await addContact(order.email, "kit");
-      if (order.customerId) await recordBillingCustomer(order.email, order.customerId, "kit");
-    }
-    return;
-  }
-
-  const key = `preorder:${order.ref}`;
-  if (!order.email) throw new Error(`Pre-order ${order.ref} has no email`);
-  await recordShipLoop(order.email, { product: order.product, ref: order.ref, customerId: order.customerId, since: new Date().toISOString() });
-  if (await store().get<Preorder>(key)) return;
-  await store().set<Preorder>(key, { ref: order.ref, email: order.email, product: order.product, createdAt: new Date().toISOString() });
-  await addContact(order.email, "preorder", { plan: order.product });
-  try {
-    await sendEmail(await preorderEmail({ to: order.email, planLabel: PRODUCTS[order.product].priceLabel }));
-  } catch (error) {
-    captureException(error, { stage: "fulfil.preorderEmail", ref: order.ref });
+  if (!order.kitId) throw new Error(`Kit payment ${order.ref} has no kitId`);
+  // If the speculative draft is done, unlock in the same write so the kit is visible on the redirect.
+  const ready = assemble((await getDraft(order.kitId)).sections);
+  await updateKit(order.kitId, (kit) =>
+    kit.paid
+      ? { email: kit.email ?? order.email, ownerEmail: kit.ownerEmail ?? (order.email ? normaliseEmail(order.email) : undefined) }
+      : {
+          paid: true,
+          status: "paid",
+          email: order.email,
+          ownerEmail: kit.ownerEmail ?? (order.email ? normaliseEmail(order.email) : undefined),
+          paymentRef: order.ref,
+          paidAt: new Date().toISOString(),
+          ...(ready
+            ? { status: "ready" as const, content: ready, checklist: launchChecklist(kit.brief), generatedAt: new Date().toISOString(), readyAt: new Date().toISOString() }
+            : {}),
+        },
+  );
+  if (order.email) {
+    await linkKitToUser(order.email, order.kitId);
+    await addContact(order.email, "kit");
+    if (order.customerId) await recordBillingCustomer(order.email, order.customerId, "kit");
   }
 }
 
