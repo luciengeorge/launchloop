@@ -1,6 +1,7 @@
 import "server-only";
 import { createHash, randomUUID } from "node:crypto";
 import { PostHog } from "posthog-node";
+import type { Attribution } from "./attribution";
 import { deployEnv } from "./deploy-env";
 import { env } from "./env";
 import { fallbackServed, isAnalyticsId, kitBucketingId, type ExperimentKey, type FallbackReason, type FeatureProperties, type Served, type Variant } from "./experiments";
@@ -24,11 +25,14 @@ interface CheckoutProperties {
   promo?: "applied" | "unavailable";
 }
 
+/** Kit purchases also carry the kit's first-touch utm_* and referring_domain. */
 export interface ServerEvents {
-  checkout_started: CheckoutProperties & FeatureProperties;
-  checkout_completed: CheckoutProperties & FeatureProperties & { stripeSessionId: string };
+  checkout_started: CheckoutProperties & FeatureProperties & Attribution;
+  checkout_completed: CheckoutProperties & FeatureProperties & Attribution & { stripeSessionId: string };
   /** The server couldn't get an assignment where it needed one (see resolveKitPromo). `remembered`: it used the kit's last assignment. */
   flag_fallback: { flag: ExperimentKey; variant: Variant; reason: FallbackReason; fallback: true; source: "checkout"; remembered: boolean; kitId: string };
+  /** A paid Checkout we couldn't record ("record", Stripe will retry) or whose kit generation crashed ("fulfil"). */
+  checkout_fulfilment_failed: { plan: ProductId; kitId?: string; stripeSessionId: string; stripeEventId: string; stage: "record" | "fulfil"; errorName: string; mock: boolean };
   /** A paid kit failed every automatic attempt and needs a manual delivery or refund. */
   kit_generation_failed: { plan: "kit"; kitId: string; attempts: number; refund_needed: true; reason: string };
 }

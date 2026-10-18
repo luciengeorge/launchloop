@@ -120,11 +120,28 @@ test("header CTA from another page keeps the visitor's id and UTMs, through to t
   await page.getByRole("button", { name: "Pay £19 (test mode)" }).click();
   await page.waitForURL(/\/account\/kits\/[\w-]+\?paid=1&aid=/);
 
+  // First touch rides on the kit, so it survives the magic link's full page load without cookies or storage.
+  const firstTouch = { utm_source: "hn", utm_medium: "social", utm_campaign: campaign };
   const checkoutStarted = await serverEvent(page, id, "checkout_started");
-  expect(checkoutStarted.properties).toMatchObject({ plan: "kit", product_type: "kit", amount: 1900, currency: "gbp", "fallback/exp_launch14_promo": "control" });
+  expect(checkoutStarted.properties).toMatchObject({ plan: "kit", product_type: "kit", amount: 1900, currency: "gbp", "fallback/exp_launch14_promo": "control", ...firstTouch });
   // The fake PostHog assigns nothing, so the £19 the page served was a fallback, not an experiment arm.
   expect(checkoutStarted.properties).not.toHaveProperty("$feature/exp_launch14_promo");
   const purchase = await serverEvent(page, id, "checkout_completed");
-  expect(purchase.properties).toMatchObject({ plan: "kit", product_type: "kit", amount: 1900, currency: "gbp", mock: true });
+  expect(purchase.properties).toMatchObject({ plan: "kit", product_type: "kit", amount: 1900, currency: "gbp", mock: true, ...firstTouch });
   expect(JSON.stringify(purchase)).not.toContain("@example.com");
+  expect(await page.context().cookies()).not.toContainEqual(expect.objectContaining({ value: expect.stringContaining(campaign) }));
+  expect(await page.evaluate(() => JSON.stringify({ ...localStorage }) + JSON.stringify({ ...sessionStorage }))).not.toContain(campaign);
+});
+
+test("the preview request carries first-touch UTMs and the referring domain from the landing page", async ({ page }) => {
+  const campaign = `ft-${Date.now()}`;
+  await page.goto(`/faq?utm_source=reddit&utm_medium=social&utm_campaign=${campaign}&utm_content=${"x".repeat(300)}`, { referer: "https://www.reddit.com/r/SideProject/" });
+  await page.waitForLoadState("networkidle");
+  await page.getByRole("banner").getByRole("link", { name: "Get my launch kit" }).click();
+  await page.waitForURL((u) => u.pathname === "/");
+  const request = page.waitForRequest((r) => r.url().endsWith("/api/kits") && r.method() === "POST");
+  await page.getByRole("button", { name: "Try a sample app" }).click();
+  const body = (await request).postDataJSON() as { attribution: Record<string, string> };
+  expect(body.attribution).toMatchObject({ utm_source: "reddit", utm_medium: "social", utm_campaign: campaign, referring_domain: "reddit.com" });
+  expect(body.attribution.utm_content).toHaveLength(200);
 });

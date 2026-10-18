@@ -70,6 +70,12 @@ const routes = {
   "/og/broken-image": ogPage(`<meta property="og:title" content="Brokenpic" /><meta property="og:image" content="${origin}/og/missing.png" />`),
   "/og/none": ogPage(""),
   "/slow": (_req, res) => setTimeout(() => res.end("<title>Too late</title>"), 5000),
+  // Slow but inside SITE_FETCH_TIMEOUT_MS, so a preview is still being written for a moment after it's accepted.
+  "/slowish": (_req, res) =>
+    setTimeout(() => {
+      res.writeHead(200, { "Content-Type": "text/html" });
+      res.end(html({ title: "Tortoisely", description: "Tortoisely reminds your team about stale pull requests before they rot." }));
+    }, 1200),
   "/broken": (_req, res) => {
     res.writeHead(500, { "Content-Type": "text/html" });
     res.end("<h1>Internal error</h1>");
@@ -166,8 +172,9 @@ const flagsResponse = (flags = {}) => ({
   errorsWhileComputingFlags: false,
 });
 
-/** Every error event the fake Sentry received (SENTRY_DSN=http://public@127.0.0.1:PORT/sentry/1). */
+/** Every error/message event and streamed span the fake Sentry received (SENTRY_DSN=http://public@127.0.0.1:PORT/sentry/1). */
 const sentryEvents = [];
+const sentrySpans = [];
 
 /** An envelope is newline-delimited JSON: envelope header, then item header / item payload pairs. */
 function recordSentry(body) {
@@ -175,7 +182,10 @@ function recordSentry(body) {
   const lines = raw.toString("utf8").split("\n");
   for (let i = 1; i + 1 < lines.length; i += 2) {
     try {
-      if (JSON.parse(lines[i]).type === "event") sentryEvents.push(JSON.parse(lines[i + 1]));
+      const type = JSON.parse(lines[i]).type;
+      if (type === "event") sentryEvents.push(JSON.parse(lines[i + 1]));
+      // Span v2 container: { items: [{ name, trace_id, status, attributes: { key: { type, value } } }] }.
+      if (type === "span") sentrySpans.push(...(JSON.parse(lines[i + 1]).items ?? []));
     } catch {
       // Attachments and other binary items aren't JSON.
     }
@@ -190,6 +200,10 @@ createServer(async (req, res) => {
   if (req.url === "/sentry/_events") {
     res.writeHead(200, { "Content-Type": "application/json" });
     return res.end(JSON.stringify(sentryEvents));
+  }
+  if (req.url === "/sentry/_spans") {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    return res.end(JSON.stringify(sentrySpans));
   }
   if (req.url.startsWith("/sentry/api/")) {
     const chunks = [];

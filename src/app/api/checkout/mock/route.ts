@@ -1,5 +1,6 @@
 import { after } from "next/server";
 import { captureServerEvent, resolveDistinctId } from "@/lib/analytics-server";
+import { attributionProperties } from "@/lib/attribution";
 import { isEmail } from "@/lib/audience";
 import { getSession } from "@/lib/auth";
 import { isStripeMock } from "@/lib/env";
@@ -9,6 +10,7 @@ import { getKit } from "@/lib/kits";
 import { checkoutPrice } from "@/lib/payments";
 import { checkoutRejection } from "@/lib/checkout-session";
 import { LAUNCH_PROMO, type ProductId } from "@/lib/products";
+import type { Kit } from "@/lib/schema";
 
 export const maxDuration = 120;
 
@@ -24,11 +26,11 @@ export async function POST(req: Request) {
   const ref = `mock_${Date.now().toString(36)}`;
   const isLoggedIn = !!(await getSession());
   const promo = body.promo === LAUNCH_PROMO.code;
-  const track = (product: ProductId, kitId?: string) =>
+  const track = (product: ProductId, kit?: Kit) =>
     after(() =>
       captureServerEvent("checkout_completed", {
         distinctId: resolveDistinctId(body.analyticsId),
-        properties: { plan: product, kitId, ...checkoutPrice(product, promo), isLoggedIn, mock: true, stripeSessionId: ref },
+        properties: { plan: product, kitId: kit?.id, ...attributionProperties(kit?.attribution), ...checkoutPrice(product, promo), isLoggedIn, mock: true, stripeSessionId: ref },
       }),
     );
 
@@ -36,6 +38,6 @@ export async function POST(req: Request) {
   if (!kit) return Response.json({ error: "Kit not found." }, { status: 404 });
   await recordPayment({ product: "kit", kitId: kit.id, email: body.email, ref });
   after(() => fulfilKit(kit.id));
-  track("kit", kit.id);
+  track("kit", kit);
   return Response.json({ url: withAnalyticsId(`/account/kits/${kit.id}?paid=1`, body.analyticsId) });
 }

@@ -4,6 +4,7 @@ import { generateText, NoObjectGeneratedError, Output } from "ai";
 import type { z } from "zod";
 import { env, forceMock } from "./env";
 import { deployEnv } from "./deploy-env";
+import { phase } from "./kit-tracing";
 import { addBreadcrumb, captureExceptionThrottled, captureMessage } from "./observability";
 
 /**
@@ -109,6 +110,14 @@ export function gatewayErrorType(error: unknown): string {
 /** Generates schema-validated output, checks it against the rubric, and retries with the problems listed. */
 export async function generateStructured<T>(req: StructuredRequest<T>): Promise<{ value: T; provider: string }> {
   const config = gatewayConfig();
+  const model = config ? (req.speed === "fast" ? config.fastModel : config.model) : "mock";
+  // Prompts and outputs stay out of telemetry; the span records which call it was, the model and the outcome.
+  return phase(`llm.${req.stage ?? "call"}`, "gen_ai.generate", { "llm.stage": req.stage, "llm.speed": req.speed ?? "main", "llm.model": model }, () =>
+    runStructured(req, config),
+  );
+}
+
+async function runStructured<T>(req: StructuredRequest<T>, config: GatewayConfig | null): Promise<{ value: T; provider: string }> {
   if (!config) {
     if (deployEnv() === "production") throw new LlmError("AI Gateway is not configured; template copy is never served in production");
     if (simulatedFailure(req as StructuredRequest<unknown>)) throw new LlmError("Simulated LLM failure");
@@ -127,17 +136,19 @@ export async function generateStructured<T>(req: StructuredRequest<T>): Promise<
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     let problems: string[];
     try {
-      const result = await generateText({
-        model: gateway(model),
-        system: req.system,
-        prompt,
-        output: Output.object({ schema: req.schema }),
-        maxOutputTokens,
-        // Only route to providers that don't train on prompts (applies to the fallbacks too). A model
-        // with no such provider fails with no_providers_available rather than being routed anyway.
-        providerOptions: { gateway: { models: fallbacks, disallowPromptTraining: true } satisfies GatewayProviderOptions },
-        abortSignal: AbortSignal.timeout(ATTEMPT_TIMEOUT_MS),
-      });
+      const result = await phase("llm.attempt", "gen_ai.generate_text", { "llm.stage": req.stage, "llm.model": model, "llm.attempt": attempt }, () =>
+        generateText({
+          model: gateway(model),
+          system: req.system,
+          prompt,
+          output: Output.object({ schema: req.schema }),
+          maxOutputTokens,
+          // Only route to providers that don't train on prompts (applies to the fallbacks too). A model
+          // with no such provider fails with no_providers_available rather than being routed anyway.
+          providerOptions: { gateway: { models: fallbacks, disallowPromptTraining: true } satisfies GatewayProviderOptions },
+          abortSignal: AbortSignal.timeout(ATTEMPT_TIMEOUT_MS),
+        }),
+      );
       last = { value: result.output, provider: `gateway:${result.response.modelId}` };
       problems = req.rubric?.(result.output) ?? [];
       if (problems.length === 0) return last;

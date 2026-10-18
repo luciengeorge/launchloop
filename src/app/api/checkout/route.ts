@@ -1,3 +1,4 @@
+import { attributionProperties } from "@/lib/attribution";
 import { isEmail } from "@/lib/audience";
 import { captureServerEvent, resolveDistinctId } from "@/lib/analytics-server";
 import { getSession } from "@/lib/auth";
@@ -25,6 +26,7 @@ export async function POST(req: Request) {
   if (!kit) return Response.json({ error: "That kit doesn't exist any more. Generate a new preview." }, { status: 404 });
   if (kit.paid) return Response.json({ url: `/account/kits/${kit.id}` });
   const kitId = kit.id;
+  const attribution = kit.attribution;
   // If the background budget was used up, start writing now so it's (nearly) ready after checkout.
   after(() => generateDraft(kit).catch(() => undefined));
 
@@ -58,6 +60,7 @@ export async function POST(req: Request) {
       isLoggedIn,
       experiments,
       fallbacks,
+      attribution,
     });
     if (launchPromo && promoFallback && kitId) {
       const properties = { flag: EXPERIMENTS.launchPromo, variant: launchPromo.variant, reason: "error", fallback: true, source: "checkout", remembered: launchPromo.source === "remembered", kitId } as const;
@@ -70,6 +73,7 @@ export async function POST(req: Request) {
         properties: {
           plan: product,
           kitId,
+          ...attributionProperties(attribution),
           ...checkoutPrice(product, promo === "applied"),
           ...(promo === "none" ? {} : { promo }),
           ...featureProperties(experiments, fallbacks),

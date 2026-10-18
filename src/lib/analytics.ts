@@ -1,4 +1,5 @@
 import posthog, { type CaptureResult } from "posthog-js";
+import { type Attribution, readLandingAttribution } from "./attribution";
 import { ANALYTICS_ID_PARAM, EXPERIMENTS, isAnalyticsId, type ExperimentKey, type FallbackReason, type Served, type Variant } from "./experiments";
 import type { NewsletterPlacement, WelcomeOutcome } from "./newsletter";
 import { POSTHOG_PROXY_PATH, posthogUiHost } from "./posthog-config";
@@ -11,13 +12,44 @@ export type PreviewSource = "github" | "site" | "sample";
 export interface ClientEvents {
   preview_started: { source: PreviewSource; plan: StartPlan; isLoggedIn: boolean };
   preview_completed: { kitId: string; source: PreviewSource; plan: StartPlan; isLoggedIn: boolean; durationMs: number };
-  preview_failed: { code: string; source: PreviewSource; plan: StartPlan; isLoggedIn: boolean; durationMs: number };
+  preview_failed: {
+    code: string;
+    source: PreviewSource;
+    plan: StartPlan;
+    isLoggedIn: boolean;
+    durationMs: number;
+    phase?: "request" | "stream";
+    errorName?: string;
+    errorMessage?: string;
+    online?: boolean;
+    visibility?: DocumentVisibilityState;
+    /** The server had accepted the preview, so the form sent the visitor to /kit/[id] instead of showing an error. */
+    recovered?: boolean;
+  };
   newsletter_subscribed: { placement: NewsletterPlacement; welcome: WelcomeOutcome };
   /** Control served without a PostHog assignment (see Served). Not an exposure, so it stays out of the experiment. */
   flag_fallback: { flag: ExperimentKey; variant: Variant; reason: FallbackReason; fallback: true };
 }
 
+/** Landing with ?qa=1 tags every event on this page load as QA traffic. */
+const QA_PARAM = "qa";
+
 const key = process.env.NEXT_PUBLIC_POSTHOG_KEY;
+
+let landing: Attribution | undefined;
+let landed = false;
+
+/**
+ * Reads the landing URL's UTMs and the referrer's domain once per page load and keeps them in memory (no cookies or
+ * storage). In-app navigations keep them; the preview request sends them so the kit remembers where the buyer came from.
+ */
+export function rememberFirstTouch() {
+  if (landed) return;
+  landed = true;
+  landing = readLandingAttribution(window.location, document.referrer);
+}
+
+export const firstTouch = (): Attribution | undefined => landing;
 
 /**
  * Cookieless: identity lives in page memory only, so nothing is written to cookies or
@@ -28,7 +60,8 @@ const key = process.env.NEXT_PUBLIC_POSTHOG_KEY;
  */
 export function initAnalytics() {
   if (!key || posthog.__loaded) return;
-  const handoff = new URLSearchParams(window.location.search).get(ANALYTICS_ID_PARAM);
+  const params = new URLSearchParams(window.location.search);
+  const handoff = params.get(ANALYTICS_ID_PARAM);
   posthog.init(key, {
     ...(isAnalyticsId(handoff) ? { bootstrap: { distinctID: handoff } } : {}),
     api_host: POSTHOG_PROXY_PATH,
@@ -46,7 +79,12 @@ export function initAnalytics() {
     disable_surveys: true,
     before_send: scrubEvent,
   });
-  posthog.register({ env: process.env.NEXT_PUBLIC_VERCEL_ENV ?? "development" });
+  posthog.register({
+    env: process.env.NEXT_PUBLIC_VERCEL_ENV ?? "development",
+    // posthog-js already drops events when this is true unless its bot filter is turned off.
+    is_webdriver: navigator.webdriver === true,
+    ...(params.get(QA_PARAM) === "1" ? { qa: true } : {}),
+  });
 }
 
 /**

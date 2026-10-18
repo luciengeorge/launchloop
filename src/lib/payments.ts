@@ -1,6 +1,7 @@
 import "server-only";
 import { createHash } from "node:crypto";
 import Stripe from "stripe";
+import { type Attribution, attributionMetadata } from "./attribution";
 import { deployEnv, stripeEventDecision } from "./deploy-env";
 import { env, isStripeMock } from "./env";
 import { withAnalyticsId, type ExperimentKey, type Experiments } from "./experiments";
@@ -43,6 +44,8 @@ export interface CheckoutRequest {
   experiments: Experiments;
   /** Experiments whose variant was a fallback, not a PostHog assignment (see Served). */
   fallbacks: ExperimentKey[];
+  /** The kit's first-touch UTMs, copied into metadata so the webhook's checkout_completed carries them. */
+  attribution?: Attribution;
 }
 
 /** "unavailable": the promo was due but Stripe wouldn't take the code (ended, used up, not a first purchase), so the session is full price. */
@@ -55,7 +58,7 @@ export interface CheckoutResult {
 
 /** Returns where to send the buyer: Stripe Checkout, or the local mock checkout in test mode. */
 export async function createCheckoutUrl(params: CheckoutRequest): Promise<CheckoutResult> {
-  const { product, origin, kitId, email, customer, analyticsId, isLoggedIn, experiments, fallbacks } = params;
+  const { product, origin, kitId, email, customer, analyticsId, isLoggedIn, experiments, fallbacks, attribution } = params;
   // experiments[exp_launch14_promo] is the server's resolution for the kit (resolveKitPromo in /api/checkout).
   const promo = launchPromoDue(product, experiments);
   const s = stripe();
@@ -79,7 +82,7 @@ export async function createCheckoutUrl(params: CheckoutRequest): Promise<Checko
     logged_in: isLoggedIn ? "1" : "0",
     ...experiments,
     ...(fallbacks.length ? { fallbacks: fallbacks.join(",") } : {}),
-    ...(kitId ? { kitId } : {}),
+    ...(kitId ? { kitId, ...attributionMetadata(attribution) } : {}),
   };
   const cancelPath = kitId ? `/kit/${kitId}?checkout=cancelled` : "/ship-loop?checkout=cancelled";
   const input: SessionInput = {

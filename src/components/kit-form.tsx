@@ -7,7 +7,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { type PreviewSource, track } from "@/lib/analytics";
-import { KitRequestError, createKitWithProgress } from "@/lib/client";
+import { type KitFailureDetails, KitRequestError, createKitWithProgress } from "@/lib/client";
 import { LAUNCH_PROMO } from "@/lib/products";
 import { hasSessionHint } from "@/lib/session-hint";
 import { START_EVENT, type StartPlan } from "@/lib/start-intent";
@@ -92,8 +92,17 @@ export function KitForm({ promo }: { promo: boolean }) {
       // Kit intent: open the kit with the unlock flow already started.
       router.push(plan === "kit" && kitId ? `/kit/${kitId}?unlock=1` : next);
     } catch (err) {
-      track("preview_failed", { ...context, code: err instanceof KitRequestError ? err.code : "unknown", durationMs: Math.round(performance.now() - startedAt) });
-      setError(err instanceof KitRequestError ? { message: err.message, fix: err.fix, code: err.code } : { message: "Something went wrong.", fix: "Try again in a moment.", code: "unknown" });
+      const durationMs = Math.round(performance.now() - startedAt);
+      const known = err instanceof KitRequestError ? err : null;
+      const { kitId, ...details }: KitFailureDetails = known?.details ?? { errorName: err instanceof Error ? err.name : typeof err };
+      // The server accepted the preview and keeps writing it, so the kit page can wait for it instead.
+      const recovered = !!kitId && (known?.code === "network" || known?.code === "aborted");
+      track("preview_failed", { ...context, code: known?.code ?? "unknown", durationMs, ...details, ...(recovered ? { recovered } : {}) });
+      if (recovered) {
+        router.push(plan === "kit" ? `/kit/${kitId}?unlock=1` : `/kit/${kitId}`);
+        return;
+      }
+      setError(known ? { message: known.message, fix: known.fix, code: known.code } : { message: "Something went wrong.", fix: "Try again in a moment.", code: "unknown" });
       setLoading(false);
       requestAnimationFrame(() => inputRef.current?.focus());
     }
@@ -184,7 +193,7 @@ export function KitForm({ promo }: { promo: boolean }) {
           <AlertDescription>
             <p className="font-medium text-foreground">{error.message}</p>
             {error.fix ? <p className="mt-1">{error.fix}</p> : null}
-            {CAPACITY_CODES.has(error.code) || error.code === "site_timeout" || error.code === "network" ? (
+            {CAPACITY_CODES.has(error.code) || error.code === "site_timeout" || error.code === "network" || error.code === "aborted" ? (
               <button type="button" className="mt-2 font-medium underline underline-offset-4" onClick={() => void submit(lastInput.current)}>
                 {CAPACITY_CODES.has(error.code) ? "Retry" : "Try again"}
               </button>
