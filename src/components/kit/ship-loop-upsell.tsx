@@ -18,7 +18,7 @@ export function ShipLoopUpsell({ preorderOpen }: { preorderOpen: boolean }) {
         Want help actually shipping it? Ship Loop is the weekly accountability loop for getting your launch out the door.
       </p>
       <p className="mt-3 text-sm">
-        <span className="font-medium">Founding pre-order: £99, one time.</span> Pay once today for your first year; your subscription starts when Ship Loop launches.
+        <span className="font-medium">Founding pre-order: £99, one time.</span> It covers your first year of Ship Loop once it launches.
       </p>
       <div className="mt-4 flex flex-wrap items-center gap-3">
         {preorderOpen ? (

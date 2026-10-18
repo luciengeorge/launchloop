@@ -19,7 +19,7 @@ export const PRODUCTS: Record<ProductId, Product> = {
   shiploop_preorder: {
     id: "shiploop_preorder",
     name: "Ship Loop founding pre-order",
-    description: "A one-time £99 payment for your first year of Ship Loop. The subscription starts at launch. Fully refundable until launch.",
+    description: "One-time £99 payment covering your first year of Ship Loop once it launches. Refunded in full if Ship Loop isn't live within 12 months.",
     amountPence: 9900,
     priceLabel: "£99 one-time",
   },

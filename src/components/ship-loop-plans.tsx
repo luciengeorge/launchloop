@@ -34,9 +34,8 @@ export function ShipLoopPlans({ preorderOpen }: { preorderOpen: boolean }) {
             Pre-order Ship Loop, £99 one-time
           </CheckoutButton>
           <p className="text-xs text-muted-foreground">
-            The founding pre-order is a one-time £99 payment today for your first year. Your Ship Loop subscription only starts once Ship Loop launches, and we&apos;ll email you
-            before it does. If you change your mind before launch, we refund it in full. If Ship Loop isn&apos;t live within 12 months of your pre-order, we refund you in full
-            automatically.
+            The founding pre-order is a one-time £99 payment today. It covers your first year of Ship Loop once it launches. If Ship Loop isn&apos;t live within 12 months of
+            your pre-order, we refund you in full automatically. If you change your mind before launch, we refund it in full.
           </p>
         </div>
       ) : (

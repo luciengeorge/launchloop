@@ -49,8 +49,8 @@ export default function ShipLoopPage() {
               </a>
             </div>
             <p className="text-sm text-muted-foreground">
-              Founding pre-order: £99, one time, for your first year. The subscription (£12/month or £99/year) starts at launch. Pre-orders are refundable in full until Ship
-              Loop launches.
+              Founding pre-order: £99 once, covering your first year of Ship Loop once it launches. Refunded in full if Ship Loop isn&apos;t live within 12 months. After that
+              first year, Ship Loop is £12/month or £99/year.
             </p>
           </div>
           <h2 className="sr-only">How Ship Loop works</h2>

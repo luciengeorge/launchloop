@@ -32,7 +32,7 @@ test("£99 one-time founding pre-order through mock checkout", async ({ page, re
   await page.goto("/ship-loop");
   await expect(page.getByText("£99", { exact: true })).toBeVisible();
   await expect(page.getByText("one-time founding pre-order", { exact: true })).toBeVisible();
-  await expect(page.locator("#plans")).toContainText("only starts once Ship Loop launches");
+  await expect(page.locator("#plans")).toContainText("It covers your first year of Ship Loop once it launches.");
   await expect(page.locator("#plans")).toContainText("isn't live within 12 months of your pre-order, we refund you in full automatically");
   await page.getByRole("button", { name: "Pre-order Ship Loop, £99 one-time" }).click();
   await page.waitForURL(/\/checkout\/mock\?product=shiploop_preorder/);
