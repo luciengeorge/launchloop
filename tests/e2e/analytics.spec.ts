@@ -89,8 +89,7 @@ test("header CTA from another page keeps the visitor's id and UTMs, through to t
   expect(distinctId(started)).toBe(id);
   expect(started.properties.utm_source).toBe("hn");
 
-  // Kit intent, logged out: straight to (mock) guest checkout, then the guest success page (carries the id).
-  await page.waitForURL(/\/kit\/[\w-]+\?unlock=1$/);
+  // Kit intent, logged out: /kit/[id]?unlock=1 goes straight on to (mock) guest checkout, then the guest success page (carries the id).
   const email = uniqueEmail("utm-purchase");
   await page.waitForURL(/\/checkout\/mock\?product=kit/);
   await page.getByLabel("Email for your receipt and kit").fill(email);

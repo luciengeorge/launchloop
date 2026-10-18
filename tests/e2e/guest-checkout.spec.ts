@@ -1,6 +1,9 @@
 import { expect, test, type Request } from "@playwright/test";
 import { magicLinkFor, makeSampleKit, uniqueEmail } from "./helpers";
 
+// Its own client IP, so these previews and guest checkouts don't spend the rest of the suite's per-IP budgets.
+test.use({ extraHTTPHeaders: { "x-forwarded-for": "198.51.100.28" } });
+
 const isCheckout = (req: Request) => req.method() === "POST" && new URL(req.url()).pathname === "/api/checkout";
 const STRIPE_URL = "https://checkout.stripe.com/c/pay/cs_test_e2e_guest";
 
