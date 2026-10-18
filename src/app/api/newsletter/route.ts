@@ -1,6 +1,6 @@
 import { after } from "next/server";
 import { addContact, isEmail, isUndeliverableEmail } from "@/lib/audience";
-import { safeNext } from "@/lib/auth";
+import { safeNext, seeOther } from "@/lib/auth";
 import { newsletterWelcomeEmail, sendEmail } from "@/lib/email";
 import { RESERVED_EMAIL_ERROR } from "@/lib/login-errors";
 import { PREVIEW_NEWSLETTER_ANCHOR, parsePlacement } from "@/lib/newsletter";
@@ -17,13 +17,13 @@ export async function POST(req: Request) {
   const placement = parsePlacement(data.placement);
   // No-JS posts go back to the page they came from (the footer has always gone to the home page).
   const back = (subscribed: boolean) => {
-    const url = new URL(safeNext(data.next) ?? "/", req.url);
+    const url = new URL(safeNext(data.next) ?? "/", "http://localhost");
     url.searchParams.set("subscribed", subscribed ? "1" : "0");
     if (placement !== "footer") {
       url.searchParams.set("from", placement);
       url.hash = PREVIEW_NEWSLETTER_ANCHOR;
     }
-    return Response.redirect(url, 303);
+    return seeOther(`${url.pathname}${url.search}${url.hash}`);
   };
   if (!isEmail(email)) return isForm ? back(false) : Response.json({ error: "Enter a valid email address." }, { status: 400 });
   if (isUndeliverableEmail(email)) return isForm ? back(false) : Response.json({ error: RESERVED_EMAIL_ERROR }, { status: 400 });

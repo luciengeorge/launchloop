@@ -84,32 +84,32 @@ test("footer signup offers the checklist, and signing up again doesn't resend it
   expect(await welcomeEmails(page.request, email)).toHaveLength(1);
 });
 
-test.describe("without JavaScript", () => {
-  test("post-preview signup posts and comes back to the kit with the checklist link", async ({ page, browser }) => {
+test.describe("plain form posts", () => {
+  // The kit page itself needs JavaScript, but a submit before hydration is still a plain form post.
+  test("post-preview signup submitted before hydration comes back to the kit with the checklist link", async ({ page }) => {
     const kitId = await makeSampleKit(page);
-    const context = await browser.newContext({ javaScriptEnabled: false, extraHTTPHeaders: { "x-forwarded-for": `203.0.113.${Math.floor(Math.random() * 250) + 1}` } });
-    const noJs = await context.newPage();
-    await noJs.goto(`/kit/${kitId}`);
-    const signup = noJs.getByTestId("preview-newsletter");
-    const email = uniqueEmail("nojs-preview");
+    const signup = page.getByTestId("preview-newsletter");
+    const email = uniqueEmail("prehydration-preview");
     await signup.getByLabel("Email for the launch-day checklist").fill(email);
-    await signup.getByRole("button", { name: "Send me the checklist" }).click();
-    await noJs.waitForURL((u) => u.pathname === `/kit/${kitId}` && u.searchParams.get("subscribed") === "1" && u.searchParams.get("from") === "preview");
-    expect(noJs.url()).not.toContain("example.com");
+    // form.submit() skips React's onSubmit, exactly like a submit that lands before hydration.
+    await signup.getByRole("form", { name: "Newsletter signup" }).evaluate((form: HTMLFormElement) => form.submit());
+    await page.waitForURL((u) => u.pathname === `/kit/${kitId}` && u.searchParams.get("subscribed") === "1" && u.searchParams.get("from") === "preview" && u.hash === "#newsletter");
+    expect(page.url()).not.toContain("example.com");
     await expect(signup.getByRole("status")).toContainText("You're subscribed");
     await expect(signup.getByRole("link", { name: "Open your launch-day checklist" })).toHaveAttribute("href", CHECKLIST);
     // The footer form on the same page isn't the one that was used, so it stays a form.
-    await expect(noJs.getByRole("contentinfo").getByRole("button", { name: "Subscribe" })).toBeVisible();
+    await expect(page.getByRole("contentinfo").getByRole("button", { name: "Subscribe" })).toBeVisible();
     await welcomeEmail(page.request, email);
-    await context.close();
   });
 
   test("the API sends no-JS posts back to a same-origin path only", async ({ request }) => {
     const post = (next: string) =>
       request.post("/api/newsletter", { form: { email: uniqueEmail("nojs-next"), placement: "preview", next }, maxRedirects: 0 });
-    expect((await post("/kit/abc")).headers().location).toMatch(/^http:\/\/127\.0\.0\.1:3418\/kit\/abc\?subscribed=1&from=preview#newsletter$/);
-    expect((await post("//evil.example")).headers().location).toMatch(/^http:\/\/127\.0\.0\.1:3418\/\?subscribed=1&from=preview#newsletter$/);
+    expect((await post("/kit/abc")).headers().location).toBe("/kit/abc?subscribed=1&from=preview#newsletter");
+    expect((await post("//evil.example")).headers().location).toBe("/?subscribed=1&from=preview#newsletter");
+    expect((await post("https://evil.example/kit/abc")).headers().location).toBe("/?subscribed=1&from=preview#newsletter");
     const footer = await request.post("/api/newsletter", { form: { email: uniqueEmail("nojs-footer") }, maxRedirects: 0 });
-    expect(footer.headers().location).toMatch(/^http:\/\/127\.0\.0\.1:3418\/\?subscribed=1$/);
+    expect(footer.status()).toBe(303);
+    expect(footer.headers().location).toBe("/?subscribed=1");
   });
 });

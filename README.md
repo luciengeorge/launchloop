@@ -118,6 +118,7 @@ Vercel Web Analytics and Speed Insights count page views and performance. PostHo
 | `preview_started` | Browser, kit form submit | `source` (github / site / sample), `plan` (free / kit intent), `isLoggedIn` |
 | `preview_completed` | Browser, preview stream done | the above plus `kitId`, `durationMs` |
 | `preview_failed` | Browser, preview error | the above plus `code` |
+| `newsletter_subscribed` | Browser, newsletter form success (no-JS posts aren't counted) | `placement` (footer / preview) |
 | `checkout_started` | Server, `/api/checkout` once a session URL exists | `plan` (kit / shiploop_monthly / shiploop_yearly), `product_type` (kit / shiploop), `kitId`, `price_id`, `amount` in pence (after any discount), `currency`, `isLoggedIn`, `mock`, `promo_code` / `promo` when LAUNCH14 was due, `$feature/<flag>` for the variants the page showed |
 | `checkout_completed` | Server, Stripe webhook (`checkout.session.completed` / `async_payment_succeeded` with `payment_status: paid`), or `/api/checkout/mock` in test mode | the above plus `stripeSessionId`. `amount` is Stripe's `amount_total`; `promo_code` is LAUNCH14 or a code the buyer typed (Ship Loop) |
 
@@ -156,6 +157,10 @@ Two PostHog multivariate flags (50/50, variants `control` and `treatment`), eval
 - **The variant is reported by the browser.** `/api/checkout` trusts the `experiments` it's sent. With a fresh id per page load anyone could reload until they see the promo anyway, so the Stripe-side limits are the guard, not the flag.
 - **Toggling.** In PostHog (project LaunchLoop EU): Feature flags → the flag → set the release condition's variant split (e.g. `control` 100% to stop the test, `treatment` 100% to ship it) or disable the flag (everyone sees control). Changes apply on the next page load; no deploy.
 
+## Newsletter
+
+"Weekly launch teardowns" has two signups: the footer, and a card under the free preview paywall (`src/components/kit/preview-newsletter.tsx`, hidden when the visitor arrives with `?unlock=1` on the way to checkout). Both post to `/api/newsletter`, which stores the contact with its `placement` (`footer` or `preview`; a repeat signup updates it) and adds it to the Resend segment. The lead magnet is the `/product-hunt-launch-checklist` guide: the success state links to it, and a new address gets one welcome email with the link (`src/emails/newsletter-welcome.tsx`). Repeat signups don't resend it.
+
 ## Error logging
 
 `src/lib/observability.ts` exposes `captureException` / `captureMessage` and `registerErrorHook`. Server errors flow in through `onRequestError` in `src/instrumentation.ts`. Client errors (error boundaries plus `window` error and unhandled-rejection listeners in `src/instrumentation-client.ts`) are beaconed to `/api/log`. To plug in Sentry:
@@ -176,6 +181,7 @@ npm run test:e2e
 Playwright builds the app into `.next-test` and runs it on port 3418 in forced mock mode, alongside a fixture site on port 3419. The smoke tests cover:
 
 - the home page, validation and newsletter signup (desktop and mobile)
+- the newsletter signups in the footer and under the free preview: the checklist link on success, one welcome email per address, no-JS posts, and hidden on the way to checkout
 - the free preview with no account: a fresh visitor previews a live site, and the kit link opens for anyone
 - analytics: UTMs on `$pageview` and later events, and one anonymous id from a landing page through to the server-side `checkout_completed` (the fixture server records what the fake PostHog receives at `/ph/_events`)
 - the full sample flow: preview → mock checkout → full kit, with every character counter within its limit, no "upvote" anywhere, ZIP download, all three images and the email in the outbox
