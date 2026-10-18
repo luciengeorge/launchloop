@@ -3,12 +3,13 @@ import Link from "next/link";
 import { type FaqItem, GuideFaq } from "@/components/guide-faq";
 import { GuideLayout } from "@/components/guide-layout";
 import { guide } from "@/lib/guides";
+import { guidePage } from "@/lib/pages";
 import { pageMetadata } from "@/lib/seo";
 import { OG_PREVIEW } from "@/lib/tools";
 
 const g = guide("show-hn-launch-checklist");
 
-export const metadata: Metadata = pageMetadata({ title: g.metaTitle, description: g.description, path: `/${g.slug}`, type: "article" });
+export const metadata: Metadata = pageMetadata(guidePage(g));
 
 const SRC = {
   showHn: "https://news.ycombinator.com/showhn.html",
