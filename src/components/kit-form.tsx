@@ -8,8 +8,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { type PreviewSource, track } from "@/lib/analytics";
 import { type KitFailureDetails, KitRequestError, createKitWithProgress } from "@/lib/client";
+import { LAUNCH_PROMO } from "@/lib/products";
 import { hasSessionHint } from "@/lib/session-hint";
 import { START_EVENT, type StartPlan } from "@/lib/start-intent";
+import { KitPrice } from "./kit-price";
 
 const previewSource = (value: string): PreviewSource => (value === "sample" ? "sample" : /github\.com/i.test(value) ? "github" : "site");
 
@@ -21,7 +23,8 @@ const STEPS = [
   { id: "images", label: "Drawing images" },
 ] as const;
 
-export function KitForm() {
+/** `promo` is isLaunchPromoOn() from the page: the Launch Kit price shown when the kit plan is picked. */
+export function KitForm({ promo }: { promo: boolean }) {
   const router = useRouter();
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
@@ -37,7 +40,10 @@ export function KitForm() {
   // ?url= prefills the input, e.g. when a free tool hands over the repo it just read.
   useEffect(() => {
     const focusForm = (nextPlan?: StartPlan) => {
-      if (nextPlan) setPlan(nextPlan);
+      if (nextPlan) {
+        setPlan(nextPlan);
+        setError(null);
+      }
       const anchor = document.getElementById("start") ?? inputRef.current;
       anchor?.scrollIntoView({ behavior: "smooth", block: "start" });
       inputRef.current?.focus({ preventScroll: true });
@@ -48,6 +54,7 @@ export function KitForm() {
       const prefill = params.get("url")?.trim();
       if (urlPlan) setPlan(urlPlan);
       if (prefill) setUrl(prefill);
+      if (urlPlan || prefill) setError(null);
       if (location.hash === "#start" || urlPlan) requestAnimationFrame(() => focusForm(urlPlan));
     };
     const onStart = (e: Event) => focusForm((e as CustomEvent<{ plan?: StartPlan }>).detail?.plan ?? "free");
@@ -116,7 +123,11 @@ export function KitForm() {
           ref={inputRef}
           name="url"
           value={url}
-          onChange={(e) => setUrl(e.target.value)}
+          onChange={(e) => {
+            setUrl(e.target.value);
+            // An error is about the input that was sent; once it changes (repo to site, say) it no longer applies.
+            setError(null);
+          }}
           placeholder="github.com/you/your-app or your-app.com"
           autoComplete="url"
           inputMode="url"
@@ -128,7 +139,15 @@ export function KitForm() {
         />
         <Button type="submit" disabled={loading} className="h-12 px-5 text-base">
           {loading ? <Loader2 className="animate-spin" /> : null}
-          {loading ? "Reading your app…" : plan === "kit" ? "Get my launch kit, £19" : "Get my free preview"}
+          {loading ? (
+            "Reading your app…"
+          ) : plan === "kit" ? (
+            <>
+              Get my launch kit, <KitPrice promo={promo} />
+            </>
+          ) : (
+            "Get my free preview"
+          )}
           {loading ? null : <ArrowRight />}
         </Button>
       </form>
@@ -148,7 +167,15 @@ export function KitForm() {
           </ol>
         ) : (
           <>
-            <span data-plan={plan}>{plan === "kit" ? "Launch Kit, £19 once · Preview first, then secure Stripe checkout" : "Free preview · No sign-up · Public repos only"}</span>
+            <span data-plan={plan}>
+              {plan === "kit" ? (
+                <>
+                  Launch Kit, <KitPrice promo={promo} /> once · {promo ? `${LAUNCH_PROMO.code} applied at checkout` : "Preview first, then secure Stripe checkout"}
+                </>
+              ) : (
+                "Free preview · No sign-up · Public repos only"
+              )}
+            </span>
             <span aria-hidden="true" className="hidden sm:inline">·</span>
             <button type="button" className="font-medium text-foreground underline underline-offset-4 hover:text-primary" onClick={() => void submit("sample")}>
               Try a sample app

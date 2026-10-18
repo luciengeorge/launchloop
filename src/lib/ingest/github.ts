@@ -1,5 +1,6 @@
 import "server-only";
 import { env } from "../env";
+import { mainLanguages, manifestsFor, type ManifestFile } from "../stack";
 import { IngestError, USER_AGENT } from "./safe-fetch";
 
 export interface RepoData {
@@ -11,9 +12,13 @@ export interface RepoData {
   stars?: number;
   topics: string[];
   language?: string;
+  /** Bytes of code per language, from GitHub's languages API. */
+  languages?: Record<string, number>;
   license?: string;
   readme?: string;
   packageJson?: PackageJson;
+  /** Dependency manifests for the repo's main non-JavaScript languages (mix.exs, Gemfile, go.mod, ...). */
+  manifests?: Partial<Record<ManifestFile, string>>;
   commits: { message: string; date: string }[];
   /** Latest commit on the default branch, used to dedupe identical repo states. */
   headSha?: string;
@@ -30,6 +35,7 @@ export interface PackageJson {
 }
 
 const README_CAP = 12_000;
+const MANIFEST_CAP = 40_000;
 /** How many recent commits we read. Anything counted from them is a floor, not a total. */
 export const COMMIT_SAMPLE = 20;
 
@@ -119,11 +125,15 @@ export async function fetchRepo(owner: string, name: string, warnings: string[])
   repo.language = info.language ?? undefined;
   repo.license = info.license?.spdx_id && info.license.spdx_id !== "NOASSERTION" ? info.license.spdx_id : undefined;
 
-  const [readmeRes, pkgRes, commitsRes] = await Promise.all([
+  const [readmeRes, pkgRes, commitsRes, languagesRes] = await Promise.all([
     gh(`/repos/${owner}/${name}/readme`, "application/vnd.github.raw+json"),
     gh(`/repos/${owner}/${name}/contents/package.json`, "application/vnd.github.raw+json"),
     gh(`/repos/${owner}/${name}/commits?per_page=${COMMIT_SAMPLE}`),
+    gh(`/repos/${owner}/${name}/languages`).catch(() => null),
   ]);
+
+  if (languagesRes?.ok) repo.languages = (await languagesRes.json().catch(() => undefined)) as Record<string, number> | undefined;
+  repo.manifests = await fetchManifests(owner, name, manifestsFor(mainLanguages(repo.languages, repo.language)));
 
   if (readmeRes.ok) repo.readme = (await readmeRes.text()).slice(0, README_CAP);
   else warnings.push("No README found in the repo.");
@@ -140,4 +150,20 @@ export async function fetchRepo(owner: string, name: string, warnings: string[])
   }
 
   return repo;
+}
+
+/** Best effort: a missing or unreadable manifest just means less stack detail. */
+async function fetchManifests(owner: string, name: string, files: ManifestFile[]): Promise<RepoData["manifests"]> {
+  const read = await Promise.all(
+    files.map(async (file) => {
+      try {
+        const res = await gh(`/repos/${owner}/${name}/contents/${file}`, "application/vnd.github.raw+json");
+        return res.ok ? ([file, (await res.text()).slice(0, MANIFEST_CAP)] as const) : null;
+      } catch {
+        return null;
+      }
+    }),
+  );
+  const found = read.filter((entry) => entry !== null);
+  return found.length ? Object.fromEntries(found) : undefined;
 }

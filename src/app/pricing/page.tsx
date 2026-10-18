@@ -1,24 +1,29 @@
 import type { Metadata } from "next";
-import { pageMetadata } from "@/lib/seo";
+import { JsonLd } from "@/components/json-ld";
 import { KitForm } from "@/components/kit-form";
 import { PricingSection } from "@/components/pricing-section";
+import { siteUrl } from "@/lib/env";
+import { isLaunchPromoOn } from "@/lib/launch-promo-server";
+import { PAGES } from "@/lib/pages";
+import { pageMetadata } from "@/lib/seo";
+import { breadcrumbs, launchLoopApp } from "@/lib/structured-data";
 
-export const metadata: Metadata = pageMetadata({
-  title: "Pricing: free preview, £19 Launch Kit, Ship Loop",
-  description:
-    "LaunchLoop pricing: try a free preview, pay £19 once for a Launch Kit with landing copy, Product Hunt post, X thread, LinkedIn post and images, then add Ship Loop (coming soon, £12/month or £99/year) after launch.",
-  path: "/pricing",
-});
+const page = PAGES.pricing;
 
-export default function PricingPage() {
+export const metadata: Metadata = pageMetadata(page);
+
+export default async function PricingPage() {
+  const base = siteUrl();
+  const promo = await isLaunchPromoOn();
   return (
     <>
-      <PricingSection variant="page" />
+      <JsonLd data={{ "@context": "https://schema.org", "@graph": [launchLoopApp(base), breadcrumbs(base, [{ name: "Pricing", path: page.path }])] }} />
+      <PricingSection variant="page" promo={promo} />
       <section id="start" className="mx-auto flex max-w-6xl scroll-mt-20 flex-col items-center px-4 py-16 text-center sm:px-6" aria-labelledby="start-heading">
         <h2 id="start-heading" className="text-2xl font-semibold tracking-tight">Start with a free preview</h2>
         <p className="mt-2 text-muted-foreground">Paste a public GitHub repo or your live site. No account needed.</p>
         <div className="mt-6 flex w-full justify-center">
-          <KitForm />
+          <KitForm promo={promo} />
         </div>
       </section>
     </>

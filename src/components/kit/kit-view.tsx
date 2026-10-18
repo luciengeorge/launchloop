@@ -4,13 +4,17 @@ import { buttonVariants } from "@/components/ui/button";
 import type { Session } from "@/lib/auth";
 import { launchChecklist, mockContent } from "@/lib/copy";
 import { MAX_ATTEMPTS } from "@/lib/fulfil";
+import { resolveKitPromo } from "@/lib/kit-promo";
 import { getDraft } from "@/lib/generation";
+import { shipLoopPreorderOpen } from "@/lib/payments";
 import { getProgress, isOwner } from "@/lib/progress";
 import type { Kit } from "@/lib/schema";
 import { buildTasks, mask, maskContent } from "@/lib/tasks";
 import { KitChecklist } from "./kit-checklist";
+import { FreeTagline } from "./free-tagline";
 import { KitErrorState } from "./kit-error-state";
 import { KitOverview } from "./kit-overview";
+import { PreviewNewsletter } from "./preview-newsletter";
 import { PreviewPaywall } from "./preview-paywall";
 import { ShipLoopUpsell } from "./ship-loop-upsell";
 
@@ -30,6 +34,7 @@ export async function KitView({ kit, session, query }: Props) {
         <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Launch kit · {kit.source.repoUrl ?? kit.source.siteUrl ?? "sample app"}</p>
         <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">{kit.brief.name}</h1>
       </header>
+      {!kit.paid && kit.preview.tagline ? <FreeTagline tagline={kit.preview.tagline} /> : null}
       <KitOverview kit={kit} />
       {kit.paid ? <PaidKit kit={kit} session={session} query={query} /> : <LockedKit kit={kit} session={session} query={query} />}
     </div>
@@ -51,21 +56,19 @@ async function LockedKit({ kit, session, query }: Props) {
     free: { tagline: kit.preview.tagline, xPost: kit.preview.xPost },
     brief: kit.brief,
   });
-  const sample = kit.preview.xPost
-    ? { title: "Post 1 of your X thread", text: kit.preview.xPost }
-    : kit.preview.tagline
-      ? { title: "Your Product Hunt tagline", text: kit.preview.tagline }
-      : undefined;
   return (
     <div className="space-y-8">
       <PreviewPaywall
         kitId={kit.id}
         productName={kit.brief.name}
         counts={{ features: shape.landing.features.length, xPosts: shape.xThread.length, checklistSteps: checklist.length }}
-        sample={sample}
+        free={{ tagline: kit.preview.tagline, xPost: kit.preview.xPost }}
+        launchPromo={resolveKitPromo(kit.id)}
         email={session?.email}
         query={query}
       />
+      {/* Arriving with ?unlock=1 means they're already on their way to checkout. */}
+      {query.unlock === "1" ? null : <PreviewNewsletter kitId={kit.id} query={query} />}
       <div data-testid="locked-kit">
         <KitChecklist kitId={kit.id} productName={kit.brief.name} tasks={tasks} locked persist="local" initialDone={[]} />
       </div>
@@ -102,7 +105,7 @@ async function PaidKit({ kit, session, query }: Props) {
         <GenerationPoller kitId={kit.id} failed={kit.status === "failed"} sectionsReady={Object.keys(sections).length} />
       )}
       {/* Straight back from checkout (?paid=1) only, for the buyer. */}
-      {owner && query.paid === "1" ? <ShipLoopUpsell /> : null}
+      {owner && query.paid === "1" ? <ShipLoopUpsell preorderOpen={shipLoopPreorderOpen()} /> : null}
       <KitChecklist kitId={kit.id} productName={kit.brief.name} tasks={tasks} locked={false} persist={owner ? "server" : "local"} initialDone={done} />
     </div>
   );

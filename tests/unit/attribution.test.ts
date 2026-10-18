@@ -65,7 +65,7 @@ describe("attribution passthrough: landing page to the checkout_completed event"
     const kitAttribution = parseAttribution(requestBody.attribution);
 
     // /api/checkout: copied into the session and PaymentIntent metadata next to the kit id.
-    await createCheckoutUrl({ product: "kit", origin: "https://launchloop.dev", kitId: "kit_123", analyticsId: "ph_1", isLoggedIn: true, experiments: {}, attribution: kitAttribution });
+    await createCheckoutUrl({ product: "kit", origin: "https://launchloop.dev", kitId: "kit_123", analyticsId: "ph_1", isLoggedIn: true, experiments: {}, fallbacks: [], attribution: kitAttribution });
     const params = stripe.create.mock.calls[0]![0] as { metadata: Record<string, string>; payment_intent_data: { metadata: Record<string, string> } };
     expect(params.metadata).toMatchObject({ kitId: "kit_123", ...firstTouch });
     expect(params.payment_intent_data.metadata).toEqual(params.metadata);
@@ -79,8 +79,8 @@ describe("attribution passthrough: landing page to the checkout_completed event"
     expect(attributionMetadata(undefined)).toEqual({});
   });
 
-  it("adds no UTM metadata to purchases without a kit", async () => {
-    await createCheckoutUrl({ product: "shiploop_monthly", origin: "https://launchloop.dev", analyticsId: "ph_1", isLoggedIn: false, experiments: {}, attribution: { utm_source: "hn" } });
+  it("adds no UTM metadata to a session without a kit", async () => {
+    await createCheckoutUrl({ product: "kit", origin: "https://launchloop.dev", analyticsId: "ph_1", isLoggedIn: false, experiments: {}, fallbacks: [], attribution: { utm_source: "hn" } });
     const params = stripe.create.mock.calls[0]![0] as { metadata: Record<string, string> };
     expect(params.metadata.utm_source).toBeUndefined();
   });

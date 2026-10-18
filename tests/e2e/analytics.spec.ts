@@ -74,6 +74,26 @@ test("$pageview carries utm_source / utm_medium / utm_campaign, and later events
   expect((await campaignEvent(page, campaign, "preview_completed")).properties.utm_source).toBe("x");
 });
 
+test("newsletter_subscribed says which signup it came from: footer or post-preview", async ({ page }) => {
+  const campaign = `news-${Date.now()}`;
+  await page.goto(`/?utm_source=newsletter-test&utm_campaign=${campaign}`);
+  await page.waitForLoadState("networkidle");
+  await page.getByRole("contentinfo").getByLabel("Weekly launch teardowns").fill(uniqueEmail("ph-footer"));
+  await page.getByRole("contentinfo").getByRole("button", { name: "Subscribe" }).click();
+  expect((await campaignEvent(page, campaign, "newsletter_subscribed")).properties).toMatchObject({ placement: "footer", welcome: "sent" });
+
+  const previewCampaign = `${campaign}-preview`;
+  await page.goto(`/?utm_source=newsletter-test&utm_campaign=${previewCampaign}`);
+  await page.getByRole("button", { name: "Try a sample app" }).click();
+  await page.waitForURL(/\/kit\/[\w-]+$/);
+  const signup = page.getByTestId("preview-newsletter");
+  await signup.getByLabel("Email for the launch-day checklist").fill(uniqueEmail("ph-preview"));
+  await signup.getByRole("button", { name: "Send me the checklist" }).click();
+  const event = await campaignEvent(page, previewCampaign, "newsletter_subscribed");
+  expect(event.properties).toMatchObject({ placement: "preview", welcome: "sent" });
+  expect(JSON.stringify(event)).not.toContain("@example.com");
+});
+
 test("header CTA from another page keeps the visitor's id and UTMs, through to the server-side purchase event", async ({ page }) => {
   const campaign = `hn-${Date.now()}`;
   await page.goto(`/faq?utm_source=hn&utm_medium=social&utm_campaign=${campaign}`);
@@ -99,7 +119,9 @@ test("header CTA from another page keeps the visitor's id and UTMs, through to t
   // First touch rides on the kit, so it survives the full page loads to and from checkout without cookies or storage.
   const firstTouch = { utm_source: "hn", utm_medium: "social", utm_campaign: campaign };
   const checkoutStarted = await serverEvent(page, id, "checkout_started");
-  expect(checkoutStarted.properties).toMatchObject({ plan: "kit", product_type: "kit", amount: 1900, currency: "gbp", "$feature/exp_launch14_promo": "control", ...firstTouch });
+  expect(checkoutStarted.properties).toMatchObject({ plan: "kit", product_type: "kit", amount: 1900, currency: "gbp", "fallback/exp_launch14_promo": "control", ...firstTouch });
+  // The fake PostHog assigns nothing, so the £19 the page served was a fallback, not an experiment arm.
+  expect(checkoutStarted.properties).not.toHaveProperty("$feature/exp_launch14_promo");
   const purchase = await serverEvent(page, id, "checkout_completed");
   expect(purchase.properties).toMatchObject({ plan: "kit", product_type: "kit", amount: 1900, currency: "gbp", mock: true, ...firstTouch });
   expect(JSON.stringify(purchase)).not.toContain("@example.com");

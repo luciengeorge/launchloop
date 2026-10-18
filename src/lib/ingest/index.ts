@@ -4,6 +4,7 @@ import { captureException } from "../observability";
 import type { Palette, SourceSummary } from "../schema";
 import { DEFAULT_PALETTE, extractPalette } from "./colors";
 import { fetchRepo, parseGitHubUrl, type RepoData } from "./github";
+import { liveHomepage } from "./homepage";
 import { IngestError } from "./safe-fetch";
 import { SAMPLE_INPUT, sampleRepo, sampleSite } from "./sample";
 import { fetchSite, type SiteData } from "./site";
@@ -62,8 +63,8 @@ export async function ingest(rawInput: string, onStep: (step: IngestStep) => voi
   if (gh) {
     onStep("repo");
     repo = await tracedRepo(gh.owner, gh.name, warnings);
-    const homepage = repo.homepage ?? repo.packageJson?.homepage;
-    if (homepage && /^https?:\/\//.test(homepage)) {
+    const homepage = liveHomepage(repo.homepage, repo.packageJson?.homepage);
+    if (homepage) {
       onStep("site");
       site = await trySite(homepage, warnings);
       // An open-source repo's site only counts as "paid" if it links to its own pricing page.

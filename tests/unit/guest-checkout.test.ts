@@ -18,6 +18,7 @@ const m = vi.hoisted(() => {
     fulfilKit: vi.fn<(id: string) => Promise<void>>(async () => {}),
     addContact: vi.fn(async () => {}),
     captureServerEvent: vi.fn<(event: string, params: unknown) => Promise<void>>(async () => {}),
+    kitAssignment: vi.fn<(flag: string, kitId: string) => Promise<{ variant: "control" | "treatment"; fallback?: "timeout" | "error" | "unassigned" }>>(async () => ({ variant: "control" })),
     captureException: vi.fn(),
   };
 });
@@ -75,6 +76,7 @@ vi.mock("@/lib/store", () => ({
 vi.mock("@/lib/observability", async (importOriginal) => ({ ...(await importOriginal<object>()), captureException: m.captureException, captureMessage: vi.fn() }));
 vi.mock("@/lib/analytics-server", () => ({
   captureServerEvent: m.captureServerEvent,
+  kitAssignment: m.kitAssignment,
   eventUuid: (seed: string) => `uuid:${seed}`,
   resolveDistinctId: (id: unknown) => (typeof id === "string" ? id : "server_x"),
 }));
@@ -171,6 +173,7 @@ beforeEach(() => {
   m.jar.clear();
   m.pending.length = 0;
   vi.clearAllMocks();
+  m.kitAssignment.mockResolvedValue({ variant: "control" });
   seedKit();
 });
 afterEach(() => {
@@ -180,7 +183,9 @@ afterEach(() => {
 
 describe("/api/checkout without a user", () => {
   it("creates a Checkout session with no customer or user id and no Customer creation, letting Stripe collect the email", async () => {
-    const res = await postCheckout({ product: "kit", kitId: KIT_ID, analyticsId: "ph_guest", experiments: { exp_launch14_promo: "control" } });
+    // The kit's own variant decides LAUNCH14 (resolveKitPromo), not what the request claims.
+    const res = await postCheckout({ product: "kit", kitId: KIT_ID, analyticsId: "ph_guest", experiments: { exp_launch14_promo: "treatment" } });
+    expect(m.kitAssignment).toHaveBeenCalledWith("exp_launch14_promo", KIT_ID);
 
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ url: "https://checkout.stripe.com/c/pay/cs_test_new", promo: "none" });
@@ -192,8 +197,9 @@ describe("/api/checkout without a user", () => {
     expect(params.metadata).toMatchObject({ product: "kit", kitId: KIT_ID, logged_in: "0", utm_source: "hn", exp_launch14_promo: "control" });
   });
 
-  it("keeps LAUNCH14 for a guest: Customer creation stays on, since the code is first-time-only; a rejected code falls back to a guest session", async () => {
-    const res = await postCheckout({ product: "kit", kitId: KIT_ID, analyticsId: "ph_guest", experiments: { exp_launch14_promo: "treatment" } });
+  it("keeps LAUNCH14 for a guest whose kit is in the treatment: Customer creation stays on, since the code is first-time-only; a rejected code falls back to a guest session", async () => {
+    m.kitAssignment.mockResolvedValue({ variant: "treatment" });
+    const res = await postCheckout({ product: "kit", kitId: KIT_ID, analyticsId: "ph_guest", experiments: {} });
 
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ url: "https://checkout.stripe.com/c/pay/cs_test_new", promo: "applied" });
@@ -211,7 +217,7 @@ describe("/api/checkout without a user", () => {
 
     m.createSession.mockClear();
     m.createSession.mockRejectedValueOnce(new Stripe.errors.StripeInvalidRequestError("This promotion code cannot be redeemed"));
-    const fallback = await postCheckout({ product: "kit", kitId: KIT_ID, analyticsId: "ph_guest", experiments: { exp_launch14_promo: "treatment" } });
+    const fallback = await postCheckout({ product: "kit", kitId: KIT_ID, analyticsId: "ph_guest", experiments: {} });
     expect(await fallback.json()).toMatchObject({ promo: "unavailable" });
     const fullPrice = m.createSession.mock.calls[1]![0] as Record<string, unknown> & { metadata: Record<string, string> };
     expect(fullPrice).toMatchObject({ customer_creation: "if_required" });

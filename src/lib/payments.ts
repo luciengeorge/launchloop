@@ -3,9 +3,10 @@ import Stripe from "stripe";
 import { type Attribution, attributionMetadata } from "./attribution";
 import { deployEnv, stripeEventDecision } from "./deploy-env";
 import { env, isStripeMock } from "./env";
-import { EXPERIMENTS, withAnalyticsId, type Experiments } from "./experiments";
+import { withAnalyticsId, type ExperimentKey, type Experiments } from "./experiments";
 import { captureException, captureMessage } from "./observability";
-import { LAUNCH_PROMO, PRODUCTS, chargedPence, type ProductId } from "./products";
+import { PreorderUnavailableError, assertOneTimePrice, launchPromoDue, preorderAvailable, sessionParams, type SessionInput } from "./checkout-session";
+import { LAUNCH_PROMO, chargedPence, isProductId, type ProductId } from "./products";
 
 let client: Stripe | null = null;
 export function stripe(): Stripe | null {
@@ -16,8 +17,7 @@ export function stripe(): Stripe | null {
 
 const priceIds: Record<ProductId, string | undefined> = {
   kit: env.stripePriceKit,
-  shiploop_monthly: env.stripePriceShipLoopMonthly,
-  shiploop_yearly: env.stripePriceShipLoopYearly,
+  shiploop_preorder: env.stripePriceShipLoopPreorder,
 };
 
 /** What Checkout charges, for analytics. "inline" means no STRIPE_PRICE_* is set. */
@@ -40,8 +40,10 @@ export interface CheckoutRequest {
   /** PostHog distinct id, so the webhook's checkout_completed joins the browser's funnel. */
   analyticsId: string;
   isLoggedIn: boolean;
-  /** Variants the buyer was shown. exp_launch14_promo "treatment" puts LAUNCH14 on a kit session. */
+  /** Variants recorded in the session metadata for checkout_completed. exp_launch14_promo is the server's, never the request's. */
   experiments: Experiments;
+  /** Experiments whose variant was a fallback, not a PostHog assignment (see Served). */
+  fallbacks: ExperimentKey[];
   /** The kit's first-touch UTMs, copied into metadata so the webhook's checkout_completed carries them. */
   attribution?: Attribution;
 }
@@ -56,8 +58,9 @@ export interface CheckoutResult {
 
 /** Returns where to send the buyer: Stripe Checkout, or the local mock checkout in test mode. */
 export async function createCheckoutUrl(params: CheckoutRequest): Promise<CheckoutResult> {
-  const { product, origin, kitId, email, customer, analyticsId, isLoggedIn, experiments, attribution } = params;
-  const promo = product === "kit" && experiments[EXPERIMENTS.launchPromo] === "treatment";
+  const { product, origin, kitId, email, customer, analyticsId, isLoggedIn, experiments, fallbacks, attribution } = params;
+  // experiments[exp_launch14_promo] is the server's resolution for the kit (resolveKitPromo in /api/checkout).
+  const promo = launchPromoDue(product, experiments);
   const s = stripe();
   if (!s) {
     const qs = new URLSearchParams({
@@ -71,8 +74,6 @@ export async function createCheckoutUrl(params: CheckoutRequest): Promise<Checko
     return { url: `/checkout/mock?${qs}`, promo: promo ? "applied" : "none" };
   }
 
-  const item = PRODUCTS[product];
-  const priceId = priceIds[product];
   const metadata = {
     product,
     env: deployEnv(),
@@ -80,45 +81,26 @@ export async function createCheckoutUrl(params: CheckoutRequest): Promise<Checko
     ph_distinct_id: analyticsId,
     logged_in: isLoggedIn ? "1" : "0",
     ...experiments,
+    ...(fallbacks.length ? { fallbacks: fallbacks.join(",") } : {}),
     ...(kitId ? { kitId, ...attributionMetadata(attribution) } : {}),
   };
   const cancelPath = kitId ? `/kit/${kitId}?checkout=cancelled` : "/ship-loop?checkout=cancelled";
-  // A guest kit purchase needs no Customer: the email comes back in customer_details and the webhook links the kit by it.
-  const customerCreation = product === "kit" ? ("if_required" as const) : ("always" as const);
-  const base: Stripe.Checkout.SessionCreateParams = {
-    mode: "payment",
-    line_items: [
-      priceId
-        ? { price: priceId, quantity: 1 }
-        : {
-            quantity: 1,
-            price_data: {
-              currency: "gbp",
-              unit_amount: item.amountPence,
-              product_data: { name: item.name, description: item.description },
-            },
-          },
-    ],
-    // A Customer lets buyers manage billing in the Customer Portal from /account. Stripe rejects
-    // `customer` alongside `customer_email` or `customer_creation`.
-    ...(customer ? { customer } : { customer_email: email, customer_creation: customerCreation }),
-    // Kit buyers only get a code through the promo experiment; a free-text field would let the
-    // control arm type LAUNCH14 too.
-    ...(product === "kit" ? {} : { allow_promotion_codes: true }),
+  const input: SessionInput = {
+    product,
+    priceId: priceIds[product],
     metadata,
-    payment_intent_data: { metadata },
-    success_url: `${origin}/api/checkout/return?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${origin}${withAnalyticsId(cancelPath, analyticsId)}`,
+    customer,
+    email,
+    successUrl: `${origin}/api/checkout/return?session_id={CHECKOUT_SESSION_ID}`,
+    cancelUrl: `${origin}${withAnalyticsId(cancelPath, analyticsId)}`,
   };
+  const base = sessionParams(input);
 
   if (promo) {
     const promotionCode = await launchPromoId(s);
     if (promotionCode) {
-      const promoMetadata = { ...metadata, promo_code: LAUNCH_PROMO.code };
-      // LAUNCH14 is first-time-only, and Stripe's API reference says such codes are invalid on sessions that don't create a Customer.
-      const promoCustomer = customer ? {} : { customer_creation: "always" as const };
       try {
-        const url = await createSession(s, { ...base, ...promoCustomer, discounts: [{ promotion_code: promotionCode }], metadata: promoMetadata, payment_intent_data: { metadata: promoMetadata } });
+        const url = await createSession(s, sessionParams({ ...input, metadata: { ...metadata, promo_code: LAUNCH_PROMO.code }, promotionCode }));
         return { url, promo: "applied" };
       } catch (error) {
         if (!(error instanceof Stripe.errors.StripeInvalidRequestError)) throw error;
@@ -133,10 +115,35 @@ export async function createCheckoutUrl(params: CheckoutRequest): Promise<Checko
 }
 
 async function createSession(s: Stripe, params: Stripe.Checkout.SessionCreateParams): Promise<string> {
+  const product = params.metadata?.product;
+  if (params.mode === "payment" && isProductId(product)) {
+    for (const item of params.line_items ?? []) if (item.price) await checkOneTimePrice(s, item.price, product);
+  }
   const session = await s.checkout.sessions.create(params);
   if (!session.url) throw new Error("Stripe did not return a Checkout URL");
   return session.url;
 }
+
+const oneTimePrices = new Set<string>();
+
+/** Throws RecurringPriceError for a recurring price, and PreorderUnavailableError when the pre-order price isn't in this Stripe account (a live id on test keys). */
+async function checkOneTimePrice(s: Stripe, priceId: string, product: ProductId): Promise<void> {
+  if (oneTimePrices.has(priceId)) return;
+  let price: Stripe.Price;
+  try {
+    price = await s.prices.retrieve(priceId);
+  } catch (error) {
+    if (product === "shiploop_preorder" && error instanceof Stripe.errors.StripeInvalidRequestError && error.code === "resource_missing") {
+      throw new PreorderUnavailableError(`STRIPE_PRICE_SHIPLOOP_PREORDER (${priceId}) is not in this Stripe account`, { cause: error });
+    }
+    throw error;
+  }
+  assertOneTimePrice(price, product);
+  oneTimePrices.add(priceId);
+}
+
+/** Whether to show the Ship Loop pre-order CTA. STRIPE_PRICE_SHIPLOOP_PREORDER is required in production; without it the page falls back to the waitlist. */
+export const shipLoopPreorderOpen = () => preorderAvailable(!isStripeMock(), env.stripePriceShipLoopPreorder);
 
 let promoIdCache: string | undefined;
 
@@ -154,8 +161,8 @@ async function launchPromoId(s: Stripe): Promise<string | undefined> {
 }
 
 /**
- * The promotion code a paid session used: LAUNCH14 from our metadata, else one the buyer typed
- * (Ship Loop allows codes), which Stripe only gives us as a promotion code id.
+ * The promotion code a paid session used: LAUNCH14 from our metadata, else the session's discount,
+ * which Stripe only gives us as a promotion code id.
  */
 export async function sessionPromoCode(s: Stripe, session: Stripe.Checkout.Session): Promise<string | undefined> {
   if (session.metadata?.promo_code) return session.metadata.promo_code;

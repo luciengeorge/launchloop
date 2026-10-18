@@ -221,6 +221,20 @@ test("live site ingest picks up the page copy and brand colour", async ({ page }
   await expect(page.getByText("Brand colours (from your site)")).toBeVisible();
 });
 
+test("Elixir repo with no homepage: stack from the languages API and mix.exs, and the live page isn't marked as read", async ({ page }) => {
+  await page.goto("/");
+  await page.getByLabel("GitHub repo or live site URL").fill("https://github.com/fixture-labs/pulse");
+  await page.getByRole("button", { name: "Get my free preview" }).first().click();
+  await page.waitForURL(/\/kit\/[\w-]+$/);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Pulse");
+  const stack = page.locator("p", { hasText: "Stack:" });
+  await expect(stack).toContainText("Stack: Elixir, Phoenix, Phoenix LiveView, Ecto");
+  await expect(stack).toContainText("Tailwind CSS");
+  const chips = page.getByTestId("source-chip");
+  await expect(chips.filter({ hasText: "README" })).toHaveAttribute("data-ok", "true");
+  await expect(chips.filter({ hasText: "Live page" })).toHaveAttribute("data-ok", "false");
+});
+
 test("unknown kit shows a helpful not-found page", async ({ page }) => {
   await page.goto("/kit/doesNotExist1234567");
   await expect(page.getByRole("heading", { name: "We can't find that kit" })).toBeVisible();
