@@ -5,6 +5,10 @@ type Variant = "control" | "treatment";
 
 const FIXTURE = "http://127.0.0.1:3419";
 
+// Own preview rate-limit bucket, so these previews don't eat the budget the other specs share.
+const ownBucket = { "x-forwarded-for": `203.0.113.${Math.floor(Math.random() * 250) + 1}` };
+test.use({ extraHTTPHeaders: ownBucket });
+
 /** Answers PostHog's flags request in the browser (flags posthog-js evaluates for the page's own id). */
 async function forceFlags(target: Page | BrowserContext, flags: Record<string, Variant>) {
   const details = Object.fromEntries(Object.entries(flags).map(([key, variant]) => [key, { key, enabled: true, variant, reason: null, metadata: {} }]));
@@ -113,15 +117,14 @@ test.describe("promo bucketing", () => {
       await expect(page.getByTestId("kit-price")).toContainText("£14");
       await expect(page.getByTestId("launch-promo")).toBeVisible();
     }
-    const other = await browser.newContext({ userAgent });
+    const other = await browser.newContext({ userAgent, extraHTTPHeaders: ownBucket });
     await notABot(other);
     const friend = await other.newPage();
     await friend.goto(`/kit/${kitId}`);
     await expect(friend.getByTestId("kit-price")).toContainText("£14");
-    await friend.waitForLoadState("networkidle");
-    await other.close();
-
+    // Closing the context skips unload, so wait for posthog-js to flush before it goes.
     await expect.poll(async () => (await exposures(page.request)).length - before).toBe(views + 1);
+    await other.close();
     // Give a duplicate time to arrive before checking there isn't one.
     await page.waitForTimeout(1000);
     const sent = (await exposures(page.request)).slice(before);
