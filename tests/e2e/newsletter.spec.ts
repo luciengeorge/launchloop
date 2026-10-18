@@ -61,7 +61,9 @@ test("after the free preview: a quiet signup under the paywall, and the £19 kit
   await signup.getByLabel("Email for the launch-day checklist").fill(email);
   await subscribe.click();
   const done = signup.getByRole("status");
+  await expect(done).toHaveAttribute("data-welcome", "sent");
   await expect(done).toContainText("You're subscribed");
+  await expect(done).toContainText("I've emailed you the link too.");
   await expect(done.getByRole("link", { name: "Open your launch-day checklist" })).toHaveAttribute("href", CHECKLIST);
   // The kit CTA is untouched by subscribing.
   await expect(unlock).toBeVisible();
@@ -90,7 +92,7 @@ test("not shown on the way to checkout (?unlock=1)", async ({ page }) => {
   await expect(page.getByTestId("preview-newsletter")).toHaveCount(0);
 });
 
-test("footer signup offers the checklist, and signing up again doesn't resend it", async ({ page }) => {
+test("footer signup offers the checklist; signing up again says so and doesn't resend it", async ({ page }) => {
   await page.goto("/");
   const footer = page.getByRole("contentinfo");
   await expect(footer).toContainText("launch-day checklist");
@@ -99,23 +101,59 @@ test("footer signup offers the checklist, and signing up again doesn't resend it
   await footer.getByLabel("Weekly launch teardowns").fill(email);
   await footer.getByRole("button", { name: "Subscribe" }).click();
   const done = footer.getByRole("status");
+  await expect(done).toHaveAttribute("data-welcome", "sent");
   await expect(done).toContainText("You're subscribed");
   await expect(done.getByRole("link", { name: "Open your launch-day checklist" })).toHaveAttribute("href", CHECKLIST);
   await welcomeEmail(page.request, email);
 
-  // Same address again (any placement, any case) is still a success but sends nothing new.
-  expect((await postJson(page.request, { email: email.toUpperCase(), placement: "preview" })).ok()).toBe(true);
-  // A fresh signup after it: once its email lands, the repeat's would have too.
+  // Same address again: still a success, but no new email, and the copy doesn't claim one.
+  await page.reload();
+  await footer.getByLabel("Weekly launch teardowns").fill(email.toUpperCase());
+  await footer.getByRole("button", { name: "Subscribe" }).click();
+  await expect(done).toHaveAttribute("data-welcome", "existing");
+  await expect(done).toContainText("You're already on the list. Here's the launch-day checklist:");
+  await expect(done).not.toContainText("emailed");
+  await expect(done.getByRole("link", { name: "Open the checklist" })).toHaveAttribute("href", CHECKLIST);
+
+  const again = await postJson(page.request, { email, placement: "preview" });
+  expect(await again.json()).toEqual({ ok: true, welcome: "existing" });
+  // A fresh signup after them: once its email lands, the repeats' would have too.
   const sentinel = uniqueEmail("footer-news-sentinel");
   expect((await postJson(page.request, { email: sentinel })).ok()).toBe(true);
   await welcomeEmail(page.request, sentinel);
   expect(await welcomeEmails(page.request, email)).toHaveLength(1);
 });
 
+test("success copy only mentions an email when one was sent", async ({ page }) => {
+  await page.goto("/?subscribed=1&welcome=skipped");
+  const footer = page.getByRole("contentinfo").getByRole("status");
+  await expect(footer).toHaveAttribute("data-welcome", "skipped");
+  await expect(footer).toContainText("You're subscribed. One useful launch teardown a week, no spam.");
+  await expect(footer).toContainText("Here's the launch-day checklist:");
+  await expect(footer).not.toContainText("emailed");
+  await expect(footer.getByRole("link", { name: "Open the checklist" })).toHaveAttribute("href", CHECKLIST);
+  await page.goto("/?subscribed=1&welcome=existing");
+  await expect(footer).toContainText("You're already on the list. Here's the launch-day checklist:");
+  await expect(footer).not.toContainText("emailed");
+  await expect(footer.getByRole("link", { name: "Open the checklist" })).toHaveAttribute("href", CHECKLIST);
+
+  // The kit page knows the result on the server, so the post-preview card renders it straight away.
+  const kitId = await makeSampleKit(page);
+  await page.goto(`/kit/${kitId}?subscribed=1&from=preview&welcome=existing#newsletter`);
+  const card = page.getByTestId("preview-newsletter").getByRole("status");
+  await expect(card).toHaveAttribute("data-welcome", "existing");
+  await expect(card).not.toContainText("emailed");
+  const html = await (await page.request.get(`/kit/${kitId}?subscribed=1&from=preview&welcome=skipped`)).text();
+  expect(html).toContain('data-welcome="skipped"');
+  expect(html).not.toMatch(/[\u2013\u2014]/);
+});
+
 test("concurrent signups for one new address send one welcome email", async ({ request }) => {
   const email = uniqueEmail("race");
   const responses = await Promise.all([1, 2, 3, 4].map((n) => postJson(request, { email, placement: n % 2 ? "footer" : "preview" })));
   for (const res of responses) expect(res.ok()).toBe(true);
+  const outcomes = (await Promise.all(responses.map(async (r) => ((await r.json()) as { welcome: string }).welcome))).sort();
+  expect(outcomes).toEqual(["existing", "existing", "existing", "sent"]);
   const sentinel = uniqueEmail("race-sentinel");
   expect((await postJson(request, { email: sentinel })).ok()).toBe(true);
   await welcomeEmail(request, sentinel);
@@ -164,17 +202,28 @@ test.describe("plain form posts", () => {
     "https://evil.com/kit/abc",
   ];
   for (const next of OPEN_REDIRECTS) {
-    test(`no open redirect for next=${JSON.stringify(next)}`, async ({ request }) => {
-      const ok = await postForm(request, { email: uniqueEmail("redirect"), placement: "preview", next });
-      expect(ok.status()).toBe(303);
-      expectSameOrigin(ok.headers().location);
-      expect(ok.headers().location).toBe("/?subscribed=1&from=preview#newsletter");
-      expect(ok.headers().location).not.toContain("evil.com");
-
-      const failed = await postForm(request, { email: "not-an-email", placement: "preview", next });
-      expectSameOrigin(failed.headers().location);
-      expect(failed.headers().location).toBe("/?subscribed=0&error=invalid&from=preview#newsletter-preview-invalid");
-      expect(newsletterReturnPath(next, "preview")).toBe("/?subscribed=1&from=preview#newsletter");
+    test(`no open redirect for next=${JSON.stringify(next)}, on the success, invalid-email and repeat branches`, async ({ request }) => {
+      const email = uniqueEmail("redirect");
+      const branches: [Record<string, string>, string][] = [
+        [{ email }, "/?subscribed=1&from=preview#newsletter"],
+        [{ email: "not-an-email" }, "/?subscribed=0&error=invalid&from=preview#newsletter-preview-invalid"],
+        [{}, "/?subscribed=0&error=invalid&from=preview#newsletter-preview-invalid"],
+        [{ email }, "/?subscribed=1&welcome=existing&from=preview#newsletter"],
+      ];
+      for (const [fields, expected] of branches) {
+        for (const placement of ["preview", "footer"]) {
+          const res = await postForm(request, { ...fields, placement, next });
+          expect(res.status()).toBe(303);
+          const location = res.headers().location;
+          expectSameOrigin(location);
+          expect(location).not.toContain("evil.com");
+          if (placement === "preview") expect(location).toBe(expected);
+          else expect(location.startsWith("/?subscribed=")).toBe(true);
+        }
+      }
+      for (const result of [{ ok: true, welcome: "sent" }, { ok: true, welcome: "skipped" }, { ok: false, error: "rate" }, { ok: false, error: "server" }] as const) {
+        expect(newsletterReturnPath(next, "preview", result)).toMatch(/^\/\?subscribed=/);
+      }
     });
   }
 
@@ -189,8 +238,13 @@ test.describe("plain form posts", () => {
     expect(form.headers().location).toBe("/?subscribed=0&error=rate#newsletter-footer-rate");
     const preview = await postForm(request, { email: uniqueEmail("limited"), placement: "preview", next: "/kit/abc" }, ip);
     expect(preview.headers().location).toBe("/kit/abc?subscribed=0&error=rate&from=preview#newsletter-preview-rate");
+    // The rate-limited branch fires before anything else is read, and still can't be pointed off-site.
+    for (const next of ["/.//evil.com", "/..//evil.com", "/./\\evil.com"]) {
+      const res = await postForm(request, { placement: "preview", next }, ip);
+      expect(res.headers().location).toBe("/?subscribed=0&error=rate&from=preview#newsletter-preview-rate");
+    }
     // A server error takes the same path with its own code.
-    expect(newsletterReturnPath(undefined, "footer", "server")).toBe("/?subscribed=0&error=server#newsletter-footer-server");
+    expect(newsletterReturnPath(undefined, "footer", { ok: false, error: "server" })).toBe("/?subscribed=0&error=server#newsletter-footer-server");
   });
 
   test.describe("without JavaScript", () => {
@@ -211,7 +265,7 @@ test.describe("plain form posts", () => {
     });
 
     test("a server error message shows without JavaScript", async ({ page }) => {
-      await page.goto(newsletterReturnPath("/pricing", "footer", "server"));
+      await page.goto(newsletterReturnPath("/pricing", "footer", { ok: false, error: "server" }));
       await expect(page.getByRole("contentinfo").getByText("Couldn't subscribe you right now. Please try again.")).toBeVisible();
       await expect(page.getByRole("contentinfo").getByText("Too many attempts. Try again later.")).toBeHidden();
     });

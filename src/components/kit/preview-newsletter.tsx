@@ -7,7 +7,7 @@ export function PreviewNewsletter({ kitId, query }: { kitId: string; query: Reco
     const value = query[key];
     return query.from === "preview" && typeof value === "string" ? value : undefined;
   };
-  const redirected = { subscribed: param("subscribed"), error: param("error") };
+  const redirected = { subscribed: param("subscribed"), welcome: param("welcome"), error: param("error") };
   return (
     <section
       id={PREVIEW_NEWSLETTER_ANCHOR}

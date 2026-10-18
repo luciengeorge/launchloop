@@ -42,11 +42,25 @@ function sameOriginPath(next: unknown): string {
   return url.pathname;
 }
 
-/** Where a plain form post goes back to. Only the path of `next` is kept; the query and hash are ours. */
-export function newsletterReturnPath(next: unknown, placement: NewsletterPlacement, error?: NewsletterErrorCode): string {
-  const query = new URLSearchParams({ subscribed: error ? "0" : "1" });
-  if (error) query.set("error", error);
+/**
+ * What happened to the welcome email on a successful signup: sent now, already claimed by an earlier
+ * signup of the same address, or skipped (daily cap reached, or the claim failed).
+ */
+export type WelcomeOutcome = "sent" | "existing" | "skipped";
+
+export const parseWelcome = (value: unknown): WelcomeOutcome => (value === "existing" || value === "skipped" ? value : "sent");
+
+export type NewsletterResult = { ok: true; welcome: WelcomeOutcome } | { ok: false; error: NewsletterErrorCode };
+
+/**
+ * Where a plain form post goes back to, for every outcome. The only place `next` is trusted:
+ * just its path is kept, and the query and hash are ours.
+ */
+export function newsletterReturnPath(next: unknown, placement: NewsletterPlacement, result: NewsletterResult): string {
+  const query = new URLSearchParams({ subscribed: result.ok ? "1" : "0" });
+  if (!result.ok) query.set("error", result.error);
+  else if (result.welcome !== "sent") query.set("welcome", result.welcome);
   if (placement !== "footer") query.set("from", placement);
-  const hash = error ? newsletterErrorAnchor(placement, error) : placement !== "footer" ? PREVIEW_NEWSLETTER_ANCHOR : "";
+  const hash = !result.ok ? newsletterErrorAnchor(placement, result.error) : placement !== "footer" ? PREVIEW_NEWSLETTER_ANCHOR : "";
   return `${sameOriginPath(next)}?${query}${hash ? `#${hash}` : ""}`;
 }

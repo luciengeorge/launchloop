@@ -11,9 +11,11 @@ import {
   NEWSLETTER_ERRORS,
   type NewsletterErrorCode,
   type NewsletterPlacement,
+  type WelcomeOutcome,
   newsletterError,
   newsletterErrorAnchor,
   parsePlacement,
+  parseWelcome,
 } from "@/lib/newsletter";
 import { useHydrated, useQueryParam } from "@/lib/use-query-param";
 
@@ -28,8 +30,8 @@ interface Props {
   buttonVariant?: "default" | "outline";
   /** Same-origin path a no-JS post returns to. Without it the API sends the visitor to the home page. */
   returnTo?: string;
-  /** The no-JS post's `?subscribed=` and `?error=` when the server page already knows them, so they render without JavaScript. */
-  redirected?: { subscribed?: string; error?: string };
+  /** The no-JS post's `?subscribed=`, `?welcome=` and `?error=` when the server page already knows them, so they render without JavaScript. */
+  redirected?: { subscribed?: string; welcome?: string; error?: string };
 }
 
 export function NewsletterForm({
@@ -43,16 +45,19 @@ export function NewsletterForm({
   redirected: redirectedProp,
 }: Props) {
   const id = useId();
-  const [state, setState] = useState<"idle" | "loading" | "done">("idle");
+  const [state, setState] = useState<"idle" | "loading">("idle");
+  const [welcome, setWelcome] = useState<WelcomeOutcome | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // A no-JS post comes back with ?subscribed= (and ?from= for anything but the footer); only that form reacts.
   const subscribedParam = useQueryParam("subscribed");
+  const welcomeParam = useQueryParam("welcome");
   const errorParam = useQueryParam("error");
   const hydrated = useHydrated();
   const fromHere = parsePlacement(useQueryParam("from")) === placement;
-  const redirected = redirectedProp ?? (fromHere ? { subscribed: subscribedParam ?? undefined, error: errorParam ?? undefined } : {});
-  const done = state === "done" || redirected.subscribed === "1";
+  const redirected =
+    redirectedProp ?? (fromHere ? { subscribed: subscribedParam ?? undefined, welcome: welcomeParam ?? undefined, error: errorParam ?? undefined } : {});
+  const outcome = welcome ?? (redirected.subscribed === "1" ? parseWelcome(redirected.welcome) : null);
   const redirectError = redirected.subscribed === "0" ? (newsletterError(redirected.error) ?? NEWSLETTER_ERRORS.invalid) : null;
   const shownError = error ?? (state === "idle" ? redirectError : null);
 
@@ -62,28 +67,17 @@ export function NewsletterForm({
     setState("loading");
     setError(null);
     try {
-      await postJson("/api/newsletter", { email, placement });
-      track("newsletter_subscribed", { placement });
-      setState("done");
+      const res = await postJson<{ welcome?: WelcomeOutcome }>("/api/newsletter", { email, placement });
+      const result = parseWelcome(res.welcome);
+      track("newsletter_subscribed", { placement, welcome: result });
+      setWelcome(result);
     } catch (err) {
       setError((err as Error).message);
-      setState("idle");
     }
+    setState("idle");
   }
 
-  if (done) {
-    return (
-      <div className="space-y-1 text-sm" role="status" data-testid={`newsletter-done-${placement}`}>
-        <p className="font-medium">You&apos;re subscribed. One useful launch teardown a week, no spam.</p>
-        <p className="text-muted-foreground">
-          <Link href={LEAD_MAGNET.path} className="font-medium text-foreground underline underline-offset-4 hover:text-primary">
-            Open your {LEAD_MAGNET.title}
-          </Link>
-          . I&apos;ve emailed you the link too.
-        </p>
-      </div>
-    );
-  }
+  if (outcome) return <Subscribed placement={placement} welcome={outcome} />;
 
   return (
     <form onSubmit={onSubmit} method="post" action="/api/newsletter" className="space-y-2" aria-label="Newsletter signup" data-placement={placement}>
@@ -122,5 +116,34 @@ export function NewsletterForm({
             </p>
           ))}
     </form>
+  );
+}
+
+/** Only says an email is on its way when this signup actually sent one. */
+function Subscribed({ placement, welcome }: { placement: NewsletterPlacement; welcome: WelcomeOutcome }) {
+  const link = (text: string) => (
+    <Link href={LEAD_MAGNET.path} className="font-medium text-foreground underline underline-offset-4 hover:text-primary">
+      {text}
+    </Link>
+  );
+  return (
+    <div className="space-y-1 text-sm" role="status" data-testid={`newsletter-done-${placement}`} data-welcome={welcome}>
+      {welcome === "existing" ? (
+        <p className="font-medium">You&apos;re already on the list. Here&apos;s the {LEAD_MAGNET.title}:</p>
+      ) : (
+        <p className="font-medium">You&apos;re subscribed. One useful launch teardown a week, no spam.</p>
+      )}
+      {welcome === "sent" ? (
+        <p className="text-muted-foreground">
+          {link(`Open your ${LEAD_MAGNET.title}`)}. I&apos;ve emailed you the link too.
+        </p>
+      ) : welcome === "skipped" ? (
+        <p className="text-muted-foreground">
+          Here&apos;s the {LEAD_MAGNET.title}: {link("Open the checklist")}
+        </p>
+      ) : (
+        <p className="text-muted-foreground">{link("Open the checklist")}</p>
+      )}
+    </div>
   );
 }

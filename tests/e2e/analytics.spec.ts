@@ -80,7 +80,7 @@ test("newsletter_subscribed says which signup it came from: footer or post-previ
   await page.waitForLoadState("networkidle");
   await page.getByRole("contentinfo").getByLabel("Weekly launch teardowns").fill(uniqueEmail("ph-footer"));
   await page.getByRole("contentinfo").getByRole("button", { name: "Subscribe" }).click();
-  expect((await campaignEvent(page, campaign, "newsletter_subscribed")).properties.placement).toBe("footer");
+  expect((await campaignEvent(page, campaign, "newsletter_subscribed")).properties).toMatchObject({ placement: "footer", welcome: "sent" });
 
   const previewCampaign = `${campaign}-preview`;
   await page.goto(`/?utm_source=newsletter-test&utm_campaign=${previewCampaign}`);
@@ -90,7 +90,7 @@ test("newsletter_subscribed says which signup it came from: footer or post-previ
   await signup.getByLabel("Email for the launch-day checklist").fill(uniqueEmail("ph-preview"));
   await signup.getByRole("button", { name: "Send me the checklist" }).click();
   const event = await campaignEvent(page, previewCampaign, "newsletter_subscribed");
-  expect(event.properties.placement).toBe("preview");
+  expect(event.properties).toMatchObject({ placement: "preview", welcome: "sent" });
   expect(JSON.stringify(event)).not.toContain("@example.com");
 });
 
