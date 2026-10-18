@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
-import { Toaster } from "@/components/ui/sonner";
+import { LazyToaster } from "@/components/lazy-toaster";
 import { VercelInsights } from "@/components/vercel-insights";
 import { siteUrl } from "@/lib/env";
 import { SITE } from "@/lib/site";
@@ -50,7 +50,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           {children}
         </main>
         <SiteFooter />
-        <Toaster position="bottom-center" />
+        <LazyToaster position="bottom-center" />
         <VercelInsights />
       </body>
     </html>
