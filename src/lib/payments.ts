@@ -166,6 +166,14 @@ export async function sessionPromoCode(s: Stripe, session: Stripe.Checkout.Sessi
   }
 }
 
+/**
+ * Where a paid kit lands: its page in /account for a signed-in buyer, else the guest success page,
+ * which finds the buyer's email from the session id (kit.paymentRef) to prefill the magic link.
+ */
+export function kitSuccessPath(kitId: string, sessionRef: string, signedIn: boolean): string {
+  return signedIn ? `/account/kits/${kitId}?paid=1` : `/checkout/success?${new URLSearchParams({ kit: kitId, session_id: sessionRef })}`;
+}
+
 /** Whether this deployment owns a Checkout session (see stripeEventDecision). */
 export function checkoutDecision(session: Stripe.Checkout.Session) {
   return stripeEventDecision({ metadataEnv: session.metadata?.env, livemode: session.livemode, current: deployEnv(), secretKey: env.stripeSecretKey });

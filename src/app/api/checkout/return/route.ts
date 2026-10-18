@@ -1,8 +1,10 @@
 import { after } from "next/server";
+import { getSession } from "@/lib/auth";
 import { withAnalyticsId } from "@/lib/experiments";
 import { fulfilKit, recordPayment } from "@/lib/fulfil";
+import { normaliseEmail } from "@/lib/kits";
 import { captureException } from "@/lib/observability";
-import { checkoutDecision, stripe } from "@/lib/payments";
+import { checkoutDecision, kitSuccessPath, stripe } from "@/lib/payments";
 import { isProductId } from "@/lib/products";
 
 export const maxDuration = 120;
@@ -32,7 +34,10 @@ export async function GET(req: Request) {
     await recordPayment({ product, kitId, email, ref: session.id, customerId: typeof session.customer === "string" ? session.customer : session.customer?.id });
     if (product === "kit" && kitId) {
       after(() => fulfilKit(kitId));
-      return Response.redirect(new URL(withAnalyticsId(`/account/kits/${kitId}?paid=1`, aid), url), 303);
+      // A guest who logged in during checkout as someone else would 404 in /account, so they get the guest page too.
+      const account = await getSession();
+      const signedIn = !!account && (session.metadata?.logged_in === "1" || (!!email && normaliseEmail(email) === account.email));
+      return Response.redirect(new URL(withAnalyticsId(kitSuccessPath(kitId, session.id, signedIn), aid), url), 303);
     }
     return Response.redirect(new URL(withAnalyticsId(`/ship-loop/thanks?plan=${product}`, aid), url), 303);
   } catch (error) {

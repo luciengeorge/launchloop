@@ -7,7 +7,7 @@ import { isStripeMock } from "@/lib/env";
 import { withAnalyticsId } from "@/lib/experiments";
 import { fulfilKit, recordPayment } from "@/lib/fulfil";
 import { getKit } from "@/lib/kits";
-import { checkoutPrice } from "@/lib/payments";
+import { checkoutPrice, kitSuccessPath } from "@/lib/payments";
 import { LAUNCH_PROMO, isProductId, type ProductId } from "@/lib/products";
 import type { Kit } from "@/lib/schema";
 
@@ -38,7 +38,7 @@ export async function POST(req: Request) {
     await recordPayment({ product: "kit", kitId: kit.id, email: body.email, ref });
     after(() => fulfilKit(kit.id));
     track("kit", kit);
-    return Response.json({ url: withAnalyticsId(`/account/kits/${kit.id}?paid=1`, body.analyticsId) });
+    return Response.json({ url: withAnalyticsId(kitSuccessPath(kit.id, ref, isLoggedIn), body.analyticsId) });
   }
 
   await recordPayment({ product: body.product, email: body.email, ref });

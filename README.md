@@ -56,6 +56,7 @@ All are optional locally. See [`.env.example`](.env.example) for the full annota
 | `NEXT_PUBLIC_SITE_URL` | Canonical URLs, sitemap, email links |
 | `MOCK_MODE` | Force everything into mock mode |
 | `PREVIEW_RATE_LIMIT_PER_HOUR` | Free previews per IP per hour (default 12) |
+| `CHECKOUT_RATE_LIMIT_PER_HOUR` | Optional: signed-out kit checkouts per IP per hour (default 20) |
 | `SENTRY_DSN` | Reserved for Sentry (see "Error logging") |
 | `NEXT_PUBLIC_POSTHOG_KEY`, `NEXT_PUBLIC_POSTHOG_HOST` | Conversion analytics (see "Analytics"). Host defaults to `https://eu.i.posthog.com` |
 
@@ -66,6 +67,15 @@ stripe listen --forward-to localhost:3417/api/stripe/webhook   # prints STRIPE_W
 ```
 
 Pay with card `4242 4242 4242 4242`. The webhook isn't required locally: the Checkout success URL (`/api/checkout/return`) verifies the session server-side and starts fulfilment. The webhook is the backstop if the buyer closes the tab.
+
+### Guest checkout
+
+Signed-out visitors can buy the kit without logging in. Checkout has no customer or account behind it and Stripe collects the email; the kit id, UTMs and LAUNCH14 metadata are the same as for signed-in buyers. Once paid (webhook or success URL), the kit goes to that email (`src/lib/accounts.ts`):
+
+- an email that has logged in before (`user:<email>:account`, or an existing kit index) gets the kit in its account straight away;
+- any other email gets a pending purchase (`pending:<email>:kits`), claimed into the account on that address's first magic-link login. A signed-in session already sees its pending purchases in My kits.
+
+The buyer lands on `/checkout/success`, which offers a magic link prefilled with the email from the Checkout session. Signed-in buyers still land on `/account/kits/[id]?paid=1`.
 
 ## How it works
 
@@ -85,6 +95,7 @@ Stripe paid ─▶ recordPayment ─▶ fulfilKit: full copy (LLM + rubric + ret
 | `src/lib/images.tsx` | The three OG images via `@vercel/og`, watermarked until paid |
 | `src/lib/fulfil.ts` | Idempotent post-payment generation and email |
 | `src/lib/payments.ts` | Stripe Checkout (or the mock checkout URL) |
+| `src/lib/accounts.ts` | Accounts (emails that have logged in), and guest purchases waiting for their email's first login |
 | `src/lib/email.ts`, `src/lib/audience.ts` | Resend email and contacts, with mock outbox |
 | `src/lib/store.ts` | Key-value store: Upstash REST or local JSON files |
 
