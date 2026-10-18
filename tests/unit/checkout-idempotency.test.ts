@@ -16,7 +16,7 @@ vi.stubEnv("STRIPE_SECRET_KEY", "sk_test_idempotency");
 vi.stubEnv("MOCK_MODE", "");
 const { checkoutIdempotencyKey, createCheckoutUrl } = await import("@/lib/payments");
 
-const kitCheckout = { product: "kit" as const, origin: "https://launchloop.dev", kitId: "kit_abcdefghijklmnop", customer: "cus_1", analyticsId: "ph_1", isLoggedIn: true, experiments: {} };
+const kitCheckout = { product: "kit" as const, origin: "https://launchloop.dev", kitId: "kit_abcdefghijklmnop", customer: "cus_1", analyticsId: "ph_1", isLoggedIn: true, experiments: {}, fallbacks: [] };
 
 beforeEach(() => {
   stripeMock.create.mockResolvedValue({ url: "https://checkout.stripe.com/c/pay/cs_test_1" });
