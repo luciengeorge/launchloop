@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { logIn, magicLinkFor, makeSampleKit, uniqueEmail, unlockAndPay } from "./helpers";
+import { logIn, magicLinkFor, makeSampleKit, sendLoginLink, uniqueEmail, unlockAndPay } from "./helpers";
 
 test("magic-link login, single-use token, header state and log out", async ({ page }) => {
   await page.goto("/");
@@ -12,9 +12,7 @@ test("magic-link login, single-use token, header state and log out", async ({ pa
   await expect(banner.getByRole("link", { name: "FAQ" })).toBeVisible();
 
   const email = uniqueEmail("login");
-  await page.goto("/login");
-  await page.getByLabel("Email").fill(email);
-  await page.getByRole("button", { name: "Email me a login link" }).click();
+  await sendLoginLink(page, email);
   const link = await magicLinkFor(page.request, email);
 
   // A scanner-style GET (no JS, no POST) does not consume it.
