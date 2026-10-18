@@ -23,12 +23,12 @@ const KIT_ICONS = [Globe, Megaphone, MessageSquareText, FileText, ImageIcon, Lis
 
 const STEPS = [
   { title: "Paste a link", body: "A public GitHub repo or your live URL. We read the README, package.json, the last 20 commit messages and your landing page." },
-  { title: "Get your brief", body: "A short product brief built from what's actually in your code: real features, real numbers, your stack." },
+  { title: "Get your brief", body: "A short product brief built from what's actually in your README, package.json and commits: real features, real numbers, your stack." },
   { title: "Launch from it", body: "Copy for every platform plus three images in your brand colours, checked against each platform's limits." },
 ];
 
 const RULES = [
-  { title: "Reads your code, not just your homepage", body: "Features and numbers come from your README, commits and package.json, so the copy says something only your app can say." },
+  { title: "Reads your README and commits, not just your homepage", body: "Features and numbers come from your README, package.json (or other manifest files) and recent commits, so the copy says something only your app can say." },
   { title: "Every limit, enforced", body: "60-character PH taglines, 260-character descriptions, 280-character posts counted the way X counts them." },
   { title: "Never asks for upvotes", body: "Asking for upvotes or coordinating votes gets you penalised on Product Hunt and Hacker News, and HN also bans asking for comments. We strip those out and just invite people to check out your launch." },
   { title: "Images in your colours", body: "We pull your palette from your site's CSS and render OG, X and Product Hunt images at the exact sizes." },
@@ -51,8 +51,8 @@ export default async function Home() {
             Paste your repo. <span className="text-primary">Get your whole launch.</span>
           </h1>
           <p className="mt-5 max-w-2xl text-pretty text-lg text-muted-foreground">
-            LaunchLoop reads your public repo and live site, then writes your landing page copy, Product Hunt post, X thread and LinkedIn post, plus three
-            images in your brand colours.
+            LaunchLoop reads your repo&apos;s README, package.json and recent commits, plus your live site, then writes your landing page copy, Product Hunt
+            post, X thread and LinkedIn post, plus three images in your brand colours.
           </p>
           <div className="mt-10 flex w-full justify-center">
             <KitForm promo={promo} />

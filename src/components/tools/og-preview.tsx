@@ -238,7 +238,7 @@ export function OgPreview() {
           <aside className="rounded-xl border border-primary/30 bg-primary/5 p-5" data-testid="og-cta">
             <h2 className="font-semibold">{preview.verdict === "pass" ? "Your link card is ready. Now the launch." : "Want a share image that passes every check?"}</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              LaunchLoop reads your repo and live site, then makes a {OG_IMAGE.width}×{OG_IMAGE.height} OG image in your brand colours, plus X and Product Hunt images and all
+              LaunchLoop reads your README, package.json, recent commits and live site, then makes a {OG_IMAGE.width}×{OG_IMAGE.height} OG image in your brand colours, plus X and Product Hunt images and all
               your launch copy. Start with a free preview; the full kit is £19.
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
