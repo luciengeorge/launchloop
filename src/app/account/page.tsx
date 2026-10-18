@@ -11,6 +11,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getSession } from "@/lib/auth";
 import { getShipLoop, hasBillingAccess } from "@/lib/billing";
+import { MAX_ATTEMPTS } from "@/lib/fulfil";
 import { IMAGE_VARIANTS, type ImageVariant, kitImageUrl } from "@/lib/image-variants";
 import { listUserKits } from "@/lib/kits";
 import { getProgress } from "@/lib/progress";
@@ -116,6 +117,7 @@ async function kitProgress(kit: Kit) {
 
 function KitRow({ kit, progress }: { kit: Kit; progress: { completed: number; total: number; percent: number } | null }) {
   const ready = kit.paid && kit.status === "ready";
+  const gaveUp = kit.paid && kit.status === "failed" && kit.attempts >= MAX_ATTEMPTS;
   const href = `/account/kits/${kit.id}`;
   return (
     <li className="rounded-2xl border border-border bg-card p-5 shadow-sm" data-testid="account-kit" data-kit-id={kit.id}>
@@ -132,8 +134,8 @@ function KitRow({ kit, progress }: { kit: Kit; progress: { completed: number; to
             {kit.source.repoUrl ?? kit.source.siteUrl ?? "sample app"}
           </p>
         </div>
-        <Badge variant={kit.paid ? "default" : "secondary"} data-testid="kit-status">
-          {kit.paid ? (ready ? "Paid" : "Paid · generating") : "Preview"}
+        <Badge variant={gaveUp ? "destructive" : kit.paid ? "default" : "secondary"} data-testid="kit-status">
+          {kit.paid ? (ready ? "Paid" : gaveUp ? "Paid · generation failed" : "Paid · generating") : "Preview"}
         </Badge>
       </div>
       {progress ? (
@@ -150,6 +152,10 @@ function KitRow({ kit, progress }: { kit: Kit; progress: { completed: number; to
         </div>
       ) : !kit.paid ? (
         <p className="mt-3 text-xs text-muted-foreground">Preview only. Unlock it to get the full kit and launch checklist.</p>
+      ) : gaveUp ? (
+        <p className="mt-3 text-sm text-muted-foreground" data-testid="kit-failed-note">
+          We hit a problem generating this kit. We&apos;re on it: you&apos;ll get it, or a full refund.
+        </p>
       ) : null}
       <div className="mt-4 flex flex-wrap gap-2 text-sm">
         <Link href={href} className={buttonVariants({ variant: kit.paid ? "outline" : "default", size: "sm" })}>

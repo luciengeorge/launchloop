@@ -1,4 +1,6 @@
 import { expect, test } from "@playwright/test";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { kitErrorBody, rateLimitedBody } from "../../src/lib/errors";
 import { followMagicLink } from "./helpers";
 
@@ -60,8 +62,27 @@ test("paid kit whose generation keeps failing shows a proper error state with re
   const state = page.getByTestId("kit-error-state");
   await expect(state).toBeVisible({ timeout: 20_000 });
   await expect(state).toContainText("Your payment is safe");
+  await expect(state).toContainText("you'll get your kit, or a full refund");
   await expect(state.getByRole("button", { name: "Try again" })).toBeVisible();
   await expect(page.locator("main")).not.toContainText(/Simulated LLM failure|LlmError|at \w+ \(/);
+  // No template copy stands in for the paid kit.
+  await expect(page.getByTestId("task")).toHaveCount(0);
+
+  // Flagged for a manual refund, with the honest email sent once.
+  const record = JSON.parse(readFileSync(path.join(process.cwd(), ".data-test", `dev_kit_${kitId}.json`), "utf8")) as { value: { status: string; refund_needed?: boolean; content?: unknown } };
+  expect(record.value).toMatchObject({ status: "failed", refund_needed: true });
+  expect(record.value.content).toBeUndefined();
+  const failureEmails = async () => {
+    const { emails } = (await (await page.request.get("/api/dev/outbox")).json()) as { emails: { to: string; subject: string; text: string }[] };
+    return emails.filter((e) => e.to === email && e.subject.startsWith("We hit a problem generating your"));
+  };
+  await expect.poll(async () => (await failureEmails()).length).toBe(1);
+  expect((await failureEmails())[0].text).toContain("full refund");
+
+  await page.goto("/account");
+  const row = page.locator(`[data-testid="account-kit"][data-kit-id="${kitId}"]`);
+  await expect(row.getByTestId("kit-status")).toHaveText("Paid · generation failed");
+  await expect(row.getByTestId("kit-failed-note")).toContainText("full refund");
 });
 
 test("unknown pages and kits get a helpful not-found page", async ({ page }) => {

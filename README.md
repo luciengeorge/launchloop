@@ -58,6 +58,7 @@ All are optional locally. See [`.env.example`](.env.example) for the full annota
 | `PREVIEW_RATE_LIMIT_PER_HOUR`, `PREVIEW_RATE_LIMIT_PER_DAY` | Free previews per IP per hour (default 5) and per UTC day (default 20). See "Free preview limits" |
 | `PREVIEW_GLOBAL_DAILY_CAP` | Optional spend cap: free previews and tagline generations across all visitors per UTC day (default 1500). Past it, `/api/kits` and `/api/tools/taglines` return 503 `code: "busy"` ("LaunchLoop is very busy right now, try again in a bit"). Paid kit generation is never capped by it |
 | `FREE_PREVIEWS_DISABLED` | Optional kill switch: `1` turns off free previews and tagline generations with the same `busy` response. Paid kit generation keeps running. Unset = on |
+| `KIT_RETRY_BACKOFF_MS` | Optional: waits between paid kit generation attempts, comma-separated milliseconds (default `10000,30000`). See "Paid kit failures" |
 | `SENTRY_DSN` | Reserved for Sentry (see "Error logging") |
 | `NEXT_PUBLIC_POSTHOG_KEY`, `NEXT_PUBLIC_POSTHOG_HOST` | Conversion analytics (see "Analytics"). Host defaults to `https://eu.i.posthog.com` |
 
@@ -72,6 +73,18 @@ All are optional locally. See [`.env.example`](.env.example) for the full annota
 5. The global daily cap (`cap:previews:<UTC day>`, `PREVIEW_GLOBAL_DAILY_CAP`) returns 503 `busy`. It's checked after the per-IP limit so one noisy IP can't use it up.
 
 **Store errors fail closed.** If Upstash errors, the gate returns 503 `busy` and reports the error to Sentry (`stage: rate-limit.store`) rather than letting the request through. Kits and briefs live in the same store, so failing open would spend model calls on previews that can't be saved, and would drop abuse protection exactly when nobody's watching.
+
+### Paid kit failures
+
+`fulfilKit` (`src/lib/fulfil.ts`) makes up to 3 attempts, waiting 10s and then 30s between them (`KIT_RETRY_BACKOFF_MS`), inside the `after()` of whichever route triggered it (webhook, Checkout return, status poll; 120s `maxDuration`). Sections that succeed are kept, so a retry only writes what's missing. If the waits won't fit in the function (slow 45s timeouts), the kit records `nextAttemptAt` and the kit page's status poll starts the next attempt when it's due.
+
+When the last attempt fails:
+
+- the kit is `status: "failed"` with `refund_needed: true` and `failedAt`. No template or partial copy is delivered: no content, no ZIP, and the kit and account pages show a "We hit a problem generating your kit" state with a Try again button;
+- the buyer gets one email through Resend: "We hit a problem generating your kit. We're on it: you'll get it, or a full refund";
+- Sentry gets an unthrottled error (`stage: fulfil.final_failure`, with `kitId` and `paymentRef`) and PostHog gets `kit_generation_failed`.
+
+Refunds are never automatic: find kits with `refund_needed: true` (Sentry alert or PostHog event), then deliver the kit (the Try again button, or `POST /api/kits/<id>/retry`) or refund the payment in Stripe. A retry that succeeds clears `refund_needed`.
 
 ### Testing Stripe locally
 

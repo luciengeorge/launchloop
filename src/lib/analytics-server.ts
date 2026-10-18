@@ -28,6 +28,8 @@ type FeatureProperties = Partial<Record<`$feature/${ExperimentKey}`, Variant>>;
 export interface ServerEvents {
   checkout_started: CheckoutProperties & FeatureProperties;
   checkout_completed: CheckoutProperties & FeatureProperties & { stripeSessionId: string };
+  /** A paid kit failed every automatic attempt and needs a manual delivery or refund. */
+  kit_generation_failed: { plan: "kit"; kitId: string; attempts: number; refund_needed: true; reason: string };
 }
 
 let client: PostHog | null = null;
