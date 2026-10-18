@@ -121,7 +121,9 @@ test("header CTA from another page keeps the visitor's id and UTMs, through to t
   await page.waitForURL(/\/account\/kits\/[\w-]+\?paid=1&aid=/);
 
   const checkoutStarted = await serverEvent(page, id, "checkout_started");
-  expect(checkoutStarted.properties).toMatchObject({ plan: "kit", product_type: "kit", amount: 1900, currency: "gbp", "$feature/exp_launch14_promo": "control" });
+  expect(checkoutStarted.properties).toMatchObject({ plan: "kit", product_type: "kit", amount: 1900, currency: "gbp", "fallback/exp_launch14_promo": "control" });
+  // The fake PostHog assigns nothing, so the £19 the page served was a fallback, not an experiment arm.
+  expect(checkoutStarted.properties).not.toHaveProperty("$feature/exp_launch14_promo");
   const purchase = await serverEvent(page, id, "checkout_completed");
   expect(purchase.properties).toMatchObject({ plan: "kit", product_type: "kit", amount: 1900, currency: "gbp", mock: true });
   expect(JSON.stringify(purchase)).not.toContain("@example.com");

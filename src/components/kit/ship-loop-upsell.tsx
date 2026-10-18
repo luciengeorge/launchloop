@@ -7,7 +7,7 @@ import { useExperiment } from "@/lib/use-experiment";
 
 /** exp_shiploop_success_upsell: a soft Ship Loop offer on the kit success page (waitlist, plus the £99 pre-order when `preorderOpen`). Control renders nothing. */
 export function ShipLoopUpsell({ preorderOpen }: { preorderOpen: boolean }) {
-  if (useExperiment(EXPERIMENTS.shipLoopUpsell) !== "treatment") return null;
+  if (useExperiment(EXPERIMENTS.shipLoopUpsell)?.variant !== "treatment") return null;
   return (
     <section className="rounded-2xl border border-border bg-muted/40 p-5 sm:p-6" aria-labelledby="ship-loop-upsell-heading" data-testid="ship-loop-upsell">
       <h2 id="ship-loop-upsell-heading" className="text-lg font-semibold">

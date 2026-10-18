@@ -5,16 +5,16 @@ import { ensureStripeCustomer } from "@/lib/billing";
 import { isStripeMock } from "@/lib/env";
 import { after } from "next/server";
 import { PreorderUnavailableError, RecurringPriceError } from "@/lib/checkout-session";
-import { EXPERIMENTS, featureProperties, parseExperiments } from "@/lib/experiments";
-import { isLaunchPromoOn } from "@/lib/launch-promo-server";
+import { EXPERIMENTS, featureProperties, parseExperiments, parseFallbacks } from "@/lib/experiments";
 import { generateDraft } from "@/lib/generation";
+import { resolveKitPromo } from "@/lib/kit-promo";
 import { getKit } from "@/lib/kits";
-import { captureException } from "@/lib/observability";
+import { captureException, captureMessage } from "@/lib/observability";
 import { checkoutPrice, createCheckoutUrl } from "@/lib/payments";
 import { isProductId } from "@/lib/products";
 
 export async function POST(req: Request) {
-  const body = (await req.json().catch(() => ({}))) as { product?: unknown; kitId?: unknown; email?: unknown; analyticsId?: unknown; experiments?: unknown };
+  const body = (await req.json().catch(() => ({}))) as { product?: unknown; kitId?: unknown; email?: unknown; analyticsId?: unknown; experiments?: unknown; fallbacks?: unknown };
   if (!isProductId(body.product)) return Response.json({ error: "Unknown product." }, { status: 400 });
 
   const session = await getSession();
@@ -34,19 +34,39 @@ export async function POST(req: Request) {
   const product = body.product;
   const analyticsId = resolveDistinctId(body.analyticsId);
   const isLoggedIn = !!session;
-  // Trusted as sent: anyone can retry until a page shows the promo arm, so LAUNCH14's own
-  // limits in Stripe (once per customer, first purchase, capped, expiring) are the real guard.
+  // Other experiments are logged as the page served them. exp_launch14_promo is never taken from the
+  // request: the server resolves it for the kit exactly as the paywall did (resolveKitPromo), and only
+  // the server's answer decides LAUNCH14. Stripe's own limits on the code stay the backstop.
   const experiments = parseExperiments(body.experiments);
+  delete experiments[EXPERIMENTS.launchPromo];
+  const fallbacks = parseFallbacks(body.fallbacks).filter((key) => key in experiments);
+  const launchPromo = kitId ? await resolveKitPromo(kitId) : undefined;
+  if (launchPromo) {
+    experiments[EXPERIMENTS.launchPromo] = launchPromo.variant;
+    if (launchPromo.fallback) fallbacks.push(EXPERIMENTS.launchPromo);
+  }
+  // PostHog didn't answer for the kit, so the variant came from what it last assigned (or is control).
+  const promoFallback = launchPromo && (launchPromo.source === "remembered" || launchPromo.fallback === "error");
   try {
-    // No variant from the page (it never read the flag): use the one the marketing pages show, so a
-    // £14 seen on home or /pricing is the Stripe total. A variant the paywall sent is kept as is.
-    if (product === "kit" && !experiments[EXPERIMENTS.launchPromo]) {
-      experiments[EXPERIMENTS.launchPromo] = (await isLaunchPromoOn()) ? "treatment" : "control";
-    }
     // Only a signed-in (verified) email is tied to an existing Stripe customer; a guest-typed email
     // could belong to someone else, so it stays a plain `customer_email` prefill.
     const customer = session && !isStripeMock() ? await ensureStripeCustomer(session.email) : undefined;
-    const { url, promo } = await createCheckoutUrl({ product, origin: new URL(req.url).origin, kitId, email, customer, analyticsId, isLoggedIn, experiments });
+    const { url, promo } = await createCheckoutUrl({
+      product,
+      origin: new URL(req.url).origin,
+      kitId,
+      email,
+      customer,
+      analyticsId,
+      isLoggedIn,
+      experiments,
+      fallbacks,
+    });
+    if (launchPromo && promoFallback && kitId) {
+      const properties = { flag: EXPERIMENTS.launchPromo, variant: launchPromo.variant, reason: "error", fallback: true, source: "checkout", remembered: launchPromo.source === "remembered", kitId } as const;
+      captureMessage("exp_launch14_promo: PostHog didn't answer at checkout", properties);
+      after(() => captureServerEvent("flag_fallback", { distinctId: analyticsId, properties }));
+    }
     after(() =>
       captureServerEvent("checkout_started", {
         distinctId: analyticsId,
@@ -55,7 +75,7 @@ export async function POST(req: Request) {
           kitId,
           ...checkoutPrice(product, promo === "applied"),
           ...(promo === "none" ? {} : { promo }),
-          ...featureProperties(experiments),
+          ...featureProperties(experiments, fallbacks),
           isLoggedIn,
           mock: isStripeMock(),
         },

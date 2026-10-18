@@ -67,7 +67,7 @@ export const OG_FAQ = [
   },
   {
     q: "Does this tool make an OG image for me?",
-    a: "No, it reads the tags and the image you already have and tells you what to fix. If you want one made, LaunchLoop reads your repo and live site and renders a 1200×630 OG image in your brand colours, along with the X and Product Hunt images and your launch copy. The free preview shows watermarked versions of all three; the full kit is £19.",
+    a: "No, it reads the tags and the image you already have and tells you what to fix. If you want one made, LaunchLoop reads your README, package.json, recent commits and live site and renders a 1200×630 OG image in your brand colours, along with the X and Product Hunt images and your launch copy. The free preview shows watermarked versions of all three; the full kit is £19.",
   },
   {
     q: "Is the OG preview free?",

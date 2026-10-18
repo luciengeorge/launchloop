@@ -8,7 +8,7 @@ export const SITE = {
   name: "LaunchLoop",
   tagline: "Paste your repo. Get your whole launch.",
   description:
-    "LaunchLoop reads your GitHub repo and live site, then writes your landing page copy, Product Hunt post, X thread and LinkedIn post, and renders on-brand social images. Free preview, £19 once for the full kit.",
+    "LaunchLoop reads your GitHub README, package.json and recent commits, plus your live site, then writes your landing page copy, Product Hunt post, X thread and LinkedIn post, and renders on-brand social images. Free preview, £19 once for the full kit.",
   shortDescription: "Turn a vibe-coded app into a complete launch kit in minutes.",
   twitter: "@launchloop",
   email: "hello@launchloop.dev",

@@ -112,7 +112,13 @@ export function TaglineChecker() {
 
   return (
     <div className="space-y-6" data-testid="tagline-checker">
-      <Tabs value={mode} onValueChange={(v) => setMode(v as Mode)}>
+      <Tabs
+        value={mode}
+        onValueChange={(v) => {
+          setMode(v as Mode);
+          setError(null);
+        }}
+      >
         <TabsList className="h-10! w-full sm:w-fit">
           <TabsTrigger value="check" className="whitespace-nowrap px-4">Check a tagline</TabsTrigger>
           {/* The short label keeps both tabs on one line on narrow phones; the accessible name stays the same. */}
@@ -202,7 +208,10 @@ export function TaglineChecker() {
               <Input
                 id={`${ids}-source`}
                 value={source}
-                onChange={(e) => setSource(e.target.value)}
+                onChange={(e) => {
+                  setSource(e.target.value);
+                  setError(null);
+                }}
                 placeholder="github.com/you/your-app or your-app.com"
                 autoComplete="url"
                 inputMode="url"

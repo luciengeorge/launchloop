@@ -1,6 +1,8 @@
 import "server-only";
 import { parse, type HTMLElement } from "node-html-parser";
+import { pricesIn } from "../prices";
 import { IngestError, safeFetch } from "./safe-fetch";
+import { spacedText } from "./text";
 
 export interface SiteData {
   url: string;
@@ -94,9 +96,7 @@ export async function fetchSite(url: string, warnings: string[]): Promise<SiteDa
   };
 }
 
-const PRICE_RE = /[£$€]\s?\d+(?:\.\d{2})?(?:\s?\/\s?(?:mo|month|yr|year))?/gi;
 const PRICING_WORD = /^(pricing|plans|prices)$/i;
-const matchPrices = (text: string) => unique(text.match(PRICE_RE) ?? [], 4);
 
 /** A same-site link to /pricing (or /plans), the signal that the product actually charges. */
 export function findPricingLink(root: HTMLElement, pageUrl: string): string | undefined {
@@ -129,7 +129,7 @@ export function pricingSections(body: HTMLElement): HTMLElement[] {
 }
 
 async function extractPrices(body: HTMLElement, pageUrl: string, pricingUrl: string | undefined): Promise<string[]> {
-  const fromSection = matchPrices(pricingSections(body).map((el) => el.text).join(" "));
+  const fromSection = pricesIn(pricingSections(body).map(spacedText).join(" "));
   if (fromSection.length) return fromSection;
   if (!pricingUrl || pricingUrl === pageUrl) return [];
   try {
@@ -137,7 +137,7 @@ async function extractPrices(body: HTMLElement, pageUrl: string, pricingUrl: str
     if (res.status >= 400) return [];
     const root = parse(res.text, { comment: false });
     root.querySelectorAll("script, style, noscript, svg, nav, header, footer, [role=navigation]").forEach((el) => el.remove());
-    return matchPrices((root.querySelector("main") ?? root.querySelector("body") ?? root).text);
+    return pricesIn(spacedText(root.querySelector("main") ?? root.querySelector("body") ?? root));
   } catch {
     return [];
   }
