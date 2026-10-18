@@ -2,12 +2,12 @@
 
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import * as Sentry from "@sentry/nextjs";
+import { captureClientException } from "@/lib/sentry-client";
 import { reportClientError } from "@/lib/client";
 
 export default function ErrorPage({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {
-    Sentry.captureException(error);
+    captureClientException(error);
     reportClientError(error);
   }, [error]);
   return (

@@ -25,7 +25,7 @@ export async function startCheckout(product: "kit", kitId: string, served: Parti
   return postJson<CheckoutStart>("/api/checkout", {
     product,
     kitId,
-    analyticsId: analyticsId(),
+    analyticsId: await analyticsId(),
     experiments: Object.fromEntries(entries.map(([key, s]) => [key, s.variant])),
     fallbacks: entries.filter(([, s]) => s.fallback).map(([key]) => key),
   });

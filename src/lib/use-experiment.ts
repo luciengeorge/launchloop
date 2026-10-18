@@ -1,8 +1,7 @@
 "use client";
 
-import posthog from "posthog-js";
 import { useEffect, useRef, useState } from "react";
-import { trackServed } from "./analytics";
+import { analyticsEnabled, loadAnalytics, trackServed } from "./analytics";
 import { fallbackServed, type ExperimentKey, type Served } from "./experiments";
 
 /** Past this, show control rather than hold the page for a slow or blocked flags request. */
@@ -36,20 +35,29 @@ function useServed(key: ExperimentKey, start: (settle: (served: Served) => void)
  */
 export function useExperiment(key: ExperimentKey): Served | undefined {
   return useServed(key, (settle) => {
-    if (!posthog.__loaded) {
+    if (!analyticsEnabled) {
       settle(fallbackServed("unassigned"));
       return () => {};
     }
-    const timer = setTimeout(() => settle(fallbackServed("timeout")), FLAGS_TIMEOUT_MS);
-    const off = posthog.onFeatureFlags((_flags, _variants, context) => {
-      if (context?.errorsLoading) return settle(fallbackServed("error"));
-      // send_event: false, so the only exposure is trackServed's, with the variant actually shown.
-      const value = posthog.getFeatureFlag(key, { send_event: false });
-      settle(value === "control" || value === "treatment" ? { variant: value } : fallbackServed("unassigned"));
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let off: (() => void) | undefined;
+    // The SDK may still be loading; the flags request starts when it initialises, so time it from there.
+    void loadAnalytics().then((posthog) => {
+      if (stopped) return;
+      if (!posthog) return settle(fallbackServed("error"));
+      timer = setTimeout(() => settle(fallbackServed("timeout")), FLAGS_TIMEOUT_MS);
+      off = posthog.onFeatureFlags((_flags, _variants, context) => {
+        if (context?.errorsLoading) return settle(fallbackServed("error"));
+        // send_event: false, so the only exposure is trackServed's, with the variant actually shown.
+        const value = posthog.getFeatureFlag(key, { send_event: false });
+        settle(value === "control" || value === "treatment" ? { variant: value } : fallbackServed("unassigned"));
+      });
     });
     return () => {
+      stopped = true;
       clearTimeout(timer);
-      off();
+      off?.();
     };
   });
 }
