@@ -1,10 +1,9 @@
 import { defineConfig } from "@playwright/test";
 
-/** Node-only unit tests (no browser, no server): `npm test`. */
+/** Node-only unit tests (no browser, no server): `npm test`. `*.test.ts` files need module mocks and run under Vitest. */
 export default defineConfig({
   testDir: "./tests/unit",
-  // *.test.ts files in the same folder are Vitest's (vitest.config.mts).
-  testMatch: "**/*.spec.{ts,tsx}",
+  testMatch: /\.spec\.tsx?$/,
   fullyParallel: true,
   reporter: process.env.CI ? "github" : "list",
 });
