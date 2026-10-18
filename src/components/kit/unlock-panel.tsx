@@ -128,7 +128,7 @@ export function UnlockPanel({ kitId, priceLabel, email, autoCheckout, cancelled,
     setError(null);
     remember(address);
     try {
-      await postJson("/api/auth/request", { email: address, intent: { type: "unlock", kitId, aid: analyticsId() } });
+      await postJson("/api/auth/request", { email: address, intent: { type: "unlock", kitId, aid: await analyticsId() } });
       setCode("");
       setStep("sent");
     } catch (err) {
@@ -144,7 +144,7 @@ export function UnlockPanel({ kitId, priceLabel, email, autoCheckout, cancelled,
     setSaveError(null);
     remember(address);
     try {
-      await postJson("/api/auth/request", { email: address, intent: { type: "save", kitId, aid: analyticsId() } });
+      await postJson("/api/auth/request", { email: address, intent: { type: "save", kitId, aid: await analyticsId() } });
       setSave("sent");
     } catch (err) {
       setSaveError((err as Error).message);

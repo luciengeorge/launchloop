@@ -20,7 +20,7 @@ export interface CheckoutStart {
  * `experiments` is what this page showed; the server applies LAUNCH14 only for the promo treatment.
  */
 export async function startCheckout(product: ProductId, kitId?: string, experiments: Experiments = {}): Promise<CheckoutStart> {
-  return postJson<CheckoutStart>("/api/checkout", { product, kitId, analyticsId: analyticsId(), experiments });
+  return postJson<CheckoutStart>("/api/checkout", { product, kitId, analyticsId: await analyticsId(), experiments });
 }
 
 export function reportClientError(error: Error & { digest?: string }) {

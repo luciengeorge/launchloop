@@ -1,7 +1,7 @@
 "use client";
 
-import posthog from "posthog-js";
 import { useEffect, useState } from "react";
+import { analyticsEnabled, loadAnalytics } from "./analytics";
 import type { ExperimentKey, Variant } from "./experiments";
 
 /** Past this, show control rather than hold the paywall price for a slow or blocked flags request. */
@@ -17,20 +17,29 @@ export function useExperiment(key: ExperimentKey): Variant | undefined {
   const [variant, setVariant] = useState<Variant>();
   useEffect(() => {
     let settled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let off: (() => void) | undefined;
     const settle = (v: Variant) => {
       if (settled) return;
       settled = true;
       setVariant(v);
     };
     // Without NEXT_PUBLIC_POSTHOG_KEY there are no flags: everyone is control.
-    const timer = setTimeout(() => settle("control"), posthog.__loaded ? FLAGS_TIMEOUT_MS : 0);
-    const off = posthog.__loaded
-      ? posthog.onFeatureFlags((_flags, _variants, context) => {
+    if (!analyticsEnabled) timer = setTimeout(() => settle("control"), 0);
+    else {
+      // The flags request starts when the SDK initialises, so time it from there.
+      void loadAnalytics().then((posthog) => {
+        if (settled) return;
+        if (!posthog) return settle("control");
+        timer = setTimeout(() => settle("control"), FLAGS_TIMEOUT_MS);
+        off = posthog.onFeatureFlags((_flags, _variants, context) => {
           if (context?.errorsLoading) settle("control");
           else if (!settled) settle(posthog.getFeatureFlag(key) === "treatment" ? "treatment" : "control");
-        })
-      : undefined;
+        });
+      });
+    }
     return () => {
+      settled = true;
       clearTimeout(timer);
       off?.();
     };
