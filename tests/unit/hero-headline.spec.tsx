@@ -9,19 +9,21 @@ const H1_CLASS = "max-w-3xl text-balance text-4xl font-semibold tracking-tight s
 const CONTROL_MARKUP = `<h1 class="${H1_CLASS}">Paste your repo. <span class="text-primary">Get your whole launch.</span></h1>`;
 
 const html = (node: React.ReactNode) => renderToStaticMarkup(<>{node}</>);
-const text = (node: React.ReactNode) => html(node).replace(/<[^>]+>/g, "");
+/** The h1 alone, without the marker attribute and the early-show script that ride along with it. */
+const h1 = (node: React.ReactNode) => html(node).match(/<h1[^]*?<\/h1>/)![0].replace(' data-hero-ready=""', "");
+const text = (node: React.ReactNode) => h1(node).replace(/<[^>]+>/g, "");
 const flags = (value: unknown) => async () => ({ [EXPERIMENTS.heroHeadline]: value });
 
 test.describe("HeroHeadline", () => {
   test("control is the current headline, unchanged: not running, assigned control, and every fallback", () => {
     expect(HERO_HEADLINE_CONTROL).toBe("Paste your repo. Get your whole launch.");
     for (const served of [null, { variant: "control" as const }, { variant: "control" as const, fallback: "timeout" as const }, { variant: "control" as const, fallback: "unassigned" as const }]) {
-      expect(html(<HeroHeadline served={served} />)).toBe(CONTROL_MARKUP);
+      expect(h1(<HeroHeadline served={served} />)).toBe(CONTROL_MARKUP);
     }
   });
 
   test("test shows HERO_HEADLINE_TEST in the same h1, styled the same way", () => {
-    const markup = html(<HeroHeadline served={{ variant: "test" }} />);
+    const markup = h1(<HeroHeadline served={{ variant: "test" }} />);
     expect(text(<HeroHeadline served={{ variant: "test" }} />)).toBe(HERO_HEADLINE_TEST);
     const [lead, rest] = splitHeadline(HERO_HEADLINE_TEST);
     expect(markup).toBe(`<h1 class="${H1_CLASS}">${lead} <span class="text-primary">${rest}</span></h1>`);
@@ -31,6 +33,11 @@ test.describe("HeroHeadline", () => {
     const markup = html(<HeroHeadlinePending />);
     expect(markup).toContain(`<h1 class="${H1_CLASS} invisible" data-hero-pending="">Paste your repo. <span class="text-primary">Get your whole launch.</span></h1>`);
     expect(markup).toContain("<noscript><style>[data-hero-pending]{visibility:visible}</style></noscript>");
+  });
+
+  test("the streamed headline brings a script that shows it in the placeholder as soon as it arrives", () => {
+    const markup = html(<HeroHeadline served={{ variant: "test" }} />);
+    expect(markup).toMatch(/<\/h1><script type="text\/javascript">.*data-hero-pending.*data-hero-ready.*<\/script>$/);
   });
 
   test("splitHeadline highlights everything after the first sentence, and nothing without a sentence break", () => {

@@ -22,9 +22,21 @@ function Headline({ text, className, ...props }: { text: string } & ComponentPro
   );
 }
 
+/**
+ * React reveals a streamed Suspense boundary no sooner than 300 ms after the page's first paint. This runs as soon as
+ * the headline arrives instead: it copies the text into the invisible placeholder and shows it, and React's later
+ * swap puts an identical h1 in the same box. Inert on the client (inserted scripts don't run anyway).
+ */
+const SHOW_NOW = `(function(){var p=document.querySelector("[data-hero-pending]"),r=document.querySelectorAll("[data-hero-ready]");r=r[r.length-1];if(p&&r){p.innerHTML=r.innerHTML;p.classList.remove("invisible")}})()`;
+
 /** The home h1 for this view's exp_hero_headline assignment (null: not running, control). */
 export function HeroHeadline({ served }: { served: Served | null }) {
-  return <Headline text={heroHeadline(useRenderedExperiment(EXPERIMENTS.heroHeadline, served))} />;
+  return (
+    <>
+      <Headline text={heroHeadline(useRenderedExperiment(EXPERIMENTS.heroHeadline, served))} data-hero-ready="" />
+      <script type={typeof window === "undefined" ? "text/javascript" : "text/plain"} suppressHydrationWarning dangerouslySetInnerHTML={{ __html: SHOW_NOW }} />
+    </>
+  );
 }
 
 /**
