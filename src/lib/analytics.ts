@@ -10,7 +10,20 @@ export type PreviewSource = "github" | "site" | "sample";
 export interface ClientEvents {
   preview_started: { source: PreviewSource; plan: StartPlan; isLoggedIn: boolean };
   preview_completed: { kitId: string; source: PreviewSource; plan: StartPlan; isLoggedIn: boolean; durationMs: number };
-  preview_failed: { code: string; source: PreviewSource; plan: StartPlan; isLoggedIn: boolean; durationMs: number };
+  preview_failed: {
+    code: string;
+    source: PreviewSource;
+    plan: StartPlan;
+    isLoggedIn: boolean;
+    durationMs: number;
+    phase?: "request" | "stream";
+    errorName?: string;
+    errorMessage?: string;
+    online?: boolean;
+    visibility?: DocumentVisibilityState;
+    /** The server had accepted the preview, so the form sent the visitor to /kit/[id] instead of showing an error. */
+    recovered?: boolean;
+  };
 }
 
 const key = process.env.NEXT_PUBLIC_POSTHOG_KEY;
