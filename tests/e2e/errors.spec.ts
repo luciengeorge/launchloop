@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { followMagicLink } from "./helpers";
+import { followMagicLink, requestUnlockLogin } from "./helpers";
 
 const FIXTURE = "http://127.0.0.1:3419";
 
@@ -48,9 +48,7 @@ test("paid kit whose generation keeps failing shows a proper error state with re
   await page.waitForURL(/\/kit\/[\w-]+$/);
   const kitId = new URL(page.url()).pathname.split("/").pop()!;
   const email = `kitfail-${Date.now()}@example.com`;
-  await page.getByRole("button", { name: "Unlock the full kit, £19" }).click();
-  await page.getByLabel("Your email").fill(email);
-  await page.getByRole("button", { name: "Continue to checkout" }).click();
+  await requestUnlockLogin(page, email);
   await followMagicLink(page, email);
   await page.waitForURL(/\/checkout\/mock/);
   await page.getByRole("button", { name: /Pay £19/ }).click();

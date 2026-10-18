@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { followMagicLink, uniqueEmail } from "./helpers";
+import { uniqueEmail } from "./helpers";
 
 const FIXTURE = "http://127.0.0.1:3419";
 
@@ -89,18 +89,15 @@ test("header CTA from another page keeps the visitor's id and UTMs, through to t
   expect(distinctId(started)).toBe(id);
   expect(started.properties.utm_source).toBe("hn");
 
-  // Kit intent, logged out: email, magic link (carries the id), then (mock) checkout.
+  // Kit intent, logged out: straight to (mock) guest checkout, then the guest success page (carries the id).
   await page.waitForURL(/\/kit\/[\w-]+\?unlock=1$/);
   const email = uniqueEmail("utm-purchase");
-  await page.getByLabel("Your email").fill(email);
-  await page.getByRole("button", { name: "Continue to checkout" }).click();
-  await expect(page.getByTestId("unlock-panel")).toHaveAttribute("data-step", "sent");
-  await followMagicLink(page, email);
   await page.waitForURL(/\/checkout\/mock\?product=kit/);
+  await page.getByLabel("Email for your receipt and kit").fill(email);
   await page.getByRole("button", { name: "Pay £19 (test mode)" }).click();
-  await page.waitForURL(/\/account\/kits\/[\w-]+\?paid=1&aid=/);
+  await page.waitForURL(/\/checkout\/success\?kit=[\w-]+&session_id=[\w-]+&aid=/);
 
-  // First touch rides on the kit, so it survives the magic link's full page load without cookies or storage.
+  // First touch rides on the kit, so it survives the full page loads to and from checkout without cookies or storage.
   const firstTouch = { utm_source: "hn", utm_medium: "social", utm_campaign: campaign };
   const checkoutStarted = await serverEvent(page, id, "checkout_started");
   expect(checkoutStarted.properties).toMatchObject({ plan: "kit", product_type: "kit", amount: 1900, currency: "gbp", "$feature/exp_launch14_promo": "control", ...firstTouch });

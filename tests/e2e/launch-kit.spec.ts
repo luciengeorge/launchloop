@@ -61,7 +61,7 @@ test("sample app: blurred preview without leaks, unlock via magic link, instant 
   await expect(page.getByTestId("unlock-panel")).toBeVisible();
   page.removeAllListeners("response");
 
-  // Unlock → email → magic link → straight on to checkout with the email prefilled.
+  // Log in first → email → magic link → straight on to checkout with the email prefilled.
   const email = `buyer-${Date.now()}@example.com`;
   await unlockAndPay(page, kitId, email);
 

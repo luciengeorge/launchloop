@@ -45,7 +45,8 @@ test("promo treatment: £19 struck through, £14 with LAUNCH14, kept through the
   await expect(page.getByTestId("launch-promo")).toContainText("LAUNCH14 takes £5 off");
 
   const email = uniqueEmail("promo-treatment");
-  await page.getByRole("button", { name: "Unlock the full kit, £14" }).click();
+  await expect(page.getByRole("button", { name: "Unlock the full kit, £14" })).toBeEnabled();
+  await page.getByTestId("unlock-login-first").click();
   await page.getByLabel("Your email").fill(email);
   const authRequest = page.waitForRequest((r) => new URL(r.url()).pathname === "/api/auth/request");
   await page.getByRole("button", { name: "Continue to checkout" }).click();
