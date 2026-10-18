@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import { pageMetadata } from "@/lib/seo";
 import Link from "next/link";
 import { JsonLd } from "@/components/json-ld";
-import { FAQ } from "@/lib/site";
+import { PricedText } from "@/components/kit-price";
+import { isLaunchPromoOn } from "@/lib/launch-promo-server";
+import { FAQ, kitPriceText } from "@/lib/site";
 
 export const metadata: Metadata = pageMetadata({
   title: "FAQ: launch kits, character limits and refunds",
@@ -10,16 +12,17 @@ export const metadata: Metadata = pageMetadata({
   path: "/faq",
 });
 
-const slug = (q: string) => q.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+const slug = (q: string) => kitPriceText(q).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
-export default function FaqPage() {
+export default async function FaqPage() {
+  const promo = await isLaunchPromoOn();
   return (
     <article className="mx-auto max-w-3xl px-4 py-16 sm:px-6">
       <JsonLd
         data={{
           "@context": "https://schema.org",
           "@type": "FAQPage",
-          mainEntity: FAQ.map((item) => ({ "@type": "Question", name: item.q, acceptedAnswer: { "@type": "Answer", text: item.a } })),
+          mainEntity: FAQ.map((item) => ({ "@type": "Question", name: kitPriceText(item.q), acceptedAnswer: { "@type": "Answer", text: kitPriceText(item.a) } })),
         }}
       />
       <header className="space-y-3">
@@ -37,7 +40,7 @@ export default function FaqPage() {
           {FAQ.map((item) => (
             <li key={item.q}>
               <a href={`#${slug(item.q)}`} className="text-muted-foreground hover:text-foreground">
-                {item.q}
+                <PricedText text={item.q} promo={promo} />
               </a>
             </li>
           ))}
@@ -46,8 +49,12 @@ export default function FaqPage() {
       <div className="mt-10 space-y-10">
         {FAQ.map((item) => (
           <section key={item.q} id={slug(item.q)} className="scroll-mt-20">
-            <h2 className="text-xl font-semibold">{item.q}</h2>
-            <p className="mt-2 leading-relaxed text-muted-foreground">{item.a}</p>
+            <h2 className="text-xl font-semibold">
+              <PricedText text={item.q} promo={promo} />
+            </h2>
+            <p className="mt-2 leading-relaxed text-muted-foreground">
+              <PricedText text={item.a} promo={promo} />
+            </p>
           </section>
         ))}
       </div>

@@ -1,5 +1,5 @@
 import { GUIDES } from "@/lib/guides";
-import { FAQ, KIT_CONTENTS, SITE } from "@/lib/site";
+import { FAQ, KIT_CONTENTS, SITE, kitPriceText } from "@/lib/site";
 import { TOOLS } from "@/lib/tools";
 
 export function llmsText(base: string, full: boolean) {
@@ -50,7 +50,7 @@ ${GUIDES.map((g) => `- [${g.title}](${base}/${g.slug}): ${g.description}`).join(
     ? `
 ## FAQ
 
-${FAQ.map((item) => `### ${item.q}\n\n${item.a}`).join("\n\n")}
+${FAQ.map((item) => `### ${kitPriceText(item.q)}\n\n${kitPriceText(item.a)}`).join("\n\n")}
 `
     : `
 ## Optional

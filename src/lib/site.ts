@@ -1,3 +1,9 @@
+import { PRODUCTS } from "./products";
+
+/** Marks a Launch Kit price mention in shared copy. Render with <PricedText>, or kitPriceText() for plain text (JSON-LD, slugs). */
+export const KIT_PRICE_TOKEN = "{kitPrice}";
+export const kitPriceText = (text: string) => text.replaceAll(KIT_PRICE_TOKEN, PRODUCTS.kit.priceLabel);
+
 export const SITE = {
   name: "LaunchLoop",
   tagline: "Paste your repo. Get your whole launch.",
@@ -29,7 +35,7 @@ export const FAQ = [
     a: "LaunchLoop turns an app you've built into a ready-to-post launch kit. Paste a public GitHub repo or your live URL and it reads your README, package.json, recent commits and landing page, writes a short product brief, then drafts all your launch copy and social images from it.",
   },
   {
-    q: "What do I get for £19?",
+    q: `What do I get for ${KIT_PRICE_TOKEN}?`,
     a: "Landing page copy (headline, subheadline, CTA, features, meta tags), a Product Hunt post (tagline, description, topics, maker comment), a 5 to 7 post X thread, a LinkedIn post, three on-brand social images and a launch-day checklist, for one app. You pay once; it's not a subscription. You get it on a results page, as a ZIP download and by email.",
   },
   {

@@ -4,7 +4,8 @@ import { getSession } from "@/lib/auth";
 import { ensureStripeCustomer } from "@/lib/billing";
 import { isStripeMock } from "@/lib/env";
 import { after } from "next/server";
-import { featureProperties, parseExperiments } from "@/lib/experiments";
+import { EXPERIMENTS, featureProperties, parseExperiments } from "@/lib/experiments";
+import { isLaunchPromoOn } from "@/lib/launch-promo-server";
 import { generateDraft } from "@/lib/generation";
 import { getKit } from "@/lib/kits";
 import { captureException } from "@/lib/observability";
@@ -36,6 +37,11 @@ export async function POST(req: Request) {
   // limits in Stripe (once per customer, first purchase, capped, expiring) are the real guard.
   const experiments = parseExperiments(body.experiments);
   try {
+    // No variant from the page (it never read the flag): use the one the marketing pages show, so a
+    // £14 seen on home or /pricing is the Stripe total. A variant the paywall sent is kept as is.
+    if (product === "kit" && !experiments[EXPERIMENTS.launchPromo]) {
+      experiments[EXPERIMENTS.launchPromo] = (await isLaunchPromoOn()) ? "treatment" : "control";
+    }
     // Only a signed-in (verified) email is tied to an existing Stripe customer; a guest-typed email
     // could belong to someone else, so it stays a plain `customer_email` prefill.
     const customer = session && !isStripeMock() ? await ensureStripeCustomer(session.email) : undefined;
