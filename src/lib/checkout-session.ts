@@ -73,6 +73,8 @@ export function sessionParams({ product, priceId, metadata, customer, email, suc
     // No free-text promotion code field: kit buyers only get LAUNCH14 through the promo experiment
     // (a field would let the control arm type it too).
     ...(promotionCode && product === "kit" ? { discounts: [{ promotion_code: promotionCode }] } : {}),
+    // Everyone pays the GBP price the site shows: no local-currency conversion (and its FX fee) in Checkout.
+    adaptive_pricing: { enabled: false },
     metadata,
     payment_intent_data: { metadata },
     success_url: successUrl,

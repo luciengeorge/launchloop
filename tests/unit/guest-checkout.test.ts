@@ -193,6 +193,7 @@ describe("/api/checkout without a user", () => {
     expect(params.customer).toBeUndefined();
     expect(params.customer_email).toBeUndefined();
     expect(params.customer_creation).toBe("if_required");
+    expect(params.adaptive_pricing).toEqual({ enabled: false });
     expect(params.discounts).toBeUndefined();
     expect(params.metadata).toMatchObject({ product: "kit", kitId: KIT_ID, logged_in: "0", utm_source: "hn", exp_launch14_promo: "control" });
   });
@@ -208,6 +209,7 @@ describe("/api/checkout without a user", () => {
     expect(params.customer).toBeUndefined();
     expect(params.customer_email).toBeUndefined();
     expect(params.customer_creation).toBe("always");
+    expect(params.adaptive_pricing).toEqual({ enabled: false });
     expect(params.discounts).toEqual([{ promotion_code: "promo_launch14" }]);
     expect(params.success_url).toBe("http://x/api/checkout/return?session_id={CHECKOUT_SESSION_ID}");
     expect(params.metadata).toMatchObject({ product: "kit", kitId: KIT_ID, logged_in: "0", ph_distinct_id: "ph_guest", utm_source: "hn", utm_campaign: "launch", promo_code: "LAUNCH14", exp_launch14_promo: "treatment" });
@@ -245,6 +247,7 @@ describe("/api/checkout without a user", () => {
     const params = m.createSession.mock.calls[0]![0] as Record<string, unknown> & { metadata: Record<string, string> };
     expect(params.customer).toBe("cus_account");
     expect(params.customer_creation).toBeUndefined();
+    expect(params.adaptive_pricing).toEqual({ enabled: false });
     expect(params.metadata).toMatchObject({ kitId: KIT_ID, logged_in: "1" });
   });
 
