@@ -18,7 +18,7 @@ interface CheckoutProperties {
   currency: string;
   isLoggedIn: boolean;
   mock: boolean;
-  /** The promotion code on the session (LAUNCH14, or one a Ship Loop buyer typed); `amount` is then the discounted price. */
+  /** The promotion code on the session (LAUNCH14 on the kit); `amount` is then the discounted price. */
   promo_code?: string;
   /** "unavailable" when the promo arm asked for LAUNCH14 but Stripe wouldn't take it. */
   promo?: "applied" | "unavailable";

@@ -17,10 +17,15 @@ export interface CheckoutStart {
 /**
  * Creates a Checkout session (the server records checkout_started) and returns where to send the buyer.
  * `experiments` is what this page showed; the server applies LAUNCH14 only for the promo treatment.
- * Kit only: Ship Loop isn't on sale yet, so no page can start a Ship Loop checkout.
+ * Kit only: the Ship Loop pre-order goes through startPreorderCheckout.
  */
 export async function startCheckout(product: "kit", kitId: string, experiments: Experiments = {}): Promise<CheckoutStart> {
   return postJson<CheckoutStart>("/api/checkout", { product, kitId, analyticsId: analyticsId(), experiments });
+}
+
+/** The one-time £99 Ship Loop founding pre-order. Pages only offer it when STRIPE_PRICE_SHIPLOOP_PREORDER is set (or in mock mode). */
+export async function startPreorderCheckout(experiments: Experiments = {}): Promise<CheckoutStart> {
+  return postJson<CheckoutStart>("/api/checkout", { product: "shiploop_preorder", analyticsId: analyticsId(), experiments });
 }
 
 export function reportClientError(error: Error & { digest?: string }) {

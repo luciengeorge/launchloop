@@ -79,7 +79,7 @@ test("Ship Loop upsell control: the success page is unchanged", async ({ page })
   await expect(page.getByTestId("ship-loop-upsell")).toHaveCount(0);
 });
 
-test("Ship Loop upsell treatment: a waitlist capture after paying, no Ship Loop checkout, only on the success page", async ({ page }) => {
+test("Ship Loop upsell treatment: waitlist capture plus the £99 one-time pre-order after paying, only on the success page", async ({ page }) => {
   await forceFlags(page, { exp_shiploop_success_upsell: "treatment" });
   await logIn(page, uniqueEmail("upsell-treatment"));
   const kitId = await makeSampleKit(page);
@@ -92,8 +92,10 @@ test("Ship Loop upsell treatment: a waitlist capture after paying, no Ship Loop 
   const upsell = page.getByTestId("ship-loop-upsell");
   await expect(upsell.getByRole("heading")).toHaveText("You're in. Your kit is on its way to your inbox.");
   await expect(upsell).toContainText("Ship Loop is coming soon. Get notified when it launches.");
-  await expect(upsell).not.toContainText(/pre-order|charged today|£99/i);
-  await expect(upsell.getByRole("button", { name: /pre-order/i })).toHaveCount(0);
+  // Mock mode sells the pre-order, so the upsell offers it next to the waitlist.
+  const preorder = upsell.getByTestId("upsell-preorder");
+  await expect(preorder).toContainText("Or pre-order as a founding member: £99, one time. It covers your first year of Ship Loop once it launches.");
+  await expect(preorder).toContainText("auto-refunded in full if Ship Loop is not live within 12 months of the pre-order");
 
   const waitlist = page.waitForRequest((req) => req.method() === "POST" && new URL(req.url()).pathname === "/api/waitlist");
   await upsell.getByRole("textbox", { name: "Email" }).fill(uniqueEmail("upsell-waitlist"));
@@ -106,4 +108,13 @@ test("Ship Loop upsell treatment: a waitlist capture after paying, no Ship Loop 
   await page.goto(`/account/kits/${kitId}`);
   await page.waitForLoadState("networkidle");
   await expect(page.getByTestId("ship-loop-upsell")).toHaveCount(0);
+  await page.goBack();
+
+  const checkout = page.waitForRequest(isCheckout);
+  await page.getByRole("button", { name: "Pre-order Ship Loop, £99 one-time" }).click();
+  const body = checkoutBody(await checkout);
+  expect(body.product).toBe("shiploop_preorder");
+  expect(body.experiments).toEqual({ exp_shiploop_success_upsell: "treatment" });
+  await page.waitForURL(/\/checkout\/mock\?product=shiploop_preorder/);
+  await expect(page.getByRole("button", { name: "Pay £99 (test mode)" })).toBeVisible();
 });

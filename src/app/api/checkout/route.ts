@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth";
 import { ensureStripeCustomer } from "@/lib/billing";
 import { isStripeMock } from "@/lib/env";
 import { after } from "next/server";
+import { PreorderUnavailableError, RecurringPriceError } from "@/lib/checkout-session";
 import { EXPERIMENTS, featureProperties, parseExperiments } from "@/lib/experiments";
 import { isLaunchPromoOn } from "@/lib/launch-promo-server";
 import { generateDraft } from "@/lib/generation";
@@ -63,6 +64,10 @@ export async function POST(req: Request) {
     return Response.json({ url, promo });
   } catch (error) {
     captureException(error, { stage: "api.checkout", product, kitId });
+    // A Ship Loop price that's missing, not in this Stripe account or recurring falls back to the waitlist, never a 502.
+    if (error instanceof PreorderUnavailableError || (product !== "kit" && error instanceof RecurringPriceError)) {
+      return Response.json({ error: "Ship Loop pre-orders aren't open right now. Join the waitlist and we'll email you when they are.", code: "preorder_unavailable" }, { status: 503 });
+    }
     return Response.json({ error: "Couldn't start checkout. Please try again." }, { status: 502 });
   }
 }

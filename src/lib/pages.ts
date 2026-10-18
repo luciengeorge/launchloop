@@ -50,8 +50,8 @@ export const PAGES = {
     path: "/ship-loop",
     title: "Ship Loop: draft posts for every release",
     description:
-      "Coming soon: Ship Loop drafts an X post, LinkedIn post, changelog blurb and image for every release, for you to approve. Not on sale yet. Join the waitlist.",
-    updated: "2026-10-15",
+      "Coming soon: Ship Loop drafts an X post, LinkedIn post, changelog blurb and image for every release. Founding pre-order: £99 once, or join the waitlist.",
+    updated: "2026-10-18",
     card: { eyebrow: "Ship Loop · Coming soon", headline: "Draft posts and an image for every release" },
   }),
   faq: core({
