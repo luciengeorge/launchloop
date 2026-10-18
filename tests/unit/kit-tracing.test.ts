@@ -92,27 +92,30 @@ describe("traceKitRequest", () => {
   });
   afterEach(() => vi.useRealTimers());
 
-  it("warns in Sentry once a request passes 50s of a 60s maxDuration", async () => {
-    void traceKitRequest({ maxDurationSeconds: 60 }, (trace) => {
+  it("warns in Sentry once a request passes a fixed 60s, not just before the 300s maxDuration", async () => {
+    void traceKitRequest({ maxDurationSeconds: 300 }, (trace) => {
       trace.set({ "kit.source": "github" });
       return new Promise(() => {});
     });
     expect(sentry.scope.setTag).toHaveBeenCalledWith("kit.source", "github");
-    await vi.advanceTimersByTimeAsync(49_999);
+    await vi.advanceTimersByTimeAsync(59_999);
     expect(sentry.captureMessage).not.toHaveBeenCalled();
     await vi.advanceTimersByTimeAsync(1);
+    expect(sentry.captureMessage).toHaveBeenCalledTimes(1);
     expect(sentry.captureMessage).toHaveBeenCalledWith(
       "Kit preview is close to the function timeout",
-      expect.objectContaining({ level: "warning", extra: expect.objectContaining({ elapsedMs: 50_000, maxDurationSeconds: 60, source: "github" }) }),
+      expect.objectContaining({ level: "warning", extra: expect.objectContaining({ elapsedMs: 60_000, maxDurationSeconds: 300, source: "github" }) }),
     );
+    await vi.advanceTimersByTimeAsync(240_000);
+    expect(sentry.captureMessage).toHaveBeenCalledTimes(1);
   });
 
   it("doesn't warn for a request that finished, and records status, code and duration", async () => {
-    await traceKitRequest({ maxDurationSeconds: 60 }, async (trace) => {
+    await traceKitRequest({ maxDurationSeconds: 300 }, async (trace) => {
       await vi.advanceTimersByTimeAsync(1200);
       trace.end({ status: "error", code: "ai_busy" });
     });
-    await vi.advanceTimersByTimeAsync(60_000);
+    await vi.advanceTimersByTimeAsync(300_000);
     expect(sentry.captureMessage).not.toHaveBeenCalled();
     expect(sentry.span.setAttributes).toHaveBeenCalledWith({ "kit.status": "error", "error.code": "ai_busy", duration_ms: 1200 });
     expect(sentry.span.setStatus).toHaveBeenCalledWith({ code: 2, message: "ai_busy" });

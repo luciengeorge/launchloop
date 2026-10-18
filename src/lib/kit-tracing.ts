@@ -59,9 +59,12 @@ export interface KitRequestTrace {
   end(outcome: { status: "ok" } | { status: "error"; code: string }): void;
 }
 
+/** A normal preview takes about 12s; the 300s maxDuration is headroom, so warn long before it. */
+export const PREVIEW_SLOW_WARNING_MS = 60_000;
+
 /**
  * Wraps a whole POST /api/kits request, including the part that keeps streaming after the handler returns, in one
- * span. Warns in Sentry if the request is still running 10 seconds before the function's maxDuration.
+ * span. Warns in Sentry if the request is still running after PREVIEW_SLOW_WARNING_MS, whatever the maxDuration.
  */
 export function traceKitRequest<T>(opts: { maxDurationSeconds: number }, fn: (trace: KitRequestTrace) => Promise<T>): Promise<T> {
   return Sentry.startSpanManual({ name: KIT_REQUEST_SPAN, op: "kits.request", attributes: { "kit.max_duration_s": opts.maxDurationSeconds } }, (span) => {
@@ -72,7 +75,6 @@ export function traceKitRequest<T>(opts: { maxDurationSeconds: number }, fn: (tr
     let ended = false;
     breadcrumb("request started");
 
-    const warnAfterMs = Math.max(0, (opts.maxDurationSeconds - 10) * 1000);
     const timer = setTimeout(() => {
       if (ended) return;
       const context = { stage: "api.kits.timeout_risk", elapsedMs: Date.now() - startedAt, maxDurationSeconds: opts.maxDurationSeconds, source };
@@ -80,7 +82,7 @@ export function traceKitRequest<T>(opts: { maxDurationSeconds: number }, fn: (tr
       span.setAttribute("kit.timeout_risk", true);
       Sentry.captureMessage("Kit preview is close to the function timeout", { level: "warning", tags: { stage: context.stage }, extra: context });
       void Sentry.flush(2000);
-    }, warnAfterMs);
+    }, PREVIEW_SLOW_WARNING_MS);
     timer.unref?.();
 
     const trace: KitRequestTrace = {
