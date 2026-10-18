@@ -2,63 +2,65 @@
 
 import posthog from "posthog-js";
 import { useEffect, useRef, useState } from "react";
-import { trackExposure } from "./analytics";
-import type { ExperimentKey, Variant } from "./experiments";
+import { trackServed } from "./analytics";
+import { fallbackServed, type ExperimentKey, type Served } from "./experiments";
 
-/** Past this, show control rather than hold the paywall price for a slow or blocked flags request. */
+/** Past this, show control rather than hold the page for a slow or blocked flags request. */
 const FLAGS_TIMEOUT_MS = 1500;
 
-/**
- * The variant to show, or undefined until it's known (render a neutral placeholder).
- * Settles once per mount so the page never flips. Reading the flag sends PostHog's
- * $feature_flag_called exposure; a timeout or a flags error falls back to control
- * without one, so those visitors stay out of the experiment.
- */
-export function useExperiment(key: ExperimentKey): Variant | undefined {
-  const [variant, setVariant] = useState<Variant>();
-  useEffect(() => {
-    let settled = false;
-    const settle = (v: Variant) => {
-      if (settled) return;
-      settled = true;
-      setVariant(v);
-    };
-    // Without NEXT_PUBLIC_POSTHOG_KEY there are no flags: everyone is control.
-    const timer = setTimeout(() => settle("control"), posthog.__loaded ? FLAGS_TIMEOUT_MS : 0);
-    const off = posthog.__loaded
-      ? posthog.onFeatureFlags((_flags, _variants, context) => {
-          if (context?.errorsLoading) settle("control");
-          else if (!settled) settle(posthog.getFeatureFlag(key) === "treatment" ? "treatment" : "control");
-        })
-      : undefined;
-    return () => {
-      clearTimeout(timer);
-      off?.();
-    };
-  }, [key]);
-  return variant;
-}
-
-/**
- * Like useExperiment, for a variant the server assigned on a fixed id (see kitVariant), so it
- * doesn't change with this page's anonymous id. Undefined until the server's answer streams in.
- * Records the $feature_flag_called exposure once per view; no assignment shows control without one.
- */
-export function useAssignedExperiment(key: ExperimentKey, assigned: Promise<Variant | undefined>): Variant | undefined {
-  const [variant, setVariant] = useState<Variant>();
+/** Settles once per mount, so the page never flips, and records what it served (see trackServed). */
+function useServed(key: ExperimentKey, start: (settle: (served: Served) => void) => () => void): Served | undefined {
+  const [served, setServed] = useState<Served>();
   const settled = useRef(false);
   useEffect(() => {
     let live = true;
-    const settle = (v: Variant | undefined) => {
+    const stop = start((s) => {
       if (!live || settled.current) return;
       settled.current = true;
-      setVariant(v ?? "control");
-      if (v) trackExposure(key, v);
-    };
-    assigned.then(settle, () => settle(undefined));
+      setServed(s);
+      trackServed(key, s);
+    });
     return () => {
       live = false;
+      stop();
     };
-  }, [key, assigned]);
-  return variant;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `start` is recreated every render; the experiment is identified by `key`
+  }, [key]);
+  return served;
+}
+
+/**
+ * The variant to show, evaluated by posthog-js on this page's id, or undefined until it's known
+ * (render a neutral placeholder). A timeout, a flags error or a flag that's off serves control as
+ * a fallback. Without NEXT_PUBLIC_POSTHOG_KEY there are no flags and nothing is recorded.
+ */
+export function useExperiment(key: ExperimentKey): Served | undefined {
+  return useServed(key, (settle) => {
+    if (!posthog.__loaded) {
+      settle(fallbackServed("unassigned"));
+      return () => {};
+    }
+    const timer = setTimeout(() => settle(fallbackServed("timeout")), FLAGS_TIMEOUT_MS);
+    const off = posthog.onFeatureFlags((_flags, _variants, context) => {
+      if (context?.errorsLoading) return settle(fallbackServed("error"));
+      // send_event: false, so the only exposure is trackServed's, with the variant actually shown.
+      const value = posthog.getFeatureFlag(key, { send_event: false });
+      settle(value === "control" || value === "treatment" ? { variant: value } : fallbackServed("unassigned"));
+    });
+    return () => {
+      clearTimeout(timer);
+      off();
+    };
+  });
+}
+
+/**
+ * Like useExperiment, for an assignment the server made on a fixed id (see kitAssignment), so it
+ * doesn't change with this page's anonymous id. Undefined until the server's answer streams in.
+ */
+export function useAssignedExperiment(key: ExperimentKey, assigned: Promise<Served>): Served | undefined {
+  return useServed(key, (settle) => {
+    assigned.then(settle, () => settle(fallbackServed("error")));
+    return () => {};
+  });
 }

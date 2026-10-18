@@ -1,5 +1,5 @@
 import { analyticsId } from "./analytics";
-import type { Experiments } from "./experiments";
+import type { ExperimentKey, Experiments, Served } from "./experiments";
 
 export async function postJson<T>(url: string, body: unknown): Promise<T> {
   const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -16,11 +16,19 @@ export interface CheckoutStart {
 
 /**
  * Creates a Checkout session (the server records checkout_started) and returns where to send the buyer.
- * `experiments` is what this page showed; the server applies LAUNCH14 only for the promo treatment.
+ * `served` is what this page showed for each experiment; the server logs exactly that and applies
+ * LAUNCH14 only when the page showed the promo treatment as a real assignment.
  * Kit only: the Ship Loop pre-order goes through startPreorderCheckout.
  */
-export async function startCheckout(product: "kit", kitId: string, experiments: Experiments = {}): Promise<CheckoutStart> {
-  return postJson<CheckoutStart>("/api/checkout", { product, kitId, analyticsId: analyticsId(), experiments });
+export async function startCheckout(product: "kit", kitId: string, served: Partial<Record<ExperimentKey, Served>> = {}): Promise<CheckoutStart> {
+  const entries = Object.entries(served) as [ExperimentKey, Served][];
+  return postJson<CheckoutStart>("/api/checkout", {
+    product,
+    kitId,
+    analyticsId: analyticsId(),
+    experiments: Object.fromEntries(entries.map(([key, s]) => [key, s.variant])),
+    fallbacks: entries.filter(([, s]) => s.fallback).map(([key]) => key),
+  });
 }
 
 /** The one-time £99 Ship Loop founding pre-order. Pages only offer it when STRIPE_PRICE_SHIPLOOP_PREORDER is set (or in mock mode). */

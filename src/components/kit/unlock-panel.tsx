@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { analyticsId } from "@/lib/analytics";
 import { postJson, startCheckout } from "@/lib/client";
-import { EXPERIMENTS, type Variant } from "@/lib/experiments";
+import { EXPERIMENTS, type Served } from "@/lib/experiments";
 import { useClaimPrimaryCta } from "@/lib/primary-cta";
 import { LAUNCH_PROMO } from "@/lib/products";
 import { useAssignedExperiment } from "@/lib/use-experiment";
@@ -18,8 +18,8 @@ interface Props {
   kitId: string;
   /** Full kit price. The exp_launch14_promo treatment shows it struck through next to the LAUNCH14 price. */
   priceLabel: string;
-  /** This kit's exp_launch14_promo variant, assigned on the server so every reload shows the same price. */
-  launchPromo: Promise<Variant | undefined>;
+  /** This kit's exp_launch14_promo assignment (or fallback), made on the server so every reload shows the same price. */
+  launchPromo: Promise<Served>;
   /** Logged-in email, if any. */
   email?: string;
   /** Arrived from the magic link (or the "£19 kit" plan): go straight to checkout. */
@@ -48,7 +48,8 @@ export function UnlockPanel({ kitId, priceLabel, launchPromo, email, autoCheckou
   const [saveError, setSaveError] = useState<string | null>(null);
   const started = useRef(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const promoVariant = useAssignedExperiment(EXPERIMENTS.launchPromo, launchPromo);
+  const promoServed = useAssignedExperiment(EXPERIMENTS.launchPromo, launchPromo);
+  const promoVariant = promoServed?.variant;
   useClaimPrimaryCta();
   /** Full-price Checkout URL, set when the promo arm's LAUNCH14 was turned down by Stripe. */
   const [fullPriceUrl, setFullPriceUrl] = useState<string | null>(null);
@@ -83,7 +84,7 @@ export function UnlockPanel({ kitId, priceLabel, launchPromo, email, autoCheckou
     setError(null);
     setStep("redirecting");
     try {
-      const { url, promo: outcome } = await startCheckout("kit", kitId, promoVariant ? { [EXPERIMENTS.launchPromo]: promoVariant } : {});
+      const { url, promo: outcome } = await startCheckout("kit", kitId, promoServed ? { [EXPERIMENTS.launchPromo]: promoServed } : {});
       if (outcome === "unavailable") {
         setFullPriceUrl(url);
         setStep("cta");

@@ -3,7 +3,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { PostHog } from "posthog-node";
 import { deployEnv } from "./deploy-env";
 import { env } from "./env";
-import { isAnalyticsId, kitBucketingId, type ExperimentKey, type Variant } from "./experiments";
+import { fallbackServed, isAnalyticsId, kitBucketingId, type ExperimentKey, type FeatureProperties, type Served } from "./experiments";
 import { LAUNCH_PROMO_TIMEOUT_MS } from "./launch-promo";
 import { captureException } from "./observability";
 import { posthogHost } from "./posthog-config";
@@ -24,8 +24,6 @@ interface CheckoutProperties {
   promo?: "applied" | "unavailable";
 }
 
-type FeatureProperties = Partial<Record<`$feature/${ExperimentKey}`, Variant>>;
-
 export interface ServerEvents {
   checkout_started: CheckoutProperties & FeatureProperties;
   checkout_completed: CheckoutProperties & FeatureProperties & { stripeSessionId: string };
@@ -41,20 +39,22 @@ export function posthog(): PostHog | null {
 }
 
 /**
- * The experiment variant PostHog assigns a kit (bucketed on `kit:<kitId>`), or undefined without
- * PostHog, or when the flag is off, errors or times out: show control and record no exposure.
- * Sends no $feature_flag_called itself; the page records the exposure on the visitor's id, the id
- * its checkout events use. Never throws.
+ * The variant PostHog assigns a kit (bucketed on `kit:<kitId>`). When PostHog doesn't answer
+ * (error or the 1.5s timeout) or the flag is off, it's control as a fallback (see Served).
+ * Sends nothing itself; the page records the exposure or fallback on the visitor's id, the id its
+ * checkout events use. Never throws.
  */
-export async function kitVariant(key: ExperimentKey, kitId: string): Promise<Variant | undefined> {
+export async function kitAssignment(key: ExperimentKey, kitId: string): Promise<Served> {
   try {
     const ph = posthog();
-    if (!ph) return undefined;
+    if (!ph) return fallbackServed("unassigned");
     const value = await ph.getFeatureFlag(key, kitBucketingId(kitId), { sendFeatureFlagEvents: false, disableGeoip: true });
-    return value === "control" || value === "treatment" ? value : undefined;
+    if (value === "control" || value === "treatment") return { variant: value };
+    // posthog-node answers undefined when the flags request fails or times out, false when the flag is off.
+    return fallbackServed(value === undefined ? "error" : "unassigned");
   } catch (error) {
     captureException(error, { stage: "analytics.flag", key });
-    return undefined;
+    return fallbackServed("error");
   }
 }
 

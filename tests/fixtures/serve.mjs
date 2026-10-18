@@ -147,7 +147,7 @@ function recordPosthog(body) {
   }
 }
 
-/** Flag variants per distinct id, set by tests through POST /ph/_flags. Everyone else gets no flags. */
+/** Flag variants per distinct id, and an optional delay before answering, set by tests through POST /ph/_flags. Everyone else gets no flags. */
 const flagOverrides = new Map();
 
 /** The distinct_id in a flags request: posthog-node sends JSON; posthog-js may gzip it. */
@@ -206,21 +206,24 @@ createServer(async (req, res) => {
   }
   // Fake PostHog (NEXT_PUBLIC_POSTHOG_HOST in the test build): no flags for anyone, so every
   // experiment is control unless a test sets variants for a distinct id (POST /ph/_flags
-  // { distinctId, flags }) or intercepts /lp-relay/flags in the browser.
+  // { distinctId, flags, delayMs }) or intercepts /lp-relay/flags in the browser.
   if (req.url.startsWith("/ph/")) {
     const chunks = [];
     for await (const chunk of req) chunks.push(chunk);
     const body = Buffer.concat(chunks);
     const pathname = req.url.split("?")[0];
     if (pathname === "/ph/_flags") {
-      const { distinctId, flags } = JSON.parse(body.toString("utf8"));
-      flagOverrides.set(distinctId, flags);
+      const { distinctId, flags, delayMs = 0 } = JSON.parse(body.toString("utf8"));
+      flagOverrides.set(distinctId, { flags, delayMs });
       res.writeHead(200, { "Content-Type": "application/json" });
       return res.end("{}");
     }
     if (pathname.startsWith("/ph/flags")) {
+      const override = flagOverrides.get(flagsDistinctId(body));
+      if (override?.delayMs) await new Promise((resolve) => setTimeout(resolve, override.delayMs));
+      if (res.destroyed) return;
       res.writeHead(200, { "Content-Type": "application/json" });
-      return res.end(JSON.stringify(flagsResponse(flagOverrides.get(flagsDistinctId(body)))));
+      return res.end(JSON.stringify(flagsResponse(override?.flags)));
     }
     if (req.method === "POST") recordPosthog(body);
     // Remote config script (/array/<key>/config.js): an empty script, not JSON the browser would execute.

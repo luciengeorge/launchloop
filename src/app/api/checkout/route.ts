@@ -1,11 +1,11 @@
 import { isEmail } from "@/lib/audience";
-import { captureServerEvent, kitVariant, resolveDistinctId } from "@/lib/analytics-server";
+import { captureServerEvent, kitAssignment, resolveDistinctId } from "@/lib/analytics-server";
 import { getSession } from "@/lib/auth";
 import { ensureStripeCustomer } from "@/lib/billing";
 import { isStripeMock } from "@/lib/env";
 import { after } from "next/server";
 import { PreorderUnavailableError, RecurringPriceError } from "@/lib/checkout-session";
-import { EXPERIMENTS, featureProperties, parseExperiments } from "@/lib/experiments";
+import { EXPERIMENTS, featureProperties, parseExperiments, parseFallbacks } from "@/lib/experiments";
 import { isLaunchPromoOn } from "@/lib/launch-promo-server";
 import { generateDraft } from "@/lib/generation";
 import { getKit } from "@/lib/kits";
@@ -14,7 +14,7 @@ import { checkoutPrice, createCheckoutUrl } from "@/lib/payments";
 import { isProductId } from "@/lib/products";
 
 export async function POST(req: Request) {
-  const body = (await req.json().catch(() => ({}))) as { product?: unknown; kitId?: unknown; email?: unknown; analyticsId?: unknown; experiments?: unknown };
+  const body = (await req.json().catch(() => ({}))) as { product?: unknown; kitId?: unknown; email?: unknown; analyticsId?: unknown; experiments?: unknown; fallbacks?: unknown };
   if (!isProductId(body.product)) return Response.json({ error: "Unknown product." }, { status: 400 });
 
   const session = await getSession();
@@ -34,26 +34,27 @@ export async function POST(req: Request) {
   const product = body.product;
   const analyticsId = resolveDistinctId(body.analyticsId);
   const isLoggedIn = !!session;
-  const reported = parseExperiments(body.experiments);
-  const experiments = { ...reported };
-  // The kit's promo arm is bucketed on the kit, so asking PostHog again gives the variant the page
-  // showed, whatever the request claims. Only if PostHog can't answer now is the page's report used;
-  // LAUNCH14's own limits in Stripe (first purchase, capped, expiring) stay the backstop.
-  const assigned = kitId ? await kitVariant(EXPERIMENTS.launchPromo, kitId) : undefined;
-  if (assigned) experiments[EXPERIMENTS.launchPromo] = assigned;
+  // Logged exactly as the page served them, so the variant on checkout events always matches what the buyer saw.
+  const experiments = parseExperiments(body.experiments);
+  // No variant from the page (it never read the flag): use the one the marketing pages show, so a
+  // £14 seen on home or /pricing is the Stripe total.
+  if (product === "kit" && !experiments[EXPERIMENTS.launchPromo]) {
+    experiments[EXPERIMENTS.launchPromo] = (await isLaunchPromoOn()) ? "treatment" : "control";
+  }
+  const fallbacks = parseFallbacks(body.fallbacks).filter((key) => key in experiments);
+  const showedPromo = !!kitId && experiments[EXPERIMENTS.launchPromo] === "treatment" && !fallbacks.includes(EXPERIMENTS.launchPromo);
+  // The promo arm is bucketed on the kit, so PostHog confirms (or not) that this kit is in it, whatever
+  // the request claims. It never adds a promo the page didn't show. If PostHog can't answer now, the
+  // page's word stands; LAUNCH14's own limits in Stripe (first purchase, capped, expiring) are the backstop.
+  const confirmed = showedPromo && kitId ? await kitAssignment(EXPERIMENTS.launchPromo, kitId).then((a) => a.variant === "treatment" || a.fallback === "error") : false;
   try {
-    // No variant from the page (it never read the flag): use the one the marketing pages show, so a
-    // £14 seen on home or /pricing is the Stripe total. A variant the paywall sent is kept as is.
-    if (product === "kit" && !experiments[EXPERIMENTS.launchPromo]) {
-      experiments[EXPERIMENTS.launchPromo] = (await isLaunchPromoOn()) ? "treatment" : "control";
-    }
     // Only a signed-in (verified) email is tied to an existing Stripe customer; a guest-typed email
     // could belong to someone else, so it stays a plain `customer_email` prefill.
     const customer = session && !isStripeMock() ? await ensureStripeCustomer(session.email) : undefined;
-    const checkout = await createCheckoutUrl({ product, origin: new URL(req.url).origin, kitId, email, customer, analyticsId, isLoggedIn, experiments });
+    const checkout = await createCheckoutUrl({ product, origin: new URL(req.url).origin, kitId, email, customer, analyticsId, isLoggedIn, experiments, fallbacks, launchPromo: confirmed });
     const { url } = checkout;
     // The page showed LAUNCH14 but the kit has left the promo arm since (the flag changed): say so, as when Stripe turns the code down.
-    const promo = checkout.promo === "none" && kitId && reported[EXPERIMENTS.launchPromo] === "treatment" ? "unavailable" : checkout.promo;
+    const promo = showedPromo && !confirmed ? "unavailable" : checkout.promo;
     after(() =>
       captureServerEvent("checkout_started", {
         distinctId: analyticsId,
@@ -62,7 +63,7 @@ export async function POST(req: Request) {
           kitId,
           ...checkoutPrice(product, promo === "applied"),
           ...(promo === "none" ? {} : { promo }),
-          ...featureProperties(experiments),
+          ...featureProperties(experiments, fallbacks),
           isLoggedIn,
           mock: isStripeMock(),
         },

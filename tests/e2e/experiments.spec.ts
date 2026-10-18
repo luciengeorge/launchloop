@@ -9,15 +9,18 @@ const FIXTURE = "http://127.0.0.1:3419";
 const ownBucket = { "x-forwarded-for": `203.0.113.${Math.floor(Math.random() * 250) + 1}` };
 test.use({ extraHTTPHeaders: ownBucket });
 
-/** Answers PostHog's flags request in the browser (flags posthog-js evaluates for the page's own id). */
-async function forceFlags(target: Page | BrowserContext, flags: Record<string, Variant>) {
+/** Answers PostHog's flags request in the browser (flags posthog-js evaluates for the page's own id), optionally late. */
+async function forceFlags(target: Page | BrowserContext, flags: Record<string, Variant>, delayMs = 0) {
   const details = Object.fromEntries(Object.entries(flags).map(([key, variant]) => [key, { key, enabled: true, variant, reason: null, metadata: {} }]));
-  await target.route(/\/lp-relay\/flags/, (route) => route.fulfill({ json: { flags: details, errorsWhileComputingFlags: false } }));
+  await target.route(/\/lp-relay\/flags/, async (route) => {
+    if (delayMs) await new Promise((resolve) => setTimeout(resolve, delayMs));
+    await route.fulfill({ json: { flags: details, errorsWhileComputingFlags: false } }).catch(() => undefined);
+  });
 }
 
-/** Rolls the kit's paywall experiment to one variant in the fake PostHog the server asks (bucketed on kit:<id>). */
-async function setKitPromo(request: APIRequestContext, kitId: string, variant: Variant) {
-  await request.post(`${FIXTURE}/ph/_flags`, { data: { distinctId: `kit:${kitId}`, flags: { exp_launch14_promo: variant } } });
+/** Rolls the kit's paywall experiment to one variant in the fake PostHog the server asks (bucketed on kit:<id>), optionally answering late. */
+async function setKitPromo(request: APIRequestContext, kitId: string, variant: Variant, delayMs = 0) {
+  await request.post(`${FIXTURE}/ph/_flags`, { data: { distinctId: `kit:${kitId}`, flags: { exp_launch14_promo: variant }, delayMs } });
 }
 
 interface PhEvent {
@@ -26,12 +29,17 @@ interface PhEvent {
   properties: Record<string, unknown>;
 }
 
-async function exposures(request: APIRequestContext): Promise<PhEvent[]> {
-  const events = (await (await request.get(`${FIXTURE}/ph/_events`)).json()) as PhEvent[];
-  return events.filter((e) => e.event === "$feature_flag_called" && e.properties.$feature_flag === "exp_launch14_promo");
+const distinctId = (e: PhEvent) => e.distinct_id ?? (e.properties.distinct_id as string | undefined);
+
+async function phEvents(request: APIRequestContext): Promise<PhEvent[]> {
+  return (await (await request.get(`${FIXTURE}/ph/_events`)).json()) as PhEvent[];
 }
 
-const checkoutBody = (req: Request) => req.postDataJSON() as { product: string; analyticsId?: string; experiments: Record<string, string> };
+async function exposures(request: APIRequestContext, flag = "exp_launch14_promo"): Promise<PhEvent[]> {
+  return (await phEvents(request)).filter((e) => e.event === "$feature_flag_called" && e.properties.$feature_flag === flag);
+}
+
+const checkoutBody = (req: Request) => req.postDataJSON() as { product: string; analyticsId?: string; experiments: Record<string, string>; fallbacks: string[] };
 const isCheckout = (req: Request) => req.method() === "POST" && new URL(req.url()).pathname === "/api/checkout";
 
 async function payKit(page: Page, kitId: string, price: string) {
@@ -133,6 +141,80 @@ test.describe("promo bucketing", () => {
     expect(new Set(sent.map((e) => e.distinct_id ?? e.properties.distinct_id)).size).toBe(views + 1);
   });
 
+  test("PostHog too slow for the kit: £19 served as a fallback, logged as flag_fallback (not an exposure), and checkout logs the same", async ({ page }) => {
+    await logIn(page, uniqueEmail("promo-fallback"));
+    const kitId = await makeSampleKit(page);
+    // Would be treatment, but the answer comes after the server's 1.5s flags budget.
+    await setKitPromo(page.request, kitId, "treatment", 3000);
+    const before = (await phEvents(page.request)).length;
+    await page.reload();
+    await expect(page.getByTestId("kit-price")).toContainText("£19");
+    await expect(page.getByTestId("kit-price").locator("s")).toHaveCount(0);
+
+    let fallback: PhEvent | undefined;
+    await expect
+      .poll(async () => {
+        fallback = (await phEvents(page.request)).slice(before).find((e) => e.event === "flag_fallback" && e.properties.flag === "exp_launch14_promo");
+        return fallback;
+      })
+      .toBeTruthy();
+    expect(fallback!.properties).toMatchObject({ variant: "control", reason: "error", fallback: true });
+
+    const request = page.waitForRequest(isCheckout);
+    await page.getByRole("button", { name: "Unlock the full kit, £19" }).click();
+    expect(checkoutBody(await request)).toMatchObject({ experiments: { exp_launch14_promo: "control" }, fallbacks: ["exp_launch14_promo"] });
+    await page.waitForURL(/\/checkout\/mock\?product=kit/);
+    expect(new URL(page.url()).searchParams.get("promo")).toBeNull();
+
+    let started: PhEvent | undefined;
+    await expect
+      .poll(async () => {
+        started = (await phEvents(page.request)).find((e) => e.event === "checkout_started" && e.properties.kitId === kitId);
+        return started;
+      })
+      .toBeTruthy();
+    expect(started!.properties["fallback/exp_launch14_promo"]).toBe("control");
+    expect(started!.properties).not.toHaveProperty("$feature/exp_launch14_promo");
+    // No exposure for this view: fallbacks stay out of the experiment.
+    const id = distinctId(fallback!);
+    expect((await exposures(page.request)).filter((e) => distinctId(e) === id)).toHaveLength(0);
+  });
+
+  test("Ship Loop upsell: flags too slow serves control, logs flag_fallback, never flips, and later events don't claim the late variant", async ({ page }) => {
+    // After our 1.5s timeout, but inside posthog-js's own 3s flags timeout, so posthog-js does load the variant late.
+    await forceFlags(page, { exp_shiploop_success_upsell: "treatment" }, 2500);
+    await logIn(page, uniqueEmail("upsell-fallback"));
+    const kitId = await makeSampleKit(page);
+    const before = (await phEvents(page.request)).length;
+    await payKit(page, kitId, "£19");
+
+    let fallback: PhEvent | undefined;
+    await expect
+      .poll(async () => {
+        fallback = (await phEvents(page.request)).slice(before).find((e) => e.event === "flag_fallback" && e.properties.flag === "exp_shiploop_success_upsell");
+        return fallback;
+      })
+      .toBeTruthy();
+    expect(fallback!.properties).toMatchObject({ variant: "control", reason: "timeout", fallback: true });
+
+    // The flags arrive (treatment) after the timeout: the page keeps what it served.
+    await page.waitForTimeout(3000);
+    await expect(page.getByTestId("ship-loop-upsell")).toHaveCount(0);
+    // A later event: posthog-js's $pageview for a new path (only utm_ params survive URL scrubbing).
+    const tag = `later-${Date.now()}`;
+    await page.evaluate((t) => history.pushState(null, "", `/account?utm_content=${t}`), tag);
+    let later: PhEvent | undefined;
+    await expect
+      .poll(async () => {
+        later = (await phEvents(page.request)).find((e) => e.event === "$pageview" && String(e.properties.$current_url).includes(tag));
+        return later;
+      })
+      .toBeTruthy();
+    expect(later!.properties).not.toHaveProperty("$feature/exp_shiploop_success_upsell");
+    const id = distinctId(fallback!);
+    expect((await exposures(page.request, "exp_shiploop_success_upsell")).filter((e) => distinctId(e) === id)).toHaveLength(0);
+  });
+
   test("a control kit shows £19 on every reload, with a control exposure each view", async ({ page }) => {
     const kitId = await makeSampleKit(page);
     await setKitPromo(page.request, kitId, "control");
@@ -147,20 +229,24 @@ test.describe("promo bucketing", () => {
   });
 });
 
-test("checkout applies LAUNCH14 for the kit's own variant, not the one a request claims", async ({ page }) => {
+test("checkout applies LAUNCH14 only when the page showed it and the kit really is in the promo arm", async ({ page }) => {
   await logIn(page, uniqueEmail("promo-forged"));
   const kitId = await makeSampleKit(page);
+  const checkout = async (experiments: Record<string, string>, fallbacks: string[] = []) => {
+    const res = await page.request.post("/api/checkout", { data: { product: "kit", kitId, experiments, fallbacks } });
+    const body = (await res.json()) as { url: string; promo: string };
+    return { promo: body.promo, code: new URL(body.url, page.url()).searchParams.get("promo") };
+  };
+
+  // Claiming the promo for a control kit: no code, and the page hears it's unavailable rather than being sent to £19 silently.
   await setKitPromo(page.request, kitId, "control");
-  const forged = await page.request.post("/api/checkout", { data: { product: "kit", kitId, experiments: { exp_launch14_promo: "treatment" } } });
-  const body = (await forged.json()) as { url: string; promo: string };
-  expect(new URL(body.url, page.url()).searchParams.get("promo")).toBeNull();
-  // The page claimed the promo, so it hears it's unavailable rather than being sent to £19 silently.
-  expect(body.promo).toBe("unavailable");
+  expect(await checkout({ exp_launch14_promo: "treatment" })).toEqual({ promo: "unavailable", code: null });
 
   await setKitPromo(page.request, kitId, "treatment");
-  const honest = (await (await page.request.post("/api/checkout", { data: { product: "kit", kitId, experiments: { exp_launch14_promo: "control" } } })).json()) as { url: string; promo: string };
-  expect(new URL(honest.url, page.url()).searchParams.get("promo")).toBe("LAUNCH14");
-  expect(honest.promo).toBe("applied");
+  expect(await checkout({ exp_launch14_promo: "treatment" })).toEqual({ promo: "applied", code: "LAUNCH14" });
+  // It never adds a promo the page didn't show: £19 shown (assigned or fallback) is £19 charged.
+  expect(await checkout({ exp_launch14_promo: "control" })).toEqual({ promo: "none", code: null });
+  expect(await checkout({ exp_launch14_promo: "control" }, ["exp_launch14_promo"])).toEqual({ promo: "none", code: null });
 });
 
 test("Ship Loop upsell control: the success page is unchanged", async ({ page }) => {

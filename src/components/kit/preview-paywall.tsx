@@ -1,6 +1,6 @@
 import { BriefcaseBusiness, Check, FileArchive, Image as ImageIcon, ListChecks, Lock, MessageSquareText, PanelsTopLeft, Rocket } from "lucide-react";
 import { CopyButton } from "@/components/copy-button";
-import type { Variant } from "@/lib/experiments";
+import type { Served } from "@/lib/experiments";
 import { IMAGE_VARIANTS } from "@/lib/image-variants";
 import { LIMITS } from "@/lib/limits";
 import { PRODUCTS } from "@/lib/products";
@@ -13,8 +13,8 @@ interface Props {
   counts: { features: number; xPosts: number; checklistSteps: number };
   /** The real, free pieces of the kit. X post 1 is the sample here; the tagline has its own card at the top of the page. */
   free: { tagline?: string; xPost?: string };
-  /** exp_launch14_promo for this kit, streamed in after the page (see kitVariant). */
-  launchPromo: Promise<Variant | undefined>;
+  /** exp_launch14_promo for this kit, streamed in after the page (see kitAssignment). */
+  launchPromo: Promise<Served>;
   email?: string;
   query: Record<string, string | string[] | undefined>;
 }
