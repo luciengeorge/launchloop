@@ -23,6 +23,22 @@ export const GUIDES: Guide[] = [
       "Built your app with Cursor, Lovable, Bolt or v0? How to get it launch-ready: fix the SEO basics AI builders skip, write copy from what the app actually does, and launch on Product Hunt, X and LinkedIn.",
     updated: "2026-10-15",
   },
+  {
+    slug: "show-hn-launch-checklist",
+    title: "The Show HN launch checklist",
+    metaTitle: "Show HN checklist: how to post on Show HN",
+    description:
+      "How to post on Show HN without breaking the rules: what qualifies, the title format, the maker's first comment, making it easy to try, timing, replying to comments and what to do after.",
+    updated: "2026-10-18",
+  },
+  {
+    slug: "how-to-write-a-product-hunt-tagline",
+    title: "How to write a Product Hunt tagline",
+    metaTitle: "How to write a Product Hunt tagline (with examples)",
+    description:
+      "How to write a Product Hunt tagline that earns the click: six formulas, good and weak tagline examples, the mistakes to avoid, and how it works with your name, description and gallery.",
+    updated: "2026-10-18",
+  },
 ];
 
 export const guide = (slug: string) => GUIDES.find((g) => g.slug === slug)!;
