@@ -183,7 +183,7 @@ export function renderKitImage(kit: Kit, variant: ImageVariant, options: { water
     {
       width,
       height,
-      headers: { "Cache-Control": options.watermark ? "public, max-age=300" : "private, max-age=3600" },
+      headers: { "Cache-Control": options.watermark ? "public, max-age=300, s-maxage=300" : "private, max-age=3600" },
     },
   );
 }

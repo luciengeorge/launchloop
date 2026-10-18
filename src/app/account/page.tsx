@@ -11,7 +11,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getSession } from "@/lib/auth";
 import { getShipLoop, hasBillingAccess } from "@/lib/billing";
-import { IMAGE_VARIANTS, type ImageVariant } from "@/lib/image-variants";
+import { IMAGE_VARIANTS, type ImageVariant, kitImageUrl } from "@/lib/image-variants";
 import { listUserKits } from "@/lib/kits";
 import { getProgress } from "@/lib/progress";
 import { buildTasks, countableTasks } from "@/lib/tasks";
@@ -162,7 +162,7 @@ function KitRow({ kit, progress }: { kit: Kit; progress: { completed: number; to
         ) : null}
         {(Object.keys(IMAGE_VARIANTS) as ImageVariant[]).map((v) =>
           ready || v === "og" ? (
-            <a key={v} href={`/api/og/${kit.id}/${v}`} className={buttonVariants({ variant: "ghost", size: "sm" })} download={IMAGE_VARIANTS[v].file}>
+            <a key={v} href={kitImageUrl(kit.id, v, kit.paid)} className={buttonVariants({ variant: "ghost", size: "sm" })} download={IMAGE_VARIANTS[v].file}>
               {IMAGE_VARIANTS[v].file}
             </a>
           ) : null,

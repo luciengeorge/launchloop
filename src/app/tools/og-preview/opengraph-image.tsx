@@ -1,4 +1,5 @@
 import { ImageResponse } from "@vercel/og";
+import { STATIC_OG_HEADERS } from "@/lib/seo";
 import { OG_IMAGE } from "@/lib/og-check";
 import { OG_PREVIEW } from "@/lib/tools";
 
@@ -79,6 +80,6 @@ export default function OgPreviewOgImage() {
         </div>
       </div>
     ),
-    size,
+    { ...size, headers: STATIC_OG_HEADERS },
   );
 }
