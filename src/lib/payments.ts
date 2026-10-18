@@ -1,4 +1,5 @@
 import "server-only";
+import { createHash } from "node:crypto";
 import Stripe from "stripe";
 import { deployEnv, stripeEventDecision } from "./deploy-env";
 import { env, isStripeMock } from "./env";
@@ -125,8 +126,25 @@ export async function createCheckoutUrl(params: CheckoutRequest): Promise<Checko
   return { url: await createSession(s, base), promo: "none" };
 }
 
+const CHECKOUT_REUSE_MS = 10 * 60 * 1000;
+
+/**
+ * Same kit (or product), buyer and promo within a 10-minute bucket gets the same key, so double
+ * clicks and retries reopen the first Checkout session instead of creating more. The full params
+ * are hashed in too: a request that differs in anything else gets a fresh key, never Stripe's
+ * "keys can only be used with the same parameters" error.
+ */
+export function checkoutIdempotencyKey(params: Stripe.Checkout.SessionCreateParams, now = Date.now()): string {
+  const target = params.metadata?.kitId ?? params.metadata?.product ?? "";
+  const buyer = params.customer ?? params.customer_email ?? "guest";
+  const promo = params.discounts?.length ? "promo" : "full";
+  const bucket = Math.floor(now / CHECKOUT_REUSE_MS);
+  const digest = createHash("sha256").update(JSON.stringify([target, buyer, promo, bucket, params])).digest("base64url");
+  return `checkout_${digest}`;
+}
+
 async function createSession(s: Stripe, params: Stripe.Checkout.SessionCreateParams): Promise<string> {
-  const session = await s.checkout.sessions.create(params);
+  const session = await s.checkout.sessions.create(params, { idempotencyKey: checkoutIdempotencyKey(params) });
   if (!session.url) throw new Error("Stripe did not return a Checkout URL");
   return session.url;
 }
