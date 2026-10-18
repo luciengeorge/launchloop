@@ -56,6 +56,8 @@ All are optional locally. See [`.env.example`](.env.example) for the full annota
 | `NEXT_PUBLIC_SITE_URL` | Canonical URLs, sitemap, email links |
 | `MOCK_MODE` | Force everything into mock mode |
 | `PREVIEW_RATE_LIMIT_PER_HOUR` | Free previews per IP per hour (default 12) |
+| `NEWSLETTER_RATE_LIMIT_PER_HOUR` | Newsletter signups per IP per hour, shared across instances (default 10) |
+| `NEWSLETTER_WELCOME_DAILY_CAP` | Newsletter welcome emails per day across everyone (default 200). Past it, signups still subscribe without the email |
 | `SENTRY_DSN` | Reserved for Sentry (see "Error logging") |
 | `NEXT_PUBLIC_POSTHOG_KEY`, `NEXT_PUBLIC_POSTHOG_HOST` | Conversion analytics (see "Analytics"). Host defaults to `https://eu.i.posthog.com` |
 
@@ -159,7 +161,12 @@ Two PostHog multivariate flags (50/50, variants `control` and `treatment`), eval
 
 ## Newsletter
 
-"Weekly launch teardowns" has two signups: the footer, and a card under the free preview paywall (`src/components/kit/preview-newsletter.tsx`, hidden when the visitor arrives with `?unlock=1` on the way to checkout). Both post to `/api/newsletter`, which stores the contact with its `placement` (`footer` or `preview`; a repeat signup updates it) and adds it to the Resend segment. The lead magnet is the `/product-hunt-launch-checklist` guide: the success state links to it, and a new address gets one welcome email with the link (`src/emails/newsletter-welcome.tsx`). Repeat signups don't resend it.
+"Weekly launch teardowns" has two signups: the footer, and a card under the free preview paywall (`src/components/kit/preview-newsletter.tsx`, hidden when the visitor arrives with `?unlock=1` on the way to checkout). Both post to `/api/newsletter`, which stores the contact with its `placement` (`footer` or `preview`; a repeat signup updates it) and adds it to the Resend segment. The lead magnet is the `/product-hunt-launch-checklist` guide: the success state links to it, and a new address gets one welcome email with the link (`src/emails/newsletter-welcome.tsx`).
+
+- **One welcome email per address.** The send is claimed with an atomic `store().incr("newsletter:welcome:<email>")`, so repeat or concurrent signups don't resend it.
+- **Limits.** Signups are limited per IP through the shared store (`NEWSLETTER_RATE_LIMIT_PER_HOUR`), and welcome emails have a global daily cap (`NEWSLETTER_WELCOME_DAILY_CAP`). Past the cap the contact is still added; the skip is logged.
+- **Plain form posts** (no JS, or before hydration) are redirected back with `?subscribed=1`, or `?subscribed=0&error=<code>` and a `#hash` that reveals the message without JavaScript. `next` is only honoured as a same-origin path, checked after URL parsing.
+- On a page with the £19 unlock panel, the footer's Subscribe button is an outline button so the unlock button is the only primary one.
 
 ## Error logging
 

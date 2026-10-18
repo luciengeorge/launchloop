@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { analyticsId } from "@/lib/analytics";
 import { postJson, startCheckout } from "@/lib/client";
 import { EXPERIMENTS } from "@/lib/experiments";
+import { useClaimPrimaryCta } from "@/lib/primary-cta";
 import { LAUNCH_PROMO } from "@/lib/products";
 import { useExperiment } from "@/lib/use-experiment";
 
@@ -46,6 +47,7 @@ export function UnlockPanel({ kitId, priceLabel, email, autoCheckout, cancelled,
   const started = useRef(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const promoVariant = useExperiment(EXPERIMENTS.launchPromo);
+  useClaimPrimaryCta();
   /** Full-price Checkout URL, set when the promo arm's LAUNCH14 was turned down by Stripe. */
   const [fullPriceUrl, setFullPriceUrl] = useState<string | null>(null);
   const promo = promoVariant === "treatment" && !fullPriceUrl;

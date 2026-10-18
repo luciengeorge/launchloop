@@ -21,17 +21,15 @@ export const isUndeliverableEmail = (email: string) => !isEmailMock() && isReser
 /**
  * Stores a contact locally (always) and in Resend (when configured).
  * RESEND_SEGMENT_ID uses Resend's segments; RESEND_AUDIENCE_ID uses the legacy audiences API.
- * `created` is false when this email was already stored for this source.
  */
-export async function addContact(email: string, source: ContactSource, extra: Record<string, string> = {}): Promise<{ created: boolean }> {
+export async function addContact(email: string, source: ContactSource, extra: Record<string, string> = {}): Promise<void> {
   const normalised = email.trim().toLowerCase();
   const key = `contact:${source}:${normalised}`;
   const existing = await store().get<{ createdAt: string }>(key);
   await store().set(key, { email: normalised, source, ...extra, createdAt: existing?.createdAt ?? new Date().toISOString() });
-  const result = { created: !existing };
 
   const r = resend();
-  if (!r) return result;
+  if (!r) return;
   try {
     const { error } = env.resendSegmentId
       ? await r.contacts.create({ email: normalised, unsubscribed: false, segments: [{ id: env.resendSegmentId }] })
@@ -42,5 +40,4 @@ export async function addContact(email: string, source: ContactSource, extra: Re
   } catch (error) {
     captureException(error, { stage: "audience.addContact", source });
   }
-  return result;
 }

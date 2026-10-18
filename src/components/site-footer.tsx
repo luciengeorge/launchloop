@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { SITE } from "@/lib/site";
 import { TOOLS } from "@/lib/tools";
+import { FooterNewsletter } from "./footer-newsletter";
 import { Logo } from "./logo";
-import { NewsletterForm } from "./newsletter-form";
 import { SHIP_LOOP_LINK_LABEL, SoonBadge } from "./soon-badge";
 
 export function SiteFooter() {
@@ -12,7 +12,7 @@ export function SiteFooter() {
         <div className="space-y-4">
           <Logo />
           <p className="max-w-sm text-sm text-muted-foreground">{SITE.shortDescription} Built for makers shipping with Cursor, Lovable, Bolt and v0.</p>
-          <NewsletterForm />
+          <FooterNewsletter />
         </div>
         <nav aria-label="Product" className="space-y-3 text-sm">
           <h2 className="font-medium">Product</h2>

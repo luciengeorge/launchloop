@@ -42,6 +42,20 @@ export function ogPreviewLimit(req: Request) {
   return sharedRateLimit(`og:${clientIp(req)}`, [{ limit: OG_PREVIEWS_PER_HOUR, seconds: 60 * 60 }]);
 }
 
+const NEWSLETTER_POSTS_PER_HOUR = Number(process.env.NEWSLETTER_RATE_LIMIT_PER_HOUR ?? 10);
+
+/** Newsletter signups per IP. Shared across instances, because a signup can send a welcome email to any address. */
+export function newsletterLimit(req: Request) {
+  return sharedRateLimit(`newsletter:${clientIp(req)}`, [{ limit: NEWSLETTER_POSTS_PER_HOUR, seconds: 60 * 60 }]);
+}
+
+const WELCOME_EMAILS_PER_DAY = Number(process.env.NEWSLETTER_WELCOME_DAILY_CAP ?? 200);
+
+/** Global cap on newsletter welcome emails per day, across all IPs. Past it, people still subscribe but get no email. */
+export function welcomeEmailLimit() {
+  return sharedRateLimit("newsletter-welcome", [{ limit: WELCOME_EMAILS_PER_DAY, seconds: 24 * 60 * 60 }]);
+}
+
 /**
  * Fixed-window limits shared across instances via the store (Redis in
  * production). All windows are counted; the request fails if any is exceeded.

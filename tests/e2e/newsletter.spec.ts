@@ -1,8 +1,10 @@
 import { expect, test, type APIRequestContext } from "@playwright/test";
+import { newsletterReturnPath } from "../../src/lib/newsletter";
 import { makeSampleKit, uniqueEmail } from "./helpers";
 
-// Own newsletter and preview rate-limit buckets, so these signups don't eat the budget the other specs share.
-test.use({ extraHTTPHeaders: { "x-forwarded-for": `203.0.113.${Math.floor(Math.random() * 250) + 1}` } });
+// A fresh IP per call gets its own newsletter and preview rate-limit buckets, so specs don't eat each other's budget.
+const freshIp = () => `203.0.${Math.floor(Math.random() * 250) + 1}.${Math.floor(Math.random() * 250) + 1}`;
+test.use({ extraHTTPHeaders: { "x-forwarded-for": freshIp() } });
 
 const CHECKLIST = "/product-hunt-launch-checklist";
 
@@ -16,7 +18,19 @@ async function welcomeEmail(request: APIRequestContext, email: string) {
   return (await welcomeEmails(request, email))[0];
 }
 
-test("after the free preview: a quiet signup under the paywall, with the £19 kit CTA still primary", async ({ page }) => {
+const postJson = (request: APIRequestContext, data: Record<string, string>, ip = freshIp()) =>
+  request.post("/api/newsletter", { data, headers: { "x-forwarded-for": ip } });
+
+const postForm = (request: APIRequestContext, form: Record<string, string>, ip = freshIp()) =>
+  request.post("/api/newsletter", { form, headers: { "x-forwarded-for": ip }, maxRedirects: 0 });
+
+/** A Location the browser can only resolve to this site. */
+function expectSameOrigin(location: string | undefined) {
+  expect(location).toMatch(/^\/(?![/\\])/);
+  expect(new URL(location!, "https://launchloop.test").origin).toBe("https://launchloop.test");
+}
+
+test("after the free preview: a quiet signup under the paywall, and the £19 kit CTA is the only primary button", async ({ page }) => {
   await makeSampleKit(page);
   const signup = page.getByTestId("preview-newsletter");
   await expect(signup.getByRole("heading", { name: "Not launching this week?" })).toBeVisible();
@@ -33,6 +47,14 @@ test("after the free preview: a quiet signup under the paywall, with the £19 ki
   const subscribe = signup.getByRole("button", { name: "Send me the checklist" });
   await expect(unlock).toHaveClass(/\bbg-primary\b/);
   await expect(subscribe).not.toHaveClass(/\bbg-primary\b/);
+  await expect(page.getByRole("contentinfo").getByRole("button", { name: "Subscribe" })).not.toHaveClass(/\bbg-primary\b/);
+  // Visible action buttons (the shared Button): the home page stays mounted but hidden after client navigation,
+  // and the checklist's selected stage tab is a raw button styled as a pill.
+  await expect(page.locator('[data-slot="button"].bg-primary:visible')).toHaveCount(1);
+  // Same on a full page load of the kit link.
+  await page.reload();
+  await expect(page.getByRole("contentinfo").getByRole("button", { name: "Subscribe" })).not.toHaveClass(/\bbg-primary\b/);
+  await expect(page.locator('[data-slot="button"].bg-primary:visible')).toHaveCount(1);
   await expect(page.getByRole("button", { name: /£19/ })).toHaveCount(1);
 
   const email = uniqueEmail("preview-news");
@@ -51,6 +73,13 @@ test("after the free preview: a quiet signup under the paywall, with the £19 ki
   await done.getByRole("link", { name: "Open your launch-day checklist" }).click();
   await page.waitForURL((u) => u.pathname === CHECKLIST);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("The Product Hunt launch checklist");
+});
+
+test("the footer Subscribe button is primary everywhere except kit pages", async ({ page }) => {
+  for (const path of ["/", "/pricing", CHECKLIST]) {
+    await page.goto(path);
+    await expect(page.getByRole("contentinfo").getByRole("button", { name: "Subscribe" })).toHaveClass(/\bbg-primary\b/);
+  }
 });
 
 test("not shown on the way to checkout (?unlock=1)", async ({ page }) => {
@@ -75,13 +104,22 @@ test("footer signup offers the checklist, and signing up again doesn't resend it
   await welcomeEmail(page.request, email);
 
   // Same address again (any placement, any case) is still a success but sends nothing new.
-  const again = await page.request.post("/api/newsletter", { data: { email: email.toUpperCase(), placement: "preview" } });
-  expect(again.ok()).toBe(true);
+  expect((await postJson(page.request, { email: email.toUpperCase(), placement: "preview" })).ok()).toBe(true);
   // A fresh signup after it: once its email lands, the repeat's would have too.
   const sentinel = uniqueEmail("footer-news-sentinel");
-  expect((await page.request.post("/api/newsletter", { data: { email: sentinel } })).ok()).toBe(true);
+  expect((await postJson(page.request, { email: sentinel })).ok()).toBe(true);
   await welcomeEmail(page.request, sentinel);
   expect(await welcomeEmails(page.request, email)).toHaveLength(1);
+});
+
+test("concurrent signups for one new address send one welcome email", async ({ request }) => {
+  const email = uniqueEmail("race");
+  const responses = await Promise.all([1, 2, 3, 4].map((n) => postJson(request, { email, placement: n % 2 ? "footer" : "preview" })));
+  for (const res of responses) expect(res.ok()).toBe(true);
+  const sentinel = uniqueEmail("race-sentinel");
+  expect((await postJson(request, { email: sentinel })).ok()).toBe(true);
+  await welcomeEmail(request, sentinel);
+  expect(await welcomeEmails(request, email)).toHaveLength(1);
 });
 
 test.describe("plain form posts", () => {
@@ -102,14 +140,87 @@ test.describe("plain form posts", () => {
     await welcomeEmail(page.request, email);
   });
 
-  test("the API sends no-JS posts back to a same-origin path only", async ({ request }) => {
-    const post = (next: string) =>
-      request.post("/api/newsletter", { form: { email: uniqueEmail("nojs-next"), placement: "preview", next }, maxRedirects: 0 });
-    expect((await post("/kit/abc")).headers().location).toBe("/kit/abc?subscribed=1&from=preview#newsletter");
-    expect((await post("//evil.example")).headers().location).toBe("/?subscribed=1&from=preview#newsletter");
-    expect((await post("https://evil.example/kit/abc")).headers().location).toBe("/?subscribed=1&from=preview#newsletter");
-    const footer = await request.post("/api/newsletter", { form: { email: uniqueEmail("nojs-footer") }, maxRedirects: 0 });
+  test("redirects go back to a same-origin path", async ({ request }) => {
+    const res = await postForm(request, { email: uniqueEmail("nojs-next"), placement: "preview", next: "/kit/abc" });
+    expect(res.status()).toBe(303);
+    expect(res.headers().location).toBe("/kit/abc?subscribed=1&from=preview#newsletter");
+    const footer = await postForm(request, { email: uniqueEmail("nojs-footer") });
     expect(footer.status()).toBe(303);
     expect(footer.headers().location).toBe("/?subscribed=1");
+  });
+
+  // Each of these passes a naive "starts with one slash" check, then normalises to //evil.com (or another host).
+  const OPEN_REDIRECTS = [
+    "/.//evil.com",
+    "/..//evil.com",
+    "/a/..//evil.com",
+    "/%2e//evil.com",
+    "/%2e%2e//evil.com",
+    "/./\\evil.com",
+    "/.\\/evil.com",
+    "/\\evil.com",
+    "/\t/evil.com",
+    "//evil.com",
+    "https://evil.com/kit/abc",
+  ];
+  for (const next of OPEN_REDIRECTS) {
+    test(`no open redirect for next=${JSON.stringify(next)}`, async ({ request }) => {
+      const ok = await postForm(request, { email: uniqueEmail("redirect"), placement: "preview", next });
+      expect(ok.status()).toBe(303);
+      expectSameOrigin(ok.headers().location);
+      expect(ok.headers().location).toBe("/?subscribed=1&from=preview#newsletter");
+      expect(ok.headers().location).not.toContain("evil.com");
+
+      const failed = await postForm(request, { email: "not-an-email", placement: "preview", next });
+      expectSameOrigin(failed.headers().location);
+      expect(failed.headers().location).toBe("/?subscribed=0&error=invalid&from=preview#newsletter-preview-invalid");
+      expect(newsletterReturnPath(next, "preview")).toBe("/?subscribed=1&from=preview#newsletter");
+    });
+  }
+
+  test("past the per-IP limit: JSON gets a 429, a form post is redirected with a plain message", async ({ request }) => {
+    const ip = freshIp();
+    for (let i = 0; i < 10; i++) await postJson(request, { email: "not-an-email" }, ip);
+    const json = await postJson(request, { email: uniqueEmail("limited") }, ip);
+    expect(json.status()).toBe(429);
+    expect(await json.json()).toMatchObject({ code: "rate", error: "Too many attempts. Try again later." });
+    const form = await postForm(request, { email: uniqueEmail("limited") }, ip);
+    expect(form.status()).toBe(303);
+    expect(form.headers().location).toBe("/?subscribed=0&error=rate#newsletter-footer-rate");
+    const preview = await postForm(request, { email: uniqueEmail("limited"), placement: "preview", next: "/kit/abc" }, ip);
+    expect(preview.headers().location).toBe("/kit/abc?subscribed=0&error=rate&from=preview#newsletter-preview-rate");
+    // A server error takes the same path with its own code.
+    expect(newsletterReturnPath(undefined, "footer", "server")).toBe("/?subscribed=0&error=server#newsletter-footer-server");
+  });
+
+  test.describe("without JavaScript", () => {
+    test.use({ javaScriptEnabled: false });
+
+    test("a rate-limited footer post lands back with a plain error message", async ({ page }) => {
+      const ip = freshIp();
+      for (let i = 0; i < 10; i++) await postJson(page.request, { email: "not-an-email" }, ip);
+      await page.setExtraHTTPHeaders({ "x-forwarded-for": ip });
+      await page.goto("/");
+      const footer = page.getByRole("contentinfo");
+      await footer.getByLabel("Weekly launch teardowns").fill(uniqueEmail("nojs-limited"));
+      await footer.getByRole("button", { name: "Subscribe" }).click();
+      await page.waitForURL((u) => u.searchParams.get("subscribed") === "0" && u.searchParams.get("error") === "rate");
+      expect(page.url()).not.toContain("example.com");
+      await expect(footer.getByText("Too many attempts. Try again later.")).toBeVisible();
+      await expect(footer.getByText("Couldn't subscribe you right now. Please try again.")).toBeHidden();
+    });
+
+    test("a server error message shows without JavaScript", async ({ page }) => {
+      await page.goto(newsletterReturnPath("/pricing", "footer", "server"));
+      await expect(page.getByRole("contentinfo").getByText("Couldn't subscribe you right now. Please try again.")).toBeVisible();
+      await expect(page.getByRole("contentinfo").getByText("Too many attempts. Try again later.")).toBeHidden();
+    });
+  });
+
+  test("with JavaScript, the redirected error code shows its own message", async ({ page }) => {
+    await page.goto("/?subscribed=0&error=rate");
+    await expect(page.getByRole("contentinfo").getByRole("alert")).toHaveText("Too many attempts. Try again later.");
+    await page.goto("/?subscribed=0");
+    await expect(page.getByRole("contentinfo").getByRole("alert")).toHaveText("Enter a valid email address.");
   });
 });

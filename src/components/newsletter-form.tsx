@@ -6,8 +6,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { track } from "@/lib/analytics";
 import { postJson } from "@/lib/client";
-import { LEAD_MAGNET, type NewsletterPlacement, parsePlacement } from "@/lib/newsletter";
-import { useQueryParam } from "@/lib/use-query-param";
+import {
+  LEAD_MAGNET,
+  NEWSLETTER_ERRORS,
+  type NewsletterErrorCode,
+  type NewsletterPlacement,
+  newsletterError,
+  newsletterErrorAnchor,
+  parsePlacement,
+} from "@/lib/newsletter";
+import { useHydrated, useQueryParam } from "@/lib/use-query-param";
 
 interface Props {
   placement?: NewsletterPlacement;
@@ -20,8 +28,8 @@ interface Props {
   buttonVariant?: "default" | "outline";
   /** Same-origin path a no-JS post returns to. Without it the API sends the visitor to the home page. */
   returnTo?: string;
-  /** The no-JS post's `?subscribed=` result when the server page already knows it, so it renders without JavaScript. */
-  redirected?: string;
+  /** The no-JS post's `?subscribed=` and `?error=` when the server page already knows them, so they render without JavaScript. */
+  redirected?: { subscribed?: string; error?: string };
 }
 
 export function NewsletterForm({
@@ -40,10 +48,13 @@ export function NewsletterForm({
 
   // A no-JS post comes back with ?subscribed= (and ?from= for anything but the footer); only that form reacts.
   const subscribedParam = useQueryParam("subscribed");
+  const errorParam = useQueryParam("error");
+  const hydrated = useHydrated();
   const fromHere = parsePlacement(useQueryParam("from")) === placement;
-  const redirected = redirectedProp ?? (fromHere ? subscribedParam : null);
-  const done = state === "done" || redirected === "1";
-  const shownError = error ?? (redirected === "0" && state === "idle" ? "Enter a valid email address." : null);
+  const redirected = redirectedProp ?? (fromHere ? { subscribed: subscribedParam ?? undefined, error: errorParam ?? undefined } : {});
+  const done = state === "done" || redirected.subscribed === "1";
+  const redirectError = redirected.subscribed === "0" ? (newsletterError(redirected.error) ?? NEWSLETTER_ERRORS.invalid) : null;
+  const shownError = error ?? (state === "idle" ? redirectError : null);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -102,6 +113,14 @@ export function NewsletterForm({
         </p>
       ) : null}
       {shownError ? <p className="text-sm text-destructive" role="alert">{shownError}</p> : null}
+      {/* A static page can't read ?error= on the server, so until JS runs the post's redirect reveals one of these by its #hash. */}
+      {hydrated || redirectError
+        ? null
+        : (Object.keys(NEWSLETTER_ERRORS) as NewsletterErrorCode[]).map((code) => (
+            <p key={code} id={newsletterErrorAnchor(placement, code)} className="hidden text-sm text-destructive target:block">
+              {NEWSLETTER_ERRORS[code]}
+            </p>
+          ))}
     </form>
   );
 }

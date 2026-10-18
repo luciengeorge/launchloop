@@ -3,7 +3,11 @@ import { PREVIEW_NEWSLETTER_ANCHOR } from "@/lib/newsletter";
 
 /** Quiet next step under the paywall for visitors who aren't buying today. The kit CTA above stays the primary action. */
 export function PreviewNewsletter({ kitId, query }: { kitId: string; query: Record<string, string | string[] | undefined> }) {
-  const subscribed = query.from === "preview" && typeof query.subscribed === "string" ? query.subscribed : undefined;
+  const param = (key: string) => {
+    const value = query[key];
+    return query.from === "preview" && typeof value === "string" ? value : undefined;
+  };
+  const redirected = { subscribed: param("subscribed"), error: param("error") };
   return (
     <section
       id={PREVIEW_NEWSLETTER_ANCHOR}
@@ -28,7 +32,7 @@ export function PreviewNewsletter({ kitId, query }: { kitId: string; query: Reco
           buttonLabel="Send me the checklist"
           buttonVariant="outline"
           returnTo={`/kit/${kitId}`}
-          redirected={subscribed}
+          redirected={redirected}
         />
       </div>
     </section>

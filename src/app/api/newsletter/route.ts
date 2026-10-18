@@ -2,46 +2,47 @@ import { after } from "next/server";
 import { addContact, isEmail, isUndeliverableEmail } from "@/lib/audience";
 import { safeNext, seeOther } from "@/lib/auth";
 import { newsletterWelcomeEmail, sendEmail } from "@/lib/email";
-import { RESERVED_EMAIL_ERROR } from "@/lib/login-errors";
-import { PREVIEW_NEWSLETTER_ANCHOR, parsePlacement } from "@/lib/newsletter";
-import { captureException } from "@/lib/observability";
+import { normaliseEmail } from "@/lib/kits";
+import { NEWSLETTER_ERRORS, type NewsletterErrorCode, type NewsletterPlacement, newsletterReturnPath, parsePlacement } from "@/lib/newsletter";
+import { captureException, captureMessage } from "@/lib/observability";
 import { readBody } from "@/lib/form-body";
-import { clientIp, rateLimit } from "@/lib/rate-limit";
+import { newsletterLimit, welcomeEmailLimit } from "@/lib/rate-limit";
+import { store } from "@/lib/store";
+
+const WELCOME_CLAIM_TTL_SECONDS = 365 * 24 * 60 * 60;
 
 export async function POST(req: Request) {
-  if (!rateLimit(`newsletter:${clientIp(req)}`, 10, 60 * 60 * 1000).ok) {
-    return Response.json({ error: "Too many attempts. Try again later." }, { status: 429 });
-  }
   const { data, isForm } = await readBody(req);
-  const { email } = data;
   const placement = parsePlacement(data.placement);
-  // No-JS posts go back to the page they came from (the footer has always gone to the home page).
-  const back = (subscribed: boolean) => {
-    const url = new URL(safeNext(data.next) ?? "/", "http://localhost");
-    url.searchParams.set("subscribed", subscribed ? "1" : "0");
-    if (placement !== "footer") {
-      url.searchParams.set("from", placement);
-      url.hash = PREVIEW_NEWSLETTER_ANCHOR;
-    }
-    return seeOther(`${url.pathname}${url.search}${url.hash}`);
-  };
-  if (!isEmail(email)) return isForm ? back(false) : Response.json({ error: "Enter a valid email address." }, { status: 400 });
-  if (isUndeliverableEmail(email)) return isForm ? back(false) : Response.json({ error: RESERVED_EMAIL_ERROR }, { status: 400 });
+  const next = safeNext(data.next);
+  const fail = (status: number, code: NewsletterErrorCode) =>
+    isForm ? seeOther(newsletterReturnPath(next, placement, code)) : Response.json({ error: NEWSLETTER_ERRORS[code], code }, { status });
+
   try {
-    const { created } = await addContact(email, "newsletter", { placement });
-    // Only the first signup gets the checklist email, so re-submitting an address can't be used to spam it.
-    if (created) {
-      after(async () => {
-        try {
-          await sendEmail(await newsletterWelcomeEmail({ to: email.trim().toLowerCase() }));
-        } catch (error) {
-          captureException(error, { stage: "api.newsletter.welcome", placement });
-        }
-      });
-    }
-    return isForm ? back(true) : Response.json({ ok: true });
+    if (!(await newsletterLimit(req)).ok) return fail(429, "rate");
+    if (!isEmail(data.email)) return fail(400, "invalid");
+    const email = normaliseEmail(data.email);
+    if (isUndeliverableEmail(email)) return fail(400, "reserved");
+
+    await addContact(email, "newsletter", { placement });
+    after(() => sendWelcome(email, placement));
+    return isForm ? seeOther(newsletterReturnPath(next, placement)) : Response.json({ ok: true });
   } catch (error) {
     captureException(error, { stage: "api.newsletter" });
-    return Response.json({ error: "Couldn't subscribe you right now. Please try again." }, { status: 500 });
+    return fail(500, "server");
+  }
+}
+
+/** At most one welcome email per address, ever: the claim is an atomic increment, so concurrent signups can't both send. */
+async function sendWelcome(email: string, placement: NewsletterPlacement) {
+  try {
+    if ((await store().incr(`newsletter:welcome:${email}`, WELCOME_CLAIM_TTL_SECONDS)) !== 1) return;
+    if (!(await welcomeEmailLimit()).ok) {
+      captureMessage("Newsletter welcome email skipped: daily cap reached", { stage: "api.newsletter.welcome", placement });
+      return;
+    }
+    await sendEmail(await newsletterWelcomeEmail({ to: email }));
+  } catch (error) {
+    captureException(error, { stage: "api.newsletter.welcome", placement });
   }
 }
