@@ -103,7 +103,7 @@ describe("traceKitRequest", () => {
     await vi.advanceTimersByTimeAsync(1);
     expect(sentry.captureMessage).toHaveBeenCalledTimes(1);
     expect(sentry.captureMessage).toHaveBeenCalledWith(
-      "Kit preview is close to the function timeout",
+      "Kit preview slow (>60s)",
       expect.objectContaining({ level: "warning", extra: expect.objectContaining({ elapsedMs: 60_000, maxDurationSeconds: 300, source: "github" }) }),
     );
     await vi.advanceTimersByTimeAsync(240_000);
