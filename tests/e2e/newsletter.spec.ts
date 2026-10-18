@@ -87,9 +87,19 @@ test("the footer Subscribe button is primary everywhere except kit pages", async
 test("not shown on the way to checkout (?unlock=1)", async ({ page }) => {
   const kitId = await makeSampleKit(page);
   await expect(page.getByTestId("preview-newsletter")).toBeVisible();
+  // Signed out, ?unlock=1 goes straight on to guest checkout: hold that request so the page can be checked on the way.
+  let release = () => {};
+  const held = new Promise<void>((resolve) => (release = resolve));
+  await page.route("**/api/checkout", async (route) => {
+    await held;
+    await route.continue();
+  });
   await page.goto(`/kit/${kitId}?unlock=1`);
   await expect(page.getByTestId("unlock-panel")).toBeVisible();
+  await expect(page.getByTestId("unlock-panel")).toHaveAttribute("data-step", "redirecting");
   await expect(page.getByTestId("preview-newsletter")).toHaveCount(0);
+  release();
+  await page.waitForURL(/\/checkout\/mock\?product=kit/);
 });
 
 test("footer signup offers the checklist; signing up again says so and doesn't resend it", async ({ page }) => {
