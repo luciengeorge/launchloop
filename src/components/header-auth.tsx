@@ -33,9 +33,18 @@ export function HeaderAuth({ promo }: { promo: boolean }) {
         <Link href="/login" className={linkCls} data-testid="nav-login">
           Log in
         </Link>
-        <StartLink plan="kit" className={ctaCls}>
-          Get my launch kit, <KitPrice promo={promo} />
-        </StartLink>
+        {promo ? (
+          // Two prices don't fit next to the logo and "Log in" on a 375px screen with the full label.
+          <StartLink plan="kit" className={`${ctaCls} max-sm:px-3`}>
+            <span className="sm:hidden">Get kit, </span>
+            <span className="max-sm:hidden">Get my launch kit, </span>
+            <KitPrice promo />
+          </StartLink>
+        ) : (
+          <StartLink plan="kit" className={ctaCls}>
+            Get my launch kit, <KitPrice promo={false} />
+          </StartLink>
+        )}
       </>
     );
   }
