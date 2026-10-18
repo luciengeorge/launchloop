@@ -3,7 +3,8 @@ import { gateway, type GatewayProviderOptions } from "@ai-sdk/gateway";
 import { generateText, NoObjectGeneratedError, Output } from "ai";
 import type { z } from "zod";
 import { env, forceMock } from "./env";
-import { captureExceptionThrottled, captureMessage } from "./observability";
+import { deployEnv } from "./deploy-env";
+import { addBreadcrumb, captureExceptionThrottled, captureMessage } from "./observability";
 
 /**
  * The only module that talks to an LLM. Every call goes through Vercel AI
@@ -73,15 +74,16 @@ interface StructuredRequest<T> {
   schema: z.ZodType<T>;
   system: string;
   user: string;
-  /** Deterministic output used when no gateway credentials are configured. */
+  /**
+   * Template output for mock mode only (local dev and tests: no gateway credentials, LLM_PROVIDER=mock
+   * or MOCK_MODE=true). Never served in production or when the gateway fails.
+   */
   mock: () => T;
   /** Rubric check (limits, banned phrases). Problems are fed back for another attempt. */
   rubric?: (value: T) => string[];
   /** Output budget for one attempt; see OUTPUT_TOKENS. Doubled for the next attempt if the model hits it. */
   maxOutputTokens: number;
   maxAttempts?: number;
-  /** For free, non-critical steps: serve the mock output if the gateway is down instead of failing. */
-  mockOnGatewayError?: boolean;
   /** "fast" uses the smaller model for short sections. */
   speed?: "main" | "fast";
   /** Used by the test-only failure switch (MOCK_LLM_FAILURES=true). */
@@ -108,11 +110,13 @@ export function gatewayErrorType(error: unknown): string {
 export async function generateStructured<T>(req: StructuredRequest<T>): Promise<{ value: T; provider: string }> {
   const config = gatewayConfig();
   if (!config) {
+    if (deployEnv() === "production") throw new LlmError("AI Gateway is not configured; template copy is never served in production");
     if (simulatedFailure(req as StructuredRequest<unknown>)) throw new LlmError("Simulated LLM failure");
     return { value: req.mock(), provider: "mock" };
   }
   const model = req.speed === "fast" ? config.fastModel : config.model;
-  const fallbacks = req.speed === "fast" ? [config.model, ...config.fallbacks].filter((m) => m !== model) : config.fallbacks;
+  // The gateway tries these in order when `model` fails: main, then fast, then the configured fallbacks.
+  const fallbacks = [...new Set(req.speed === "fast" ? [config.model, ...config.fallbacks] : [config.fastModel, ...config.fallbacks])].filter((m) => m !== model);
 
   const maxAttempts = req.maxAttempts ?? 3;
   let prompt = req.user;
@@ -137,10 +141,10 @@ export async function generateStructured<T>(req: StructuredRequest<T>): Promise<
       if (problems.length === 0) return last;
     } catch (error) {
       if (!NoObjectGeneratedError.isInstance(error)) {
-        if (req.mockOnGatewayError) {
-          captureExceptionThrottled(`llm.gateway:${gatewayErrorType(error)}`, error, { stage: "llm.gateway", model, fallback: "mock" });
-          return { value: req.mock(), provider: "mock (gateway unavailable)" };
-        }
+        // Every model in the chain failed or timed out. No template stands in: the caller reports it honestly.
+        const type = gatewayErrorType(error);
+        addBreadcrumb({ category: "llm", level: "error", message: "AI Gateway call failed on every model", data: { stage: req.stage, model, fallbacks, type } });
+        captureExceptionThrottled(`llm.gateway:${type}`, error, { stage: "llm.gateway", llmStage: req.stage, model, fallbacks });
         throw new LlmError(`Gateway call failed: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
       }
       if (error.finishReason === "length") {
@@ -159,5 +163,7 @@ export async function generateStructured<T>(req: StructuredRequest<T>): Promise<
     captureMessage("LLM output still failed the rubric; falling back to automatic fixes", { problems: lastProblems });
     return last;
   }
-  throw new LlmError(`LLM returned unusable output after ${maxAttempts} attempts: ${lastProblems}`);
+  const error = new LlmError(`LLM returned unusable output after ${maxAttempts} attempts: ${lastProblems}`);
+  captureExceptionThrottled(`llm.unusable:${req.stage ?? "unknown"}`, error, { stage: "llm.unusable", llmStage: req.stage, model });
+  throw error;
 }

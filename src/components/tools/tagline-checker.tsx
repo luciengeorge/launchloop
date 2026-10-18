@@ -234,7 +234,7 @@ export function TaglineChecker() {
           </form>
 
           {error ? (
-            <Alert variant={error.code === "busy" || error.code === "rate_limited" ? "default" : "destructive"} role="alert" id={`${ids}-error`} data-testid="tagline-error" data-code={error.code}>
+            <Alert variant={["busy", "ai_busy", "rate_limited"].includes(error.code) ? "default" : "destructive"} role="alert" id={`${ids}-error`} data-testid="tagline-error" data-code={error.code}>
               <AlertDescription>
                 <p className="font-medium text-foreground">{error.message}</p>
                 {error.fix ? <p className="mt-1">{error.fix}</p> : null}
@@ -244,7 +244,7 @@ export function TaglineChecker() {
 
           {options.length ? (
             <section aria-labelledby={`${ids}-options`}>
-              <h2 id={`${ids}-options`} className="text-sm font-medium">Three options from your app</h2>
+              <h2 id={`${ids}-options`} className="text-sm font-medium">{options.length === 1 ? "One option" : options.length === 2 ? "Two options" : "Three options"} from your app</h2>
               <ol className="mt-3 space-y-2" data-testid="tagline-options">
                 {options.map((option) => (
                   <li key={option} className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">

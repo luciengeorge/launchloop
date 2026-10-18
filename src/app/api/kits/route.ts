@@ -89,10 +89,8 @@ function speculate(kit: Kit) {
 
 function toErrorResponse(error: unknown, url: string) {
   if (error instanceof IngestError) return { status: 422, body: kitErrorBody(error.code, error.userMessage) };
-  if (error instanceof LlmError) {
-    captureException(error, { stage: "api.kits.create.llm", url });
-    return { status: 503, body: kitErrorBody("llm_failed") };
-  }
+  // llm.ts already reported it (throttled), so an AI Gateway outage isn't one Sentry event per visitor.
+  if (error instanceof LlmError) return { status: 503, body: kitErrorBody("ai_busy") };
   captureException(error, { stage: "api.kits.create", url });
   return { status: 500, body: kitErrorBody("unknown") };
 }

@@ -13,7 +13,7 @@ export type KitErrorCode =
   | "site_blocked"
   | "site_no_content"
   | "site_not_html"
-  | "llm_failed"
+  | "ai_busy"
   | "rate_limited"
   | "busy"
   | "unknown";
@@ -39,7 +39,7 @@ export const KIT_ERRORS: Record<KitErrorCode, { title: string; fix: string }> = 
     title: "That link isn't a web page.",
     fix: "It points to a file or an API response. Paste your homepage or landing page URL (like https://your-app.com), or your GitHub repo.",
   },
-  llm_failed: { title: "Our AI writer is having a moment.", fix: "Nothing is wrong with your link. Try again in a minute." },
+  ai_busy: { title: "Our AI is busy, try again in a minute.", fix: "Nothing is wrong with your link, and nothing was saved. Retry in a minute and we'll write it from scratch." },
   rate_limited: {
     title: "You've used your free previews for now.",
     fix: `You can run ${PREVIEW_LIMITS.perHour} an hour and ${PREVIEW_LIMITS.perDay} a day. Try again later, or unlock the full kit for an app you've already previewed.`,

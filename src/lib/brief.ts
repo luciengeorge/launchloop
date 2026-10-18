@@ -2,7 +2,7 @@ import "server-only";
 import { z } from "zod";
 import type { IngestResult } from "./ingest";
 import { COMMIT_SAMPLE, type PackageJson, type RepoData } from "./ingest/github";
-import { OUTPUT_TOKENS, generateStructured } from "./llm";
+import { LlmError, OUTPUT_TOKENS, generateStructured } from "./llm";
 import { briefSchema, type Brief } from "./schema";
 
 const STACK_MAP: Record<string, string> = {
@@ -167,6 +167,9 @@ function dedupeFeatures(items: string[]): string[] {
   return kept.map((k) => k.text);
 }
 
+/** Placeholder when no source names the product. Never shown as the brief's name in production. */
+const UNKNOWN_NAME = "Your app";
+
 export interface Facts {
   name: string;
   oneLiner?: string;
@@ -196,7 +199,7 @@ export function extractFacts({ repo, site, primary }: IngestResult): Facts {
     primary === "site"
       ? [siteName, siteTitle, readmeTitle && stripMarkdown(readmeTitle), pkgName, repoName]
       : [readmeTitle && stripMarkdown(readmeTitle), pkgName, repoName, siteName, siteTitle];
-  const name = candidates.find(plausibleName) ?? "Your app";
+  const name = candidates.find(plausibleName) ?? UNKNOWN_NAME;
 
   const featureSection = readme ? readmeSection(readme, /feature|what it does|highlights/i) : undefined;
   const repoFeatures = featureSection ? bullets(featureSection) : bullets(readme);
@@ -273,6 +276,15 @@ export function sourceDigest({ repo, site }: IngestResult, maxReadme = 6000): st
 
 const llmBriefSchema = briefSchema.pick({ name: true, oneLiner: true, audience: true, problem: true, features: true, tone: true });
 
+const BRIEF_TEXT_FIELDS = ["name", "oneLiner", "audience", "problem", "tone"] as const;
+
+function briefRubric(value: z.infer<typeof llmBriefSchema>): string[] {
+  const problems: string[] = BRIEF_TEXT_FIELDS.filter((k) => !value[k]?.trim()).map((k) => `${k} is empty; fill it from the material.`);
+  if (!value.features.some((f) => f.trim())) problems.push("features is empty; list 3-6 features that the material describes.");
+  return problems;
+}
+
+/** Template brief for mock mode (local dev and tests) only. */
 function heuristicBrief(facts: Facts): Brief {
   const features = facts.features.length ? facts.features : [facts.oneLiner ?? `${facts.name} does one job well`];
   return {
@@ -291,28 +303,31 @@ function heuristicBrief(facts: Facts): Brief {
 
 export async function buildBrief(source: IngestResult): Promise<{ brief: Brief; provider: string }> {
   const facts = extractFacts(source);
-  const fallback = heuristicBrief(facts);
   const { value, provider } = await generateStructured<z.infer<typeof llmBriefSchema>>({
     schema: llmBriefSchema,
     system:
       "You turn raw repository and website material into a short, factual product brief for launch copy. Use only what the material says. If something is unknown, write a cautious, generic statement instead of inventing specifics. Return JSON.",
     user: `Write a product brief as JSON with keys: name (product name, max 30 chars), oneLiner (max 140 chars, what it does and for whom), audience (who it is for), problem (1-2 sentences, the pain it removes), features (3-6 short concrete features actually present in the material, max 120 chars each), tone (3-6 words describing the maker's voice, inferred from the README).\n\nDetected facts: ${JSON.stringify(facts)}\n\nSource material:\n${sourceDigest(source)}`,
-    mock: () => fallback,
-    mockOnGatewayError: true,
+    mock: () => heuristicBrief(facts),
+    rubric: briefRubric,
     maxOutputTokens: OUTPUT_TOKENS.brief,
     stage: "brief",
   });
-  const nonEmpty = Object.fromEntries(Object.entries(value).filter(([, v]) => (typeof v === "string" ? v.trim() : true)));
+  // A field the model still left empty may come from the source itself, never from canned text.
+  const fromSource: Record<(typeof BRIEF_TEXT_FIELDS)[number], string> = {
+    name: facts.name === UNKNOWN_NAME ? "" : facts.name,
+    oneLiner: facts.oneLiner ?? "",
+    problem: facts.problem ?? "",
+    audience: "",
+    tone: "",
+  };
+  const text = Object.fromEntries(BRIEF_TEXT_FIELDS.map((k) => [k, value[k]?.trim() || fromSource[k]])) as Record<(typeof BRIEF_TEXT_FIELDS)[number], string>;
+  const llmFeatures = value.features.map((f) => f.trim()).filter(Boolean);
+  const features = (llmFeatures.length ? llmFeatures : facts.features).slice(0, 6);
+  const missing = [...BRIEF_TEXT_FIELDS.filter((k) => !text[k]), ...(features.length ? [] : ["features"])];
+  if (missing.length) throw new LlmError(`The brief is still missing ${missing.join(", ")} after every attempt`);
   return {
-    brief: {
-      ...fallback,
-      ...nonEmpty,
-      features: value.features.filter((f) => f.trim()).length ? value.features.filter((f) => f.trim()).slice(0, 6) : fallback.features,
-      proofPoints: facts.proofPoints,
-      stack: facts.stack,
-      url: facts.url,
-      repoUrl: facts.repoUrl,
-    },
+    brief: { ...text, features, proofPoints: facts.proofPoints, stack: facts.stack, url: facts.url, repoUrl: facts.repoUrl },
     provider,
   };
 }

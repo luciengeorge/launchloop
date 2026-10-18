@@ -28,8 +28,9 @@ export async function POST(req: Request) {
     return Response.json({ name: brief.name, taglines });
   } catch (error) {
     if (error instanceof IngestError) return Response.json(kitErrorBody(error.code, error.userMessage), { status: 422 });
+    // llm.ts already reported it (throttled).
+    if (error instanceof LlmError) return Response.json(kitErrorBody("ai_busy"), { status: 503 });
     captureException(error, { stage: "api.tools.taglines", url });
-    if (error instanceof LlmError) return Response.json(kitErrorBody("llm_failed"), { status: 503 });
     return Response.json(kitErrorBody("unknown"), { status: 500 });
   }
 }

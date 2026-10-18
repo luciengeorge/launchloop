@@ -13,7 +13,7 @@ const CASES = [
   { name: "site returning an error", input: `${FIXTURE}/broken`, code: "site_http_error", text: "HTTP 500", fix: "try your homepage" },
   { name: "site with no usable content", input: `${FIXTURE}/empty`, code: "site_no_content", text: "couldn't find any words", fix: "renders everything with JavaScript" },
   { name: "link that isn't a web page", input: `${FIXTURE}/data.json`, code: "site_not_html", text: "isn't a web page", fix: "homepage or landing page URL" },
-  { name: "LLM failure", input: `${FIXTURE}/llmfail`, code: "llm_failed", text: "AI writer is having a moment", fix: "Nothing is wrong with your link" },
+  { name: "every model fails", input: `${FIXTURE}/llmfail`, code: "ai_busy", text: "Our AI is busy, try again in a minute", fix: "Nothing is wrong with your link" },
 ];
 
 for (const c of CASES) {

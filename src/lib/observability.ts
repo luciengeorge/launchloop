@@ -42,6 +42,15 @@ export function captureExceptionThrottled(key: string, error: unknown, context?:
   captureException(error, { ...context, throttleKey: key, ...(suppressed ? { suppressedSinceLastReport: suppressed } : {}) });
 }
 
+/** Context for the next Sentry event from this request; costs no quota on its own. */
+export function addBreadcrumb(breadcrumb: Sentry.Breadcrumb) {
+  try {
+    Sentry.addBreadcrumb(breadcrumb);
+  } catch {
+    // Telemetry must never break the request.
+  }
+}
+
 export function captureMessage(message: string, context?: ErrorContext) {
   console.warn(`[launchloop:warn] ${message}`, context ?? {});
 }
