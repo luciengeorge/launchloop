@@ -3,7 +3,7 @@ import { gateway, type GatewayProviderOptions } from "@ai-sdk/gateway";
 import { generateText, NoObjectGeneratedError, Output } from "ai";
 import type { z } from "zod";
 import { env, forceMock } from "./env";
-import { captureException, captureMessage } from "./observability";
+import { captureExceptionThrottled, captureMessage } from "./observability";
 
 /**
  * The only module that talks to an LLM. Every call goes through Vercel AI
@@ -97,6 +97,13 @@ function simulatedFailure(req: StructuredRequest<unknown>): boolean {
   return req.user.includes("LLMFAIL") || (req.stage === "kit" && req.user.includes("KITFAIL"));
 }
 
+/** Groups gateway failures for Sentry throttling: "GatewayRateLimitError:429", "TimeoutError", ... */
+export function gatewayErrorType(error: unknown): string {
+  if (!(error instanceof Error)) return typeof error;
+  const status = (error as { statusCode?: unknown }).statusCode;
+  return typeof status === "number" ? `${error.name}:${status}` : error.name;
+}
+
 /** Generates schema-validated output, checks it against the rubric, and retries with the problems listed. */
 export async function generateStructured<T>(req: StructuredRequest<T>): Promise<{ value: T; provider: string }> {
   const config = gatewayConfig();
@@ -131,7 +138,7 @@ export async function generateStructured<T>(req: StructuredRequest<T>): Promise<
     } catch (error) {
       if (!NoObjectGeneratedError.isInstance(error)) {
         if (req.mockOnGatewayError) {
-          captureException(error, { stage: "llm.gateway", model, fallback: "mock" });
+          captureExceptionThrottled(`llm.gateway:${gatewayErrorType(error)}`, error, { stage: "llm.gateway", model, fallback: "mock" });
           return { value: req.mock(), provider: "mock (gateway unavailable)" };
         }
         throw new LlmError(`Gateway call failed: ${error instanceof Error ? error.message : String(error)}`, { cause: error });

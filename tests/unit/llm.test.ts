@@ -4,7 +4,7 @@ import { z } from "zod";
 
 const ai = vi.hoisted(() => ({ generateText: vi.fn() }));
 vi.mock("ai", async (importOriginal) => ({ ...(await importOriginal<typeof import("ai")>()), generateText: ai.generateText }));
-vi.mock("@/lib/observability", () => ({ captureException: vi.fn(), captureMessage: vi.fn() }));
+vi.mock("@/lib/observability", () => ({ captureException: vi.fn(), captureExceptionThrottled: vi.fn(), captureMessage: vi.fn() }));
 
 vi.stubEnv("AI_GATEWAY_API_KEY", "test-key");
 vi.stubEnv("LLM_PROVIDER", "");

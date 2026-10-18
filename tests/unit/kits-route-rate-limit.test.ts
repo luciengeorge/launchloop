@@ -3,7 +3,7 @@ import { MemoryStore } from "./memory-store";
 
 const kv = vi.hoisted(() => ({ store: undefined as unknown }));
 vi.mock("@/lib/store", () => ({ store: () => kv.store }));
-vi.mock("@/lib/observability", () => ({ captureException: vi.fn(), captureMessage: vi.fn() }));
+vi.mock("@/lib/observability", () => ({ captureException: vi.fn(), captureExceptionThrottled: vi.fn(), captureMessage: vi.fn() }));
 vi.mock("next/server", () => ({ after: vi.fn() }));
 vi.mock("next/headers", () => ({ cookies: async () => ({ get: () => undefined, set: vi.fn() }) }));
 vi.mock("@/lib/auth", () => ({ ANON_KITS_COOKIE: "ll_anon_kits", getSession: async () => null, readAnonKits: () => [], secureCookies: () => false }));
@@ -13,7 +13,7 @@ vi.mock("@/lib/kits", () => ({
   createKit: vi.fn(async (_url: string, _onStep: unknown, opts: { id: string }) => ({ id: opts.id })),
 }));
 
-const { captureException } = await import("@/lib/observability");
+const { captureExceptionThrottled } = await import("@/lib/observability");
 const { createKit } = await import("@/lib/kits");
 const { POST } = await import("@/app/api/kits/route");
 
@@ -81,6 +81,6 @@ describe("POST /api/kits rate limit", () => {
     expect(res.status).toBe(503);
     expect((await res.json()).code).toBe("busy");
     expect(createKit).not.toHaveBeenCalled();
-    expect(captureException).toHaveBeenCalledWith(expect.any(Error), { stage: "rate-limit.store" });
+    expect(captureExceptionThrottled).toHaveBeenCalledWith("rate-limit.store", expect.any(Error), { stage: "rate-limit.store" });
   });
 });

@@ -2,7 +2,7 @@ import "server-only";
 import { kitErrorBody, rateLimitedBody } from "./errors";
 import { IngestError, normaliseInput } from "./ingest";
 import { SAMPLE_INPUT } from "./ingest/sample";
-import { captureException } from "./observability";
+import { captureExceptionThrottled } from "./observability";
 import { PREVIEW_LIMITS } from "./site";
 import { store } from "./store";
 
@@ -109,7 +109,7 @@ export async function freePreviewGate(req: Request, rawInput: string): Promise<R
     if (!limit.ok) return Response.json(rateLimitedBody(limit.retryAfterSeconds), { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } });
     if (await overGlobalDailyCap()) return busy();
   } catch (error) {
-    captureException(error, { stage: "rate-limit.store" });
+    captureExceptionThrottled("rate-limit.store", error, { stage: "rate-limit.store" });
     return busy();
   }
   return null;

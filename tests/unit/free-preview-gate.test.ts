@@ -3,9 +3,9 @@ import { MemoryStore } from "./memory-store";
 
 const kv = vi.hoisted(() => ({ store: undefined as unknown }));
 vi.mock("@/lib/store", () => ({ store: () => kv.store }));
-vi.mock("@/lib/observability", () => ({ captureException: vi.fn(), captureMessage: vi.fn() }));
+vi.mock("@/lib/observability", () => ({ captureException: vi.fn(), captureExceptionThrottled: vi.fn(), captureMessage: vi.fn() }));
 
-const { captureException } = await import("@/lib/observability");
+const { captureExceptionThrottled } = await import("@/lib/observability");
 const { clientIp, freePreviewGate, ipv6Prefix64 } = await import("@/lib/rate-limit");
 const { waitLabel } = await import("@/lib/errors");
 
@@ -80,7 +80,7 @@ describe("store failures", () => {
     const res = await freePreviewGate(request("192.0.2.7"), REPO);
     expect(res?.status).toBe(503);
     expect((await res?.json()).code).toBe("busy");
-    expect(captureException).toHaveBeenCalledWith(expect.objectContaining({ message: "KV command failed with 503" }), { stage: "rate-limit.store" });
+    expect(captureExceptionThrottled).toHaveBeenCalledWith("rate-limit.store", expect.objectContaining({ message: "KV command failed with 503" }), { stage: "rate-limit.store" });
   });
 });
 
