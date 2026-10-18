@@ -17,11 +17,12 @@ export function LogoMark({ className = "size-7" }: { className?: string }) {
   );
 }
 
-export function Logo() {
+/** `compact` (the header) drops the wordmark below 380px and shrinks it on phones, so the header row fits a 360px screen. */
+export function Logo({ compact = false }: { compact?: boolean }) {
   return (
-    <Link href="/" className="flex items-center gap-2 font-semibold tracking-tight" aria-label="LaunchLoop home">
+    <Link href="/" className="flex shrink-0 items-center gap-2 font-semibold tracking-tight" aria-label="LaunchLoop home">
       <LogoMark />
-      <span className="text-lg">LaunchLoop</span>
+      <span className={compact ? "text-base max-[379px]:hidden sm:text-lg" : "text-lg"}>LaunchLoop</span>
     </Link>
   );
 }

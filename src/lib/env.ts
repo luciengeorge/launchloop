@@ -12,8 +12,6 @@ export const env = {
   stripeSecretKey: forceMock ? undefined : read("STRIPE_SECRET_KEY"),
   stripeWebhookSecret: read("STRIPE_WEBHOOK_SECRET"),
   stripePriceKit: read("STRIPE_PRICE_KIT"),
-  stripePriceShipLoopMonthly: read("STRIPE_PRICE_SHIPLOOP_MONTHLY"),
-  stripePriceShipLoopYearly: read("STRIPE_PRICE_SHIPLOOP_YEARLY"),
   /** Promotion code id (promo_…) for LAUNCH14. Optional: without it Checkout looks the code up by name. */
   stripePromoLaunch14: read("STRIPE_PROMO_LAUNCH14"),
 

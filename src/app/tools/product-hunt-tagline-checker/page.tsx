@@ -15,7 +15,7 @@ export const metadata: Metadata = pageMetadata(toolPage(tool));
 
 const EXAMPLES = [
   { weak: "AI-powered platform for productivity", strong: "Turn your GitHub repo into a launch kit", why: "Names the input and the result. Anyone with a repo knows it's for them." },
-  { weak: "The ultimate launch tool for makers", strong: "Launch copy and images, written from your code", why: "“Ultimate” is a claim nobody believes. Say what it produces instead." },
+  { weak: "The ultimate launch tool for makers", strong: "Launch copy and images from your README and commits", why: "“Ultimate” is a claim nobody believes. Say what it produces instead." },
   { weak: "Revolutionary screenshot management.", strong: "Find any screenshot by the text inside it", why: "A concrete action beats an adjective, and taglines don't need a full stop." },
   { weak: "SNAPSHELF: SCREENSHOTS, SORTED", strong: "Search your screenshots like you search email", why: "Capitals shout, and the name is already shown right above the tagline." },
   { weak: "Seamless meeting notes 🚀", strong: "Turn customer calls into ranked product specs", why: "Emoji and hype take space. The outcome and the audience do the work." },
@@ -115,7 +115,10 @@ export default function TaglineCheckerPage() {
         </ul>
 
         <h2 id="examples">Good vs weak taglines</h2>
-        <p>Each weak tagline below fits the limit. It still loses to the stronger version next to it.</p>
+        <p>
+          Each weak tagline below fits the limit. It still loses to the stronger version next to it. For six more formulas, the mistakes a checker can&apos;t catch and how the
+          tagline fits with your description and gallery, read <Link href="/how-to-write-a-product-hunt-tagline">how to write a Product Hunt tagline</Link>.
+        </p>
       </div>
       <ul className="mt-5 grid max-w-3xl gap-3" data-testid="tagline-examples">
         {EXAMPLES.map((ex) => (
@@ -145,7 +148,8 @@ export default function TaglineCheckerPage() {
         </ul>
         <p>
           Work through the full <Link href="/product-hunt-launch-checklist">Product Hunt launch checklist</Link> for timing, images and launch-day steps. Built your app with
-          Cursor, Lovable, Bolt or v0? Read <Link href="/how-to-launch-a-vibe-coded-app">how to launch a vibe-coded app</Link> too.
+          Cursor, Lovable, Bolt or v0? Read <Link href="/how-to-launch-a-vibe-coded-app">how to launch a vibe-coded app</Link> too. Posting on Hacker News as well? Show HN
+          has its own rules, so follow the <Link href="/show-hn-launch-checklist">Show HN launch checklist</Link>.
         </p>
 
         <h2 id="faq">Tagline FAQ</h2>

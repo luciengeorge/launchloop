@@ -2,7 +2,26 @@ import { expect, test } from "@playwright/test";
 import { scrubProperties } from "../../src/lib/scrub-url";
 import { logIn, magicLinkFor, makeSampleKit, uniqueEmail } from "./helpers";
 
-test("after the preview: locked sections, one real sample and a single unlock CTA", async ({ page }) => {
+test("the free tagline is the payoff: first on the page, readable, ready to copy", async ({ page }) => {
+  await makeSampleKit(page);
+  const card = page.getByTestId("free-tagline");
+  await expect(card.getByRole("heading")).toHaveText("Your Product Hunt tagline · free");
+  await expect(card.getByRole("button", { name: "Copy tagline to clipboard" })).toBeVisible();
+  const tagline = await card.getByTestId("free-tagline-text").innerText();
+  expect(tagline.length).toBeGreaterThan(10);
+  await expect(card).toContainText(`${tagline.length}/60 characters`);
+  // Not blurred or masked, and above the brief, the paywall and the locked fields.
+  expect(await card.evaluate((el) => getComputedStyle(el).filter + getComputedStyle(el.querySelector("p")!).filter)).toBe("nonenone");
+  const top = (testId: string) => page.getByTestId(testId).evaluate((el) => el.getBoundingClientRect().top);
+  const cardTop = await top("free-tagline");
+  expect(cardTop).toBeLessThan(await page.locator('section[aria-labelledby="brief-heading"]').evaluate((el) => el.getBoundingClientRect().top));
+  expect(cardTop).toBeLessThan(await top("preview-paywall"));
+  // The same text the Product Hunt stage shows unlocked.
+  await page.getByTestId("stage-tab-Product Hunt").click();
+  await expect(page.locator('[data-task-id="ph.tagline"] [data-testid="task-text"]')).toHaveText(tagline);
+});
+
+test("after the preview: locked sections, the free X post and a single unlock CTA", async ({ page }) => {
   await makeSampleKit(page);
   const paywall = page.getByTestId("preview-paywall");
   await expect(paywall.getByRole("heading", { level: 2 })).toHaveText("Like it? Here's the rest of Snapshelf's launch kit.");
@@ -13,8 +32,10 @@ test("after the preview: locked sections, one real sample and a single unlock CT
     await expect(sections.filter({ hasText: name })).toHaveCount(1);
   }
 
-  // The sample is the free X post, the same text the locked pipeline shows unlocked.
+  // The sample is the free X post, the same text the locked pipeline shows unlocked; the tagline card is at the top.
+  await expect(sections.filter({ hasText: "Product Hunt post" })).toContainText("Your tagline is free and ready to paste, at the top of this page.");
   const sample = paywall.getByTestId("paywall-sample");
+  await expect(sample).toHaveCount(1);
   await expect(sample).toContainText("Post 1 of your X thread");
   await page.getByTestId("stage-tab-X").click();
   const freePost = await page.locator('[data-task-id="x.1"] [data-testid="task-text"]').innerText();

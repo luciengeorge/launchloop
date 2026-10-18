@@ -7,9 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { analyticsId } from "@/lib/analytics";
 import { postJson, startCheckout } from "@/lib/client";
-import { EXPERIMENTS } from "@/lib/experiments";
+import { EXPERIMENTS, type Served } from "@/lib/experiments";
+import { useClaimPrimaryCta } from "@/lib/primary-cta";
 import { LAUNCH_PROMO } from "@/lib/products";
-import { useExperiment } from "@/lib/use-experiment";
+import { useAssignedExperiment } from "@/lib/use-experiment";
 
 const EMAIL_KEY = "launchloop:email";
 
@@ -17,6 +18,8 @@ interface Props {
   kitId: string;
   /** Full kit price. The exp_launch14_promo treatment shows it struck through next to the LAUNCH14 price. */
   priceLabel: string;
+  /** This kit's exp_launch14_promo assignment (or fallback), made on the server so every reload shows the same price. */
+  launchPromo: Promise<Served>;
   /** Logged-in email, if any. */
   email?: string;
   /** Arrived from the magic link (or the "£19 kit" plan): go straight to checkout. */
@@ -30,12 +33,13 @@ type Step = "cta" | "email" | "sent" | "redirecting";
 type SaveState = "idle" | "sending" | "sent";
 
 /**
- * Unlock → magic-link sign in (email prefilled, returns here) → Stripe Checkout
- * with the account email → back to the unlocked kit in /account.
- * Signed-out visitors can instead just email themselves a link that saves the preview.
+ * Signed in: Unlock → Stripe Checkout with the account email → the unlocked kit in /account.
+ * Signed out: Unlock → Stripe Checkout as a guest (Stripe collects the email) → a success page that sends a
+ * magic link to that email, whose first login claims the kit. They can also sign in first (magic link, returns
+ * here, then checkout), or just email themselves a link that saves the preview.
  */
-export function UnlockPanel({ kitId, priceLabel, email, autoCheckout, cancelled, saved }: Props) {
-  const [step, setStep] = useState<Step>(autoCheckout && email ? "redirecting" : autoCheckout ? "email" : "cta");
+export function UnlockPanel({ kitId, priceLabel, launchPromo, email, autoCheckout, cancelled, saved }: Props) {
+  const [step, setStep] = useState<Step>(autoCheckout ? "redirecting" : "cta");
   const [address, setAddress] = useState(email ?? "");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -45,7 +49,8 @@ export function UnlockPanel({ kitId, priceLabel, email, autoCheckout, cancelled,
   const [saveError, setSaveError] = useState<string | null>(null);
   const started = useRef(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const promoVariant = useExperiment(EXPERIMENTS.launchPromo);
+  const promoVariant = useAssignedExperiment(EXPERIMENTS.launchPromo, launchPromo)?.variant;
+  useClaimPrimaryCta();
   /** Full-price Checkout URL, set when the promo arm's LAUNCH14 was turned down by Stripe. */
   const [fullPriceUrl, setFullPriceUrl] = useState<string | null>(null);
   const promo = promoVariant === "treatment" && !fullPriceUrl;
@@ -79,8 +84,10 @@ export function UnlockPanel({ kitId, priceLabel, email, autoCheckout, cancelled,
     setError(null);
     setStep("redirecting");
     try {
-      const { url, promo: outcome } = await startCheckout("kit", kitId, promoVariant ? { [EXPERIMENTS.launchPromo]: promoVariant } : {});
-      if (outcome === "unavailable") {
+      // The server resolves the promo itself (the same way this page did); nothing about it is sent from here.
+      const { url, promo: outcome } = await startCheckout("kit", kitId);
+      // Showed £14 but the session isn't discounted (Stripe turned the code down, or the kit left the promo arm since): say so.
+      if (outcome === "unavailable" || (promo && outcome !== "applied")) {
         setFullPriceUrl(url);
         setStep("cta");
         setLoading(false);
@@ -96,7 +103,7 @@ export function UnlockPanel({ kitId, priceLabel, email, autoCheckout, cancelled,
 
   useEffect(() => {
     // Wait for the variant so the session matches the price this page shows.
-    if (autoCheckout && email && promoVariant && !started.current) {
+    if (autoCheckout && promoVariant && !started.current) {
       started.current = true;
       void checkout();
     }
@@ -189,9 +196,19 @@ export function UnlockPanel({ kitId, priceLabel, email, autoCheckout, cancelled,
       ) : null}
 
       <ol className="mt-5 space-y-2 text-sm" aria-label="How unlocking works">
-        <StepItem n={1} label={signedIn ? `Signed in as ${signedIn}` : "Confirm your email (no password)"} done={!!signedIn} active={!signedIn} />
-        <StepItem n={2} label="Pay securely with Stripe" done={false} active={!!signedIn} />
-        <StepItem n={3} label="Your kit unlocks instantly" done={false} active={false} />
+        {signedIn ? (
+          <>
+            <StepItem n={1} label={`Signed in as ${signedIn}`} done active={false} />
+            <StepItem n={2} label="Pay securely with Stripe" done={false} active />
+            <StepItem n={3} label="Your kit unlocks instantly" done={false} active={false} />
+          </>
+        ) : (
+          <>
+            <StepItem n={1} label="Pay securely with Stripe, no account needed" done={false} active />
+            <StepItem n={2} label="Your kit unlocks instantly" done={false} active={false} />
+            <StepItem n={3} label="Log in with the same email to find it in My kits" done={false} active={false} />
+          </>
+        )}
       </ol>
 
       {cancelled ? (
@@ -209,12 +226,20 @@ export function UnlockPanel({ kitId, priceLabel, email, autoCheckout, cancelled,
         <Button
           type="button"
           className="mt-6 h-11 w-full text-base"
-          onClick={() => (fullPriceUrl ? window.location.assign(fullPriceUrl) : signedIn ? void checkout() : setStep("email"))}
+          onClick={() => (fullPriceUrl ? window.location.assign(fullPriceUrl) : void checkout())}
           disabled={loading || promoVariant === undefined}
         >
           <Lock aria-hidden="true" />
           {promoVariant === undefined ? "Unlock the full kit" : `Unlock the full kit, ${shownPrice}`}
         </Button>
+      ) : null}
+      {step === "cta" && !signedIn ? (
+        <p className="mt-2 text-center text-xs text-muted-foreground">
+          Have an account?{" "}
+          <button type="button" className="font-medium text-foreground underline underline-offset-4" onClick={() => setStep("email")} data-testid="unlock-login-first">
+            Log in first
+          </button>
+        </p>
       ) : null}
 
       {step === "email" ? (

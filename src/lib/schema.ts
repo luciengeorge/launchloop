@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { Attribution } from "./attribution";
 
 export const paletteSchema = z.object({
   background: z.string(),
@@ -87,6 +88,8 @@ export interface Kit {
   ownerEmail?: string;
   /** Kit whose generation was reused (same repo and commit within 24 hours). */
   reusedFrom?: string;
+  /** First-touch UTMs and referring domain from the browser that requested the preview. Absent on older kits. */
+  attribution?: Attribution;
   paymentRef?: string;
   paidAt?: string;
   content?: KitContent;
@@ -98,4 +101,11 @@ export interface Kit {
   attempts: number;
   error?: string;
   emailedAt?: string;
+  /** After a failed attempt: the next automatic attempt isn't due before this. */
+  nextAttemptAt?: string;
+  /** Every automatic attempt failed: someone must deliver the kit or refund it by hand. Cleared if a later retry succeeds. */
+  refund_needed?: boolean;
+  failedAt?: string;
+  /** The "we hit a problem, you'll get it or a refund" email went out (sent once per kit). */
+  failureEmailedAt?: string;
 }

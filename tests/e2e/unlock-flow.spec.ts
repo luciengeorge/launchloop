@@ -1,12 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { loginCodeFor, magicLinkFor, makeSampleKit, uniqueEmail } from "./helpers";
-
-async function requestUnlock(page: import("@playwright/test").Page, email: string) {
-  await page.getByRole("button", { name: "Unlock the full kit, £19" }).click();
-  await page.getByLabel("Your email").fill(email);
-  await page.getByRole("button", { name: "Continue to checkout" }).click();
-  await expect(page.getByTestId("unlock-panel")).toHaveAttribute("data-step", "sent");
-}
+import { loginCodeFor, magicLinkFor, makeSampleKit, requestUnlockLogin as requestUnlock, uniqueEmail } from "./helpers";
 
 test("unlock with the 6-digit code never leaves the tab and goes straight to checkout", async ({ page }) => {
   const kitId = await makeSampleKit(page);

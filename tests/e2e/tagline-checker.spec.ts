@@ -122,6 +122,16 @@ test("generate mode shows friendly ingest errors", async ({ page }) => {
   await page.getByLabel("GitHub repo or live site URL").fill("not a url");
   await page.getByRole("button", { name: "Generate 3 taglines" }).click();
   await expect(page.getByTestId("tagline-error")).toHaveAttribute("data-code", "invalid_url");
+
+  // A stale error goes as soon as the input changes or the mode switches.
+  await page.getByLabel("GitHub repo or live site URL").fill("https://your-app.com");
+  await expect(page.getByTestId("tagline-error")).toHaveCount(0);
+  await page.getByLabel("GitHub repo or live site URL").fill("not a url");
+  await page.getByRole("button", { name: "Generate 3 taglines" }).click();
+  await expect(page.getByTestId("tagline-error")).toBeVisible();
+  await page.getByRole("tab", { name: "Check a tagline" }).click();
+  await page.getByRole("tab", { name: "Generate from repo or URL" }).click();
+  await expect(page.getByTestId("tagline-error")).toHaveCount(0);
 });
 
 test.describe("without JavaScript", () => {

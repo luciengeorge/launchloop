@@ -1,4 +1,5 @@
 import { ImageResponse } from "@vercel/og";
+import { STATIC_OG_HEADERS } from "@/lib/seo";
 import { OG_IMAGE } from "@/lib/og-check";
 import { OG_PREVIEW } from "@/lib/tools";
 
@@ -73,12 +74,12 @@ export default function OgPreviewOgImage() {
             <div style={{ display: "flex", flexDirection: "column", gap: 6, padding: "18px 22px" }}>
               <div style={{ display: "flex", fontSize: 16, color: "#71717a", letterSpacing: 1 }}>YOUR-APP.COM</div>
               <div style={{ display: "flex", fontSize: 24, fontWeight: 700 }}>Turn your GitHub repo into a launch kit</div>
-              <div style={{ display: "flex", fontSize: 18, color: "#52525b" }}>Launch copy and images, written from your code.</div>
+              <div style={{ display: "flex", fontSize: 18, color: "#52525b" }}>Launch copy and images, from your README and commits.</div>
             </div>
           </div>
         </div>
       </div>
     ),
-    size,
+    { ...size, headers: STATIC_OG_HEADERS },
   );
 }

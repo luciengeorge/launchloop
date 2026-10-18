@@ -62,7 +62,10 @@ export default function VibeCodedLaunchPage() {
         <li><strong>Product Hunt:</strong> best for tools aimed at makers and early adopters. Follow the <Link href="/product-hunt-launch-checklist">Product Hunt launch checklist</Link>.</li>
         <li><strong>X:</strong> a 5–7 post thread showing the problem, the product in action and the link. Each post must fit X&apos;s 280-character weighting, where every link counts as 23.</li>
         <li><strong>LinkedIn:</strong> one post with a strong first line, short paragraphs and the story of why you built it. The limit is 3,000 characters, but shorter usually does better.</li>
-        <li><strong>Communities:</strong> Indie Hackers, relevant subreddits and Discords, Show HN. Read the self-promotion rules first and never ask for upvotes.</li>
+        <li>
+          <strong>Communities:</strong> Indie Hackers, relevant subreddits and Discords, <Link href="/show-hn-launch-checklist">Show HN</Link>. Read the self-promotion rules
+          first and never ask for upvotes.
+        </li>
       </ul>
 
       <h2 id="build-in-public">4. Keep launching</h2>
@@ -73,7 +76,7 @@ export default function VibeCodedLaunchPage() {
 
       <h2 id="shortcut">The shortcut</h2>
       <p>
-        LaunchLoop does steps 2 and 3 for you. It reads your public repo and live site, writes the brief, then drafts the landing copy, Product Hunt post, X thread, LinkedIn
+        LaunchLoop does steps 2 and 3 for you. It reads your repo&apos;s README, package.json and recent commits plus your live site, writes the brief, then drafts the landing copy, Product Hunt post, X thread, LinkedIn
         post and three on-brand images, with every character limit checked. See <Link href="/pricing">pricing</Link> or the <Link href="/faq">FAQ</Link>.
       </p>
     </GuideLayout>

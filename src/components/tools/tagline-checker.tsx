@@ -112,7 +112,13 @@ export function TaglineChecker() {
 
   return (
     <div className="space-y-6" data-testid="tagline-checker">
-      <Tabs value={mode} onValueChange={(v) => setMode(v as Mode)}>
+      <Tabs
+        value={mode}
+        onValueChange={(v) => {
+          setMode(v as Mode);
+          setError(null);
+        }}
+      >
         <TabsList className="h-10! w-full sm:w-fit">
           <TabsTrigger value="check" className="whitespace-nowrap px-4">Check a tagline</TabsTrigger>
           {/* The short label keeps both tabs on one line on narrow phones; the accessible name stays the same. */}
@@ -202,7 +208,10 @@ export function TaglineChecker() {
               <Input
                 id={`${ids}-source`}
                 value={source}
-                onChange={(e) => setSource(e.target.value)}
+                onChange={(e) => {
+                  setSource(e.target.value);
+                  setError(null);
+                }}
                 placeholder="github.com/you/your-app or your-app.com"
                 autoComplete="url"
                 inputMode="url"
@@ -234,7 +243,7 @@ export function TaglineChecker() {
           </form>
 
           {error ? (
-            <Alert variant="destructive" role="alert" id={`${ids}-error`} data-testid="tagline-error" data-code={error.code}>
+            <Alert variant={["busy", "ai_busy", "rate_limited"].includes(error.code) ? "default" : "destructive"} role="alert" id={`${ids}-error`} data-testid="tagline-error" data-code={error.code}>
               <AlertDescription>
                 <p className="font-medium text-foreground">{error.message}</p>
                 {error.fix ? <p className="mt-1">{error.fix}</p> : null}
@@ -244,7 +253,7 @@ export function TaglineChecker() {
 
           {options.length ? (
             <section aria-labelledby={`${ids}-options`}>
-              <h2 id={`${ids}-options`} className="text-sm font-medium">Three options from your app</h2>
+              <h2 id={`${ids}-options`} className="text-sm font-medium">{options.length === 1 ? "One option" : options.length === 2 ? "Two options" : "Three options"} from your app</h2>
               <ol className="mt-3 space-y-2" data-testid="tagline-options">
                 {options.map((option) => (
                   <li key={option} className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">

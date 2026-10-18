@@ -1,10 +1,13 @@
 import "server-only";
+import { createHash } from "node:crypto";
 import Stripe from "stripe";
+import { type Attribution, attributionMetadata } from "./attribution";
 import { deployEnv, stripeEventDecision } from "./deploy-env";
 import { env, isStripeMock } from "./env";
-import { EXPERIMENTS, withAnalyticsId, type Experiments } from "./experiments";
+import { withAnalyticsId, type ExperimentKey, type Experiments } from "./experiments";
 import { captureException, captureMessage } from "./observability";
-import { LAUNCH_PROMO, PRODUCTS, chargedPence, type ProductId } from "./products";
+import { assertOneTimePrice, launchPromoDue, sessionParams, type SessionInput } from "./checkout-session";
+import { LAUNCH_PROMO, chargedPence, isProductId, type ProductId } from "./products";
 
 let client: Stripe | null = null;
 export function stripe(): Stripe | null {
@@ -15,8 +18,6 @@ export function stripe(): Stripe | null {
 
 const priceIds: Record<ProductId, string | undefined> = {
   kit: env.stripePriceKit,
-  shiploop_monthly: env.stripePriceShipLoopMonthly,
-  shiploop_yearly: env.stripePriceShipLoopYearly,
 };
 
 /** What Checkout charges, for analytics. "inline" means no STRIPE_PRICE_* is set. */
@@ -39,8 +40,12 @@ export interface CheckoutRequest {
   /** PostHog distinct id, so the webhook's checkout_completed joins the browser's funnel. */
   analyticsId: string;
   isLoggedIn: boolean;
-  /** Variants the buyer was shown. exp_launch14_promo "treatment" puts LAUNCH14 on a kit session. */
+  /** Variants recorded in the session metadata for checkout_completed. exp_launch14_promo is the server's, never the request's. */
   experiments: Experiments;
+  /** Experiments whose variant was a fallback, not a PostHog assignment (see Served). */
+  fallbacks: ExperimentKey[];
+  /** The kit's first-touch UTMs, copied into metadata so the webhook's checkout_completed carries them. */
+  attribution?: Attribution;
 }
 
 /** "unavailable": the promo was due but Stripe wouldn't take the code (ended, used up, not a first purchase), so the session is full price. */
@@ -53,8 +58,9 @@ export interface CheckoutResult {
 
 /** Returns where to send the buyer: Stripe Checkout, or the local mock checkout in test mode. */
 export async function createCheckoutUrl(params: CheckoutRequest): Promise<CheckoutResult> {
-  const { product, origin, kitId, email, customer, analyticsId, isLoggedIn, experiments } = params;
-  const promo = product === "kit" && experiments[EXPERIMENTS.launchPromo] === "treatment";
+  const { product, origin, kitId, email, customer, analyticsId, isLoggedIn, experiments, fallbacks, attribution } = params;
+  // experiments[exp_launch14_promo] is the server's resolution for the kit (resolveKitPromo in /api/checkout).
+  const promo = launchPromoDue(product, experiments);
   const s = stripe();
   if (!s) {
     const qs = new URLSearchParams({
@@ -68,8 +74,6 @@ export async function createCheckoutUrl(params: CheckoutRequest): Promise<Checko
     return { url: `/checkout/mock?${qs}`, promo: promo ? "applied" : "none" };
   }
 
-  const item = PRODUCTS[product];
-  const priceId = priceIds[product];
   const metadata = {
     product,
     env: deployEnv(),
@@ -77,41 +81,26 @@ export async function createCheckoutUrl(params: CheckoutRequest): Promise<Checko
     ph_distinct_id: analyticsId,
     logged_in: isLoggedIn ? "1" : "0",
     ...experiments,
-    ...(kitId ? { kitId } : {}),
+    ...(fallbacks.length ? { fallbacks: fallbacks.join(",") } : {}),
+    ...(kitId ? { kitId, ...attributionMetadata(attribution) } : {}),
   };
   const cancelPath = kitId ? `/kit/${kitId}?checkout=cancelled` : "/ship-loop?checkout=cancelled";
-  const base: Stripe.Checkout.SessionCreateParams = {
-    mode: "payment",
-    line_items: [
-      priceId
-        ? { price: priceId, quantity: 1 }
-        : {
-            quantity: 1,
-            price_data: {
-              currency: "gbp",
-              unit_amount: item.amountPence,
-              product_data: { name: item.name, description: item.description },
-            },
-          },
-    ],
-    // A Customer lets buyers manage billing in the Customer Portal from /account. Stripe rejects
-    // `customer` alongside `customer_email` or `customer_creation`.
-    ...(customer ? { customer } : { customer_email: email, customer_creation: "always" as const }),
-    // Kit buyers only get a code through the promo experiment; a free-text field would let the
-    // control arm type LAUNCH14 too.
-    ...(product === "kit" ? {} : { allow_promotion_codes: true }),
+  const input: SessionInput = {
+    product,
+    priceId: priceIds[product],
     metadata,
-    payment_intent_data: { metadata },
-    success_url: `${origin}/api/checkout/return?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${origin}${withAnalyticsId(cancelPath, analyticsId)}`,
+    customer,
+    email,
+    successUrl: `${origin}/api/checkout/return?session_id={CHECKOUT_SESSION_ID}`,
+    cancelUrl: `${origin}${withAnalyticsId(cancelPath, analyticsId)}`,
   };
+  const base = sessionParams(input);
 
   if (promo) {
     const promotionCode = await launchPromoId(s);
     if (promotionCode) {
-      const promoMetadata = { ...metadata, promo_code: LAUNCH_PROMO.code };
       try {
-        const url = await createSession(s, { ...base, discounts: [{ promotion_code: promotionCode }], metadata: promoMetadata, payment_intent_data: { metadata: promoMetadata } });
+        const url = await createSession(s, sessionParams({ ...input, metadata: { ...metadata, promo_code: LAUNCH_PROMO.code }, promotionCode }));
         return { url, promo: "applied" };
       } catch (error) {
         if (!(error instanceof Stripe.errors.StripeInvalidRequestError)) throw error;
@@ -125,10 +114,40 @@ export async function createCheckoutUrl(params: CheckoutRequest): Promise<Checko
   return { url: await createSession(s, base), promo: "none" };
 }
 
+const CHECKOUT_REUSE_MS = 10 * 60 * 1000;
+
+/**
+ * Same kit (or product), buyer and promo within a 10-minute bucket gets the same key, so double
+ * clicks and retries reopen the first Checkout session instead of creating more. The full params
+ * are hashed in too: a request that differs in anything else gets a fresh key, never Stripe's
+ * "keys can only be used with the same parameters" error.
+ */
+export function checkoutIdempotencyKey(params: Stripe.Checkout.SessionCreateParams, now = Date.now()): string {
+  const target = params.metadata?.kitId ?? params.metadata?.product ?? "";
+  const buyer = params.customer ?? params.customer_email ?? "guest";
+  const promo = params.discounts?.length ? "promo" : "full";
+  const bucket = Math.floor(now / CHECKOUT_REUSE_MS);
+  const digest = createHash("sha256").update(JSON.stringify([target, buyer, promo, bucket, params])).digest("base64url");
+  return `checkout_${digest}`;
+}
+
 async function createSession(s: Stripe, params: Stripe.Checkout.SessionCreateParams): Promise<string> {
-  const session = await s.checkout.sessions.create(params);
+  const product = params.metadata?.product;
+  if (params.mode === "payment" && isProductId(product)) {
+    for (const item of params.line_items ?? []) if (item.price) await checkOneTimePrice(s, item.price, product);
+  }
+  const session = await s.checkout.sessions.create(params, { idempotencyKey: checkoutIdempotencyKey(params) });
   if (!session.url) throw new Error("Stripe did not return a Checkout URL");
   return session.url;
+}
+
+const oneTimePrices = new Set<string>();
+
+/** Throws RecurringPriceError for a recurring price. */
+async function checkOneTimePrice(s: Stripe, priceId: string, product: ProductId): Promise<void> {
+  if (oneTimePrices.has(priceId)) return;
+  assertOneTimePrice(await s.prices.retrieve(priceId), product);
+  oneTimePrices.add(priceId);
 }
 
 let promoIdCache: string | undefined;
@@ -147,8 +166,8 @@ async function launchPromoId(s: Stripe): Promise<string | undefined> {
 }
 
 /**
- * The promotion code a paid session used: LAUNCH14 from our metadata, else one the buyer typed
- * (Ship Loop allows codes), which Stripe only gives us as a promotion code id.
+ * The promotion code a paid session used: LAUNCH14 from our metadata, else the session's discount,
+ * which Stripe only gives us as a promotion code id.
  */
 export async function sessionPromoCode(s: Stripe, session: Stripe.Checkout.Session): Promise<string | undefined> {
   if (session.metadata?.promo_code) return session.metadata.promo_code;
@@ -162,6 +181,17 @@ export async function sessionPromoCode(s: Stripe, session: Stripe.Checkout.Sessi
     return undefined;
   }
 }
+
+/**
+ * Where a paid kit lands: its page in /account for a signed-in buyer, else the guest success page,
+ * which finds the buyer's email from the session id (kit.paymentRef) to prefill the magic link.
+ */
+export function kitSuccessPath(kitId: string, sessionRef: string, signedIn: boolean): string {
+  return signedIn ? `/account/kits/${kitId}?paid=1` : `/checkout/success?${new URLSearchParams({ kit: kitId, session_id: sessionRef })}`;
+}
+
+/** A 100%-off Checkout completes with "no_payment_required": it's a purchase like any other. */
+export const isPaidSession = (session: Pick<Stripe.Checkout.Session, "payment_status">) => session.payment_status === "paid" || session.payment_status === "no_payment_required";
 
 /** Whether this deployment owns a Checkout session (see stripeEventDecision). */
 export function checkoutDecision(session: Stripe.Checkout.Session) {

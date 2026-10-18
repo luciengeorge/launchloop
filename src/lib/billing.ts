@@ -3,11 +3,11 @@ import Stripe from "stripe";
 import { deployEnv } from "./deploy-env";
 import { normaliseEmail } from "./kits";
 import { stripe } from "./payments";
-import type { ProductId } from "./products";
 import { store } from "./store";
 
+/** Ship Loop is waitlist-only and nothing writes these any more; /account still honours a stored one. */
 export interface ShipLoopMembership {
-  product: ProductId;
+  product: string;
   ref: string;
   customerId?: string;
   since: string;
@@ -22,12 +22,6 @@ export interface BillingCustomer {
 
 const shipLoopKey = (email: string) => `user:${normaliseEmail(email)}:shiploop`;
 const customerKey = (email: string) => `user:${normaliseEmail(email)}:customer`;
-
-export async function recordShipLoop(email: string, m: ShipLoopMembership): Promise<void> {
-  const existing = await store().get<ShipLoopMembership>(shipLoopKey(email));
-  await store().set(shipLoopKey(email), { ...existing, ...m, customerId: m.customerId ?? existing?.customerId });
-  if (m.customerId) await recordBillingCustomer(email, m.customerId, "shiploop");
-}
 
 export const getShipLoop = (email: string) => store().get<ShipLoopMembership>(shipLoopKey(email));
 

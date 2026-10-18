@@ -17,7 +17,7 @@ export const metadata: Metadata = pageMetadata(toolPage(tool));
 const SIZE = `${OG_IMAGE.width}×${OG_IMAGE.height}`;
 
 const TAGS = `<meta property="og:title" content="Turn your GitHub repo into a launch kit" />
-<meta property="og:description" content="Launch copy and images, written from your code." />
+<meta property="og:description" content="Launch copy and images, from your README and commits." />
 <meta property="og:image" content="https://your-app.com/og.png" />
 <meta property="og:image:width" content="${OG_IMAGE.width}" />
 <meta property="og:image:height" content="${OG_IMAGE.height}" />
@@ -156,7 +156,9 @@ export default function OgPreviewPage() {
         <p>
           The <Link href="/product-hunt-launch-checklist">Product Hunt launch checklist</Link> covers every size and launch-day step, and the{" "}
           <Link href={TAGLINE_CHECKER.path}>Product Hunt tagline checker</Link> gets your 60-character tagline right. Built with Cursor, Lovable, Bolt or v0? Read{" "}
-          <Link href="/how-to-launch-a-vibe-coded-app">how to launch a vibe-coded app</Link> for the other SEO basics AI builders skip.
+          <Link href="/how-to-launch-a-vibe-coded-app">how to launch a vibe-coded app</Link> for the other SEO basics AI builders skip. Posting a Show HN? Hacker News lists
+          plain text links, but readers share the good ones on X and Slack, where this card shows up. The <Link href="/show-hn-launch-checklist">Show HN launch checklist</Link>{" "}
+          covers the rest.
         </p>
 
         <h2 id="faq">OG preview FAQ</h2>

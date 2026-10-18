@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { followMagicLink, uniqueEmail } from "./helpers";
+import { uniqueEmail } from "./helpers";
 
 const FIXTURE = "http://127.0.0.1:3419";
 
@@ -74,6 +74,26 @@ test("$pageview carries utm_source / utm_medium / utm_campaign, and later events
   expect((await campaignEvent(page, campaign, "preview_completed")).properties.utm_source).toBe("x");
 });
 
+test("newsletter_subscribed says which signup it came from: footer or post-preview", async ({ page }) => {
+  const campaign = `news-${Date.now()}`;
+  await page.goto(`/?utm_source=newsletter-test&utm_campaign=${campaign}`);
+  await page.waitForLoadState("networkidle");
+  await page.getByRole("contentinfo").getByLabel("Weekly launch teardowns").fill(uniqueEmail("ph-footer"));
+  await page.getByRole("contentinfo").getByRole("button", { name: "Subscribe" }).click();
+  expect((await campaignEvent(page, campaign, "newsletter_subscribed")).properties).toMatchObject({ placement: "footer", welcome: "sent" });
+
+  const previewCampaign = `${campaign}-preview`;
+  await page.goto(`/?utm_source=newsletter-test&utm_campaign=${previewCampaign}`);
+  await page.getByRole("button", { name: "Try a sample app" }).click();
+  await page.waitForURL(/\/kit\/[\w-]+$/);
+  const signup = page.getByTestId("preview-newsletter");
+  await signup.getByLabel("Email for the launch-day checklist").fill(uniqueEmail("ph-preview"));
+  await signup.getByRole("button", { name: "Send me the checklist" }).click();
+  const event = await campaignEvent(page, previewCampaign, "newsletter_subscribed");
+  expect(event.properties).toMatchObject({ placement: "preview", welcome: "sent" });
+  expect(JSON.stringify(event)).not.toContain("@example.com");
+});
+
 test("header CTA from another page keeps the visitor's id and UTMs, through to the server-side purchase event", async ({ page }) => {
   const campaign = `hn-${Date.now()}`;
   await page.goto(`/faq?utm_source=hn&utm_medium=social&utm_campaign=${campaign}`);
@@ -89,22 +109,37 @@ test("header CTA from another page keeps the visitor's id and UTMs, through to t
   expect(distinctId(started)).toBe(id);
   expect(started.properties.utm_source).toBe("hn");
 
-  // Kit intent, logged out: email, magic link (carries the id), then (mock) checkout.
-  await page.waitForURL(/\/kit\/[\w-]+\?unlock=1$/);
+  // Kit intent, logged out: /kit/[id]?unlock=1 goes straight on to (mock) guest checkout, then the guest success page (carries the id).
   const email = uniqueEmail("utm-purchase");
-  await page.getByLabel("Your email").fill(email);
-  await page.getByRole("button", { name: "Continue to checkout" }).click();
-  await expect(page.getByTestId("unlock-panel")).toHaveAttribute("data-step", "sent");
-  await followMagicLink(page, email);
   await page.waitForURL(/\/checkout\/mock\?product=kit/);
+  await page.getByLabel("Email for your receipt and kit").fill(email);
   await page.getByRole("button", { name: "Pay £19 (test mode)" }).click();
-  await page.waitForURL(/\/account\/kits\/[\w-]+\?paid=1&aid=/);
+  await page.waitForURL(/\/checkout\/success\?kit=[\w-]+&session_id=[\w-]+&aid=/);
 
+  // First touch rides on the kit, so it survives the full page loads to and from checkout without cookies or storage.
+  const firstTouch = { utm_source: "hn", utm_medium: "social", utm_campaign: campaign };
   const checkoutStarted = await serverEvent(page, id, "checkout_started");
-  expect(checkoutStarted.properties).toMatchObject({ plan: "kit", product_type: "kit", amount: 1900, currency: "gbp", "$feature/exp_launch14_promo": "control" });
+  expect(checkoutStarted.properties).toMatchObject({ plan: "kit", product_type: "kit", amount: 1900, currency: "gbp", "fallback/exp_launch14_promo": "control", ...firstTouch });
+  // The fake PostHog assigns nothing, so the £19 the page served was a fallback, not an experiment arm.
+  expect(checkoutStarted.properties).not.toHaveProperty("$feature/exp_launch14_promo");
   const purchase = await serverEvent(page, id, "checkout_completed");
-  expect(purchase.properties).toMatchObject({ plan: "kit", product_type: "kit", amount: 1900, currency: "gbp", mock: true });
+  expect(purchase.properties).toMatchObject({ plan: "kit", product_type: "kit", amount: 1900, currency: "gbp", mock: true, ...firstTouch });
   expect(JSON.stringify(purchase)).not.toContain("@example.com");
+  expect(await page.context().cookies()).not.toContainEqual(expect.objectContaining({ value: expect.stringContaining(campaign) }));
+  expect(await page.evaluate(() => JSON.stringify({ ...localStorage }) + JSON.stringify({ ...sessionStorage }))).not.toContain(campaign);
+});
+
+test("the preview request carries first-touch UTMs and the referring domain from the landing page", async ({ page }) => {
+  const campaign = `ft-${Date.now()}`;
+  await page.goto(`/faq?utm_source=reddit&utm_medium=social&utm_campaign=${campaign}&utm_content=${"x".repeat(300)}`, { referer: "https://www.reddit.com/r/SideProject/" });
+  await page.waitForLoadState("networkidle");
+  await page.getByRole("banner").getByRole("link", { name: "Get my launch kit" }).click();
+  await page.waitForURL((u) => u.pathname === "/");
+  const request = page.waitForRequest((r) => r.url().endsWith("/api/kits") && r.method() === "POST");
+  await page.getByRole("button", { name: "Try a sample app" }).click();
+  const body = (await request).postDataJSON() as { attribution: Record<string, string> };
+  expect(body.attribution).toMatchObject({ utm_source: "reddit", utm_medium: "social", utm_campaign: campaign, referring_domain: "reddit.com" });
+  expect(body.attribution.utm_content).toHaveLength(200);
 });
 
 test("navigating before the PostHog SDK loads still records the landing pageview and keeps its UTMs", async ({ page }) => {
@@ -113,11 +148,11 @@ test("navigating before the PostHog SDK loads still records the landing pageview
   const requested = new Promise<void>((resolve) => (sdkRequested = resolve));
   let release!: () => void;
   const released = new Promise<void>((resolve) => (release = resolve));
-  // Hold back the lazily loaded SDK chunk (only posthog-js contains this event name) until after the navigation.
+  // Hold back the lazily loaded SDK chunk (only posthog-js contains `$lib_version`) until after the navigation.
   await page.route("**/_next/static/**/*.js", async (route) => {
     const response = await route.fetch();
     const body = await response.text();
-    if (body.includes("$feature_flag_called")) {
+    if (body.includes("$lib_version")) {
       sdkRequested();
       await released;
     }

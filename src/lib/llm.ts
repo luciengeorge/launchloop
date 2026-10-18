@@ -3,7 +3,9 @@ import { gateway, type GatewayProviderOptions } from "@ai-sdk/gateway";
 import { generateText, NoObjectGeneratedError, Output } from "ai";
 import type { z } from "zod";
 import { env, forceMock } from "./env";
-import { captureException, captureMessage } from "./observability";
+import { deployEnv } from "./deploy-env";
+import { phase } from "./kit-tracing";
+import { addBreadcrumb, captureExceptionThrottled, captureMessage } from "./observability";
 
 /**
  * The only module that talks to an LLM. Every call goes through Vercel AI
@@ -15,6 +17,11 @@ export const DEFAULT_MODEL = "anthropic/claude-sonnet-4.5";
 export const DEFAULT_FALLBACK_MODELS = ["openai/gpt-5-mini"];
 /** Used for the smaller kit sections, where latency matters more than depth. */
 export const DEFAULT_FAST_MODEL = "anthropic/claude-haiku-4.5";
+/**
+ * Per attempt. A free preview makes two calls (brief, then preview) of up to three attempts each,
+ * so the worst case (6 x 45s) still fits the 300s maxDuration on /api/kits with time for ingest.
+ */
+const ATTEMPT_TIMEOUT_MS = 45_000;
 
 /** Any failure to get usable output from the model. Callers turn this into a friendly message. */
 export class LlmError extends Error {
@@ -53,18 +60,31 @@ export const llmLabel = () => {
   return config ? `gateway:${config.model}` : "mock";
 };
 
+/**
+ * Per-call output budgets. A JSON answer at every rubric limit measures about 310 tokens for the
+ * brief, 80 for the preview, 45 for three taglines, 300-440 for the landing, Product Hunt and X
+ * sections and 650 for LinkedIn (3,000 chars), in English. Each budget leaves room for a first
+ * attempt that overshoots the limits by half and for denser tokenizers; CJK copy runs about 3x
+ * and relies on the doubling retry. Reasoning models (the gpt-5-mini fallback) count reasoning
+ * tokens against this budget too, so the retry also covers them.
+ */
+export const OUTPUT_TOKENS = { brief: 800, preview: 400, kitSection: 1500, linkedin: 2500 } as const;
+
 interface StructuredRequest<T> {
   /** Sent to the model as the output schema. Keep it to types only: counts and lengths belong in `rubric`. */
   schema: z.ZodType<T>;
   system: string;
   user: string;
-  /** Deterministic output used when no gateway credentials are configured. */
+  /**
+   * Template output for mock mode only (local dev and tests: no gateway credentials, LLM_PROVIDER=mock
+   * or MOCK_MODE=true). Never served in production or when the gateway fails.
+   */
   mock: () => T;
   /** Rubric check (limits, banned phrases). Problems are fed back for another attempt. */
   rubric?: (value: T) => string[];
+  /** Output budget for one attempt; see OUTPUT_TOKENS. Doubled for the next attempt if the model hits it. */
+  maxOutputTokens: number;
   maxAttempts?: number;
-  /** For free, non-critical steps: serve the mock output if the gateway is down instead of failing. */
-  mockOnGatewayError?: boolean;
   /** "fast" uses the smaller model for short sections. */
   speed?: "main" | "fast";
   /** Used by the test-only failure switch (MOCK_LLM_FAILURES=true). */
@@ -80,44 +100,73 @@ function simulatedFailure(req: StructuredRequest<unknown>): boolean {
   return req.user.includes("LLMFAIL") || (req.stage === "kit" && req.user.includes("KITFAIL"));
 }
 
+/** Groups gateway failures for Sentry throttling: "GatewayRateLimitError:429", "TimeoutError", ... */
+export function gatewayErrorType(error: unknown): string {
+  if (!(error instanceof Error)) return typeof error;
+  const status = (error as { statusCode?: unknown }).statusCode;
+  return typeof status === "number" ? `${error.name}:${status}` : error.name;
+}
+
 /** Generates schema-validated output, checks it against the rubric, and retries with the problems listed. */
 export async function generateStructured<T>(req: StructuredRequest<T>): Promise<{ value: T; provider: string }> {
   const config = gatewayConfig();
+  const model = config ? (req.speed === "fast" ? config.fastModel : config.model) : "mock";
+  // Prompts and outputs stay out of telemetry; the span records which call it was, the model and the outcome.
+  return phase(`llm.${req.stage ?? "call"}`, "gen_ai.generate", { "llm.stage": req.stage, "llm.speed": req.speed ?? "main", "llm.model": model }, () =>
+    runStructured(req, config),
+  );
+}
+
+async function runStructured<T>(req: StructuredRequest<T>, config: GatewayConfig | null): Promise<{ value: T; provider: string }> {
   if (!config) {
+    if (deployEnv() === "production") throw new LlmError("AI Gateway is not configured; template copy is never served in production");
     if (simulatedFailure(req as StructuredRequest<unknown>)) throw new LlmError("Simulated LLM failure");
     return { value: req.mock(), provider: "mock" };
   }
   const model = req.speed === "fast" ? config.fastModel : config.model;
-  const fallbacks = req.speed === "fast" ? [config.model, ...config.fallbacks].filter((m) => m !== model) : config.fallbacks;
+  // The gateway tries these in order when `model` fails: main, then fast, then the configured fallbacks.
+  const fallbacks = [...new Set(req.speed === "fast" ? [config.model, ...config.fallbacks] : [config.fastModel, ...config.fallbacks])].filter((m) => m !== model);
 
   const maxAttempts = req.maxAttempts ?? 3;
   let prompt = req.user;
   let last: { value: T; provider: string } | null = null;
   let lastProblems = "";
+  let maxOutputTokens = req.maxOutputTokens;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     let problems: string[];
     try {
-      const result = await generateText({
-        model: gateway(model),
-        system: req.system,
-        prompt,
-        output: Output.object({ schema: req.schema }),
-        providerOptions: { gateway: { models: fallbacks } satisfies GatewayProviderOptions },
-        abortSignal: AbortSignal.timeout(90_000),
-      });
+      const result = await phase("llm.attempt", "gen_ai.generate_text", { "llm.stage": req.stage, "llm.model": model, "llm.attempt": attempt }, () =>
+        generateText({
+          model: gateway(model),
+          system: req.system,
+          prompt,
+          output: Output.object({ schema: req.schema }),
+          maxOutputTokens,
+          // Only route to providers that don't train on prompts (applies to the fallbacks too). A model
+          // with no such provider fails with no_providers_available rather than being routed anyway.
+          providerOptions: { gateway: { models: fallbacks, disallowPromptTraining: true } satisfies GatewayProviderOptions },
+          abortSignal: AbortSignal.timeout(ATTEMPT_TIMEOUT_MS),
+        }),
+      );
       last = { value: result.output, provider: `gateway:${result.response.modelId}` };
       problems = req.rubric?.(result.output) ?? [];
       if (problems.length === 0) return last;
     } catch (error) {
       if (!NoObjectGeneratedError.isInstance(error)) {
-        if (req.mockOnGatewayError) {
-          captureException(error, { stage: "llm.gateway", model, fallback: "mock" });
-          return { value: req.mock(), provider: "mock (gateway unavailable)" };
-        }
+        // Every model in the chain failed or timed out. No template stands in: the caller reports it honestly.
+        const type = gatewayErrorType(error);
+        addBreadcrumb({ category: "llm", level: "error", message: "AI Gateway call failed on every model", data: { stage: req.stage, model, fallbacks, type } });
+        captureExceptionThrottled(`llm.gateway:${type}`, error, { stage: "llm.gateway", llmStage: req.stage, model, fallbacks });
         throw new LlmError(`Gateway call failed: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
       }
-      problems = [`Output did not match the required JSON shape (${error.cause instanceof Error ? error.cause.message : "invalid JSON"}).`];
+      if (error.finishReason === "length") {
+        captureMessage("LLM output hit maxOutputTokens; retrying with double the budget", { stage: req.stage, model, maxOutputTokens });
+        maxOutputTokens *= 2;
+        problems = ["Your answer was cut off before the JSON was complete. Return the complete JSON and keep every field within its limit."];
+      } else {
+        problems = [`Output did not match the required JSON shape (${error.cause instanceof Error ? error.cause.message : "invalid JSON"}).`];
+      }
     }
     lastProblems = problems.join("; ");
     prompt = `${req.user}\n\nYour previous answer had these problems. Fix all of them and return the full corrected JSON:\n- ${problems.join("\n- ")}`;
@@ -127,5 +176,7 @@ export async function generateStructured<T>(req: StructuredRequest<T>): Promise<
     captureMessage("LLM output still failed the rubric; falling back to automatic fixes", { problems: lastProblems });
     return last;
   }
-  throw new LlmError(`LLM returned unusable output after ${maxAttempts} attempts: ${lastProblems}`);
+  const error = new LlmError(`LLM returned unusable output after ${maxAttempts} attempts: ${lastProblems}`);
+  captureExceptionThrottled(`llm.unusable:${req.stage ?? "unknown"}`, error, { stage: "llm.unusable", llmStage: req.stage, model });
+  throw error;
 }

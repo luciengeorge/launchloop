@@ -1,4 +1,5 @@
 import { ImageResponse } from "@vercel/og";
+import { STATIC_OG_HEADERS } from "@/lib/seo";
 import { SITE } from "@/lib/site";
 
 export type ShareCard = { eyebrow: string; headline: string };
@@ -36,6 +37,6 @@ export function renderShareCard({ eyebrow, headline }: ShareCard): ImageResponse
         <div style={{ display: "flex", fontSize: 28, color: "#52525b" }}>launchloop.dev</div>
       </div>
     ),
-    OG_CARD_SIZE,
+    { ...OG_CARD_SIZE, headers: STATIC_OG_HEADERS },
   );
 }

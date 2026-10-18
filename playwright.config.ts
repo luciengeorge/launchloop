@@ -24,8 +24,8 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
   projects: [
-    { name: "desktop", use: { ...devices["Desktop Chrome"] } },
-    { name: "mobile", use: { ...devices["Pixel 7"] }, testMatch: /(home|tagline-checker|og-preview)\.spec\.ts/ },
+    { name: "desktop", use: { ...devices["Desktop Chrome"] }, testIgnore: /newsletter-mobile\.spec\.ts/ },
+    { name: "mobile", use: { ...devices["Pixel 7"] }, testMatch: /(home|tagline-checker|og-preview|newsletter-mobile)\.spec\.ts/ },
   ],
   webServer: [
     {
@@ -54,8 +54,10 @@ export default defineConfig({
         PREVIEW_RATE_LIMIT_PER_HOUR: "40",
         PREVIEW_RATE_LIMIT_PER_DAY: "60",
         MAGIC_LINK_RATE_LIMIT_PER_IP: "500",
+        CHECKOUT_RATE_LIMIT_PER_HOUR: "500",
         AUTH_SECRET: "playwright-test-secret",
         MOCK_LLM_FAILURES: "true",
+        KIT_RETRY_BACKOFF_MS: "200,400",
         SITE_FETCH_TIMEOUT_MS: "1500",
         GITHUB_API_URL: `http://127.0.0.1:${FIXTURE_PORT}/gh`,
         NEXT_PUBLIC_SITE_URL: baseURL,

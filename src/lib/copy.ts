@@ -1,6 +1,6 @@
 import "server-only";
 import { LIMITS, charLength, containsVoteBegging, fitToLimit, stripVoteBegging, xLength } from "./limits";
-import { generateStructured } from "./llm";
+import { LlmError, OUTPUT_TOKENS, generateStructured } from "./llm";
 import { z } from "zod";
 import { kitContentSchema, previewSchema, type Brief, type KitContent, type KitSection, type Preview } from "./schema";
 import { checkTagline, taglineProblems } from "./tagline-check";
@@ -23,6 +23,7 @@ const SYSTEM = `You are LaunchLoop, a launch copywriter for indie developers who
 Write in the maker's own voice (first person singular, "I built").
 Hard rules:
 - Use only facts from the brief and source material. Never invent numbers, users, customers, testimonials, awards or features.
+- Describe how the product works no more broadly than the material does: if it reads a README or a few files, don't say it reads "your code" or "your codebase".
 - Never ask for upvotes, votes, or "support on Product Hunt". Product Hunt and Hacker News ban vote solicitation. Asking for feedback is fine.
 - No hashtags, except at most two at the very end of the LinkedIn post.
 - Avoid hype words: ${BANNED_PHRASES.join(", ")}.
@@ -215,27 +216,37 @@ export function contentRubric(c: KitContent): string[] {
   return problems;
 }
 
-/** Final safety net after the LLM: strip vote requests and hard-fit every limit. */
-export function enforceContent(c: KitContent, fallback: KitContent): KitContent {
+/** Pieces the model left out. A paid kit with any of these is an error, never patched with template copy. */
+function incompleteFields(c: KitContent): string[] {
+  const missing: string[] = [];
+  const need = (label: string, text: string) => !text.trim() && missing.push(label);
+  const l = c.landing;
+  for (const k of ["headline", "subheadline", "cta", "metaTitle", "metaDescription"] as const) need(`landing.${k}`, l[k]);
+  if (l.features.filter((f) => f.title.trim() && f.description.trim()).length < 3) missing.push("landing.features (fewer than 3)");
+  for (const k of ["name", "tagline", "description", "makerComment"] as const) need(`productHunt.${k}`, c.productHunt[k]);
+  need("linkedin", c.linkedin);
+  return missing;
+}
+
+/** Final safety net after the LLM: strip vote requests and hard-fit every limit. Throws LlmError if a piece is missing. */
+export function enforceContent(c: KitContent): KitContent {
+  const missing = incompleteFields(c);
   const t = (s: string, limit: number) => fitToLimit(stripVoteBegging(s), limit);
-  const fallbackIfEmpty = (s: string, f: string) => (s.trim() ? s : f);
-  c = {
-    ...c,
-    landing: { ...c.landing, headline: fallbackIfEmpty(c.landing.headline, fallback.landing.headline), subheadline: fallbackIfEmpty(c.landing.subheadline, fallback.landing.subheadline), cta: fallbackIfEmpty(c.landing.cta, fallback.landing.cta), metaTitle: fallbackIfEmpty(c.landing.metaTitle, fallback.landing.metaTitle), metaDescription: fallbackIfEmpty(c.landing.metaDescription, fallback.landing.metaDescription) },
-    productHunt: { ...c.productHunt, name: fallbackIfEmpty(c.productHunt.name, fallback.productHunt.name), tagline: fallbackIfEmpty(c.productHunt.tagline, fallback.productHunt.tagline), description: fallbackIfEmpty(c.productHunt.description, fallback.productHunt.description), makerComment: fallbackIfEmpty(c.productHunt.makerComment, fallback.productHunt.makerComment) },
-    linkedin: fallbackIfEmpty(c.linkedin, fallback.linkedin),
-  };
   let thread = c.xThread.map((p) => fitToLimit(stripVoteBegging(p).replace(/(^|\s)#\w+/g, "").trim(), LIMITS.xPost, xLength)).filter(Boolean);
   if (thread.length > LIMITS.xThreadMax) thread = thread.slice(0, LIMITS.xThreadMax);
-  for (let i = thread.length; i < LIMITS.xThreadMin; i++) thread.push(fallback.xThread[i] ?? fallback.xThread.at(-1)!);
+  if (thread.length < LIMITS.xThreadMin) missing.push(`xThread (${thread.length} usable posts)`);
+  if (missing.length) throw new LlmError(`Kit copy is incomplete: ${missing.join(", ")}`);
 
-  const features = c.landing.features.slice(0, 6).map((f) => ({ title: t(f.title, LIMITS.featureTitle), description: t(f.description, LIMITS.featureDescription) }));
+  const features = c.landing.features
+    .filter((f) => f.title.trim() && f.description.trim())
+    .slice(0, 6)
+    .map((f) => ({ title: t(f.title, LIMITS.featureTitle), description: t(f.description, LIMITS.featureDescription) }));
   return {
     landing: {
       headline: t(c.landing.headline, LIMITS.landingHeadline),
       subheadline: t(c.landing.subheadline, LIMITS.landingSubheadline),
       cta: t(c.landing.cta, LIMITS.landingCta),
-      features: features.length >= 3 ? features : fallback.landing.features,
+      features,
       metaTitle: t(c.landing.metaTitle, LIMITS.metaTitle),
       metaDescription: t(c.landing.metaDescription, LIMITS.metaDescription),
     },
@@ -260,16 +271,13 @@ export async function generatePreview(brief: Brief): Promise<{ preview: Preview;
     user: `Product brief:\n${briefJson(brief)}\n\nWrite JSON with:\n- tagline: a Product Hunt tagline, max ${LIMITS.phTagline} characters, concrete benefit, no product name, no trailing period.\n- xPost: the opening launch post of an X thread, max ${LIMITS.xPost} weighted characters, includes the link ${linkFor(brief) || "(no link known; omit it)"}, no hashtags.`,
     mock: () => mockPreview(brief),
     rubric: previewRubric,
-    mockOnGatewayError: true,
+    maxOutputTokens: OUTPUT_TOKENS.preview,
     stage: "preview",
   });
-  return {
-    preview: {
-      tagline: fitToLimit(stripVoteBegging(value.tagline).replace(/\.$/, "") || mockPreview(brief).tagline, LIMITS.phTagline),
-      xPost: fitToLimit(stripVoteBegging(value.xPost) || mockPreview(brief).xPost, LIMITS.xPost, xLength),
-    },
-    provider,
-  };
+  const tagline = stripVoteBegging(value.tagline).replace(/\.$/, "").trim();
+  const xPost = stripVoteBegging(value.xPost).trim();
+  if (!tagline || !xPost) throw new LlmError(`The preview came back without ${tagline ? "an X post" : "a tagline"}`);
+  return { preview: { tagline: fitToLimit(tagline, LIMITS.phTagline), xPost: fitToLimit(xPost, LIMITS.xPost, xLength) }, provider };
 }
 
 const TAGLINE_OPTIONS = 3;
@@ -328,18 +336,20 @@ function taglinesRubric(v: { taglines: string[] }, brief: Brief): string[] {
 
 /** Three Product Hunt tagline options for the free tagline checker, from the same brief the free preview uses. */
 export async function generateTaglines(brief: Brief): Promise<{ taglines: string[]; provider: string }> {
-  const fallback = mockTaglines(brief);
   const { value, provider } = await generateStructured({
     schema: taglinesSchema,
     system: SYSTEM,
     speed: "fast",
     user: `Product brief:\n${briefJson(brief)}\n\nWrite JSON { "taglines": [${TAGLINE_OPTIONS} different Product Hunt taglines] }. Each one: max ${LIMITS.phTagline} characters, says what the product does and for whom using facts from the brief, sentence case, no product name, no trailing period, no emoji, no "AI-powered", "revolutionary", "ultimate" or "seamless". Use a different angle for each, for example "[Outcome] for [who]", "[Action] without [pain]", and a plain description of the main feature.`,
-    mock: () => ({ taglines: fallback }),
+    mock: () => ({ taglines: mockTaglines(brief) }),
     rubric: (v) => taglinesRubric(v, brief),
-    mockOnGatewayError: true,
+    maxOutputTokens: OUTPUT_TOKENS.preview,
     stage: "preview",
   });
-  return { taglines: pickTaglines(value.taglines, brief, fallback), provider };
+  // Only the model's own options: template taglines never top up the list.
+  const taglines = pickTaglines(value.taglines, brief, []);
+  if (!taglines.length) throw new LlmError("No usable tagline came back");
+  return { taglines, provider };
 }
 
 const SECTION_PREFIX: Record<KitSection, string> = { landing: "landing.", productHunt: "productHunt.", xThread: "xThread", linkedin: "linkedin" };
@@ -347,6 +357,8 @@ const SECTION_PREFIX: Record<KitSection, string> = { landing: "landing.", produc
 interface SectionSpec<T> {
   schema: z.ZodType<T>;
   speed: "main" | "fast";
+  /** Defaults to OUTPUT_TOKENS.kitSection. */
+  maxOutputTokens?: number;
   prompt: (brief: Brief, preview: Preview) => string;
   toContent: (value: T) => Partial<KitContent>;
 }
@@ -376,6 +388,7 @@ const SECTIONS: { [K in KitSection]: SectionSpec<unknown> } = {
   linkedin: {
     schema: z.object({ post: z.string() }),
     speed: "fast",
+    maxOutputTokens: OUTPUT_TOKENS.linkedin,
     prompt: () => `Write a LinkedIn launch post as JSON: { "post": "strong first line, short paragraphs, max ${LIMITS.linkedin} chars, at most 2 hashtags at the end" }`,
     toContent: (v) => ({ linkedin: (v as { post: string }).post }),
   },
@@ -391,13 +404,15 @@ export async function generateKitSection(section: KitSection, brief: Brief, prev
   const { value, provider } = await generateStructured<unknown>({
     schema: spec.schema,
     speed: spec.speed,
+    maxOutputTokens: spec.maxOutputTokens ?? OUTPUT_TOKENS.kitSection,
     stage: "kit",
     system: SYSTEM,
     user: `Product brief:\n${briefJson(brief)}\n\nSupporting source material (for facts only):\n${digest}\n\n${spec.prompt(brief, preview)}`,
     mock: () => fallbackValue,
     rubric: (v) => contentRubric({ ...fallback, ...spec.toContent(v) }).filter((p) => p.startsWith(SECTION_PREFIX[section])),
   });
-  const enforced = enforceContent({ ...fallback, ...spec.toContent(value) }, fallback);
+  // The other sections come from the template only to complete the shape; just this section is kept.
+  const enforced = enforceContent({ ...fallback, ...spec.toContent(value) });
   const key = section as keyof KitContent;
   return { content: { [key]: enforced[key] } as Partial<KitContent>, provider };
 }

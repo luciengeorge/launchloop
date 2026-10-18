@@ -1,86 +1,11 @@
 import "server-only";
 import { z } from "zod";
 import type { IngestResult } from "./ingest";
-import { COMMIT_SAMPLE, type PackageJson, type RepoData } from "./ingest/github";
-import { generateStructured } from "./llm";
+import { COMMIT_SAMPLE, type RepoData } from "./ingest/github";
+import { LlmError, OUTPUT_TOKENS, generateStructured } from "./llm";
+import { pricingProofPoint } from "./prices";
 import { briefSchema, type Brief } from "./schema";
-
-const STACK_MAP: Record<string, string> = {
-  next: "Next.js",
-  react: "React",
-  vue: "Vue",
-  nuxt: "Nuxt",
-  svelte: "Svelte",
-  "@sveltejs/kit": "SvelteKit",
-  astro: "Astro",
-  vite: "Vite",
-  "@remix-run/react": "Remix",
-  tailwindcss: "Tailwind CSS",
-  "@supabase/supabase-js": "Supabase",
-  convex: "Convex",
-  firebase: "Firebase",
-  prisma: "Prisma",
-  "@prisma/client": "Prisma",
-  "drizzle-orm": "Drizzle",
-  stripe: "Stripe",
-  openai: "OpenAI",
-  "@anthropic-ai/sdk": "Anthropic",
-  ai: "Vercel AI SDK",
-  "@clerk/nextjs": "Clerk",
-  "next-auth": "Auth.js",
-  "better-auth": "Better Auth",
-  "tesseract.js": "Tesseract.js",
-  "three": "Three.js",
-  expo: "Expo",
-  "react-native": "React Native",
-  electron: "Electron",
-  "@tauri-apps/api": "Tauri",
-  hono: "Hono",
-  express: "Express",
-};
-
-/** Frameworks and build tools that legitimately live in devDependencies. Servers and SDKs there are usually test or example fixtures. */
-const DEV_STACK = new Set(["next", "react", "vue", "nuxt", "svelte", "@sveltejs/kit", "astro", "vite", "@remix-run/react", "tailwindcss", "prisma", "electron", "@tauri-apps/api", "expo", "react-native"]);
-
-/** GitHub topics that name a stack, used when package.json can't tell us. */
-const TOPIC_STACK: Record<string, string> = {
-  nextjs: "Next.js",
-  react: "React",
-  reactjs: "React",
-  vue: "Vue",
-  vuejs: "Vue",
-  nuxt: "Nuxt",
-  svelte: "Svelte",
-  sveltekit: "SvelteKit",
-  astro: "Astro",
-  vite: "Vite",
-  remix: "Remix",
-  tailwindcss: "Tailwind CSS",
-  supabase: "Supabase",
-  convex: "Convex",
-  prisma: "Prisma",
-  electron: "Electron",
-  tauri: "Tauri",
-  expo: "Expo",
-  "react-native": "React Native",
-};
-
-/** Monorepo and tooling roots list every package's build and test tooling in devDependencies, so those say nothing about the product. */
-const MONOREPO_TOOLS = ["turbo", "lerna", "nx"];
-const isToolingRoot = (pkg: PackageJson) =>
-  pkg.workspaces !== undefined ||
-  MONOREPO_TOOLS.some((t) => t in (pkg.devDependencies ?? {})) ||
-  (!Object.keys(pkg.dependencies ?? {}).length && Object.keys(pkg.devDependencies ?? {}).length > 40);
-
-function detectStack(repo: RepoData | undefined): string[] {
-  const pkg = repo?.packageJson;
-  const runtime = Object.keys(pkg?.dependencies ?? {});
-  const dev = pkg && !isToolingRoot(pkg) ? Object.keys(pkg.devDependencies ?? {}).filter((d) => DEV_STACK.has(d)) : [];
-  const stack = [...runtime, ...dev].map((d) => STACK_MAP[d]).filter(Boolean);
-  if (!stack.length) stack.push(...(repo?.topics ?? []).map((t) => TOPIC_STACK[t]).filter(Boolean));
-  if (!stack.length && repo?.language) stack.push(repo.language);
-  return [...new Set(stack)];
-}
+import { detectStack } from "./stack";
 
 const DAY_MS = 86_400_000;
 
@@ -167,6 +92,9 @@ function dedupeFeatures(items: string[]): string[] {
   return kept.map((k) => k.text);
 }
 
+/** Placeholder when no source names the product. Never shown as the brief's name in production. */
+const UNKNOWN_NAME = "Your app";
+
 export interface Facts {
   name: string;
   oneLiner?: string;
@@ -196,7 +124,7 @@ export function extractFacts({ repo, site, primary }: IngestResult): Facts {
     primary === "site"
       ? [siteName, siteTitle, readmeTitle && stripMarkdown(readmeTitle), pkgName, repoName]
       : [readmeTitle && stripMarkdown(readmeTitle), pkgName, repoName, siteName, siteTitle];
-  const name = candidates.find(plausibleName) ?? "Your app";
+  const name = candidates.find(plausibleName) ?? UNKNOWN_NAME;
 
   const featureSection = readme ? readmeSection(readme, /feature|what it does|highlights/i) : undefined;
   const repoFeatures = featureSection ? bullets(featureSection) : bullets(readme);
@@ -219,7 +147,8 @@ export function extractFacts({ repo, site, primary }: IngestResult): Facts {
     }
   }
   if (repo?.license) proofPoints.push(`Open source (${repo.license})`);
-  if (site?.prices.length) proofPoints.push(`Pricing on site: ${site.prices.join(", ")}`);
+  const pricing = pricingProofPoint(site?.prices ?? []);
+  if (pricing) proofPoints.push(pricing);
 
   const problem = firstParagraph(readme ? readmeSection(readme, /why|problem|motivation/i) : undefined)?.split(/(?<=[.!?])\s+/)[0];
 
@@ -273,6 +202,15 @@ export function sourceDigest({ repo, site }: IngestResult, maxReadme = 6000): st
 
 const llmBriefSchema = briefSchema.pick({ name: true, oneLiner: true, audience: true, problem: true, features: true, tone: true });
 
+const BRIEF_TEXT_FIELDS = ["name", "oneLiner", "audience", "problem", "tone"] as const;
+
+function briefRubric(value: z.infer<typeof llmBriefSchema>): string[] {
+  const problems: string[] = BRIEF_TEXT_FIELDS.filter((k) => !value[k]?.trim()).map((k) => `${k} is empty; fill it from the material.`);
+  if (!value.features.some((f) => f.trim())) problems.push("features is empty; list 3-6 features that the material describes.");
+  return problems;
+}
+
+/** Template brief for mock mode (local dev and tests) only. */
 function heuristicBrief(facts: Facts): Brief {
   const features = facts.features.length ? facts.features : [facts.oneLiner ?? `${facts.name} does one job well`];
   return {
@@ -291,27 +229,31 @@ function heuristicBrief(facts: Facts): Brief {
 
 export async function buildBrief(source: IngestResult): Promise<{ brief: Brief; provider: string }> {
   const facts = extractFacts(source);
-  const fallback = heuristicBrief(facts);
   const { value, provider } = await generateStructured<z.infer<typeof llmBriefSchema>>({
     schema: llmBriefSchema,
     system:
       "You turn raw repository and website material into a short, factual product brief for launch copy. Use only what the material says. If something is unknown, write a cautious, generic statement instead of inventing specifics. Return JSON.",
     user: `Write a product brief as JSON with keys: name (product name, max 30 chars), oneLiner (max 140 chars, what it does and for whom), audience (who it is for), problem (1-2 sentences, the pain it removes), features (3-6 short concrete features actually present in the material, max 120 chars each), tone (3-6 words describing the maker's voice, inferred from the README).\n\nDetected facts: ${JSON.stringify(facts)}\n\nSource material:\n${sourceDigest(source)}`,
-    mock: () => fallback,
-    mockOnGatewayError: true,
+    mock: () => heuristicBrief(facts),
+    rubric: briefRubric,
+    maxOutputTokens: OUTPUT_TOKENS.brief,
     stage: "brief",
   });
-  const nonEmpty = Object.fromEntries(Object.entries(value).filter(([, v]) => (typeof v === "string" ? v.trim() : true)));
+  // A field the model still left empty may come from the source itself, never from canned text.
+  const fromSource: Record<(typeof BRIEF_TEXT_FIELDS)[number], string> = {
+    name: facts.name === UNKNOWN_NAME ? "" : facts.name,
+    oneLiner: facts.oneLiner ?? "",
+    problem: facts.problem ?? "",
+    audience: "",
+    tone: "",
+  };
+  const text = Object.fromEntries(BRIEF_TEXT_FIELDS.map((k) => [k, value[k]?.trim() || fromSource[k]])) as Record<(typeof BRIEF_TEXT_FIELDS)[number], string>;
+  const llmFeatures = value.features.map((f) => f.trim()).filter(Boolean);
+  const features = (llmFeatures.length ? llmFeatures : facts.features).slice(0, 6);
+  const missing = [...BRIEF_TEXT_FIELDS.filter((k) => !text[k]), ...(features.length ? [] : ["features"])];
+  if (missing.length) throw new LlmError(`The brief is still missing ${missing.join(", ")} after every attempt`);
   return {
-    brief: {
-      ...fallback,
-      ...nonEmpty,
-      features: value.features.filter((f) => f.trim()).length ? value.features.filter((f) => f.trim()).slice(0, 6) : fallback.features,
-      proofPoints: facts.proofPoints,
-      stack: facts.stack,
-      url: facts.url,
-      repoUrl: facts.repoUrl,
-    },
+    brief: { ...text, features, proofPoints: facts.proofPoints, stack: facts.stack, url: facts.url, repoUrl: facts.repoUrl },
     provider,
   };
 }

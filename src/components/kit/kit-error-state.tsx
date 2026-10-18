@@ -13,9 +13,9 @@ export function KitErrorState({ kitId }: { kitId: string }) {
     <div role="alert" data-testid="kit-error-state" className="flex flex-col items-center gap-4 rounded-2xl border border-destructive/30 bg-card px-6 py-12 text-center">
       <AlertTriangle className="size-8 text-destructive" aria-hidden="true" />
       <div className="max-w-md space-y-1">
-        <p className="text-lg font-medium">We couldn&apos;t finish writing your kit</p>
+        <p className="text-lg font-medium">We hit a problem generating your kit</p>
         <p className="text-sm text-muted-foreground">
-          Your payment is safe and nothing is lost. Our AI writer failed a few times in a row, which usually clears up within minutes. Try again, or email hello@launchloop.dev and we&apos;ll sort it or refund you.
+          Your payment is safe. Our AI writer failed several times in a row, so we stopped rather than give you anything half-finished. We&apos;re on it: you&apos;ll get your kit, or a full refund. We&apos;ve emailed you, and you can try again now or reply to that email.
         </p>
       </div>
       <Button

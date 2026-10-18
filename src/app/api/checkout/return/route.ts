@@ -1,8 +1,10 @@
 import { after } from "next/server";
+import { getSession } from "@/lib/auth";
 import { withAnalyticsId } from "@/lib/experiments";
 import { fulfilKit, recordPayment } from "@/lib/fulfil";
+import { normaliseEmail } from "@/lib/kits";
 import { captureException } from "@/lib/observability";
-import { checkoutDecision, stripe } from "@/lib/payments";
+import { checkoutDecision, isPaidSession, kitSuccessPath, stripe } from "@/lib/payments";
 import { isProductId } from "@/lib/products";
 
 export const maxDuration = 120;
@@ -23,18 +25,18 @@ export async function GET(req: Request) {
     if (!checkoutDecision(session).handle) return Response.redirect(new URL("/?checkout=error", url), 303);
     const product = session.metadata?.product;
     const kitId = session.metadata?.kitId;
-    if (session.payment_status !== "paid" || !isProductId(product)) {
+    if (!isPaidSession(session) || !isProductId(product) || !kitId) {
       return Response.redirect(new URL(kitId ? `/kit/${kitId}?checkout=pending` : "/ship-loop?checkout=pending", url), 303);
     }
     // Same anonymous id on the success page, so its flags and any upsell checkout join this purchase.
     const aid = session.metadata?.ph_distinct_id;
     const email = session.customer_details?.email ?? session.customer_email ?? undefined;
     await recordPayment({ product, kitId, email, ref: session.id, customerId: typeof session.customer === "string" ? session.customer : session.customer?.id });
-    if (product === "kit" && kitId) {
-      after(() => fulfilKit(kitId));
-      return Response.redirect(new URL(withAnalyticsId(`/account/kits/${kitId}?paid=1`, aid), url), 303);
-    }
-    return Response.redirect(new URL(withAnalyticsId(`/ship-loop/thanks?plan=${product}`, aid), url), 303);
+    after(() => fulfilKit(kitId));
+    // A guest who logged in during checkout as someone else would 404 in /account, so they get the guest page too.
+    const account = await getSession();
+    const signedIn = !!account && (session.metadata?.logged_in === "1" || (!!email && normaliseEmail(email) === account.email));
+    return Response.redirect(new URL(withAnalyticsId(kitSuccessPath(kitId, session.id, signedIn), aid), url), 303);
   } catch (error) {
     captureException(error, { stage: "api.checkout.return", sessionId });
     return Response.redirect(new URL("/?checkout=error", url), 303);

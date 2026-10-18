@@ -9,7 +9,7 @@ import { chromium } from "@playwright/test";
 import { KitReadyEmail } from "../src/emails/kit-ready";
 import { LOGO_PNG_BASE64 } from "../src/emails/logo-data";
 import { MagicLinkEmail } from "../src/emails/magic-link";
-import { ShipLoopWelcomeEmail } from "../src/emails/ship-loop-welcome";
+import { NewsletterWelcomeEmail } from "../src/emails/newsletter-welcome";
 
 const out = process.argv[2] ?? "launchloop-emails";
 const logo = `data:image/png;base64,${LOGO_PNG_BASE64}`;
@@ -19,7 +19,7 @@ const withLogo = (html: string) => html.replaceAll("cid:launchloop-logo", logo);
 const emails = {
   "magic-link": <MagicLinkEmail {...MagicLinkEmail.PreviewProps} />,
   "kit-ready": <KitReadyEmail {...KitReadyEmail.PreviewProps} />,
-  "ship-loop-welcome": <ShipLoopWelcomeEmail {...ShipLoopWelcomeEmail.PreviewProps} />,
+  "newsletter-welcome": <NewsletterWelcomeEmail {...NewsletterWelcomeEmail.PreviewProps} />,
 };
 
 async function main() {

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { logIn, magicLinkFor, makeSampleKit, uniqueEmail, unlockAndPay } from "./helpers";
+import { logIn, magicLinkFor, makeSampleKit, sendLoginLink, uniqueEmail, unlockAndPay } from "./helpers";
 
 test("magic-link login, single-use token, header state and log out", async ({ page }) => {
   await page.goto("/");
@@ -12,9 +12,7 @@ test("magic-link login, single-use token, header state and log out", async ({ pa
   await expect(banner.getByRole("link", { name: "FAQ" })).toBeVisible();
 
   const email = uniqueEmail("login");
-  await page.goto("/login");
-  await page.getByLabel("Email").fill(email);
-  await page.getByRole("button", { name: "Email me a login link" }).click();
+  await sendLoginLink(page, email);
   const link = await magicLinkFor(page.request, email);
 
   // A scanner-style GET (no JS, no POST) does not consume it.
@@ -174,18 +172,6 @@ test("kits paid for with an email show up for that account with downloads and bi
   await p2.getByRole("button", { name: "Manage billing" }).click();
   await expectBillingToastOnce(p2, "unavailable in test mode");
   await fresh.close();
-});
-
-test("Ship Loop subscribers get a Manage billing button", async ({ page }) => {
-  const email = uniqueEmail("shiploop");
-  await page.goto("/checkout/mock?product=shiploop_monthly");
-  await page.getByLabel("Email for your receipt and kit").fill(email);
-  await page.getByRole("button", { name: /Pay/ }).click();
-  await page.waitForURL(/\/ship-loop\/thanks/);
-
-  await logIn(page, email);
-  await page.getByRole("button", { name: "Manage billing" }).click();
-  await expectBillingToastOnce(page, "unavailable in test mode");
 });
 
 test("billing redirect notes toast once and leave the URL clean", async ({ page }) => {

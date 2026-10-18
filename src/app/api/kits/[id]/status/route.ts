@@ -1,14 +1,19 @@
 import { after } from "next/server";
 import { MAX_ATTEMPTS, fulfilKit, needsFulfilment } from "@/lib/fulfil";
 import { getDraft } from "@/lib/generation";
-import { getKit } from "@/lib/kits";
+import { getKit, getPendingKit } from "@/lib/kits";
 
 export const maxDuration = 120;
 
 export async function GET(_req: Request, ctx: RouteContext<"/api/kits/[id]/status">) {
   const { id } = await ctx.params;
   const kit = await getKit(id);
-  if (!kit) return Response.json({ error: "Kit not found" }, { status: 404 });
+  if (!kit) {
+    // A free preview still being written (or that failed) after its stream dropped.
+    const pending = await getPendingKit(id);
+    if (pending) return Response.json({ pending }, { status: 202, headers: { "Cache-Control": "no-store" } });
+    return Response.json({ error: "Kit not found" }, { status: 404 });
+  }
 
   if (needsFulfilment(kit)) after(() => fulfilKit(id));
 

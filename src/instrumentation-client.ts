@@ -1,9 +1,12 @@
-import { loadAnalytics } from "./lib/analytics";
+import { loadAnalytics, rememberFirstTouch } from "./lib/analytics";
 import { reportClientError } from "./lib/client";
 import { captureClientException, loadSentry, loadedSentry } from "./lib/sentry-client";
 
+// Synchronous and SDK-free: the landing URL is read before any in-app navigation can change it.
+rememberFirstTouch();
+
 /**
- * PostHog and Sentry load after the window load event, so their ~240 KB (gzipped) of script doesn't compete with the
+ * PostHog and Sentry load after the window load event, so their ~160 KB (gzipped) of script doesn't compete with the
  * page's own HTML, CSS, fonts and hydration. Each also loads on demand if it's needed sooner.
  */
 function loadSdks() {

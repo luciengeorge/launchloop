@@ -1,4 +1,4 @@
-export type ProductId = "kit" | "shiploop_monthly" | "shiploop_yearly";
+export type ProductId = "kit";
 
 export interface Product {
   id: ProductId;
@@ -16,25 +16,11 @@ export const PRODUCTS: Record<ProductId, Product> = {
     amountPence: 1900,
     priceLabel: "£19",
   },
-  shiploop_monthly: {
-    id: "shiploop_monthly",
-    name: "Ship Loop pre-order (monthly)",
-    description: "First month of Ship Loop, charged now and fully refundable until launch. Then £12/month.",
-    amountPence: 1200,
-    priceLabel: "£12/month",
-  },
-  shiploop_yearly: {
-    id: "shiploop_yearly",
-    name: "Ship Loop pre-order (yearly)",
-    description: "First year of Ship Loop, charged now and fully refundable until launch. Then £99/year.",
-    amountPence: 9900,
-    priceLabel: "£99/year",
-  },
 };
 
 export const isProductId = (v: unknown): v is ProductId => typeof v === "string" && v in PRODUCTS;
 
-/** The kit, or either Ship Loop billing period. */
+/** Analytics `product_type`. Ship Loop is a waitlist, so every purchase is the kit. */
 export type ProductType = "kit" | "shiploop";
 export const productType = (product: ProductId): ProductType => (product === "kit" ? "kit" : "shiploop");
 

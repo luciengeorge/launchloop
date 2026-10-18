@@ -1,5 +1,7 @@
 import type { CaptureResult, PostHog, PostHogInterface } from "posthog-js";
-import { ANALYTICS_ID_PARAM, isAnalyticsId } from "./experiments";
+import { type Attribution, readLandingAttribution } from "./attribution";
+import { ANALYTICS_ID_PARAM, EXPERIMENTS, isAnalyticsId, type ExperimentKey, type FallbackReason, type Served, type Variant } from "./experiments";
+import type { NewsletterPlacement, WelcomeOutcome } from "./newsletter";
 import { POSTHOG_PROXY_PATH, posthogUiHost } from "./posthog-config";
 import { scrubProperties } from "./scrub-url";
 import type { StartPlan } from "./start-intent";
@@ -10,15 +12,49 @@ export type PreviewSource = "github" | "site" | "sample";
 export interface ClientEvents {
   preview_started: { source: PreviewSource; plan: StartPlan; isLoggedIn: boolean };
   preview_completed: { kitId: string; source: PreviewSource; plan: StartPlan; isLoggedIn: boolean; durationMs: number };
-  preview_failed: { code: string; source: PreviewSource; plan: StartPlan; isLoggedIn: boolean; durationMs: number };
+  preview_failed: {
+    code: string;
+    source: PreviewSource;
+    plan: StartPlan;
+    isLoggedIn: boolean;
+    durationMs: number;
+    phase?: "request" | "stream";
+    errorName?: string;
+    errorMessage?: string;
+    online?: boolean;
+    visibility?: DocumentVisibilityState;
+    /** The server had accepted the preview, so the form sent the visitor to /kit/[id] instead of showing an error. */
+    recovered?: boolean;
+  };
+  newsletter_subscribed: { placement: NewsletterPlacement; welcome: WelcomeOutcome };
+  /** Control served without a PostHog assignment (see Served). Not an exposure, so it stays out of the experiment. */
+  flag_fallback: { flag: ExperimentKey; variant: Variant; reason: FallbackReason; fallback: true };
 }
+
+/** Landing with ?qa=1 tags every event on this page load as QA traffic. */
+const QA_PARAM = "qa";
 
 const key = process.env.NEXT_PUBLIC_POSTHOG_KEY;
 
 export const analyticsEnabled = Boolean(key);
 
 /** Where and when this page load started. The SDK loads later, possibly after a client-side navigation. */
-const landing = typeof window === "undefined" ? undefined : { url: window.location.href, at: new Date() };
+const pageStart = typeof window === "undefined" ? undefined : { url: window.location.href, at: new Date() };
+
+let landing: Attribution | undefined;
+let landed = false;
+
+/**
+ * Reads the landing URL's UTMs and the referrer's domain once per page load and keeps them in memory (no cookies or
+ * storage). In-app navigations keep them; the preview request sends them so the kit remembers where the buyer came from.
+ */
+export function rememberFirstTouch() {
+  if (landed) return;
+  landed = true;
+  landing = readLandingAttribution(window.location, document.referrer);
+}
+
+export const firstTouch = (): Attribution | undefined => landing;
 
 let client: Promise<PostHog | undefined> | undefined;
 
@@ -28,10 +64,10 @@ let client: Promise<PostHog | undefined> | undefined;
  * Resolves undefined when analytics is off or the SDK fails to load.
  */
 export function loadAnalytics(): Promise<PostHog | undefined> {
-  if (!key || !landing) return Promise.resolve(undefined);
+  if (!key || !pageStart) return Promise.resolve(undefined);
   client ??= import("posthog-js").then(
     ({ default: posthog }) => {
-      initAnalytics(posthog, key, landing);
+      initAnalytics(posthog, key, pageStart);
       return posthog;
     },
     () => undefined,
@@ -48,7 +84,8 @@ export function loadAnalytics(): Promise<PostHog | undefined> {
  */
 function initAnalytics(posthog: PostHog, token: string, start: { url: string; at: Date }) {
   if (posthog.__loaded) return;
-  const handoff = new URL(start.url).searchParams.get(ANALYTICS_ID_PARAM);
+  const params = new URL(start.url).searchParams;
+  const handoff = params.get(ANALYTICS_ID_PARAM);
   posthog.init(token, {
     ...(isAnalyticsId(handoff) ? { bootstrap: { distinctID: handoff } } : {}),
     api_host: POSTHOG_PROXY_PATH,
@@ -67,7 +104,12 @@ function initAnalytics(posthog: PostHog, token: string, start: { url: string; at
     before_send: scrubEvent,
     // Runs before the SDK's own pageview, which is for the URL it finds at init.
     loaded: (ph) => {
-      ph.register({ env: process.env.NEXT_PUBLIC_VERCEL_ENV ?? "development" });
+      ph.register({
+        env: process.env.NEXT_PUBLIC_VERCEL_ENV ?? "development",
+        // posthog-js already drops events when this is true unless its bot filter is turned off.
+        is_webdriver: navigator.webdriver === true,
+        ...(params.get(QA_PARAM) === "1" ? { qa: true } : {}),
+      });
       if (window.location.href !== start.url) recordLanding(ph, start);
     },
   });
@@ -84,11 +126,23 @@ function recordLanding(posthog: PostHogInterface, start: { url: string; at: Date
   posthog.capture("$pageview", { $current_url: start.url, $pathname: url.pathname, $host: url.host }, { timestamp: start.at });
 }
 
+/**
+ * posthog-js tags every event with `$feature/<key>` from its own flag evaluation for this page's id,
+ * which needn't be what the page served (the promo is bucketed on the kit; a timeout serves control).
+ * Experiment variants travel only on exposures and the server's checkout events, which set them explicitly.
+ */
+function withoutAutoExperimentProperties(event: CaptureResult): CaptureResult["properties"] {
+  if (event.event === "$feature_flag_called") return event.properties;
+  const properties = { ...event.properties };
+  for (const key of Object.values(EXPERIMENTS)) delete properties[`$feature/${key}`];
+  return properties;
+}
+
 function scrubEvent(event: CaptureResult | null): CaptureResult | null {
   if (!event) return event;
   return {
     ...event,
-    properties: scrubProperties(event.properties),
+    properties: scrubProperties(withoutAutoExperimentProperties(event)),
     ...(event.$set ? { $set: scrubProperties(event.$set) } : {}),
     ...(event.$set_once ? { $set_once: scrubProperties(event.$set_once) } : {}),
   };
@@ -96,6 +150,18 @@ function scrubEvent(event: CaptureResult | null): CaptureResult | null {
 
 export function track<E extends keyof ClientEvents>(event: E, properties: ClientEvents[E]) {
   void loadAnalytics().then((posthog) => posthog?.capture(event, properties));
+}
+
+/**
+ * Records what an experiment served on this page, once per view, always with the variant shown:
+ * PostHog's $feature_flag_called exposure for an assignment, or flag_fallback for control served
+ * without one, which keeps the view out of the experiment.
+ */
+export function trackServed(key: ExperimentKey, served: Served) {
+  if (served.fallback) return track("flag_fallback", { flag: key, variant: served.variant, reason: served.fallback, fallback: true });
+  void loadAnalytics().then((posthog) =>
+    posthog?.capture("$feature_flag_called", { $feature_flag: key, $feature_flag_response: served.variant, [`$feature/${key}`]: served.variant }),
+  );
 }
 
 /** This page's anonymous PostHog id, sent with checkout so server events join the same funnel. */

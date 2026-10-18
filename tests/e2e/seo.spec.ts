@@ -155,17 +155,22 @@ test("guides and tools hubs link every guide and tool", async ({ page, request }
   await expect(page).toHaveURL(/\/guides$/);
 });
 
-test("pricing and Ship Loop ship product JSON-LD with GBP offers and breadcrumbs", async ({ page }) => {
+test("pricing ships product JSON-LD with GBP offers; Ship Loop has none (waitlist only); both have breadcrumbs", async ({ page }) => {
   for (const [path, name] of [
     ["/pricing", "LaunchLoop"],
     ["/ship-loop", "Ship Loop"],
   ]) {
     await page.goto(path);
     const nodes = await jsonLdNodes(page);
-    const app = findNode<{ name: string; offers: { price: string; priceCurrency: string }[] }>(nodes, "SoftwareApplication");
+    const app = findNode<{ name: string; offers?: { name: string; price: string; priceCurrency: string; availability: string }[] }>(nodes, "SoftwareApplication");
     expect(app.name).toBe(name);
-    expect(app.offers.length).toBeGreaterThan(1);
-    for (const offer of app.offers) expect(offer).toMatchObject({ priceCurrency: "GBP", price: expect.stringMatching(/^\d+(\.\d{2})?$/) });
+    if (name === "Ship Loop") {
+      expect(app.offers).toBeUndefined();
+    } else {
+      expect(app.offers!.map((o) => o.name)).toEqual(["Free preview", "Launch Kit (one-off)"]);
+      for (const offer of app.offers!) expect(offer).toMatchObject({ priceCurrency: "GBP", price: expect.stringMatching(/^\d+(\.\d{2})?$/) });
+    }
+    expect(JSON.stringify(nodes)).not.toMatch(/PreOrder|Ship Loop (monthly|yearly)/);
     expect(nodes.map((n) => n["@type"])).toContain("BreadcrumbList");
   }
 });

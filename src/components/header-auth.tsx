@@ -4,10 +4,11 @@ import Link from "next/link";
 import { useSyncExternalStore } from "react";
 import { buttonVariants } from "@/components/ui/button";
 import { hasSessionHint } from "@/lib/session-hint";
+import { KitPrice } from "./kit-price";
 import { StartLink } from "./start-link";
 
-const linkCls = "inline-flex h-8 items-center text-sm leading-5 text-muted-foreground transition-colors hover:text-foreground";
-const ctaCls = buttonVariants({ size: "lg", className: "px-4" });
+const linkCls = "inline-flex h-8 shrink-0 items-center whitespace-nowrap text-sm leading-5 text-muted-foreground transition-colors hover:text-foreground";
+const ctaCls = buttonVariants({ size: "lg", className: "px-3 sm:px-4" });
 
 // Login and logout are full page loads, so this only needs to catch pages restored from the back/forward cache.
 function subscribe(onChange: () => void) {
@@ -24,7 +25,7 @@ function subscribe(onChange: () => void) {
  * (including CDN-cached ones like the home page) can stay fully static. The server always renders the signed-out
  * state; the real session is still checked by /account and every API that needs it.
  */
-export function HeaderAuth() {
+export function HeaderAuth({ promo }: { promo: boolean }) {
   const signedIn = useSyncExternalStore(subscribe, hasSessionHint, () => false);
   if (!signedIn) {
     return (
@@ -32,9 +33,21 @@ export function HeaderAuth() {
         <Link href="/login" className={linkCls} data-testid="nav-login">
           Log in
         </Link>
-        <StartLink plan="kit" className={ctaCls}>
-          Get my launch kit, £19
-        </StartLink>
+        {promo ? (
+          // Two prices don't fit beside the logo and "Log in" on a phone, or beside the nav links from md to lg, with the full label.
+          <StartLink plan="kit" className={ctaCls}>
+            <span className="sm:max-md:hidden lg:hidden">Get kit, </span>
+            <span className="max-sm:hidden md:max-lg:hidden">Get my launch kit, </span>
+            <KitPrice promo />
+          </StartLink>
+        ) : (
+          <StartLink plan="kit" className={ctaCls}>
+            {/* Phones show "Get my kit, £19" so the header fits in 360px; the accessible name keeps "launch". */}
+            <span>
+              Get my <span className="max-sm:sr-only">launch </span>kit, <KitPrice promo={false} />
+            </span>
+          </StartLink>
+        )}
       </>
     );
   }
