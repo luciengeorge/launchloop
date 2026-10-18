@@ -1,6 +1,7 @@
 import { after } from "next/server";
 import type Stripe from "stripe";
 import { captureServerEvent, eventUuid, resolveDistinctId } from "@/lib/analytics-server";
+import { attributionProperties } from "@/lib/attribution";
 import { env } from "@/lib/env";
 import { featureProperties, parseExperiments } from "@/lib/experiments";
 import { fulfilKit, recordPayment } from "@/lib/fulfil";
@@ -65,6 +66,7 @@ async function trackCompleted(s: Stripe, session: Stripe.Checkout.Session, produ
     properties: {
       plan: product,
       kitId: m.kitId,
+      ...attributionProperties(m),
       price_id: m.price_id ?? "unknown",
       amount: session.amount_total ?? 0,
       currency: session.currency ?? "gbp",

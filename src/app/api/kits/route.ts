@@ -1,4 +1,5 @@
 import { after } from "next/server";
+import { parseAttribution } from "@/lib/attribution";
 import { kitErrorBody } from "@/lib/errors";
 import { speculateDraft } from "@/lib/generation";
 import { IngestError } from "@/lib/ingest";
@@ -7,7 +8,7 @@ import type { Kit } from "@/lib/schema";
 import { cookies } from "next/headers";
 import { ANON_KITS_COOKIE, getSession, readAnonKits, secureCookies } from "@/lib/auth";
 import { type KitRequestTrace, phase, previewSourceOf, safeInput, traceKitRequest } from "@/lib/kit-tracing";
-import { createKit, markKitFailed, markKitPending, newId } from "@/lib/kits";
+import { type KitOptions, createKit, markKitFailed, markKitPending, newId } from "@/lib/kits";
 import { captureException } from "@/lib/observability";
 import { freePreviewLimit } from "@/lib/rate-limit";
 
@@ -25,8 +26,9 @@ export async function POST(req: Request) {
     }
 
     let url: unknown;
+    let attribution: unknown;
     try {
-      ({ url } = (await req.json()) as { url?: unknown });
+      ({ url, attribution } = (await req.json()) as { url?: unknown; attribution?: unknown });
     } catch {
       trace.end({ status: "error", code: "invalid_url" });
       return Response.json(kitErrorBody("invalid_url", "Send JSON like { \"url\": \"https://github.com/you/app\" }."), { status: 400 });
@@ -40,7 +42,7 @@ export async function POST(req: Request) {
     // with {type:"done"} or {type:"error"}. The id is fixed up front so it can go in the cookie before the stream starts.
     const id = newId();
     const session = await getSession();
-    const opts = { id, ownerEmail: session?.email };
+    const opts = { id, ownerEmail: session?.email, attribution: parseAttribution(attribution) } satisfies KitOptions;
     const stream = !!req.headers.get("accept")?.includes("application/x-ndjson");
     trace.set({ "kit.source": previewSourceOf(url), "kit.input": safeInput(url), "kit.id": id, "kit.logged_in": !!session, "kit.stream": stream });
     if (!session) {
@@ -65,7 +67,7 @@ export async function POST(req: Request) {
   });
 }
 
-function streamKit(url: string, opts: { id: string; ownerEmail?: string }, trace: KitRequestTrace): Response {
+function streamKit(url: string, opts: KitOptions & { id: string }, trace: KitRequestTrace): Response {
   const encoder = new TextEncoder();
   const body = new ReadableStream<Uint8Array>({
     async start(controller) {

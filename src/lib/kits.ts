@@ -2,6 +2,7 @@ import "server-only";
 import { randomBytes } from "node:crypto";
 import { buildBrief, sourceDigest } from "./brief";
 import { generatePreview } from "./copy";
+import type { Attribution } from "./attribution";
 import type { KitErrorBody } from "./errors";
 import { ingest } from "./ingest";
 import { phase } from "./kit-tracing";
@@ -72,10 +73,16 @@ export async function getPendingKit(id: string): Promise<PendingKit | null> {
 /** Free step: ingest, brief and the watermarked preview. The paid kit is generated after checkout. */
 export type KitStep = "repo" | "site" | "brief" | "copy";
 
+export interface KitOptions {
+  id?: string;
+  ownerEmail?: string;
+  attribution?: Attribution;
+}
+
 export async function createKit(
   input: string,
   onStep: (step: KitStep) => void = () => {},
-  opts: { id?: string; ownerEmail?: string } = {},
+  opts: KitOptions = {},
 ): Promise<Kit> {
   const source = await ingest(input, onStep);
   const fingerprint = source.source.fingerprint;
@@ -102,6 +109,7 @@ export async function createKit(
     llm: provider,
     paid: false,
     attempts: 0,
+    attribution: opts.attribution,
   };
   await saveKit(kit);
   if (opts.ownerEmail) await linkKitToUser(opts.ownerEmail, kit.id);
@@ -129,7 +137,7 @@ export async function briefFor(input: string): Promise<Brief> {
  * Same repo at the same commit within 24 hours: reuse the brief, preview and
  * any full-kit draft, but as a fresh kit so ownership and payment stay separate.
  */
-async function reuseKit(fingerprint: string, opts: { id?: string; ownerEmail?: string }): Promise<Kit | null> {
+async function reuseKit(fingerprint: string, opts: KitOptions): Promise<Kit | null> {
   const sourceId = await store().get<string>(dedupeKey(fingerprint));
   const source = sourceId ? await getKit(sourceId) : null;
   if (!source) return null;
@@ -147,6 +155,7 @@ async function reuseKit(fingerprint: string, opts: { id?: string; ownerEmail?: s
     attempts: 0,
     ownerEmail: opts.ownerEmail,
     reusedFrom: source.id,
+    attribution: opts.attribution,
   };
   await saveKit(kit);
   await copyDraft(source.id, kit.id);

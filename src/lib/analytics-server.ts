@@ -1,6 +1,7 @@
 import "server-only";
 import { createHash, randomUUID } from "node:crypto";
 import { PostHog } from "posthog-node";
+import type { Attribution } from "./attribution";
 import { deployEnv } from "./deploy-env";
 import { env } from "./env";
 import { isAnalyticsId, type ExperimentKey, type Variant } from "./experiments";
@@ -25,9 +26,10 @@ interface CheckoutProperties {
 
 type FeatureProperties = Partial<Record<`$feature/${ExperimentKey}`, Variant>>;
 
+/** Kit purchases also carry the kit's first-touch utm_* and referring_domain. */
 export interface ServerEvents {
-  checkout_started: CheckoutProperties & FeatureProperties;
-  checkout_completed: CheckoutProperties & FeatureProperties & { stripeSessionId: string };
+  checkout_started: CheckoutProperties & FeatureProperties & Attribution;
+  checkout_completed: CheckoutProperties & FeatureProperties & Attribution & { stripeSessionId: string };
 }
 
 let client: PostHog | null = null;

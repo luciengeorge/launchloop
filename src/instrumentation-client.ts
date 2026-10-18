@@ -1,7 +1,8 @@
 import * as Sentry from "@sentry/nextjs";
-import { initAnalytics } from "./lib/analytics";
+import { initAnalytics, rememberFirstTouch } from "./lib/analytics";
 import { reportClientError } from "./lib/client";
 
+rememberFirstTouch();
 initAnalytics();
 
 const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN;

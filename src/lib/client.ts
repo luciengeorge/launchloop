@@ -1,4 +1,4 @@
-import { analyticsId } from "./analytics";
+import { analyticsId, firstTouch } from "./analytics";
 import type { Experiments } from "./experiments";
 import type { ProductId } from "./products";
 
@@ -105,7 +105,7 @@ async function readKitStream(input: string, onStep: (step: string) => void, isUn
     res = await fetch("/api/kits", {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/x-ndjson, application/json" },
-      body: JSON.stringify({ url: input }),
+      body: JSON.stringify({ url: input, attribution: firstTouch() }),
     });
   } catch (error) {
     throw connectionError("request", error, isUnloading());

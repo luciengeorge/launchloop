@@ -1,5 +1,6 @@
 import "server-only";
 import Stripe from "stripe";
+import { type Attribution, attributionMetadata } from "./attribution";
 import { deployEnv, stripeEventDecision } from "./deploy-env";
 import { env, isStripeMock } from "./env";
 import { EXPERIMENTS, withAnalyticsId, type Experiments } from "./experiments";
@@ -41,6 +42,8 @@ export interface CheckoutRequest {
   isLoggedIn: boolean;
   /** Variants the buyer was shown. exp_launch14_promo "treatment" puts LAUNCH14 on a kit session. */
   experiments: Experiments;
+  /** The kit's first-touch UTMs, copied into metadata so the webhook's checkout_completed carries them. */
+  attribution?: Attribution;
 }
 
 /** "unavailable": the promo was due but Stripe wouldn't take the code (ended, used up, not a first purchase), so the session is full price. */
@@ -53,7 +56,7 @@ export interface CheckoutResult {
 
 /** Returns where to send the buyer: Stripe Checkout, or the local mock checkout in test mode. */
 export async function createCheckoutUrl(params: CheckoutRequest): Promise<CheckoutResult> {
-  const { product, origin, kitId, email, customer, analyticsId, isLoggedIn, experiments } = params;
+  const { product, origin, kitId, email, customer, analyticsId, isLoggedIn, experiments, attribution } = params;
   const promo = product === "kit" && experiments[EXPERIMENTS.launchPromo] === "treatment";
   const s = stripe();
   if (!s) {
@@ -77,7 +80,7 @@ export async function createCheckoutUrl(params: CheckoutRequest): Promise<Checko
     ph_distinct_id: analyticsId,
     logged_in: isLoggedIn ? "1" : "0",
     ...experiments,
-    ...(kitId ? { kitId } : {}),
+    ...(kitId ? { kitId, ...attributionMetadata(attribution) } : {}),
   };
   const cancelPath = kitId ? `/kit/${kitId}?checkout=cancelled` : "/ship-loop?checkout=cancelled";
   const base: Stripe.Checkout.SessionCreateParams = {

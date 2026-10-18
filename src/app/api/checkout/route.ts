@@ -1,3 +1,4 @@
+import { type Attribution, attributionProperties } from "@/lib/attribution";
 import { isEmail } from "@/lib/audience";
 import { captureServerEvent, resolveDistinctId } from "@/lib/analytics-server";
 import { getSession } from "@/lib/auth";
@@ -18,6 +19,7 @@ export async function POST(req: Request) {
   const session = await getSession();
   const email = session?.email ?? (isEmail(body.email) ? body.email : undefined);
   let kitId: string | undefined;
+  let attribution: Attribution | undefined;
   if (body.product === "kit") {
     // Kits are bought from an account so they land in /account and progress can be saved.
     if (!session) return Response.json({ error: "Confirm your email first so your kit is saved to your account.", code: "login_required" }, { status: 401 });
@@ -25,6 +27,7 @@ export async function POST(req: Request) {
     if (!kit) return Response.json({ error: "That kit doesn't exist any more. Generate a new preview." }, { status: 404 });
     if (kit.paid) return Response.json({ url: `/account/kits/${kit.id}` });
     kitId = kit.id;
+    attribution = kit.attribution;
     // If the background budget was used up, start writing now so it's (nearly) ready after checkout.
     after(() => generateDraft(kit).catch(() => undefined));
   }
@@ -39,13 +42,14 @@ export async function POST(req: Request) {
     // Only a signed-in (verified) email is tied to an existing Stripe customer; a guest-typed email
     // could belong to someone else, so it stays a plain `customer_email` prefill.
     const customer = session && !isStripeMock() ? await ensureStripeCustomer(session.email) : undefined;
-    const { url, promo } = await createCheckoutUrl({ product, origin: new URL(req.url).origin, kitId, email, customer, analyticsId, isLoggedIn, experiments });
+    const { url, promo } = await createCheckoutUrl({ product, origin: new URL(req.url).origin, kitId, email, customer, analyticsId, isLoggedIn, experiments, attribution });
     after(() =>
       captureServerEvent("checkout_started", {
         distinctId: analyticsId,
         properties: {
           plan: product,
           kitId,
+          ...attributionProperties(attribution),
           ...checkoutPrice(product, promo === "applied"),
           ...(promo === "none" ? {} : { promo }),
           ...featureProperties(experiments),

@@ -1,4 +1,5 @@
 import posthog, { type CaptureResult } from "posthog-js";
+import { type Attribution, readLandingAttribution } from "./attribution";
 import { ANALYTICS_ID_PARAM, isAnalyticsId } from "./experiments";
 import { POSTHOG_PROXY_PATH, posthogUiHost } from "./posthog-config";
 import { scrubProperties } from "./scrub-url";
@@ -30,6 +31,21 @@ export interface ClientEvents {
 const QA_PARAM = "qa";
 
 const key = process.env.NEXT_PUBLIC_POSTHOG_KEY;
+
+let landing: Attribution | undefined;
+let landed = false;
+
+/**
+ * Reads the landing URL's UTMs and the referrer's domain once per page load and keeps them in memory (no cookies or
+ * storage). In-app navigations keep them; the preview request sends them so the kit remembers where the buyer came from.
+ */
+export function rememberFirstTouch() {
+  if (landed) return;
+  landed = true;
+  landing = readLandingAttribution(window.location, document.referrer);
+}
+
+export const firstTouch = (): Attribution | undefined => landing;
 
 /**
  * Cookieless: identity lives in page memory only, so nothing is written to cookies or
