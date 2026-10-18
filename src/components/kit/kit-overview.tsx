@@ -3,7 +3,7 @@ import type { Kit } from "@/lib/schema";
 
 function SourceChip({ ok, children }: { ok: boolean; children: React.ReactNode }) {
   return (
-    <li className="flex items-center gap-1.5 rounded-full border border-border bg-background px-2.5 py-1 text-xs">
+    <li className="flex items-center gap-1.5 rounded-full border border-border bg-background px-2.5 py-1 text-xs" data-testid="source-chip" data-ok={ok}>
       {ok ? <Check className="size-3.5 text-emerald-600" aria-hidden="true" /> : <X className="size-3.5 text-muted-foreground" aria-hidden="true" />}
       <span className={ok ? "" : "text-muted-foreground"}>{children}</span>
     </li>

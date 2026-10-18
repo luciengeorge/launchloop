@@ -1,17 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { postJson } from "@/lib/client";
 import { useQueryParam } from "@/lib/use-query-param";
+import type { WaitlistResponse, WaitlistSource } from "@/lib/waitlist";
 
-export function WaitlistForm({ plan }: { plan: "monthly" | "yearly" }) {
-  const [state, setState] = useState<"idle" | "loading" | "done">("idle");
+type State = "idle" | "loading" | "joined" | "duplicate";
+
+/** Ship Loop waitlist email capture, tagged shiploop_waitlist by /api/waitlist. `plan` is the billing period the visitor was looking at. */
+export function WaitlistForm({ source, plan = "monthly", className = "" }: { source: WaitlistSource; plan?: "monthly" | "yearly"; className?: string }) {
+  const [state, setState] = useState<State>("idle");
   const [error, setError] = useState<string | null>(null);
+  const inputId = useId();
 
+  // Set by the no-JS form post's redirect.
   const redirected = useQueryParam("joined");
-  const done = state === "done" || redirected === "1";
+  const shown: State = state !== "idle" ? state : redirected === "1" ? "joined" : redirected === "dup" ? "duplicate" : "idle";
   const shownError = error ?? (redirected === "0" && state === "idle" ? "Enter a valid email address." : null);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -19,35 +25,40 @@ export function WaitlistForm({ plan }: { plan: "monthly" | "yearly" }) {
     setState("loading");
     setError(null);
     try {
-      await postJson("/api/waitlist", { email: new FormData(e.currentTarget).get("email"), plan });
-      setState("done");
+      const { duplicate } = await postJson<WaitlistResponse>("/api/waitlist", { email: new FormData(e.currentTarget).get("email"), plan, source });
+      setState(duplicate ? "duplicate" : "joined");
     } catch (err) {
       setError((err as Error).message);
       setState("idle");
     }
   }
 
-  if (done) {
+  if (shown === "joined" || shown === "duplicate") {
     return (
-      <p className="rounded-lg bg-primary/10 px-4 py-3 text-sm font-medium" role="status">
-        You&apos;re on the waitlist. We&apos;ll email you the day Ship Loop opens.
+      <p className={`rounded-lg bg-primary/10 px-4 py-3 text-sm font-medium ${className}`} role="status" data-testid="waitlist-status" data-state={shown}>
+        {shown === "joined" ? "You're on the waitlist." : "You're already on the waitlist."} We&apos;ll email you when Ship Loop launches.
       </p>
     );
   }
 
   return (
-    <form onSubmit={onSubmit} method="post" action="/api/waitlist" className="space-y-2" aria-label="Join the Ship Loop waitlist">
+    <form onSubmit={onSubmit} method="post" action="/api/waitlist" className={`space-y-2 ${className}`} aria-label="Join the Ship Loop waitlist" data-testid="waitlist-form">
       <input type="hidden" name="plan" value={plan} />
-      <label htmlFor="waitlist-email" className="sr-only">
+      <input type="hidden" name="source" value={source} />
+      <label htmlFor={inputId} className="sr-only">
         Email
       </label>
       <div className="flex flex-col gap-2 sm:flex-row">
-        <Input id="waitlist-email" name="email" type="email" required placeholder="you@example.com" autoComplete="email" className="h-10" />
-        <Button type="submit" variant="outline" className="h-10 px-4" disabled={state === "loading"}>
-          {state === "loading" ? "Joining…" : "Join the free waitlist"}
+        <Input id={inputId} name="email" type="email" required placeholder="you@example.com" autoComplete="email" className="h-10 bg-background" />
+        <Button type="submit" className="h-10 px-4" disabled={shown === "loading"}>
+          {shown === "loading" ? "Joining…" : "Join the waitlist"}
         </Button>
       </div>
-      {shownError ? <p className="text-sm text-destructive" role="alert">{shownError}</p> : null}
+      {shownError ? (
+        <p className="text-sm text-destructive" role="alert">
+          {shownError}
+        </p>
+      ) : null}
     </form>
   );
 }

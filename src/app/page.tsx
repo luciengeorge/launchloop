@@ -3,12 +3,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { JsonLd } from "@/components/json-ld";
 import { KitForm } from "@/components/kit-form";
+import { KitPrice, KitPromoNote, PricedText } from "@/components/kit-price";
 import { PricingSection } from "@/components/pricing-section";
 import { StartLink } from "@/components/start-link";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { siteUrl } from "@/lib/env";
+import { isLaunchPromoOn } from "@/lib/launch-promo-server";
 import { PAGES } from "@/lib/pages";
 import { pageMetadata } from "@/lib/seo";
 import { siteGraph } from "@/lib/structured-data";
@@ -21,19 +23,20 @@ const KIT_ICONS = [Globe, Megaphone, MessageSquareText, FileText, ImageIcon, Lis
 
 const STEPS = [
   { title: "Paste a link", body: "A public GitHub repo or your live URL. We read the README, package.json, the last 20 commit messages and your landing page." },
-  { title: "Get your brief", body: "A short product brief built from what's actually in your code: real features, real numbers, your stack." },
+  { title: "Get your brief", body: "A short product brief built from what's actually in your README, package.json and commits: real features, real numbers, your stack." },
   { title: "Launch from it", body: "Copy for every platform plus three images in your brand colours, checked against each platform's limits." },
 ];
 
 const RULES = [
-  { title: "Reads your code, not just your homepage", body: "Features and numbers come from your README, commits and package.json, so the copy says something only your app can say." },
+  { title: "Reads your README and commits, not just your homepage", body: "Features and numbers come from your README, package.json (or other manifest files) and recent commits, so the copy says something only your app can say." },
   { title: "Every limit, enforced", body: "60-character PH taglines, 260-character descriptions, 280-character posts counted the way X counts them." },
   { title: "Never asks for upvotes", body: "Asking for upvotes or coordinating votes gets you penalised on Product Hunt and Hacker News, and HN also bans asking for comments. We strip those out and just invite people to check out your launch." },
   { title: "Images in your colours", body: "We pull your palette from your site's CSS and render OG, X and Product Hunt images at the exact sizes." },
 ];
 
-export default function Home() {
+export default async function Home() {
   const url = siteUrl();
+  const promo = await isLaunchPromoOn();
   return (
     <>
       <JsonLd data={siteGraph(url)} />
@@ -48,18 +51,21 @@ export default function Home() {
             Paste your repo. <span className="text-primary">Get your whole launch.</span>
           </h1>
           <p className="mt-5 max-w-2xl text-pretty text-lg text-muted-foreground">
-            LaunchLoop reads your public repo and live site, then writes your landing page copy, Product Hunt post, X thread and LinkedIn post, plus three
-            images in your brand colours.
+            LaunchLoop reads your repo&apos;s README, package.json and recent commits, plus your live site, then writes your landing page copy, Product Hunt
+            post, X thread and LinkedIn post, plus three images in your brand colours.
           </p>
           <div className="mt-10 flex w-full justify-center">
-            <KitForm />
+            <KitForm promo={promo} />
           </div>
           <p className="mt-8 flex items-center gap-1.5 text-sm text-muted-foreground">
-            <Check className="size-4 text-primary" aria-hidden="true" />
-            Free preview, no account needed. Full kit is £19, paid once, for one app.
+            <Check className="size-4 shrink-0 text-primary" aria-hidden="true" />
+            <span>
+              Free preview, no account needed. Full kit is <KitPrice promo={promo} />, paid once, for one app.
+            </span>
           </p>
+          <KitPromoNote promo={promo} className="mt-2" />
           <Link href="/pricing" className="mt-2 text-sm font-medium text-foreground underline underline-offset-4 hover:text-primary">
-            See what&apos;s in the £19 kit
+            See what&apos;s in the <KitPrice promo={promo} /> kit
           </Link>
           <p className="mt-6 text-sm text-muted-foreground">
             Only need one piece?{" "}
@@ -78,7 +84,7 @@ export default function Home() {
         <div className="max-w-2xl">
           <p className="font-mono text-xs uppercase tracking-widest text-primary">The Launch Kit</p>
           <h2 id="kit-heading" className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
-            Everything in the £19 Launch Kit
+            Everything in the <KitPrice promo={promo} /> Launch Kit
           </h2>
           <p className="mt-3 text-muted-foreground">
             One payment, one app, everything for launch day. Other tools write copy, or make images, or schedule posts. The kit does the whole launch from one link.
@@ -135,7 +141,7 @@ export default function Home() {
         </div>
       </section>
 
-      <PricingSection />
+      <PricingSection promo={promo} />
 
       <section className="mx-auto max-w-3xl px-4 py-20 sm:px-6" aria-labelledby="faq-heading">
         <h2 id="faq-heading" className="text-3xl font-semibold tracking-tight">
@@ -144,8 +150,12 @@ export default function Home() {
         <Accordion className="mt-6">
           {FAQ.slice(0, 5).map((item) => (
             <AccordionItem key={item.q} value={item.q}>
-              <AccordionTrigger className="text-base">{item.q}</AccordionTrigger>
-              <AccordionContent className="text-muted-foreground">{item.a}</AccordionContent>
+              <AccordionTrigger className="text-base">
+                <PricedText text={item.q} promo={promo} />
+              </AccordionTrigger>
+              <AccordionContent className="text-muted-foreground">
+                <PricedText text={item.a} promo={promo} />
+              </AccordionContent>
             </AccordionItem>
           ))}
         </Accordion>

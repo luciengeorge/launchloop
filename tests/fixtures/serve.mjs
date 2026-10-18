@@ -4,7 +4,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { deflateSync, gunzipSync } from "node:zlib";
 
-const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "site");
+const fixtures = path.dirname(fileURLToPath(import.meta.url));
+const root = path.join(fixtures, "site");
 const port = Number(process.argv[2] ?? 3419);
 const types = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8" };
 
@@ -93,7 +94,43 @@ const routes = {
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ login: "real-owner" }));
   },
+  // An Elixir/Phoenix repo shaped like plausible/analytics: no homepage, no root package.json, stack in mix.exs.
+  "/gh/repos/fixture-labs/pulse": json({
+    html_url: "https://github.com/fixture-labs/pulse",
+    description: "Simple, privacy-friendly web analytics for small sites",
+    homepage: "",
+    stargazers_count: 42,
+    topics: ["analytics", "elixir", "phoenix", "tailwindcss"],
+    language: "Elixir",
+    license: { spdx_id: "AGPL-3.0" },
+  }),
+  "/gh/repos/fixture-labs/pulse/readme": text(
+    "# Pulse\n\nSimple, privacy-friendly web analytics for small sites.\n\n## Features\n\n- Cookie-free visitor counts that need no consent banner\n- One dashboard page with every metric that matters\n- Weekly email reports for each site you track\n",
+  ),
+  "/gh/repos/fixture-labs/pulse/commits": json([
+    { sha: "abc123pulse", commit: { message: "Add weekly email reports", author: { date: "2026-10-10T10:00:00Z" } } },
+    { sha: "def456pulse", commit: { message: "Speed up the dashboard query", author: { date: "2026-10-08T10:00:00Z" } } },
+  ]),
+  "/gh/repos/fixture-labs/pulse/languages": json({ Elixir: 7283575, TypeScript: 1355345, HTML: 176428, JavaScript: 163351, CSS: 22840, PHP: 651 }),
+  "/gh/repos/fixture-labs/pulse/contents/mix.exs": async (_req, res) => {
+    res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8" });
+    res.end(await readFile(path.join(fixtures, "github", "mix.exs")));
+  },
 };
+
+function json(body) {
+  return (_req, res) => {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify(body));
+  };
+}
+
+function text(body) {
+  return (_req, res) => {
+    res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8" });
+    res.end(body);
+  };
+}
 
 /** Every event the fake PostHog received, from the browser (via /lp-relay) and from posthog-node. */
 const phEvents = [];
@@ -109,6 +146,25 @@ function recordPosthog(body) {
     // Not an event payload (flags, config).
   }
 }
+
+/** Flag variants per distinct id, and an optional delay before answering, set by tests through POST /ph/_flags. Everyone else gets no flags. */
+const flagOverrides = new Map();
+
+/** The distinct_id in a flags request: posthog-node sends JSON; posthog-js may gzip it. */
+function flagsDistinctId(body) {
+  try {
+    const raw = body[0] === 0x1f && body[1] === 0x8b ? gunzipSync(body) : body;
+    return JSON.parse(raw.toString("utf8")).distinct_id;
+  } catch {
+    return undefined;
+  }
+}
+
+/** A variant per flag, or false for a flag that's switched off. */
+const flagsResponse = (flags = {}) => ({
+  flags: Object.fromEntries(Object.entries(flags).map(([key, variant]) => [key, { key, enabled: variant !== false, variant: variant || null, reason: null, metadata: {} }])),
+  errorsWhileComputingFlags: false,
+});
 
 /** Every error event the fake Sentry received (SENTRY_DSN=http://public@127.0.0.1:PORT/sentry/1). */
 const sentryEvents = [];
@@ -150,19 +206,34 @@ createServer(async (req, res) => {
     return res.end(png(Number(img[1]), Number(img[2])));
   }
   // Fake PostHog (NEXT_PUBLIC_POSTHOG_HOST in the test build): no flags for anyone, so every
-  // experiment is control unless a test intercepts /lp-relay/flags in the browser.
+  // experiment is control unless a test sets variants for a distinct id (POST /ph/_flags
+  // { distinctId, flags, delayMs }) or intercepts /lp-relay/flags in the browser.
   if (req.url.startsWith("/ph/")) {
     const chunks = [];
     for await (const chunk of req) chunks.push(chunk);
-    if (req.method === "POST") recordPosthog(Buffer.concat(chunks));
+    const body = Buffer.concat(chunks);
     const pathname = req.url.split("?")[0];
+    if (pathname === "/ph/_flags") {
+      const { distinctId, flags, delayMs = 0 } = JSON.parse(body.toString("utf8"));
+      flagOverrides.set(distinctId, { flags, delayMs });
+      res.writeHead(200, { "Content-Type": "application/json" });
+      return res.end("{}");
+    }
+    if (pathname.startsWith("/ph/flags")) {
+      const override = flagOverrides.get(flagsDistinctId(body));
+      if (override?.delayMs) await new Promise((resolve) => setTimeout(resolve, override.delayMs));
+      if (res.destroyed) return;
+      res.writeHead(200, { "Content-Type": "application/json" });
+      return res.end(JSON.stringify(flagsResponse(override?.flags)));
+    }
+    if (req.method === "POST") recordPosthog(body);
     // Remote config script (/array/<key>/config.js): an empty script, not JSON the browser would execute.
     if (pathname.endsWith(".js")) {
       res.writeHead(200, { "Content-Type": "application/javascript" });
       return res.end("");
     }
     res.writeHead(200, { "Content-Type": "application/json" });
-    return res.end(JSON.stringify(pathname.startsWith("/ph/flags") ? { flags: {}, errorsWhileComputingFlags: false } : {}));
+    return res.end("{}");
   }
   if (req.url.startsWith("/gh/")) {
     res.writeHead(404, { "Content-Type": "application/json" });

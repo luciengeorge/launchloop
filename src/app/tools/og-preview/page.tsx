@@ -17,7 +17,7 @@ export const metadata: Metadata = pageMetadata(toolPage(tool));
 const SIZE = `${OG_IMAGE.width}×${OG_IMAGE.height}`;
 
 const TAGS = `<meta property="og:title" content="Turn your GitHub repo into a launch kit" />
-<meta property="og:description" content="Launch copy and images, written from your code." />
+<meta property="og:description" content="Launch copy and images, from your README and commits." />
 <meta property="og:image" content="https://your-app.com/og.png" />
 <meta property="og:image:width" content="${OG_IMAGE.width}" />
 <meta property="og:image:height" content="${OG_IMAGE.height}" />

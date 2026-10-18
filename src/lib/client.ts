@@ -1,6 +1,5 @@
 import { analyticsId } from "./analytics";
-import type { Experiments } from "./experiments";
-import type { ProductId } from "./products";
+import type { ExperimentKey, Experiments, Served } from "./experiments";
 
 export async function postJson<T>(url: string, body: unknown): Promise<T> {
   const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -17,10 +16,24 @@ export interface CheckoutStart {
 
 /**
  * Creates a Checkout session (the server records checkout_started) and returns where to send the buyer.
- * `experiments` is what this page showed; the server applies LAUNCH14 only for the promo treatment.
+ * `served` is what this page showed for other experiments, logged as is. The kit promo
+ * (exp_launch14_promo) is never sent: the server resolves it and decides LAUNCH14.
+ * Kit only: the Ship Loop pre-order goes through startPreorderCheckout.
  */
-export async function startCheckout(product: ProductId, kitId?: string, experiments: Experiments = {}): Promise<CheckoutStart> {
-  return postJson<CheckoutStart>("/api/checkout", { product, kitId, analyticsId: analyticsId(), experiments });
+export async function startCheckout(product: "kit", kitId: string, served: Partial<Record<ExperimentKey, Served>> = {}): Promise<CheckoutStart> {
+  const entries = Object.entries(served) as [ExperimentKey, Served][];
+  return postJson<CheckoutStart>("/api/checkout", {
+    product,
+    kitId,
+    analyticsId: analyticsId(),
+    experiments: Object.fromEntries(entries.map(([key, s]) => [key, s.variant])),
+    fallbacks: entries.filter(([, s]) => s.fallback).map(([key]) => key),
+  });
+}
+
+/** The one-time £99 Ship Loop founding pre-order. Pages only offer it when STRIPE_PRICE_SHIPLOOP_PREORDER is set (or in mock mode). */
+export async function startPreorderCheckout(experiments: Experiments = {}): Promise<CheckoutStart> {
+  return postJson<CheckoutStart>("/api/checkout", { product: "shiploop_preorder", analyticsId: analyticsId(), experiments });
 }
 
 export function reportClientError(error: Error & { digest?: string }) {

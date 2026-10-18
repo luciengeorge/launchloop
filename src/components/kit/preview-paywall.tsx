@@ -1,5 +1,6 @@
 import { BriefcaseBusiness, Check, FileArchive, Image as ImageIcon, ListChecks, Lock, MessageSquareText, PanelsTopLeft, Rocket } from "lucide-react";
 import { CopyButton } from "@/components/copy-button";
+import type { Served } from "@/lib/experiments";
 import { IMAGE_VARIANTS } from "@/lib/image-variants";
 import { LIMITS } from "@/lib/limits";
 import { PRODUCTS } from "@/lib/products";
@@ -10,20 +11,29 @@ interface Props {
   productName: string;
   /** Section sizes, from the speculative draft when it's done, else the template shape. */
   counts: { features: number; xPosts: number; checklistSteps: number };
-  /** One real, free piece of the kit, shown readable as a sample. */
-  sample?: { title: string; text: string };
+  /** The real, free pieces of the kit. X post 1 is the sample here; the tagline has its own card at the top of the page. */
+  free: { tagline?: string; xPost?: string };
+  /** exp_launch14_promo for this kit, streamed in after the page (see resolveKitPromo). */
+  launchPromo: Promise<Served>;
   email?: string;
   query: Record<string, string | string[] | undefined>;
 }
 
 const fmt = (n: number) => n.toLocaleString("en-GB");
 
-/** Shown on an unpaid kit once the free preview is done: what £19 unlocks, one real sample, and the single unlock CTA. */
-export function PreviewPaywall({ kitId, productName, counts, sample, email, query }: Props) {
+/** Shown on an unpaid kit once the free preview is done: what £19 unlocks, the free X post, and the single unlock CTA. */
+export function PreviewPaywall({ kitId, productName, counts, free, launchPromo, email, query }: Props) {
   const imageCount = Object.keys(IMAGE_VARIANTS).length;
+  const samples = free.xPost ? [{ title: "Post 1 of your X thread", text: free.xPost }] : [];
   const sections = [
     { icon: PanelsTopLeft, title: "Landing page copy", detail: `Headline, subheadline, button text, ${counts.features} feature blocks, meta title and description.` },
-    { icon: Rocket, title: "Product Hunt post", detail: `Name, a ${LIMITS.phDescription}-character description, topics and the maker comment. Your tagline is already in the free preview.` },
+    {
+      icon: Rocket,
+      title: "Product Hunt post",
+      detail: free.tagline
+        ? `Name, a ${LIMITS.phDescription}-character description, topics and the maker comment. Your tagline is free and ready to paste, at the top of this page.`
+        : `Name, tagline, a ${LIMITS.phDescription}-character description, topics and the maker comment.`,
+    },
     { icon: MessageSquareText, title: "X launch thread", detail: `${Math.max(counts.xPosts - 1, 1)} more posts after the free one, each under ${LIMITS.xPost} characters the way X counts them.` },
     { icon: BriefcaseBusiness, title: "LinkedIn post", detail: `One launch post, up to ${fmt(LIMITS.linkedin)} characters.` },
     { icon: ImageIcon, title: `${imageCount} social images`, detail: "Link preview, X and LinkedIn card, and a Product Hunt gallery image in your brand colours. No watermark." },
@@ -67,8 +77,8 @@ export function PreviewPaywall({ kitId, productName, counts, sample, email, quer
           ))}
         </ul>
 
-        {sample ? (
-          <figure className="rounded-xl border border-dashed border-primary/40 bg-primary/[0.03] p-4" data-testid="paywall-sample">
+        {samples.map((sample) => (
+          <figure key={sample.title} className="rounded-xl border border-dashed border-primary/40 bg-primary/[0.03] p-4" data-testid="paywall-sample">
             <figcaption className="flex flex-wrap items-center justify-between gap-2">
               <span className="text-xs font-medium">
                 <span className="font-mono uppercase tracking-widest text-primary">Unlocked sample</span>
@@ -78,13 +88,14 @@ export function PreviewPaywall({ kitId, productName, counts, sample, email, quer
             </figcaption>
             <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed">{sample.text}</p>
           </figure>
-        ) : null}
+        ))}
       </div>
 
       <div className="border-t border-border bg-muted/40 p-6 sm:p-8 lg:border-l lg:border-t-0">
         <UnlockPanel
           kitId={kitId}
           priceLabel={PRODUCTS.kit.priceLabel}
+          launchPromo={launchPromo}
           email={email}
           autoCheckout={query.unlock === "1"}
           cancelled={query.checkout === "cancelled"}

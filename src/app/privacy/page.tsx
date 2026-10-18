@@ -64,7 +64,9 @@ export default function PrivacyPage() {
         buying a kit. PostHog records page views and a few steps: starting a preview, the preview finishing, starting checkout and completing a purchase. Those steps include
         the kit&apos;s id, which plan and price you picked and whether you were signed in. PostHog gives you an anonymous id that only lasts while the page is open. When we
         send you on to another page ourselves (the sign-in link, Stripe checkout and back), that id goes along in the link so those steps count as one visit. We also use
-        PostHog to try out small changes, such as a launch discount or an offer after you buy: each visit is shown one version at random, and PostHog records which. None of
+        PostHog to try out small changes, such as a launch discount or an offer after you buy. Each kit is shown one version of the launch discount, picked at random from
+        the kit&apos;s id so it stays the same when you reload (we keep which version with the kit, on our side; the offer after you buy is picked for each visit),
+        and PostHog records which version you saw. None of
         the three set cookies, PostHog stores nothing in your browser, and we never send any of them your email address or name. Before anything is sent, we remove private kit links
         and everything in the address bar except campaign tags (utm_). Like any service your browser talks to, they receive your IP address and browser type, and PostHog may use
         your IP address to work out your rough location.

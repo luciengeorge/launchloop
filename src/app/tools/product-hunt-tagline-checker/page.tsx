@@ -15,7 +15,7 @@ export const metadata: Metadata = pageMetadata(toolPage(tool));
 
 const EXAMPLES = [
   { weak: "AI-powered platform for productivity", strong: "Turn your GitHub repo into a launch kit", why: "Names the input and the result. Anyone with a repo knows it's for them." },
-  { weak: "The ultimate launch tool for makers", strong: "Launch copy and images, written from your code", why: "“Ultimate” is a claim nobody believes. Say what it produces instead." },
+  { weak: "The ultimate launch tool for makers", strong: "Launch copy and images from your README and commits", why: "“Ultimate” is a claim nobody believes. Say what it produces instead." },
   { weak: "Revolutionary screenshot management.", strong: "Find any screenshot by the text inside it", why: "A concrete action beats an adjective, and taglines don't need a full stop." },
   { weak: "SNAPSHELF: SCREENSHOTS, SORTED", strong: "Search your screenshots like you search email", why: "Capitals shout, and the name is already shown right above the tagline." },
   { weak: "Seamless meeting notes 🚀", strong: "Turn customer calls into ranked product specs", why: "Emoji and hype take space. The outcome and the audience do the work." },

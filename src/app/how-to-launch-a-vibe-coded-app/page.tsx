@@ -76,7 +76,7 @@ export default function VibeCodedLaunchPage() {
 
       <h2 id="shortcut">The shortcut</h2>
       <p>
-        LaunchLoop does steps 2 and 3 for you. It reads your public repo and live site, writes the brief, then drafts the landing copy, Product Hunt post, X thread, LinkedIn
+        LaunchLoop does steps 2 and 3 for you. It reads your repo&apos;s README, package.json and recent commits plus your live site, writes the brief, then drafts the landing copy, Product Hunt post, X thread, LinkedIn
         post and three on-brand images, with every character limit checked. See <Link href="/pricing">pricing</Link> or the <Link href="/faq">FAQ</Link>.
       </p>
     </GuideLayout>
