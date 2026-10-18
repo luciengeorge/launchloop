@@ -19,18 +19,23 @@ test("home header when signed out: Log in and Get my launch kit", async ({ page 
   await expect(banner.getByRole("button", { name: "Log out" })).toHaveCount(0);
 });
 
-test("phones: the home page doesn't scroll sideways and Log in stays on one line", async ({ page }) => {
-  for (const width of [360, 390, 400]) {
+test("phones: the home page doesn't scroll sideways, the header CTA fits and Log in stays on one line", async ({ page }) => {
+  // The test build has the launch promo flag off, so this is the plain "Get my launch kit, £19" CTA.
+  for (const width of [360, 375, 390, 400]) {
     await page.setViewportSize({ width, height: 844 });
     await page.goto("/");
-    await expect(page.getByRole("banner").getByRole("link", { name: "Get my launch kit" })).toBeVisible();
+    const cta = page.getByRole("banner").getByRole("link", { name: "Get my launch kit, £19" });
+    await expect(cta).toBeVisible();
     const layout = await page.evaluate(() => {
       const login = document.querySelector("[data-testid=nav-login]")!;
       const text = document.createRange();
       text.selectNodeContents(login);
-      return { scrollWidth: document.documentElement.scrollWidth, clientWidth: document.documentElement.clientWidth, loginLines: text.getClientRects().length };
+      const cta = document.querySelector("header a[data-plan=kit]")!.getBoundingClientRect();
+      return { scrollWidth: document.documentElement.scrollWidth, clientWidth: document.documentElement.clientWidth, loginLines: text.getClientRects().length, ctaRight: cta.right, ctaHeight: cta.height };
     });
     expect(layout.scrollWidth, `document wider than a ${width}px viewport`).toBeLessThanOrEqual(layout.clientWidth);
+    expect(layout.ctaRight, `header CTA overflows a ${width}px viewport`).toBeLessThanOrEqual(layout.clientWidth);
+    expect(layout.ctaHeight, `header CTA wraps at ${width}px`).toBeLessThanOrEqual(36);
     expect(layout.loginLines, `Log in wraps at ${width}px`).toBe(1);
   }
 });
