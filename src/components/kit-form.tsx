@@ -30,6 +30,8 @@ export function KitForm() {
 
   const [plan, setPlan] = useState<StartPlan>("free");
   const inputRef = useRef<HTMLInputElement>(null);
+  // What the last run actually sent: "Try a sample app" leaves the input empty, so retry can't use `url`.
+  const lastInput = useRef("");
 
   // Arriving via /#start or ?plan=kit (or a StartLink on this page): scroll to the form, focus it, preselect the plan.
   // ?url= prefills the input, e.g. when a free tool hands over the repo it just read.
@@ -64,6 +66,7 @@ export function KitForm() {
   };
 
   async function submit(value: string) {
+    lastInput.current = value;
     setError(null);
     setLoading(true);
     setStep(-1);
@@ -151,7 +154,7 @@ export function KitForm() {
             <p className="font-medium text-foreground">{error.message}</p>
             {error.fix ? <p className="mt-1">{error.fix}</p> : null}
             {error.code === "llm_failed" || error.code === "site_timeout" || error.code === "network" ? (
-              <button type="button" className="mt-2 font-medium underline underline-offset-4" onClick={() => void submit(url)}>
+              <button type="button" className="mt-2 font-medium underline underline-offset-4" onClick={() => void submit(lastInput.current)}>
                 Try again
               </button>
             ) : null}
