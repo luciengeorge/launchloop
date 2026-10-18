@@ -13,7 +13,7 @@ interface Props {
   counts: { features: number; xPosts: number; checklistSteps: number };
   /** The real, free pieces of the kit. X post 1 is the sample here; the tagline has its own card at the top of the page. */
   free: { tagline?: string; xPost?: string };
-  /** exp_launch14_promo for this kit, streamed in after the page (see kitAssignment). */
+  /** exp_launch14_promo for this kit, streamed in after the page (see resolveKitPromo). */
   launchPromo: Promise<Served>;
   email?: string;
   query: Record<string, string | string[] | undefined>;

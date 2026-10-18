@@ -16,8 +16,8 @@ export interface CheckoutStart {
 
 /**
  * Creates a Checkout session (the server records checkout_started) and returns where to send the buyer.
- * `served` is what this page showed for each experiment; the server logs exactly that and applies
- * LAUNCH14 only when the page showed the promo treatment as a real assignment.
+ * `served` is what this page showed for other experiments, logged as is. The kit promo
+ * (exp_launch14_promo) is never sent: the server resolves it and decides LAUNCH14.
  * Kit only: the Ship Loop pre-order goes through startPreorderCheckout.
  */
 export async function startCheckout(product: "kit", kitId: string, served: Partial<Record<ExperimentKey, Served>> = {}): Promise<CheckoutStart> {

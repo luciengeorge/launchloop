@@ -48,8 +48,7 @@ export function UnlockPanel({ kitId, priceLabel, launchPromo, email, autoCheckou
   const [saveError, setSaveError] = useState<string | null>(null);
   const started = useRef(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const promoServed = useAssignedExperiment(EXPERIMENTS.launchPromo, launchPromo);
-  const promoVariant = promoServed?.variant;
+  const promoVariant = useAssignedExperiment(EXPERIMENTS.launchPromo, launchPromo)?.variant;
   useClaimPrimaryCta();
   /** Full-price Checkout URL, set when the promo arm's LAUNCH14 was turned down by Stripe. */
   const [fullPriceUrl, setFullPriceUrl] = useState<string | null>(null);
@@ -84,8 +83,10 @@ export function UnlockPanel({ kitId, priceLabel, launchPromo, email, autoCheckou
     setError(null);
     setStep("redirecting");
     try {
-      const { url, promo: outcome } = await startCheckout("kit", kitId, promoServed ? { [EXPERIMENTS.launchPromo]: promoServed } : {});
-      if (outcome === "unavailable") {
+      // The server resolves the promo itself (the same way this page did); nothing about it is sent from here.
+      const { url, promo: outcome } = await startCheckout("kit", kitId);
+      // Showed £14 but the session isn't discounted (Stripe turned the code down, or the kit left the promo arm since): say so.
+      if (outcome === "unavailable" || (promo && outcome !== "applied")) {
         setFullPriceUrl(url);
         setStep("cta");
         setLoading(false);

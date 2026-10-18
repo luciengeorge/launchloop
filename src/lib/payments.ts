@@ -39,12 +39,10 @@ export interface CheckoutRequest {
   /** PostHog distinct id, so the webhook's checkout_completed joins the browser's funnel. */
   analyticsId: string;
   isLoggedIn: boolean;
-  /** Variants the buyer was shown, recorded in the session metadata for checkout_completed. */
+  /** Variants recorded in the session metadata for checkout_completed. exp_launch14_promo is the server's, never the request's. */
   experiments: Experiments;
   /** Experiments whose variant was a fallback, not a PostHog assignment (see Served). */
   fallbacks: ExperimentKey[];
-  /** Put LAUNCH14 on a kit session (the page showed the promo treatment). */
-  launchPromo: boolean;
 }
 
 /** "unavailable": the promo was due but Stripe wouldn't take the code (ended, used up, not a first purchase), so the session is full price. */
@@ -58,7 +56,8 @@ export interface CheckoutResult {
 /** Returns where to send the buyer: Stripe Checkout, or the local mock checkout in test mode. */
 export async function createCheckoutUrl(params: CheckoutRequest): Promise<CheckoutResult> {
   const { product, origin, kitId, email, customer, analyticsId, isLoggedIn, experiments, fallbacks } = params;
-  const promo = params.launchPromo && launchPromoDue(product, experiments);
+  // experiments[exp_launch14_promo] is the server's resolution for the kit (resolveKitPromo in /api/checkout).
+  const promo = launchPromoDue(product, experiments);
   const s = stripe();
   if (!s) {
     const qs = new URLSearchParams({

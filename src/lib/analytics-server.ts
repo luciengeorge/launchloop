@@ -3,7 +3,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { PostHog } from "posthog-node";
 import { deployEnv } from "./deploy-env";
 import { env } from "./env";
-import { fallbackServed, isAnalyticsId, kitBucketingId, type ExperimentKey, type FeatureProperties, type Served } from "./experiments";
+import { fallbackServed, isAnalyticsId, kitBucketingId, type ExperimentKey, type FallbackReason, type FeatureProperties, type Served, type Variant } from "./experiments";
 import { LAUNCH_PROMO_TIMEOUT_MS } from "./launch-promo";
 import { captureException } from "./observability";
 import { posthogHost } from "./posthog-config";
@@ -27,6 +27,8 @@ interface CheckoutProperties {
 export interface ServerEvents {
   checkout_started: CheckoutProperties & FeatureProperties;
   checkout_completed: CheckoutProperties & FeatureProperties & { stripeSessionId: string };
+  /** The server couldn't get an assignment where it needed one (see resolveKitPromo). `remembered`: it used the kit's last assignment. */
+  flag_fallback: { flag: ExperimentKey; variant: Variant; reason: FallbackReason; fallback: true; source: "checkout"; remembered: boolean; kitId: string };
 }
 
 let client: PostHog | null = null;
@@ -69,7 +71,7 @@ export function eventUuid(seed: string): string {
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-4${h.slice(13, 16)}-a${h.slice(17, 20)}-${h.slice(20, 32)}`;
 }
 
-/** Never throws: analytics must not break checkout. No-op without NEXT_PUBLIC_POSTHOG_KEY. Adds `product_type` from `plan`. */
+/** Never throws: analytics must not break checkout. No-op without NEXT_PUBLIC_POSTHOG_KEY. Adds `product_type` from `plan` when there is one. */
 export async function captureServerEvent<E extends keyof ServerEvents>(
   event: E,
   params: { distinctId: string; properties: ServerEvents[E]; uuid?: string },
@@ -82,7 +84,12 @@ export async function captureServerEvent<E extends keyof ServerEvents>(
       event,
       uuid: params.uuid,
       // Anonymous funnel events: don't create person profiles server-side either.
-      properties: { ...params.properties, product_type: productType(params.properties.plan), env: deployEnv(), $process_person_profile: false },
+      properties: {
+        ...params.properties,
+        ...("plan" in params.properties ? { product_type: productType(params.properties.plan) } : {}),
+        env: deployEnv(),
+        $process_person_profile: false,
+      },
     });
   } catch (error) {
     captureException(error, { stage: "analytics.capture", event });

@@ -55,7 +55,7 @@ export function useExperiment(key: ExperimentKey): Served | undefined {
 }
 
 /**
- * Like useExperiment, for an assignment the server made on a fixed id (see kitAssignment), so it
+ * Like useExperiment, for an assignment the server made on a fixed id (see resolveKitPromo), so it
  * doesn't change with this page's anonymous id. Undefined until the server's answer streams in.
  */
 export function useAssignedExperiment(key: ExperimentKey, assigned: Promise<Served>): Served | undefined {

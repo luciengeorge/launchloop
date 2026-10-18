@@ -160,8 +160,9 @@ function flagsDistinctId(body) {
   }
 }
 
+/** A variant per flag, or false for a flag that's switched off. */
 const flagsResponse = (flags = {}) => ({
-  flags: Object.fromEntries(Object.entries(flags).map(([key, variant]) => [key, { key, enabled: true, variant, reason: null, metadata: {} }])),
+  flags: Object.fromEntries(Object.entries(flags).map(([key, variant]) => [key, { key, enabled: variant !== false, variant: variant || null, reason: null, metadata: {} }])),
   errorsWhileComputingFlags: false,
 });
 

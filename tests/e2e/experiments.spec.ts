@@ -18,8 +18,8 @@ async function forceFlags(target: Page | BrowserContext, flags: Record<string, V
   });
 }
 
-/** Rolls the kit's paywall experiment to one variant in the fake PostHog the server asks (bucketed on kit:<id>), optionally answering late. */
-async function setKitPromo(request: APIRequestContext, kitId: string, variant: Variant, delayMs = 0) {
+/** Rolls the kit's paywall experiment to one variant (false: flag off) in the fake PostHog the server asks (bucketed on kit:<id>), optionally answering late. */
+async function setKitPromo(request: APIRequestContext, kitId: string, variant: Variant | false, delayMs = 0) {
   await request.post(`${FIXTURE}/ph/_flags`, { data: { distinctId: `kit:${kitId}`, flags: { exp_launch14_promo: variant }, delayMs } });
 }
 
@@ -49,7 +49,7 @@ async function payKit(page: Page, kitId: string, price: string) {
   await page.waitForURL(new RegExp(`/account/kits/${kitId}\\?paid=1&aid=`));
 }
 
-test("promo control: plain £19, no code on checkout, variant recorded", async ({ page }) => {
+test("promo control: plain £19, no code on checkout, and the page sends nothing about the promo", async ({ page }) => {
   await logIn(page, uniqueEmail("promo-control"));
   const kitId = await makeSampleKit(page);
   await expect(page.getByTestId("kit-price")).toContainText("£19");
@@ -58,7 +58,8 @@ test("promo control: plain £19, no code on checkout, variant recorded", async (
 
   const checkout = page.waitForRequest(isCheckout);
   await page.getByRole("button", { name: "Unlock the full kit, £19" }).click();
-  expect(checkoutBody(await checkout).experiments).toEqual({ exp_launch14_promo: "control" });
+  // The page sends nothing about the promo; the server resolves it.
+  expect(checkoutBody(await checkout)).toMatchObject({ experiments: {}, fallbacks: [] });
   await page.waitForURL(/\/checkout\/mock\?product=kit/);
   expect(new URL(page.url()).searchParams.get("promo")).toBeNull();
   expect(new URL(page.url()).searchParams.get("kitId")).toBe(kitId);
@@ -91,7 +92,7 @@ test("promo treatment: £19 struck through, £14 with LAUNCH14, kept through the
   await phone.goto(await magicLinkFor(page.request, email));
   const body = checkoutBody(await checkout);
   expect(body.analyticsId).toBe(aid);
-  expect(body.experiments).toEqual({ exp_launch14_promo: "treatment" });
+  expect(body.experiments).toEqual({});
 
   await phone.waitForURL(/\/checkout\/mock\?product=kit/);
   expect(new URL(phone.url()).searchParams.get("promo")).toBe("LAUNCH14");
@@ -162,9 +163,13 @@ test.describe("promo bucketing", () => {
 
     const request = page.waitForRequest(isCheckout);
     await page.getByRole("button", { name: "Unlock the full kit, £19" }).click();
-    expect(checkoutBody(await request)).toMatchObject({ experiments: { exp_launch14_promo: "control" }, fallbacks: ["exp_launch14_promo"] });
+    expect(checkoutBody(await request)).toMatchObject({ experiments: {}, fallbacks: [] });
     await page.waitForURL(/\/checkout\/mock\?product=kit/);
     expect(new URL(page.url()).searchParams.get("promo")).toBeNull();
+    // The server didn't hear from PostHog either, had no earlier assignment for the kit, so control, logged.
+    await expect
+      .poll(async () => (await phEvents(page.request)).find((e) => e.event === "flag_fallback" && e.properties.source === "checkout" && e.properties.kitId === kitId)?.properties)
+      .toMatchObject({ flag: "exp_launch14_promo", variant: "control", reason: "error", remembered: false });
 
     let started: PhEvent | undefined;
     await expect
@@ -229,24 +234,52 @@ test.describe("promo bucketing", () => {
   });
 });
 
-test("checkout applies LAUNCH14 only when the page showed it and the kit really is in the promo arm", async ({ page }) => {
-  await logIn(page, uniqueEmail("promo-forged"));
-  const kitId = await makeSampleKit(page);
-  const checkout = async (experiments: Record<string, string>, fallbacks: string[] = []) => {
+/** POSTs /api/checkout for a kit as a script could, with whatever variant it likes in the body. */
+function checkoutAs(page: Page, kitId: string) {
+  return async (experiments: Record<string, string> = {}, fallbacks: string[] = []) => {
     const res = await page.request.post("/api/checkout", { data: { product: "kit", kitId, experiments, fallbacks } });
     const body = (await res.json()) as { url: string; promo: string };
     return { promo: body.promo, code: new URL(body.url, page.url()).searchParams.get("promo") };
   };
+}
 
-  // Claiming the promo for a control kit: no code, and the page hears it's unavailable rather than being sent to £19 silently.
+test("a forged client variant can't get the promo: the server resolves exp_launch14_promo for the kit", async ({ page }) => {
+  await logIn(page, uniqueEmail("promo-forged"));
+  const kitId = await makeSampleKit(page);
+  const checkout = checkoutAs(page, kitId);
+  const forged = { exp_launch14_promo: "treatment" };
+
+  // No assignment from PostHog and none remembered for the kit: control, whatever the body says.
+  expect(await checkout(forged)).toEqual({ promo: "none", code: null });
+  // A control kit.
   await setKitPromo(page.request, kitId, "control");
-  expect(await checkout({ exp_launch14_promo: "treatment" })).toEqual({ promo: "unavailable", code: null });
-
+  expect(await checkout(forged)).toEqual({ promo: "none", code: null });
+  // A kit in the promo arm gets LAUNCH14 even if the body claims control or a fallback: the server decides.
   await setKitPromo(page.request, kitId, "treatment");
-  expect(await checkout({ exp_launch14_promo: "treatment" })).toEqual({ promo: "applied", code: "LAUNCH14" });
-  // It never adds a promo the page didn't show: £19 shown (assigned or fallback) is £19 charged.
-  expect(await checkout({ exp_launch14_promo: "control" })).toEqual({ promo: "none", code: null });
-  expect(await checkout({ exp_launch14_promo: "control" }, ["exp_launch14_promo"])).toEqual({ promo: "none", code: null });
+  expect(await checkout({ exp_launch14_promo: "control" }, ["exp_launch14_promo"])).toEqual({ promo: "applied", code: "LAUNCH14" });
+});
+
+test("PostHog down at checkout: the kit's last assignment decides (logged); a flag switched off is control for everyone", async ({ page }) => {
+  await logIn(page, uniqueEmail("promo-remembered"));
+  const kitId = await makeSampleKit(page);
+  const checkout = checkoutAs(page, kitId);
+  // The paywall resolves (and remembers) treatment for this kit.
+  await setKitPromo(page.request, kitId, "treatment");
+  await page.reload();
+  await expect(page.getByTestId("kit-price")).toContainText("£14");
+
+  // Now PostHog answers too late for the server's 1.5s budget: the remembered treatment still applies, so page and checkout agree.
+  await setKitPromo(page.request, kitId, "treatment", 3000);
+  await expect.poll(() => checkout()).toEqual({ promo: "applied", code: "LAUNCH14" });
+  await expect
+    .poll(async () => (await phEvents(page.request)).find((e) => e.event === "flag_fallback" && e.properties.kitId === kitId)?.properties)
+    .toMatchObject({ flag: "exp_launch14_promo", variant: "treatment", reason: "error", fallback: true, source: "checkout", remembered: true });
+
+  // Switching the flag off is honoured at once: no remembered promo.
+  await setKitPromo(page.request, kitId, false);
+  expect(await checkout()).toEqual({ promo: "none", code: null });
+  await page.reload();
+  await expect(page.getByTestId("kit-price")).toContainText("£19");
 });
 
 test("Ship Loop upsell control: the success page is unchanged", async ({ page }) => {
