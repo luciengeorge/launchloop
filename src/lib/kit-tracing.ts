@@ -20,9 +20,9 @@ export function safeInput(input: string): string {
   }
 }
 
-/** The kit error code for a failure: IngestError carries one, LlmError is always llm_failed. */
+/** The kit error code for a failure: IngestError carries one, and an LlmError reaches the visitor as ai_busy. */
 export function errorCodeOf(error: unknown): string {
-  if (error instanceof Error && error.name === "LlmError") return "llm_failed";
+  if (error instanceof Error && error.name === "LlmError") return "ai_busy";
   const code = (error as { code?: unknown } | null)?.code;
   return typeof code === "string" ? code : "unknown";
 }

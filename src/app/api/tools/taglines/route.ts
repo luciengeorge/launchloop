@@ -4,17 +4,12 @@ import { IngestError } from "@/lib/ingest";
 import { briefFor } from "@/lib/kits";
 import { LlmError } from "@/lib/llm";
 import { captureException } from "@/lib/observability";
-import { freePreviewLimit } from "@/lib/rate-limit";
+import { freePreviewGate } from "@/lib/rate-limit";
 
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 /** Free tagline checker, generate mode: repo or URL → three Product Hunt taglines. Shares the free preview's limits. */
 export async function POST(req: Request) {
-  const limit = await freePreviewLimit(req);
-  if (!limit.ok) {
-    return Response.json(kitErrorBody("rate_limited"), { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } });
-  }
-
   let url: unknown;
   try {
     ({ url } = (await req.json()) as { url?: unknown });
@@ -24,6 +19,8 @@ export async function POST(req: Request) {
   if (typeof url !== "string" || !url.trim()) {
     return Response.json(kitErrorBody("invalid_url", "Paste a GitHub repo URL or your live site URL."), { status: 400 });
   }
+  const refused = await freePreviewGate(req, url);
+  if (refused) return refused;
 
   try {
     const brief = await briefFor(url);
@@ -31,8 +28,9 @@ export async function POST(req: Request) {
     return Response.json({ name: brief.name, taglines });
   } catch (error) {
     if (error instanceof IngestError) return Response.json(kitErrorBody(error.code, error.userMessage), { status: 422 });
+    // llm.ts already reported it (throttled).
+    if (error instanceof LlmError) return Response.json(kitErrorBody("ai_busy"), { status: 503 });
     captureException(error, { stage: "api.tools.taglines", url });
-    if (error instanceof LlmError) return Response.json(kitErrorBody("llm_failed"), { status: 503 });
     return Response.json(kitErrorBody("unknown"), { status: 500 });
   }
 }

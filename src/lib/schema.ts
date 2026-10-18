@@ -101,4 +101,11 @@ export interface Kit {
   attempts: number;
   error?: string;
   emailedAt?: string;
+  /** After a failed attempt: the next automatic attempt isn't due before this. */
+  nextAttemptAt?: string;
+  /** Every automatic attempt failed: someone must deliver the kit or refund it by hand. Cleared if a later retry succeeds. */
+  refund_needed?: boolean;
+  failedAt?: string;
+  /** The "we hit a problem, you'll get it or a refund" email went out (sent once per kit). */
+  failureEmailedAt?: string;
 }

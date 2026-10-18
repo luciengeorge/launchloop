@@ -91,7 +91,12 @@ export default function PrivacyPage() {
         <li>PostHog (product analytics: how people move from a free preview to a purchase)</li>
         <li>Upstash (our database: kits, email sign-ups, sign-in links and rate limits)</li>
         <li>Sentry (error tracking)</li>
-        <li>AI model providers (currently Anthropic, with OpenAI as a backup), reached through Vercel AI Gateway, which turn your public sources into copy.</li>
+        <li>
+          AI model providers, reached through Vercel AI Gateway, which turn your public sources into copy. We use Anthropic&apos;s Claude Sonnet 4.5 for most writing and
+          Claude Haiku 4.5 for shorter sections. Each falls back to the other, then to OpenAI&apos;s GPT-5 mini. The gateway may run Claude through Anthropic, Amazon Web
+          Services or Google Cloud, and GPT-5 mini through OpenAI or Microsoft Azure. Every request is set so it only goes to providers that don&apos;t train on your
+          data. If none of them can answer, we show an error; we never pass off template text as AI-written copy.
+        </li>
       </ul>
       <p>
         Some of these companies are based in the US or process data there. Where your data leaves the UK, it&apos;s covered by the transfer safeguards in each provider&apos;s

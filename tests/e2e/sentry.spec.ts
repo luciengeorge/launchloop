@@ -63,27 +63,26 @@ test("a preview is traced: request, rate limit, site fetch, each LLM call and th
   expect(attr(byName("ingest.site"), "kit.site_host")).toBe("127.0.0.1:3419");
 });
 
-test("a failed preview records the error code on its spans and error, and never the site's path or query", async ({ request }) => {
+test("a failed preview records the error code on its spans, and never the site's path or query", async ({ request }) => {
   const res = await request.post("/api/kits", {
     data: { url: `${FIXTURE}/llmfail?invite=secret-invite` },
     headers: { ...previewIp(), accept: "application/x-ndjson" },
   });
   const lines = (await res.text()).trim().split("\n").map((l) => JSON.parse(l) as { type: string; id?: string; code?: string });
   expect(lines[0].type).toBe("accepted");
-  expect(lines.at(-1)).toMatchObject({ type: "error", code: "llm_failed" });
+  expect(lines.at(-1)).toMatchObject({ type: "error", code: "ai_busy" });
 
   const { spans, byName } = await previewTrace(request, lines[0].id!);
   const root = byName("kits.request");
   expect(attr(root, "kit.status")).toBe("error");
-  expect(attr(root, "error.code")).toBe("llm_failed");
+  expect(attr(root, "error.code")).toBe("ai_busy");
   expect(attr(root, "kit.input")).toBe(FIXTURE);
   expect(attr(byName("ingest.site"), "kit.status")).toBe("ok");
-  expect(attr(byName("llm.brief"), "error.code")).toBe("llm_failed");
+  expect(attr(byName("llm.brief"), "error.code")).toBe("ai_busy");
   expect(JSON.stringify(spans)).not.toContain("secret-invite");
 
-  const event = await sentryEvent(request, (m) => m === "Simulated LLM failure");
-  expect(event.tags).toMatchObject({ stage: "api.kits.create.llm", "kit.source": "site" });
-  expect(JSON.stringify(event)).not.toContain("secret-invite");
+  // AI failures are reported once (throttled) from llm.ts, not per visitor; whatever Sentry holds never has the query.
+  expect(JSON.stringify(await (await request.get(`${FIXTURE}/sentry/_events`)).json())).not.toContain("secret-invite");
 });
 
 test("the Sentry test route doesn't exist without the secret header", async ({ request }) => {

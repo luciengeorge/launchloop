@@ -8,7 +8,7 @@ import { ingest } from "./ingest";
 import { phase } from "./kit-tracing";
 import type { Brief, Kit } from "./schema";
 import { copyDraft } from "./generation";
-import { store, storeKind } from "./store";
+import { store } from "./store";
 
 /** The privacy page promises this: unpaid previews go 30 days after they were made, paid kits stay until the buyer asks us to delete them. */
 const PREVIEW_TTL_SECONDS = 60 * 60 * 24 * 30;
@@ -29,7 +29,7 @@ export async function getKit(id: string): Promise<Kit | null> {
 }
 
 export async function saveKit(kit: Kit): Promise<void> {
-  await phase("db.kit.save", "db", { "db.system": storeKind(), "kit.paid": kit.paid }, () => store().set(key(kit.id), kit, kitTtlSeconds(kit)));
+  await phase("db.kit.save", "db", { "kit.paid": kit.paid }, () => store().set(key(kit.id), kit, kitTtlSeconds(kit)));
 }
 
 export async function updateKit(id: string, patch: Partial<Kit> | ((kit: Kit) => Partial<Kit>)): Promise<Kit> {
