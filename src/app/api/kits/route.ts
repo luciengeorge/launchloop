@@ -8,19 +8,11 @@ import { cookies } from "next/headers";
 import { ANON_KITS_COOKIE, getSession, readAnonKits, secureCookies } from "@/lib/auth";
 import { createKit, newId } from "@/lib/kits";
 import { captureException } from "@/lib/observability";
-import { freePreviewLimit } from "@/lib/rate-limit";
+import { freePreviewGate } from "@/lib/rate-limit";
 
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 export async function POST(req: Request) {
-  const limit = await freePreviewLimit(req);
-  if (!limit.ok) {
-    return Response.json(
-      kitErrorBody("rate_limited"),
-      { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } },
-    );
-  }
-
   let url: unknown;
   try {
     ({ url } = (await req.json()) as { url?: unknown });
@@ -30,6 +22,8 @@ export async function POST(req: Request) {
   if (typeof url !== "string" || !url.trim()) {
     return Response.json(kitErrorBody("invalid_url", "Paste a GitHub repo URL or your live site URL."), { status: 400 });
   }
+  const refused = await freePreviewGate(req, url);
+  if (refused) return refused;
 
   // Opt-in progress stream: newline-delimited JSON events, ending with {type:"done"} or {type:"error"}.
   // The id is fixed up front so it can go in the cookie before the stream starts.
@@ -95,10 +89,8 @@ function speculate(kit: Kit) {
 
 function toErrorResponse(error: unknown, url: string) {
   if (error instanceof IngestError) return { status: 422, body: kitErrorBody(error.code, error.userMessage) };
-  if (error instanceof LlmError) {
-    captureException(error, { stage: "api.kits.create.llm", url });
-    return { status: 503, body: kitErrorBody("llm_failed") };
-  }
+  // llm.ts already reported it (throttled), so an AI Gateway outage isn't one Sentry event per visitor.
+  if (error instanceof LlmError) return { status: 503, body: kitErrorBody("ai_busy") };
   captureException(error, { stage: "api.kits.create", url });
   return { status: 500, body: kitErrorBody("unknown") };
 }

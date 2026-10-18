@@ -55,12 +55,39 @@ All are optional locally. See [`.env.example`](.env.example) for the full annota
 | `KV_REST_API_URL`, `KV_REST_API_TOKEN` | **Production storage** (Upstash Redis / Vercel KV) |
 | `NEXT_PUBLIC_SITE_URL` | Canonical URLs, sitemap, email links |
 | `MOCK_MODE` | Force everything into mock mode |
-| `PREVIEW_RATE_LIMIT_PER_HOUR`, `PREVIEW_RATE_LIMIT_PER_DAY` | Free previews (and free tool generations) per IP: default 5 an hour and 20 a day, from `PREVIEW_LIMITS` in `src/lib/site.ts`, which the terms, privacy page and pricing quote. Override only for testing |
+| `PREVIEW_RATE_LIMIT_PER_HOUR`, `PREVIEW_RATE_LIMIT_PER_DAY` | Free previews (and free tool generations) per IP: default 5 an hour and 20 a day, from `PREVIEW_LIMITS` in `src/lib/site.ts`, which the terms, privacy page and pricing quote. Override only for testing. See "Free preview limits" |
 | `OG_PREVIEW_RATE_LIMIT_PER_HOUR` | OG preview tool checks per IP per hour (default 60) |
 | `NEWSLETTER_RATE_LIMIT_PER_HOUR` | Newsletter signups per IP per hour, shared across instances (default 10) |
 | `NEWSLETTER_WELCOME_DAILY_CAP` | Newsletter welcome emails per day across everyone (default 200). Past it, signups still subscribe without the email |
+| `PREVIEW_GLOBAL_DAILY_CAP` | Optional spend cap: free previews and tagline generations across all visitors per UTC day (default 1500). Past it, `/api/kits` and `/api/tools/taglines` return 503 `code: "busy"` ("LaunchLoop is very busy right now, try again in a bit"). Paid kit generation is never capped by it |
+| `FREE_PREVIEWS_DISABLED` | Optional kill switch: `1` turns off free previews and tagline generations with the same `busy` response. Paid kit generation keeps running. Unset = on |
+| `KIT_RETRY_BACKOFF_MS` | Optional: waits between paid kit generation attempts, comma-separated milliseconds (default `10000,30000`). See "Paid kit failures" |
 | `SENTRY_DSN` | Reserved for Sentry (see "Error logging") |
 | `NEXT_PUBLIC_POSTHOG_KEY`, `NEXT_PUBLIC_POSTHOG_HOST` | Conversion analytics (see "Analytics"). Host defaults to `https://eu.i.posthog.com` |
+
+### Free preview limits
+
+`freePreviewGate` in `src/lib/rate-limit.ts` guards every free LLM call (`/api/kits` and `/api/tools/taglines`); paid kit generation never goes through it. In order:
+
+1. `FREE_PREVIEWS_DISABLED=1` returns 503 `busy`.
+2. The input is validated first, so a malformed URL returns 422 without using a slot. A valid URL that fails later (a missing repo) still counts: it costs a GitHub API call, and refunding it would let one IP drain the shared GitHub quota.
+3. The sample app (`sample`) skips both counters; it's served from the 24-hour dedupe cache.
+4. Per IP, fixed hourly and UTC-daily windows in the store. IPv6 addresses are keyed by their /64. A refusal is a 429 with a `Retry-After` header and `retryAfterSeconds` in the body, and the form says "Try again in N min".
+5. The global daily cap (`cap:previews:<UTC day>`, `PREVIEW_GLOBAL_DAILY_CAP`) returns 503 `busy`. It's checked after the per-IP limit so one noisy IP can't use it up.
+
+**Store errors fail closed.** If Upstash errors, the gate returns 503 `busy` and reports the error to Sentry (`stage: rate-limit.store`) rather than letting the request through. Kits and briefs live in the same store, so failing open would spend model calls on previews that can't be saved, and would drop abuse protection exactly when nobody's watching.
+
+### Paid kit failures
+
+`fulfilKit` (`src/lib/fulfil.ts`) makes up to 3 attempts, waiting 10s and then 30s between them (`KIT_RETRY_BACKOFF_MS`), inside the `after()` of whichever route triggered it (webhook, Checkout return, status poll; 120s `maxDuration`). Sections that succeed are kept, so a retry only writes what's missing. If the waits won't fit in the function (slow 45s timeouts), the kit records `nextAttemptAt` and the kit page's status poll starts the next attempt when it's due.
+
+When the last attempt fails:
+
+- the kit is `status: "failed"` with `refund_needed: true` and `failedAt`. No template or partial copy is delivered: no content, no ZIP, and the kit and account pages show a "We hit a problem generating your kit" state with a Try again button;
+- the buyer gets one email through Resend: "We hit a problem generating your kit. We're on it: you'll get it, or a full refund";
+- Sentry gets an unthrottled error (`stage: fulfil.final_failure`, with `kitId` and `paymentRef`) and PostHog gets `kit_generation_failed`.
+
+Refunds are never automatic: find kits with `refund_needed: true` (Sentry alert or PostHog event), then deliver the kit (the Try again button, or `POST /api/kits/<id>/retry`) or refund the payment in Stripe. A retry that succeeds clears `refund_needed`.
 
 ### Testing Stripe locally
 
@@ -98,9 +125,12 @@ All model calls go through [Vercel AI Gateway](https://vercel.com/docs/ai-gatewa
 - **Models:** primary `anthropic/claude-sonnet-4.5`, with `openai/gpt-5-mini` as a gateway-level fallback via `providerOptions.gateway.models`. If every provider for the primary fails, the gateway retries on the fallback. Override with `AI_GATEWAY_MODEL` and `AI_GATEWAY_FALLBACK_MODELS` using IDs from `https://ai-gateway.vercel.sh/v1/models`. The model that actually answered is saved on each kit (`kit.llm`, e.g. `gateway:anthropic/claude-sonnet-4.5`).
 - **Auth on Vercel:** automatic OIDC. The provider reads the per-request `x-vercel-oidc-token` header, so no key is needed. Keep "Secure backend access with OIDC federation" enabled in the project settings; it's on by default.
 - **Auth locally:** run `vercel link` (project `launchloop`, team `luciengeorge16`) and `vercel env pull .env.local` to get a `VERCEL_OIDC_TOKEN` (valid ~12 hours; re-pull or use `vercel dev`), or set `AI_GATEWAY_API_KEY`. An API key always takes precedence over OIDC.
-- **Mock mode:** with no `AI_GATEWAY_API_KEY`, no `VERCEL_OIDC_TOKEN` and not running on Vercel, or with `LLM_PROVIDER=mock` / `MOCK_MODE=true`, copy comes from deterministic templates and nothing is sent to the gateway.
+- **Mock mode:** with no `AI_GATEWAY_API_KEY`, no `VERCEL_OIDC_TOKEN` and not running on Vercel, or with `LLM_PROVIDER=mock` / `MOCK_MODE=true`, copy comes from deterministic templates and nothing is sent to the gateway. Mock mode is for local development and tests only: on a production deployment (`VERCEL_ENV=production`) it's refused and every call fails as if the gateway were down.
 - **Structured output:** `generateText` with `Output.object()` and zod schemas that hold types only. Character limits, thread length and banned phrases are checked by a rubric; failures are fed back for up to three attempts, then hard-enforced.
-- **Degradation:** if the gateway errors on the free preview, the preview falls back to template copy (logged through `captureException`). For paid kits, generation is marked failed and retried automatically (up to three attempts).
+- **No prompt training:** every call sets `providerOptions.gateway.disallowPromptTraining: true`, so the gateway only routes to providers that don't train on prompts (fallbacks included). A model with no qualifying provider fails with `no_providers_available` and the visitor sees `ai_busy`; check this when changing `AI_GATEWAY_*_MODEL`. It isn't enforced for BYOK keys.
+- **Output budgets:** every call sets `maxOutputTokens` (`OUTPUT_TOKENS` in `src/lib/llm.ts`): brief 800, preview and taglines 400, kit sections 1500, LinkedIn 2500. At the rubric limits the JSON measures roughly 310, 80, 45, 300 to 440 and 650 tokens. If an answer is still cut off (`finishReason: "length"`, e.g. CJK copy or a reasoning-model fallback), the next attempt gets double the budget.
+- **Sentry noise:** gateway failures are reported through `captureExceptionThrottled` (`src/lib/observability.ts`): at most one event per error type (`llm.gateway:<error name>:<status>`) per minute per instance, with a count of the skipped ones on the next event. Skipped ones are still logged. Store errors in the rate limiter (`rate-limit.store`) use the same throttle.
+- **No template fallback:** when the gateway fails on every model (main, then the fast model, then `AI_GATEWAY_FALLBACK_MODELS`, or a 45s timeout), nothing stands in for the AI. The free preview and tagline generator return 503 `code: "ai_busy"` ("Our AI is busy, try again in a minute"), save nothing, and the form offers Retry with the same input; the browser records `preview_failed` with `code: "ai_busy"`. A brief, preview or kit section the model keeps returning incomplete is the same error, never patched with canned text. Paid kits: see "Paid kit failures".
 
 To switch models, change the env vars; no code changes are needed.
 
@@ -214,7 +244,9 @@ Playwright builds the app into `.next-test` and runs it on port 3418 in forced m
 - Ship Loop waitlist
 - the SEO endpoints
 
-Also: `npm test` (node-only unit tests in `tests/unit`, no browser or server), `npm run lint`, `npm run typecheck`, `npm run build`. `.github/workflows/ci.yml` runs all of them plus the e2e suite.
+Unit tests in `tests/unit` run without a browser or server. `npm test` runs both sets: the Playwright `*.spec.ts` files (`playwright.unit.config.ts`) and the Vitest `*.test.ts` files (`vitest.config.mts`, against an in-memory store): the free-preview gate, the `/api/kits` rate limit (6th request in an hour and 21st in a day get a 429 with `Retry-After`; Upstash errors fail closed), the no-template `ai_busy` path, paid kit retries and `refund_needed`, the LLM output budgets and `disallowPromptTraining`.
+
+Also: `npm run lint`, `npm run typecheck`, `npm run build`. `.github/workflows/ci.yml` runs all of them plus the e2e suite.
 
 ## Deploy to Vercel
 
@@ -222,6 +254,6 @@ Also: `npm test` (node-only unit tests in `tests/unit`, no browser or server), `
 2. Add **Upstash Redis** from the Vercel Marketplace. It injects `KV_REST_API_URL` and `KV_REST_API_TOKEN`. Without it, kits are written to `/tmp` and disappear between invocations.
 3. AI Gateway needs no key on Vercel (OIDC). Optionally set `AI_GATEWAY_MODEL` / `AI_GATEWAY_FALLBACK_MODELS`, and make sure the team has AI Gateway credits or BYOK configured. Add the other environment variables: `STRIPE_SECRET_KEY`, `RESEND_API_KEY`, `RESEND_FROM` (on a verified domain), `RESEND_SEGMENT_ID` or `RESEND_AUDIENCE_ID`, `GITHUB_TOKEN`, and `NEXT_PUBLIC_SITE_URL` (e.g. `https://launchloop.dev`).
 4. In Stripe, add a webhook endpoint `https://<your-domain>/api/stripe/webhook` for `checkout.session.completed` and `checkout.session.async_payment_succeeded`, and set `STRIPE_WEBHOOK_SECRET`.
-5. Deploy. Kit generation runs in `after()` with `maxDuration` up to 120s. That works on Vercel's default Fluid compute; on plans with lower limits, reduce it.
+5. Deploy. Kit generation runs in `after()` with `maxDuration` up to 120s; the free preview (`/api/kits`) and tagline generator (`/api/tools/taglines`) allow 300s, the Hobby limit with Fluid compute. Each model attempt times out after 45s. On plans with lower limits, reduce them.
 
 Checkout has no promotion code field. Kit discounts only come from the LAUNCH14 experiment (`discounts` on the session).

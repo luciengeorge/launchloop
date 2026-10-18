@@ -1,4 +1,5 @@
 import { ImageResponse } from "@vercel/og";
+import { STATIC_OG_HEADERS } from "@/lib/seo";
 import { SITE } from "@/lib/site";
 
 export const alt = `${SITE.name}: ${SITE.tagline}`;
@@ -35,6 +36,6 @@ export default function OpengraphImage() {
         <div style={{ display: "flex", fontSize: 30, color: "#52525b" }}>Landing copy · Product Hunt post · X thread · LinkedIn · OG images</div>
       </div>
     ),
-    size,
+    { ...size, headers: STATIC_OG_HEADERS },
   );
 }

@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { CopyButton } from "@/components/copy-button";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { IMAGE_VARIANTS } from "@/lib/image-variants";
+import { IMAGE_VARIANTS, kitImageUrl } from "@/lib/image-variants";
 import { charLength, xLength } from "@/lib/limits";
 import { PIPELINE_STAGES, TASK_GROUPS, currentStageIndex, type KitTask, type TaskGroup } from "@/lib/tasks";
 import { Confetti } from "./confetti";
@@ -330,7 +330,7 @@ function TaskRow({ kitId, task, done, pop, onToggle, kitLocked }: { kitId: strin
   const length = task.text === undefined ? 0 : task.measure === "x" ? xLength(task.text) : charLength(task.text);
   const within = task.limit === undefined || length <= task.limit;
   const image = task.image ? IMAGE_VARIANTS[task.image] : null;
-  const src = task.image ? `/api/og/${kitId}/${task.image}` : null;
+  const src = task.image ? kitImageUrl(kitId, task.image, !kitLocked) : null;
 
   return (
     <li
