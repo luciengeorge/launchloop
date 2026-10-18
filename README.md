@@ -70,7 +70,7 @@ Pay with card `4242 4242 4242 4242`. The webhook isn't required locally: the Che
 
 ### Guest checkout
 
-Signed-out visitors can buy the kit without logging in. Checkout has no customer or account behind it and Stripe collects the email; the kit id, UTMs and LAUNCH14 metadata are the same as for signed-in buyers. Once paid (webhook or success URL), the kit goes to that email (`src/lib/accounts.ts`):
+Signed-out visitors can buy the kit without logging in. Checkout has no customer or account behind it and Stripe collects the email; the kit id, UTMs and LAUNCH14 metadata are the same as for signed-in buyers. Guest sessions use `customer_creation: "if_required"` (no Stripe Customer; the email comes back in `customer_details`), except when LAUNCH14 is applied: it's first-time-only, which Stripe's API reference says is invalid without a Customer, so those keep `"always"`. Once paid (webhook or success URL), the kit goes to that email (`src/lib/accounts.ts`):
 
 - an email that has logged in before (`user:<email>:account`, or an existing kit index) gets the kit in its account straight away;
 - any other email gets a pending purchase (`pending:<email>:kits`), claimed into the account on that address's first magic-link login. A signed-in session already sees its pending purchases in My kits.

@@ -83,6 +83,8 @@ export async function createCheckoutUrl(params: CheckoutRequest): Promise<Checko
     ...(kitId ? { kitId, ...attributionMetadata(attribution) } : {}),
   };
   const cancelPath = kitId ? `/kit/${kitId}?checkout=cancelled` : "/ship-loop?checkout=cancelled";
+  // A guest kit purchase needs no Customer: the email comes back in customer_details and the webhook links the kit by it.
+  const customerCreation = product === "kit" ? ("if_required" as const) : ("always" as const);
   const base: Stripe.Checkout.SessionCreateParams = {
     mode: "payment",
     line_items: [
@@ -99,7 +101,7 @@ export async function createCheckoutUrl(params: CheckoutRequest): Promise<Checko
     ],
     // A Customer lets buyers manage billing in the Customer Portal from /account. Stripe rejects
     // `customer` alongside `customer_email` or `customer_creation`.
-    ...(customer ? { customer } : { customer_email: email, customer_creation: "always" as const }),
+    ...(customer ? { customer } : { customer_email: email, customer_creation: customerCreation }),
     // Kit buyers only get a code through the promo experiment; a free-text field would let the
     // control arm type LAUNCH14 too.
     ...(product === "kit" ? {} : { allow_promotion_codes: true }),
@@ -113,8 +115,10 @@ export async function createCheckoutUrl(params: CheckoutRequest): Promise<Checko
     const promotionCode = await launchPromoId(s);
     if (promotionCode) {
       const promoMetadata = { ...metadata, promo_code: LAUNCH_PROMO.code };
+      // LAUNCH14 is first-time-only, and Stripe's API reference says such codes are invalid on sessions that don't create a Customer.
+      const promoCustomer = customer ? {} : { customer_creation: "always" as const };
       try {
-        const url = await createSession(s, { ...base, discounts: [{ promotion_code: promotionCode }], metadata: promoMetadata, payment_intent_data: { metadata: promoMetadata } });
+        const url = await createSession(s, { ...base, ...promoCustomer, discounts: [{ promotion_code: promotionCode }], metadata: promoMetadata, payment_intent_data: { metadata: promoMetadata } });
         return { url, promo: "applied" };
       } catch (error) {
         if (!(error instanceof Stripe.errors.StripeInvalidRequestError)) throw error;

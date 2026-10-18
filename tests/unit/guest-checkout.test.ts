@@ -100,6 +100,7 @@ const { completeLogin } = await import("@/lib/login");
 const { encodeSession, ANON_KITS_COOKIE, SESSION_COOKIE } = await import("@/lib/auth");
 const { listUserKitIds } = await import("@/lib/kits");
 const { getStoredBillingCustomer } = await import("@/lib/billing");
+const { default: Stripe } = (await import("stripe")) as unknown as { default: { errors: { StripeInvalidRequestError: new (message: string) => Error } } };
 
 const KIT_ID = "kitGuestCheckout01";
 const BUYER = "buyer@example.com";
@@ -178,7 +179,20 @@ afterEach(() => {
 });
 
 describe("/api/checkout without a user", () => {
-  it("creates a Checkout session with no customer or user id, lets Stripe collect the email, and keeps kit, UTM and LAUNCH14 metadata", async () => {
+  it("creates a Checkout session with no customer or user id and no Customer creation, letting Stripe collect the email", async () => {
+    const res = await postCheckout({ product: "kit", kitId: KIT_ID, analyticsId: "ph_guest", experiments: { exp_launch14_promo: "control" } });
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ url: "https://checkout.stripe.com/c/pay/cs_test_new", promo: "none" });
+    const params = m.createSession.mock.calls[0]![0] as Record<string, unknown> & { metadata: Record<string, string> };
+    expect(params.customer).toBeUndefined();
+    expect(params.customer_email).toBeUndefined();
+    expect(params.customer_creation).toBe("if_required");
+    expect(params.discounts).toBeUndefined();
+    expect(params.metadata).toMatchObject({ product: "kit", kitId: KIT_ID, logged_in: "0", utm_source: "hn", exp_launch14_promo: "control" });
+  });
+
+  it("keeps LAUNCH14 for a guest: Customer creation stays on, since the code is first-time-only; a rejected code falls back to a guest session", async () => {
     const res = await postCheckout({ product: "kit", kitId: KIT_ID, analyticsId: "ph_guest", experiments: { exp_launch14_promo: "treatment" } });
 
     expect(res.status).toBe(200);
@@ -194,6 +208,15 @@ describe("/api/checkout without a user", () => {
     expect(Object.keys(params.metadata).filter((k) => /user|email|owner/i.test(k))).toEqual([]);
     expect(params.payment_intent_data.metadata).toEqual(params.metadata);
     expect(m.retrieveCustomer).not.toHaveBeenCalled();
+
+    m.createSession.mockClear();
+    m.createSession.mockRejectedValueOnce(new Stripe.errors.StripeInvalidRequestError("This promotion code cannot be redeemed"));
+    const fallback = await postCheckout({ product: "kit", kitId: KIT_ID, analyticsId: "ph_guest", experiments: { exp_launch14_promo: "treatment" } });
+    expect(await fallback.json()).toMatchObject({ promo: "unavailable" });
+    const fullPrice = m.createSession.mock.calls[1]![0] as Record<string, unknown> & { metadata: Record<string, string> };
+    expect(fullPrice).toMatchObject({ customer_creation: "if_required" });
+    expect(fullPrice.discounts).toBeUndefined();
+    expect(fullPrice.metadata.promo_code).toBeUndefined();
   });
 
   it("still ties a signed-in checkout to the account's Stripe customer", async () => {
