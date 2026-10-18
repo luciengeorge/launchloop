@@ -30,6 +30,8 @@ type FeatureProperties = Partial<Record<`$feature/${ExperimentKey}`, Variant>>;
 export interface ServerEvents {
   checkout_started: CheckoutProperties & FeatureProperties & Attribution;
   checkout_completed: CheckoutProperties & FeatureProperties & Attribution & { stripeSessionId: string };
+  /** A paid Checkout we couldn't record ("record", Stripe will retry) or whose kit generation crashed ("fulfil"). */
+  checkout_fulfilment_failed: { plan: ProductId; kitId?: string; stripeSessionId: string; stripeEventId: string; stage: "record" | "fulfil"; errorName: string; mock: boolean };
 }
 
 let client: PostHog | null = null;

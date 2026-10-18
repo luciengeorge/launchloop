@@ -9,10 +9,15 @@ import { captureException, logEvent } from "@/lib/observability";
 import { deployEnv, stripeEventDecision } from "@/lib/deploy-env";
 import { sessionPromoCode, stripe } from "@/lib/payments";
 import { isProductId, type ProductId } from "@/lib/products";
+import { store } from "@/lib/store";
 
 export const maxDuration = 120;
 
-type Outcome = "fulfilled" | "awaiting_payment" | "unknown_product" | "ignored_env" | "ignored_type" | "record_failed";
+/** Stripe retries a failed delivery for up to three days; remember handled events a bit longer. */
+const HANDLED_TTL_SECONDS = 7 * 24 * 60 * 60;
+const handledKey = (eventId: string) => `stripe:event:${eventId}`;
+
+type Outcome = "fulfilled" | "duplicate" | "awaiting_payment" | "unknown_product" | "ignored_env" | "ignored_type" | "record_failed";
 
 export async function POST(req: Request) {
   const s = stripe();
@@ -45,16 +50,22 @@ export async function POST(req: Request) {
     log("ignored_env");
     return Response.json({ received: true, ignored: decision.reason });
   }
+  if (await store().get(handledKey(event.id))) {
+    log("duplicate");
+    return Response.json({ received: true, duplicate: true });
+  }
 
   const product = session.metadata?.product;
   const kitId = session.metadata?.kitId;
   // A 100%-off Checkout completes with "no_payment_required": it's a purchase like any other.
   if (session.payment_status !== "paid" && session.payment_status !== "no_payment_required") {
     // An async payment method (bank debit) settles later as checkout.session.async_payment_succeeded.
+    await markHandled(event.id);
     log("awaiting_payment");
     return Response.json({ received: true });
   }
   if (!isProductId(product)) {
+    await markHandled(event.id);
     log("unknown_product");
     return Response.json({ received: true });
   }
@@ -68,15 +79,36 @@ export async function POST(req: Request) {
       customerId: typeof session.customer === "string" ? session.customer : session.customer?.id,
     });
   } catch (error) {
-    captureException(error, { stage: "stripe.webhook.record", sessionId: session.id });
+    captureException(error, { stage: "stripe.webhook.record", sessionId: session.id, eventId: event.id, product, kitId });
+    after(() => trackFailure(event.id, session, product, "record", error));
     log("record_failed");
+    // Not marked as handled, and non-2xx, so Stripe delivers it again. Recording is idempotent.
     return Response.json({ error: "Failed to record payment." }, { status: 500 });
   }
 
-  if (product === "kit" && kitId) after(() => fulfilKit(kitId));
+  await markHandled(event.id);
+  // Writing the kit takes longer than Stripe should wait, so it runs after the response. It retries on its own
+  // and the status poll and checkout return route restart it, so a failure here is reported rather than redelivered.
+  if (product === "kit" && kitId) {
+    after(() =>
+      fulfilKit(kitId).catch((error: unknown) => {
+        captureException(error, { stage: "stripe.webhook.fulfil", sessionId: session.id, eventId: event.id, kitId });
+        return trackFailure(event.id, session, product, "fulfil", error);
+      }),
+    );
+  }
   after(() => trackCompleted(s, session, product));
   log("fulfilled");
   return Response.json({ received: true });
+}
+
+/** Downstream steps are idempotent anyway; this lets a redelivered event skip them. A failed write only costs a redo. */
+async function markHandled(eventId: string) {
+  try {
+    await store().set(handledKey(eventId), { at: new Date().toISOString() }, HANDLED_TTL_SECONDS);
+  } catch (error) {
+    captureException(error, { stage: "stripe.webhook.markHandled", eventId });
+  }
 }
 
 /** The purchase event. Keyed on the session id, so webhook retries and the async-payment event don't double count. */
@@ -98,6 +130,24 @@ async function trackCompleted(s: Stripe, session: Stripe.Checkout.Session, produ
       stripeSessionId: session.id,
       ...(promoCode ? { promo_code: promoCode } : {}),
       ...featureProperties(parseExperiments(m)),
+    },
+  });
+}
+
+function trackFailure(eventId: string, session: Stripe.Checkout.Session, product: ProductId, stage: "record" | "fulfil", error: unknown) {
+  const m = session.metadata ?? {};
+  return captureServerEvent("checkout_fulfilment_failed", {
+    distinctId: resolveDistinctId(m.ph_distinct_id),
+    // One failure per event and stage, however many times Stripe redelivers it.
+    uuid: eventUuid(`checkout_fulfilment_failed:${eventId}:${stage}`),
+    properties: {
+      plan: product,
+      kitId: m.kitId,
+      stripeSessionId: session.id,
+      stripeEventId: eventId,
+      stage,
+      errorName: error instanceof Error ? error.name : typeof error,
+      mock: false,
     },
   });
 }
