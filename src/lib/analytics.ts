@@ -58,12 +58,17 @@ export const firstTouch = (): Attribution | undefined => landing;
 
 let client: Promise<PostHog | undefined> | undefined;
 
+let markRequested!: () => void;
+/** Settles the first time anything asks for the SDK, without asking for it itself. */
+const requested = new Promise<void>((resolve) => (markRequested = resolve));
+
 /**
  * The SDK is ~100 KB gzipped, so it isn't in the page's initial scripts: instrumentation-client loads it once the
  * page has loaded, and anything that needs it sooner (an event, a flag, the analytics id) loads it on demand.
  * Resolves undefined when analytics is off or the SDK fails to load.
  */
 export function loadAnalytics(): Promise<PostHog | undefined> {
+  markRequested();
   if (!key || !pageStart) return Promise.resolve(undefined);
   client ??= import("posthog-js").then(
     ({ default: posthog }) => {
@@ -155,13 +160,18 @@ export function track<E extends keyof ClientEvents>(event: E, properties: Client
 /**
  * Records what an experiment served on this page, once per view, always with the variant shown:
  * PostHog's $feature_flag_called exposure for an assignment, or flag_fallback for control served
- * without one, which keeps the view out of the experiment.
+ * without one, which keeps the view out of the experiment. `whenLoaded` waits for the SDK to load as it
+ * normally would (after the load event, or sooner for an event) instead of loading it now.
  */
-export function trackServed(key: ExperimentKey, served: Served) {
-  if (served.fallback) return track("flag_fallback", { flag: key, variant: served.variant, reason: served.fallback, fallback: true });
-  void loadAnalytics().then((posthog) =>
-    posthog?.capture("$feature_flag_called", { $feature_flag: key, $feature_flag_response: served.variant, [`$feature/${key}`]: served.variant }),
-  );
+export function trackServed(key: ExperimentKey, served: Served, { whenLoaded = false }: { whenLoaded?: boolean } = {}) {
+  const send = () => {
+    if (served.fallback) return track("flag_fallback", { flag: key, variant: served.variant, reason: served.fallback, fallback: true });
+    void loadAnalytics().then((posthog) =>
+      posthog?.capture("$feature_flag_called", { $feature_flag: key, $feature_flag_response: served.variant, [`$feature/${key}`]: served.variant }),
+    );
+  };
+  if (whenLoaded) void requested.then(send);
+  else send();
 }
 
 /** This page's anonymous PostHog id, sent with checkout so server events join the same funnel. */
