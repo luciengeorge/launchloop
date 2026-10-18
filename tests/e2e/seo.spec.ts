@@ -100,7 +100,8 @@ test("every sitemap page has unique, well-sized metadata with a self canonical a
     await expect(page.locator('meta[property="og:description"]')).toHaveAttribute("content", description);
     await expect(page.locator('meta[name="twitter:title"]')).toHaveAttribute("content", title);
     await expect(page.locator('meta[name="twitter:card"]')).toHaveAttribute("content", "summary_large_image");
-    await expect(page.locator('meta[name="robots"]')).toHaveCount(0);
+    await expect(page.locator('meta[name="robots"]')).toHaveCount(1);
+    await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", "index, follow");
     await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
 
     const image = new URL((await page.locator('meta[property="og:image"]').first().getAttribute("content")) ?? "");

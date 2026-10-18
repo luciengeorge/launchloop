@@ -15,6 +15,7 @@ export function pageMetadata({
   return {
     title: absoluteTitle ? { absolute: title } : title,
     description,
+    robots: { index: true, follow: true },
     alternates: { canonical: path },
     openGraph: { type, siteName: SITE.name, locale: "en_GB", url: path, title: fullTitle, description, images: [{ ...image, width: 1200, height: 630 }] },
     twitter: { card: "summary_large_image", site: SITE.twitter, title: fullTitle, description, images: [{ url: image.url, alt: image.alt }] },
