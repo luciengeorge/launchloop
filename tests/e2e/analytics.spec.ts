@@ -106,3 +106,42 @@ test("header CTA from another page keeps the visitor's id and UTMs, through to t
   expect(purchase.properties).toMatchObject({ plan: "kit", product_type: "kit", amount: 1900, currency: "gbp", mock: true });
   expect(JSON.stringify(purchase)).not.toContain("@example.com");
 });
+
+test("navigating before the PostHog SDK loads still records the landing pageview and keeps its UTMs", async ({ page }) => {
+  const campaign = `early-nav-${Date.now()}`;
+  let sdkRequested!: () => void;
+  const requested = new Promise<void>((resolve) => (sdkRequested = resolve));
+  let release!: () => void;
+  const released = new Promise<void>((resolve) => (release = resolve));
+  // Hold back the lazily loaded SDK chunk (only posthog-js contains this event name) until after the navigation.
+  await page.route("**/_next/static/**/*.js", async (route) => {
+    const response = await route.fetch();
+    const body = await response.text();
+    if (body.includes("$feature_flag_called")) {
+      sdkRequested();
+      await released;
+    }
+    await route.fulfill({ response, body });
+  });
+
+  await page.goto(`/?utm_source=hn&utm_medium=social&utm_campaign=${campaign}`);
+  // The SDK is only requested after the load event, so the page has hydrated and the link navigates client-side.
+  await requested;
+  await page.getByRole("banner").getByRole("link", { name: "Pricing" }).click();
+  await page.waitForURL((u) => u.pathname === "/pricing");
+  release();
+
+  let pageviews: PhEvent[] = [];
+  await expect
+    .poll(async () => {
+      pageviews = (await phEvents(page)).filter((e) => e.event === "$pageview" && e.properties.utm_campaign === campaign);
+      return pageviews.map((e) => e.properties.$pathname).sort();
+    })
+    .toEqual(["/", "/pricing"]);
+  const landing = pageviews.find((e) => e.properties.$pathname === "/")!;
+  const pricing = pageviews.find((e) => e.properties.$pathname === "/pricing")!;
+  expect(landing.properties).toMatchObject({ utm_source: "hn", utm_medium: "social" });
+  expect(landing.properties.$current_url).toContain(`utm_campaign=${campaign}`);
+  expect(pricing.properties.utm_source).toBe("hn");
+  expect(distinctId(pricing)).toBe(distinctId(landing));
+});
