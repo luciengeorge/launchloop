@@ -1,5 +1,5 @@
 import { isEmail } from "@/lib/audience";
-import { captureServerEvent, resolveDistinctId } from "@/lib/analytics-server";
+import { captureServerEvent, kitVariant, resolveDistinctId } from "@/lib/analytics-server";
 import { getSession } from "@/lib/auth";
 import { ensureStripeCustomer } from "@/lib/billing";
 import { isStripeMock } from "@/lib/env";
@@ -34,9 +34,13 @@ export async function POST(req: Request) {
   const product = body.product;
   const analyticsId = resolveDistinctId(body.analyticsId);
   const isLoggedIn = !!session;
-  // Trusted as sent: anyone can retry until a page shows the promo arm, so LAUNCH14's own
-  // limits in Stripe (once per customer, first purchase, capped, expiring) are the real guard.
-  const experiments = parseExperiments(body.experiments);
+  const reported = parseExperiments(body.experiments);
+  const experiments = { ...reported };
+  // The kit's promo arm is bucketed on the kit, so asking PostHog again gives the variant the page
+  // showed, whatever the request claims. Only if PostHog can't answer now is the page's report used;
+  // LAUNCH14's own limits in Stripe (first purchase, capped, expiring) stay the backstop.
+  const assigned = kitId ? await kitVariant(EXPERIMENTS.launchPromo, kitId) : undefined;
+  if (assigned) experiments[EXPERIMENTS.launchPromo] = assigned;
   try {
     // No variant from the page (it never read the flag): use the one the marketing pages show, so a
     // £14 seen on home or /pricing is the Stripe total. A variant the paywall sent is kept as is.
@@ -46,7 +50,10 @@ export async function POST(req: Request) {
     // Only a signed-in (verified) email is tied to an existing Stripe customer; a guest-typed email
     // could belong to someone else, so it stays a plain `customer_email` prefill.
     const customer = session && !isStripeMock() ? await ensureStripeCustomer(session.email) : undefined;
-    const { url, promo } = await createCheckoutUrl({ product, origin: new URL(req.url).origin, kitId, email, customer, analyticsId, isLoggedIn, experiments });
+    const checkout = await createCheckoutUrl({ product, origin: new URL(req.url).origin, kitId, email, customer, analyticsId, isLoggedIn, experiments });
+    const { url } = checkout;
+    // The page showed LAUNCH14 but the kit has left the promo arm since (the flag changed): say so, as when Stripe turns the code down.
+    const promo = checkout.promo === "none" && kitId && reported[EXPERIMENTS.launchPromo] === "treatment" ? "unavailable" : checkout.promo;
     after(() =>
       captureServerEvent("checkout_started", {
         distinctId: analyticsId,

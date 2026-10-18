@@ -7,10 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { analyticsId } from "@/lib/analytics";
 import { postJson, startCheckout } from "@/lib/client";
-import { EXPERIMENTS } from "@/lib/experiments";
+import { EXPERIMENTS, type Variant } from "@/lib/experiments";
 import { useClaimPrimaryCta } from "@/lib/primary-cta";
 import { LAUNCH_PROMO } from "@/lib/products";
-import { useExperiment } from "@/lib/use-experiment";
+import { useAssignedExperiment } from "@/lib/use-experiment";
 
 const EMAIL_KEY = "launchloop:email";
 
@@ -18,6 +18,8 @@ interface Props {
   kitId: string;
   /** Full kit price. The exp_launch14_promo treatment shows it struck through next to the LAUNCH14 price. */
   priceLabel: string;
+  /** This kit's exp_launch14_promo variant, assigned on the server so every reload shows the same price. */
+  launchPromo: Promise<Variant | undefined>;
   /** Logged-in email, if any. */
   email?: string;
   /** Arrived from the magic link (or the "£19 kit" plan): go straight to checkout. */
@@ -35,7 +37,7 @@ type SaveState = "idle" | "sending" | "sent";
  * with the account email → back to the unlocked kit in /account.
  * Signed-out visitors can instead just email themselves a link that saves the preview.
  */
-export function UnlockPanel({ kitId, priceLabel, email, autoCheckout, cancelled, saved }: Props) {
+export function UnlockPanel({ kitId, priceLabel, launchPromo, email, autoCheckout, cancelled, saved }: Props) {
   const [step, setStep] = useState<Step>(autoCheckout && email ? "redirecting" : autoCheckout ? "email" : "cta");
   const [address, setAddress] = useState(email ?? "");
   const [error, setError] = useState<string | null>(null);
@@ -46,7 +48,7 @@ export function UnlockPanel({ kitId, priceLabel, email, autoCheckout, cancelled,
   const [saveError, setSaveError] = useState<string | null>(null);
   const started = useRef(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const promoVariant = useExperiment(EXPERIMENTS.launchPromo);
+  const promoVariant = useAssignedExperiment(EXPERIMENTS.launchPromo, launchPromo);
   useClaimPrimaryCta();
   /** Full-price Checkout URL, set when the promo arm's LAUNCH14 was turned down by Stripe. */
   const [fullPriceUrl, setFullPriceUrl] = useState<string | null>(null);

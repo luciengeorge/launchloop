@@ -1,5 +1,6 @@
 import { BriefcaseBusiness, Check, FileArchive, Image as ImageIcon, ListChecks, Lock, MessageSquareText, PanelsTopLeft, Rocket } from "lucide-react";
 import { CopyButton } from "@/components/copy-button";
+import type { Variant } from "@/lib/experiments";
 import { IMAGE_VARIANTS } from "@/lib/image-variants";
 import { LIMITS } from "@/lib/limits";
 import { PRODUCTS } from "@/lib/products";
@@ -12,6 +13,8 @@ interface Props {
   counts: { features: number; xPosts: number; checklistSteps: number };
   /** The real, free pieces of the kit (the PH tagline and X post 1), shown readable as samples. */
   free: { tagline?: string; xPost?: string };
+  /** exp_launch14_promo for this kit, streamed in after the page (see kitVariant). */
+  launchPromo: Promise<Variant | undefined>;
   email?: string;
   query: Record<string, string | string[] | undefined>;
 }
@@ -19,7 +22,7 @@ interface Props {
 const fmt = (n: number) => n.toLocaleString("en-GB");
 
 /** Shown on an unpaid kit once the free preview is done: what £19 unlocks, the free samples, and the single unlock CTA. */
-export function PreviewPaywall({ kitId, productName, counts, free, email, query }: Props) {
+export function PreviewPaywall({ kitId, productName, counts, free, launchPromo, email, query }: Props) {
   const imageCount = Object.keys(IMAGE_VARIANTS).length;
   const samples = [
     free.tagline ? { title: "Your Product Hunt tagline", text: free.tagline } : null,
@@ -95,6 +98,7 @@ export function PreviewPaywall({ kitId, productName, counts, free, email, query 
         <UnlockPanel
           kitId={kitId}
           priceLabel={PRODUCTS.kit.priceLabel}
+          launchPromo={launchPromo}
           email={email}
           autoCheckout={query.unlock === "1"}
           cancelled={query.checkout === "cancelled"}

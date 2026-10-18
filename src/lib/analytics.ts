@@ -1,5 +1,5 @@
 import posthog, { type CaptureResult } from "posthog-js";
-import { ANALYTICS_ID_PARAM, isAnalyticsId } from "./experiments";
+import { ANALYTICS_ID_PARAM, isAnalyticsId, type ExperimentKey, type Variant } from "./experiments";
 import type { NewsletterPlacement, WelcomeOutcome } from "./newsletter";
 import { POSTHOG_PROXY_PATH, posthogUiHost } from "./posthog-config";
 import { scrubProperties } from "./scrub-url";
@@ -59,6 +59,14 @@ function scrubEvent(event: CaptureResult | null): CaptureResult | null {
 
 export function track<E extends keyof ClientEvents>(event: E, properties: ClientEvents[E]) {
   if (posthog.__loaded) posthog.capture(event, properties);
+}
+
+/**
+ * PostHog's exposure event for a variant the server assigned, on this page's id. These properties
+ * override the `$feature/<key>` posthog-js would attach from its own evaluation for this id.
+ */
+export function trackExposure(key: ExperimentKey, variant: Variant) {
+  if (posthog.__loaded) posthog.capture("$feature_flag_called", { $feature_flag: key, $feature_flag_response: variant, [`$feature/${key}`]: variant });
 }
 
 /** This page's anonymous PostHog id, sent with checkout so server events join the same funnel. */

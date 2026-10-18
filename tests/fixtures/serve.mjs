@@ -147,6 +147,24 @@ function recordPosthog(body) {
   }
 }
 
+/** Flag variants per distinct id, set by tests through POST /ph/_flags. Everyone else gets no flags. */
+const flagOverrides = new Map();
+
+/** The distinct_id in a flags request: posthog-node sends JSON; posthog-js may gzip it. */
+function flagsDistinctId(body) {
+  try {
+    const raw = body[0] === 0x1f && body[1] === 0x8b ? gunzipSync(body) : body;
+    return JSON.parse(raw.toString("utf8")).distinct_id;
+  } catch {
+    return undefined;
+  }
+}
+
+const flagsResponse = (flags = {}) => ({
+  flags: Object.fromEntries(Object.entries(flags).map(([key, variant]) => [key, { key, enabled: true, variant, reason: null, metadata: {} }])),
+  errorsWhileComputingFlags: false,
+});
+
 /** Every error event the fake Sentry received (SENTRY_DSN=http://public@127.0.0.1:PORT/sentry/1). */
 const sentryEvents = [];
 
@@ -187,19 +205,31 @@ createServer(async (req, res) => {
     return res.end(png(Number(img[1]), Number(img[2])));
   }
   // Fake PostHog (NEXT_PUBLIC_POSTHOG_HOST in the test build): no flags for anyone, so every
-  // experiment is control unless a test intercepts /lp-relay/flags in the browser.
+  // experiment is control unless a test sets variants for a distinct id (POST /ph/_flags
+  // { distinctId, flags }) or intercepts /lp-relay/flags in the browser.
   if (req.url.startsWith("/ph/")) {
     const chunks = [];
     for await (const chunk of req) chunks.push(chunk);
-    if (req.method === "POST") recordPosthog(Buffer.concat(chunks));
+    const body = Buffer.concat(chunks);
     const pathname = req.url.split("?")[0];
+    if (pathname === "/ph/_flags") {
+      const { distinctId, flags } = JSON.parse(body.toString("utf8"));
+      flagOverrides.set(distinctId, flags);
+      res.writeHead(200, { "Content-Type": "application/json" });
+      return res.end("{}");
+    }
+    if (pathname.startsWith("/ph/flags")) {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      return res.end(JSON.stringify(flagsResponse(flagOverrides.get(flagsDistinctId(body)))));
+    }
+    if (req.method === "POST") recordPosthog(body);
     // Remote config script (/array/<key>/config.js): an empty script, not JSON the browser would execute.
     if (pathname.endsWith(".js")) {
       res.writeHead(200, { "Content-Type": "application/javascript" });
       return res.end("");
     }
     res.writeHead(200, { "Content-Type": "application/json" });
-    return res.end(JSON.stringify(pathname.startsWith("/ph/flags") ? { flags: {}, errorsWhileComputingFlags: false } : {}));
+    return res.end("{}");
   }
   if (req.url.startsWith("/gh/")) {
     res.writeHead(404, { "Content-Type": "application/json" });

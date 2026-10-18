@@ -1,12 +1,30 @@
-import { expect, test, type BrowserContext, type Page, type Request } from "@playwright/test";
+import { expect, test, type APIRequestContext, type BrowserContext, type Page, type Request } from "@playwright/test";
 import { logIn, magicLinkFor, makeSampleKit, uniqueEmail } from "./helpers";
 
 type Variant = "control" | "treatment";
 
-/** Answers PostHog's flags request for this page or context, like a flag rolled out to one variant. */
+const FIXTURE = "http://127.0.0.1:3419";
+
+/** Answers PostHog's flags request in the browser (flags posthog-js evaluates for the page's own id). */
 async function forceFlags(target: Page | BrowserContext, flags: Record<string, Variant>) {
   const details = Object.fromEntries(Object.entries(flags).map(([key, variant]) => [key, { key, enabled: true, variant, reason: null, metadata: {} }]));
   await target.route(/\/lp-relay\/flags/, (route) => route.fulfill({ json: { flags: details, errorsWhileComputingFlags: false } }));
+}
+
+/** Rolls the kit's paywall experiment to one variant in the fake PostHog the server asks (bucketed on kit:<id>). */
+async function setKitPromo(request: APIRequestContext, kitId: string, variant: Variant) {
+  await request.post(`${FIXTURE}/ph/_flags`, { data: { distinctId: `kit:${kitId}`, flags: { exp_launch14_promo: variant } } });
+}
+
+interface PhEvent {
+  event: string;
+  distinct_id?: string;
+  properties: Record<string, unknown>;
+}
+
+async function exposures(request: APIRequestContext): Promise<PhEvent[]> {
+  const events = (await (await request.get(`${FIXTURE}/ph/_events`)).json()) as PhEvent[];
+  return events.filter((e) => e.event === "$feature_flag_called" && e.properties.$feature_flag === "exp_launch14_promo");
 }
 
 const checkoutBody = (req: Request) => req.postDataJSON() as { product: string; analyticsId?: string; experiments: Record<string, string> };
@@ -37,8 +55,9 @@ test("promo control: plain £19, no code on checkout, variant recorded", async (
 });
 
 test("promo treatment: £19 struck through, £14 with LAUNCH14, kept through the magic link on another device", async ({ page, browser }) => {
-  await forceFlags(page, { exp_launch14_promo: "treatment" });
   const kitId = await makeSampleKit(page);
+  await setKitPromo(page.request, kitId, "treatment");
+  await page.reload();
   const price = page.getByTestId("kit-price");
   await expect(price.locator("s")).toHaveText("Was £19");
   await expect(price).toContainText("£14");
@@ -53,9 +72,8 @@ test("promo treatment: £19 struck through, £14 with LAUNCH14, kept through the
   expect(aid).toBeTruthy();
   await expect(page.getByTestId("unlock-panel")).toHaveAttribute("data-step", "sent");
 
-  // The link comes back with the first page's anonymous id, so PostHog keeps the same variant.
+  // The variant is the kit's, so the phone gets it too; the link carries the first page's id for the funnel.
   const other = await browser.newContext();
-  await forceFlags(other, { exp_launch14_promo: "treatment" });
   const phone = await other.newPage();
   const checkout = phone.waitForRequest(isCheckout);
   await phone.goto(await magicLinkFor(page.request, email));
@@ -69,6 +87,77 @@ test("promo treatment: £19 struck through, £14 with LAUNCH14, kept through the
   await phone.getByRole("button", { name: "Pay £14 (test mode)" }).click();
   await phone.waitForURL(new RegExp(`/account/kits/${kitId}\\?paid=1&aid=${aid}$`));
   await other.close();
+});
+
+test.describe("promo bucketing", () => {
+  // posthog-js drops every event from a likely bot (HeadlessChrome UA or brand, navigator.webdriver).
+  const userAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36";
+  const notABot = (context: BrowserContext) =>
+    context.addInitScript(() => {
+      Object.defineProperty(Navigator.prototype, "webdriver", { get: () => false });
+      Object.defineProperty(Navigator.prototype, "userAgentData", { get: () => undefined });
+    });
+  test.use({ userAgent });
+  test.beforeEach(({ context }) => notABot(context));
+
+  test("the same kit shows the same price on every reload, with one exposure per view on that view's id", async ({ page, browser }) => {
+    const kitId = await makeSampleKit(page);
+    await setKitPromo(page.request, kitId, "treatment");
+    // What posthog-js would bucket each page's fresh anonymous id into must not matter.
+    await forceFlags(page, { exp_launch14_promo: "control" });
+    const before = (await exposures(page.request)).length;
+
+    const views = 3;
+    for (let i = 0; i < views; i++) {
+      await page.reload();
+      await expect(page.getByTestId("kit-price")).toContainText("£14");
+      await expect(page.getByTestId("launch-promo")).toBeVisible();
+    }
+    const other = await browser.newContext({ userAgent });
+    await notABot(other);
+    const friend = await other.newPage();
+    await friend.goto(`/kit/${kitId}`);
+    await expect(friend.getByTestId("kit-price")).toContainText("£14");
+    await friend.waitForLoadState("networkidle");
+    await other.close();
+
+    await expect.poll(async () => (await exposures(page.request)).length - before).toBe(views + 1);
+    // Give a duplicate time to arrive before checking there isn't one.
+    await page.waitForTimeout(1000);
+    const sent = (await exposures(page.request)).slice(before);
+    expect(sent).toHaveLength(views + 1);
+    for (const e of sent) expect(e.properties).toMatchObject({ $feature_flag_response: "treatment", "$feature/exp_launch14_promo": "treatment" });
+    expect(new Set(sent.map((e) => e.distinct_id ?? e.properties.distinct_id)).size).toBe(views + 1);
+  });
+
+  test("a control kit shows £19 on every reload, with a control exposure each view", async ({ page }) => {
+    const kitId = await makeSampleKit(page);
+    await setKitPromo(page.request, kitId, "control");
+    await forceFlags(page, { exp_launch14_promo: "treatment" });
+    const before = (await exposures(page.request)).length;
+    for (let i = 0; i < 2; i++) {
+      await page.reload();
+      await expect(page.getByTestId("kit-price")).toContainText("£19");
+      await expect(page.getByTestId("kit-price").locator("s")).toHaveCount(0);
+    }
+    await expect.poll(async () => (await exposures(page.request)).slice(before).map((e) => e.properties.$feature_flag_response)).toEqual(["control", "control"]);
+  });
+});
+
+test("checkout applies LAUNCH14 for the kit's own variant, not the one a request claims", async ({ page }) => {
+  await logIn(page, uniqueEmail("promo-forged"));
+  const kitId = await makeSampleKit(page);
+  await setKitPromo(page.request, kitId, "control");
+  const forged = await page.request.post("/api/checkout", { data: { product: "kit", kitId, experiments: { exp_launch14_promo: "treatment" } } });
+  const body = (await forged.json()) as { url: string; promo: string };
+  expect(new URL(body.url, page.url()).searchParams.get("promo")).toBeNull();
+  // The page claimed the promo, so it hears it's unavailable rather than being sent to £19 silently.
+  expect(body.promo).toBe("unavailable");
+
+  await setKitPromo(page.request, kitId, "treatment");
+  const honest = (await (await page.request.post("/api/checkout", { data: { product: "kit", kitId, experiments: { exp_launch14_promo: "control" } } })).json()) as { url: string; promo: string };
+  expect(new URL(honest.url, page.url()).searchParams.get("promo")).toBe("LAUNCH14");
+  expect(honest.promo).toBe("applied");
 });
 
 test("Ship Loop upsell control: the success page is unchanged", async ({ page }) => {

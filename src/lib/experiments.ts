@@ -9,6 +9,13 @@ export type Variant = "control" | "treatment";
 /** The variant each experiment showed on the page that made the request. */
 export type Experiments = Partial<Record<ExperimentKey, Variant>>;
 
+/**
+ * The id the kit paywall's experiments are bucketed on. PostHog hashes the flag on this rather
+ * than the page's anonymous id (new on every load), so a kit shows the same price on every reload
+ * and device, with nothing stored in the browser.
+ */
+export const kitBucketingId = (kitId: string) => `kit:${kitId}`;
+
 const KEYS = new Set<string>(Object.values(EXPERIMENTS));
 
 /** Keeps only known experiments with a known variant; anything else in a request body is dropped. */

@@ -3,7 +3,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { PostHog } from "posthog-node";
 import { deployEnv } from "./deploy-env";
 import { env } from "./env";
-import { isAnalyticsId, type ExperimentKey, type Variant } from "./experiments";
+import { isAnalyticsId, kitBucketingId, type ExperimentKey, type Variant } from "./experiments";
 import { LAUNCH_PROMO_TIMEOUT_MS } from "./launch-promo";
 import { captureException } from "./observability";
 import { posthogHost } from "./posthog-config";
@@ -35,9 +35,27 @@ let client: PostHog | null = null;
 /** Shared by event capture and server-side flag reads. Null without NEXT_PUBLIC_POSTHOG_KEY. */
 export function posthog(): PostHog | null {
   if (!env.posthogKey) return null;
-  // Serverless: send each event straight away rather than batching.
+  // Serverless: send each event straight away rather than batching. Flags get the same 1.5s budget as the browser.
   client ??= new PostHog(env.posthogKey, { host: posthogHost(), flushAt: 1, flushInterval: 0, featureFlagsRequestTimeoutMs: LAUNCH_PROMO_TIMEOUT_MS });
   return client;
+}
+
+/**
+ * The experiment variant PostHog assigns a kit (bucketed on `kit:<kitId>`), or undefined without
+ * PostHog, or when the flag is off, errors or times out: show control and record no exposure.
+ * Sends no $feature_flag_called itself; the page records the exposure on the visitor's id, the id
+ * its checkout events use. Never throws.
+ */
+export async function kitVariant(key: ExperimentKey, kitId: string): Promise<Variant | undefined> {
+  try {
+    const ph = posthog();
+    if (!ph) return undefined;
+    const value = await ph.getFeatureFlag(key, kitBucketingId(kitId), { sendFeatureFlagEvents: false, disableGeoip: true });
+    return value === "control" || value === "treatment" ? value : undefined;
+  } catch (error) {
+    captureException(error, { stage: "analytics.flag", key });
+    return undefined;
+  }
 }
 
 /** The browser's anonymous id when it sent a sane one, else a fresh server id so the event still counts. */

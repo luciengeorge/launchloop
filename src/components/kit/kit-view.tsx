@@ -1,8 +1,10 @@
 import { Download, Mail } from "lucide-react";
 import { GenerationPoller } from "@/components/generation-poller";
 import { buttonVariants } from "@/components/ui/button";
+import { kitVariant } from "@/lib/analytics-server";
 import type { Session } from "@/lib/auth";
 import { launchChecklist, mockContent } from "@/lib/copy";
+import { EXPERIMENTS } from "@/lib/experiments";
 import { MAX_ATTEMPTS } from "@/lib/fulfil";
 import { getDraft } from "@/lib/generation";
 import { shipLoopPreorderOpen } from "@/lib/payments";
@@ -60,6 +62,7 @@ async function LockedKit({ kit, session, query }: Props) {
         productName={kit.brief.name}
         counts={{ features: shape.landing.features.length, xPosts: shape.xThread.length, checklistSteps: checklist.length }}
         free={{ tagline: kit.preview.tagline, xPost: kit.preview.xPost }}
+        launchPromo={kitVariant(EXPERIMENTS.launchPromo, kit.id)}
         email={session?.email}
         query={query}
       />
