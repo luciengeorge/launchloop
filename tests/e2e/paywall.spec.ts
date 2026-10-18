@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { scrubProperties } from "../../src/lib/scrub-url";
 import { logIn, magicLinkFor, makeSampleKit, uniqueEmail } from "./helpers";
 
-test("after the preview: locked sections, one real sample and a single unlock CTA", async ({ page }) => {
+test("after the preview: locked sections, the two free samples and a single unlock CTA", async ({ page }) => {
   await makeSampleKit(page);
   const paywall = page.getByTestId("preview-paywall");
   await expect(paywall.getByRole("heading", { level: 2 })).toHaveText("Like it? Here's the rest of Snapshelf's launch kit.");
@@ -13,12 +13,16 @@ test("after the preview: locked sections, one real sample and a single unlock CT
     await expect(sections.filter({ hasText: name })).toHaveCount(1);
   }
 
-  // The sample is the free X post, the same text the locked pipeline shows unlocked.
-  const sample = paywall.getByTestId("paywall-sample");
-  await expect(sample).toContainText("Post 1 of your X thread");
+  // The samples are the free tagline and X post, the same text the locked pipeline shows unlocked.
+  const samples = paywall.getByTestId("paywall-sample");
+  await expect(samples).toHaveCount(2);
+  await expect(sections.filter({ hasText: "Product Hunt post" })).toContainText("Your tagline is free: it's unlocked below.");
+  await page.getByTestId("stage-tab-Product Hunt").click();
+  const freeTagline = await page.locator('[data-task-id="ph.tagline"] [data-testid="task-text"]').innerText();
+  await expect(samples.filter({ hasText: "Your Product Hunt tagline" }).locator("p")).toHaveText(freeTagline);
   await page.getByTestId("stage-tab-X").click();
   const freePost = await page.locator('[data-task-id="x.1"] [data-testid="task-text"]').innerText();
-  await expect(sample.locator("p")).toHaveText(freePost);
+  await expect(samples.filter({ hasText: "Post 1 of your X thread" }).locator("p")).toHaveText(freePost);
 
   await expect(page.getByRole("button", { name: /£19/ })).toHaveCount(1);
   await expect(page.getByRole("button", { name: "Unlock the full kit, £19" })).toBeVisible();

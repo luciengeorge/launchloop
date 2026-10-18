@@ -53,18 +53,13 @@ async function LockedKit({ kit, session, query }: Props) {
     free: { tagline: kit.preview.tagline, xPost: kit.preview.xPost },
     brief: kit.brief,
   });
-  const sample = kit.preview.xPost
-    ? { title: "Post 1 of your X thread", text: kit.preview.xPost }
-    : kit.preview.tagline
-      ? { title: "Your Product Hunt tagline", text: kit.preview.tagline }
-      : undefined;
   return (
     <div className="space-y-8">
       <PreviewPaywall
         kitId={kit.id}
         productName={kit.brief.name}
         counts={{ features: shape.landing.features.length, xPosts: shape.xThread.length, checklistSteps: checklist.length }}
-        sample={sample}
+        free={{ tagline: kit.preview.tagline, xPost: kit.preview.xPost }}
         email={session?.email}
         query={query}
       />
