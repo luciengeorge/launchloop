@@ -1,4 +1,7 @@
 import { expect, test } from "@playwright/test";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { kitErrorBody, rateLimitedBody } from "../../src/lib/errors";
 import { followMagicLink } from "./helpers";
 
 const FIXTURE = "http://127.0.0.1:3419";
@@ -12,7 +15,7 @@ const CASES = [
   { name: "site returning an error", input: `${FIXTURE}/broken`, code: "site_http_error", text: "HTTP 500", fix: "try your homepage" },
   { name: "site with no usable content", input: `${FIXTURE}/empty`, code: "site_no_content", text: "couldn't find any words", fix: "renders everything with JavaScript" },
   { name: "link that isn't a web page", input: `${FIXTURE}/data.json`, code: "site_not_html", text: "isn't a web page", fix: "homepage or landing page URL" },
-  { name: "LLM failure", input: `${FIXTURE}/llmfail`, code: "llm_failed", text: "AI writer is having a moment", fix: "Nothing is wrong with your link" },
+  { name: "every model fails", input: `${FIXTURE}/llmfail`, code: "ai_busy", text: "Our AI is busy, try again in a minute", fix: "Nothing is wrong with your link" },
 ];
 
 for (const c of CASES) {
@@ -59,8 +62,27 @@ test("paid kit whose generation keeps failing shows a proper error state with re
   const state = page.getByTestId("kit-error-state");
   await expect(state).toBeVisible({ timeout: 20_000 });
   await expect(state).toContainText("Your payment is safe");
+  await expect(state).toContainText("you'll get your kit, or a full refund");
   await expect(state.getByRole("button", { name: "Try again" })).toBeVisible();
   await expect(page.locator("main")).not.toContainText(/Simulated LLM failure|LlmError|at \w+ \(/);
+  // No template copy stands in for the paid kit.
+  await expect(page.getByTestId("task")).toHaveCount(0);
+
+  // Flagged for a manual refund, with the honest email sent once.
+  const record = JSON.parse(readFileSync(path.join(process.cwd(), ".data-test", `dev_kit_${kitId}.json`), "utf8")) as { value: { status: string; refund_needed?: boolean; content?: unknown } };
+  expect(record.value).toMatchObject({ status: "failed", refund_needed: true });
+  expect(record.value.content).toBeUndefined();
+  const failureEmails = async () => {
+    const { emails } = (await (await page.request.get("/api/dev/outbox")).json()) as { emails: { to: string; subject: string; text: string }[] };
+    return emails.filter((e) => e.to === email && e.subject.startsWith("We hit a problem generating your"));
+  };
+  await expect.poll(async () => (await failureEmails()).length).toBe(1);
+  expect((await failureEmails())[0].text).toContain("full refund");
+
+  await page.goto("/account");
+  const row = page.locator(`[data-testid="account-kit"][data-kit-id="${kitId}"]`);
+  await expect(row.getByTestId("kit-status")).toHaveText("Paid · generation failed");
+  await expect(row.getByTestId("kit-failed-note")).toContainText("full refund");
 });
 
 test("unknown pages and kits get a helpful not-found page", async ({ page }) => {
@@ -72,14 +94,47 @@ test("unknown pages and kits get a helpful not-found page", async ({ page }) => 
   await expect(page.getByRole("heading", { name: "We can't find that kit" })).toBeVisible();
 });
 
-test("preview requests are rate limited per IP across the hour", async ({ request }) => {
+test("preview requests are rate limited per IP across the hour; invalid URLs and the sample don't count", async ({ request }) => {
   const ip = `203.0.113.${Math.floor(Math.random() * 250) + 1}`;
+  const post = (url: string, from = ip) => request.post("/api/kits", { data: { url }, headers: { "x-forwarded-for": from } });
+  for (let i = 0; i < 5; i++) expect((await post("not a url")).status()).toBe(422);
+  expect((await post("sample")).status()).toBe(201);
+  // A missing repo is a valid request that costs a GitHub call, so it counts.
   const statuses: number[] = [];
-  for (let i = 0; i < 41; i++) statuses.push((await request.post("/api/kits", { data: { url: "not a url" }, headers: { "x-forwarded-for": ip } })).status());
+  for (let i = 0; i < 41; i++) statuses.push((await post("github.com/real-owner/secret-repo")).status());
   expect(statuses.slice(0, 40).every((s) => s === 422)).toBe(true);
   expect(statuses[40]).toBe(429);
-  const body = (await (await request.post("/api/kits", { data: { url: "x" }, headers: { "x-forwarded-for": ip } })).json()) as { code: string; fix: string };
+  const res = await post("github.com/real-owner/secret-repo");
+  const body = (await res.json()) as { code: string; fix: string; retryAfterSeconds: number };
   expect(body.code).toBe("rate_limited");
+  expect(body.retryAfterSeconds).toBeGreaterThan(0);
+  expect(res.headers()["retry-after"]).toBe(String(body.retryAfterSeconds));
+  expect(body.fix).toMatch(/Try again in \d+ (min|hours)/);
   // A different IP is unaffected.
-  expect((await request.post("/api/kits", { data: { url: "not a url" }, headers: { "x-forwarded-for": "198.51.100.7" } })).status()).toBe(422);
+  expect((await post("not a url", "198.51.100.7")).status()).toBe(422);
+});
+
+test("rate limited previews say when to try again", async ({ page }) => {
+  await page.route("**/api/kits", (route) => route.fulfill({ status: 429, headers: { "Retry-After": "1380" }, json: rateLimitedBody(1380) }));
+  await page.goto("/");
+  await page.getByLabel("GitHub repo or live site URL").fill("github.com/acme/app");
+  await page.getByRole("button", { name: "Get my free preview" }).first().click();
+  const alert = page.getByTestId("kit-error");
+  await expect(alert).toHaveAttribute("data-code", "rate_limited");
+  await expect(alert).toContainText("You've used your free previews for now.");
+  await expect(alert).toContainText("Try again in 23 min");
+  await expect(alert).not.toHaveClass(/text-destructive/);
+});
+
+test("busy (global cap or kill switch) shows the friendly notice, not an error", async ({ page }) => {
+  await page.route("**/api/kits", (route) => route.fulfill({ status: 503, json: kitErrorBody("busy") }));
+  await page.goto("/");
+  await page.getByLabel("GitHub repo or live site URL").fill("github.com/acme/app");
+  await page.getByRole("button", { name: "Get my free preview" }).first().click();
+  const alert = page.getByTestId("kit-error");
+  await expect(alert).toHaveAttribute("data-code", "busy");
+  await expect(alert).toContainText("LaunchLoop is very busy right now, try again in a bit.");
+  await expect(alert).toContainText("Kits you've already unlocked aren't affected");
+  await expect(alert).not.toHaveClass(/text-destructive/);
+  await expect(page.getByLabel("GitHub repo or live site URL")).toBeEnabled();
 });

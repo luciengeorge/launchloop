@@ -43,17 +43,17 @@ test("Try again after a failed sample run resends the sample, not the empty inpu
     await route.fulfill({
       status: 200,
       contentType: "application/x-ndjson",
-      body: ndjson({ type: "error", status: 503, error: "Our AI writer is having a moment.", code: "llm_failed", fix: "Nothing is wrong with your link. Try again in a minute." }),
+      body: ndjson({ type: "error", status: 503, error: "Our AI is busy, try again in a minute.", code: "ai_busy", fix: "Nothing is wrong with your link, and nothing was saved." }),
     });
   });
 
   await page.goto("/");
   await page.getByRole("button", { name: "Try a sample app" }).click();
   const alert = page.getByTestId("kit-error");
-  await expect(alert).toHaveAttribute("data-code", "llm_failed");
+  await expect(alert).toHaveAttribute("data-code", "ai_busy");
   await expect(page.getByLabel("GitHub repo or live site URL")).toHaveValue("");
 
-  await alert.getByRole("button", { name: "Try again" }).click();
+  await alert.getByRole("button", { name: "Retry" }).click();
   await page.waitForURL(/\/kit\/[\w-]+$/);
   expect(sent).toEqual(["sample", "sample"]);
 });

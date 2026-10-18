@@ -10,21 +10,12 @@ import { ANON_KITS_COOKIE, getSession, readAnonKits, secureCookies } from "@/lib
 import { type KitRequestTrace, phase, previewSourceOf, safeInput, traceKitRequest } from "@/lib/kit-tracing";
 import { type KitOptions, createKit, markKitFailed, markKitPending, newId } from "@/lib/kits";
 import { captureException } from "@/lib/observability";
-import { freePreviewLimit } from "@/lib/rate-limit";
+import { freePreviewGate } from "@/lib/rate-limit";
 
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 export async function POST(req: Request) {
   return traceKitRequest({ maxDurationSeconds: maxDuration }, async (trace) => {
-    const limit = await phase("kits.rate_limit", "rate_limit", {}, () => freePreviewLimit(req));
-    if (!limit.ok) {
-      trace.end({ status: "error", code: "rate_limited" });
-      return Response.json(
-        kitErrorBody("rate_limited"),
-        { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } },
-      );
-    }
-
     let url: unknown;
     let attribution: unknown;
     try {
@@ -36,6 +27,14 @@ export async function POST(req: Request) {
     if (typeof url !== "string" || !url.trim()) {
       trace.end({ status: "error", code: "invalid_url" });
       return Response.json(kitErrorBody("invalid_url", "Paste a GitHub repo URL or your live site URL."), { status: 400 });
+    }
+    const input = url;
+    // Kill switch, input check, per-IP limit and global daily cap.
+    const refused = await phase("kits.rate_limit", "rate_limit", {}, () => freePreviewGate(req, input));
+    if (refused) {
+      const { code } = (await refused.clone().json().catch(() => ({}))) as { code?: string };
+      trace.end({ status: "error", code: code ?? `http_${refused.status}` });
+      return refused;
     }
 
     // Opt-in progress stream: newline-delimited JSON events, starting with {type:"accepted"} and ending
@@ -118,10 +117,8 @@ function speculate(kit: Kit) {
 
 function toErrorResponse(error: unknown, url: string) {
   if (error instanceof IngestError) return { status: 422, body: kitErrorBody(error.code, error.userMessage) };
-  if (error instanceof LlmError) {
-    captureException(error, { stage: "api.kits.create.llm", input: safeInput(url), code: "llm_failed" });
-    return { status: 503, body: kitErrorBody("llm_failed") };
-  }
+  // llm.ts already reported it (throttled), so an AI Gateway outage isn't one Sentry event per visitor.
+  if (error instanceof LlmError) return { status: 503, body: kitErrorBody("ai_busy") };
   captureException(error, { stage: "api.kits.create", input: safeInput(url), code: "unknown" });
   return { status: 500, body: kitErrorBody("unknown") };
 }

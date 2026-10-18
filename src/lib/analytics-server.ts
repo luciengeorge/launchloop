@@ -33,6 +33,8 @@ export interface ServerEvents {
   flag_fallback: { flag: ExperimentKey; variant: Variant; reason: FallbackReason; fallback: true; source: "checkout"; remembered: boolean; kitId: string };
   /** A paid Checkout we couldn't record ("record", Stripe will retry) or whose kit generation crashed ("fulfil"). */
   checkout_fulfilment_failed: { plan: ProductId; kitId?: string; stripeSessionId: string; stripeEventId: string; stage: "record" | "fulfil"; errorName: string; mock: boolean };
+  /** A paid kit failed every automatic attempt and needs a manual delivery or refund. */
+  kit_generation_failed: { plan: "kit"; kitId: string; attempts: number; refund_needed: true; reason: string };
 }
 
 let client: PostHog | null = null;

@@ -6,3 +6,9 @@ export const IMAGE_VARIANTS = {
 
 export type ImageVariant = keyof typeof IMAGE_VARIANTS;
 export const isImageVariant = (v: string): v is ImageVariant => v in IMAGE_VARIANTS;
+
+/**
+ * Unpaid images are cached publicly for 5 minutes, so paid kits use a different URL: a buyer never
+ * sees a cached watermarked image. /api/og serves `?v=paid` for an unpaid kit with no-store.
+ */
+export const kitImageUrl = (kitId: string, variant: ImageVariant, paid: boolean) => `/api/og/${kitId}/${variant}${paid ? "?v=paid" : ""}`;

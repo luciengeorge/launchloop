@@ -72,9 +72,9 @@ describe("inputs and error codes", () => {
     expect(safeInput("my-app.com/private/path?invite=123")).toBe("https://my-app.com");
   });
 
-  it("maps IngestError codes and LlmError", () => {
+  it("maps IngestError codes, and LlmError to ai_busy", () => {
     expect(errorCodeOf(Object.assign(new Error("x"), { code: "site_timeout" }))).toBe("site_timeout");
-    expect(errorCodeOf(Object.assign(new Error("x"), { name: "LlmError" }))).toBe("llm_failed");
+    expect(errorCodeOf(Object.assign(new Error("x"), { name: "LlmError" }))).toBe("ai_busy");
     expect(errorCodeOf(new TypeError("boom"))).toBe("unknown");
   });
 
@@ -110,12 +110,12 @@ describe("traceKitRequest", () => {
   it("doesn't warn for a request that finished, and records status, code and duration", async () => {
     await traceKitRequest({ maxDurationSeconds: 60 }, async (trace) => {
       await vi.advanceTimersByTimeAsync(1200);
-      trace.end({ status: "error", code: "llm_failed" });
+      trace.end({ status: "error", code: "ai_busy" });
     });
     await vi.advanceTimersByTimeAsync(60_000);
     expect(sentry.captureMessage).not.toHaveBeenCalled();
-    expect(sentry.span.setAttributes).toHaveBeenCalledWith({ "kit.status": "error", "error.code": "llm_failed", duration_ms: 1200 });
-    expect(sentry.span.setStatus).toHaveBeenCalledWith({ code: 2, message: "llm_failed" });
+    expect(sentry.span.setAttributes).toHaveBeenCalledWith({ "kit.status": "error", "error.code": "ai_busy", duration_ms: 1200 });
+    expect(sentry.span.setStatus).toHaveBeenCalledWith({ code: 2, message: "ai_busy" });
     expect(sentry.span.end).toHaveBeenCalledTimes(1);
   });
 });

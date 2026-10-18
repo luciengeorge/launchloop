@@ -15,6 +15,9 @@ import { KitPrice } from "./kit-price";
 
 const previewSource = (value: string): PreviewSource => (value === "sample" ? "sample" : /github\.com/i.test(value) ? "github" : "site");
 
+/** Our side is out of capacity: the AI (ai_busy) or the daily free-preview budget (busy). Same UI, different wording. */
+const CAPACITY_CODES = new Set(["ai_busy", "busy"]);
+
 const STEPS = [
   { id: "repo", label: "Reading repo" },
   { id: "site", label: "Reading site" },
@@ -185,13 +188,14 @@ export function KitForm({ promo }: { promo: boolean }) {
       </div>
 
       {error ? (
-        <Alert variant="destructive" role="alert" id="kit-form-error" data-testid="kit-error" data-code={error.code} className="text-left">
+        // Capacity, AI outages and limits ("Try again in N min") aren't the visitor's mistake, so they aren't styled as errors.
+        <Alert variant={CAPACITY_CODES.has(error.code) || error.code === "rate_limited" ? "default" : "destructive"} role="alert" id="kit-form-error" data-testid="kit-error" data-code={error.code} className="text-left">
           <AlertDescription>
             <p className="font-medium text-foreground">{error.message}</p>
             {error.fix ? <p className="mt-1">{error.fix}</p> : null}
-            {error.code === "llm_failed" || error.code === "site_timeout" || error.code === "network" || error.code === "aborted" ? (
+            {CAPACITY_CODES.has(error.code) || error.code === "site_timeout" || error.code === "network" || error.code === "aborted" ? (
               <button type="button" className="mt-2 font-medium underline underline-offset-4" onClick={() => void submit(lastInput.current)}>
-                Try again
+                {CAPACITY_CODES.has(error.code) ? "Retry" : "Try again"}
               </button>
             ) : null}
           </AlertDescription>

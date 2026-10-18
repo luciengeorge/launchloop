@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import type { SitePage } from "@/lib/pages";
 import { SITE } from "@/lib/site";
 
+/** For the opengraph-image routes that never change between deploys: cached at the edge for a day, then served stale while revalidating for a week. */
+export const STATIC_OG_HEADERS = { "Cache-Control": "public, s-maxage=86400, stale-while-revalidate=604800" };
+
 /** Per-page metadata with matching canonical, Open Graph and Twitter tags (child openGraph replaces the root's, so set it every time). */
 export function pageMetadata({
   title,
