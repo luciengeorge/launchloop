@@ -2,6 +2,7 @@ import "server-only";
 import { Resend } from "resend";
 import { deploymentUrl, env, isEmailMock } from "./env";
 import { render } from "@react-email/render";
+import { KitFailedEmail } from "../emails/kit-failed";
 import { KitReadyEmail } from "../emails/kit-ready";
 import { LOGO_CID, LOGO_PNG_BASE64 } from "../emails/logo-data";
 import { MagicLinkEmail } from "../emails/magic-link";
@@ -130,5 +131,17 @@ export async function preorderEmail(params: { to: string; planLabel: string }): 
     to: params.to,
     subject: "You're in: Ship Loop pre-order confirmed",
     ...(await renderEmail(<ShipLoopWelcomeEmail planLabel={params.planLabel} shipLoopUrl={`${deploymentUrl()}/ship-loop`} accountUrl={`${deploymentUrl()}/account`} />)),
+  };
+}
+
+/** Every automatic attempt failed: tell the buyer plainly, promise the kit or a refund. */
+export async function kitFailedEmail(params: { to: string; kit: Kit }): Promise<OutgoingEmail> {
+  const { kit } = params;
+  return {
+    to: params.to,
+    subject: `We hit a problem generating your ${kit.brief.name} launch kit`,
+    ...(await renderEmail(
+      <KitFailedEmail productName={kit.brief.name} accountUrl={`${deploymentUrl()}/account/kits/${kit.id}`} priceLabel={PRODUCTS.kit.priceLabel} receiptRef={kit.paymentRef} />,
+    )),
   };
 }

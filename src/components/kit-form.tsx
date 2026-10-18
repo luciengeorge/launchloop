@@ -15,6 +15,9 @@ import { KitPrice } from "./kit-price";
 
 const previewSource = (value: string): PreviewSource => (value === "sample" ? "sample" : /github\.com/i.test(value) ? "github" : "site");
 
+/** Our side is out of capacity: the AI (ai_busy) or the daily free-preview budget (busy). Same UI, different wording. */
+const CAPACITY_CODES = new Set(["ai_busy", "busy"]);
+
 const STEPS = [
   { id: "repo", label: "Reading repo" },
   { id: "site", label: "Reading site" },
@@ -33,6 +36,8 @@ export function KitForm({ promo }: { promo: boolean }) {
 
   const [plan, setPlan] = useState<StartPlan>("free");
   const inputRef = useRef<HTMLInputElement>(null);
+  // What the last run actually sent: "Try a sample app" leaves the input empty, so retry can't use `url`.
+  const lastInput = useRef("");
 
   // Arriving via /#start or ?plan=kit (or a StartLink on this page): scroll to the form, focus it, preselect the plan.
   // ?url= prefills the input, e.g. when a free tool hands over the repo it just read.
@@ -71,6 +76,7 @@ export function KitForm({ promo }: { promo: boolean }) {
   };
 
   async function submit(value: string) {
+    lastInput.current = value;
     setError(null);
     setLoading(true);
     setStep(-1);
@@ -173,13 +179,14 @@ export function KitForm({ promo }: { promo: boolean }) {
       </div>
 
       {error ? (
-        <Alert variant="destructive" role="alert" id="kit-form-error" data-testid="kit-error" data-code={error.code} className="text-left">
+        // Capacity, AI outages and limits ("Try again in N min") aren't the visitor's mistake, so they aren't styled as errors.
+        <Alert variant={CAPACITY_CODES.has(error.code) || error.code === "rate_limited" ? "default" : "destructive"} role="alert" id="kit-form-error" data-testid="kit-error" data-code={error.code} className="text-left">
           <AlertDescription>
             <p className="font-medium text-foreground">{error.message}</p>
             {error.fix ? <p className="mt-1">{error.fix}</p> : null}
-            {error.code === "llm_failed" || error.code === "site_timeout" || error.code === "network" ? (
-              <button type="button" className="mt-2 font-medium underline underline-offset-4" onClick={() => void submit(url)}>
-                Try again
+            {CAPACITY_CODES.has(error.code) || error.code === "site_timeout" || error.code === "network" ? (
+              <button type="button" className="mt-2 font-medium underline underline-offset-4" onClick={() => void submit(lastInput.current)}>
+                {CAPACITY_CODES.has(error.code) ? "Retry" : "Try again"}
               </button>
             ) : null}
           </AlertDescription>

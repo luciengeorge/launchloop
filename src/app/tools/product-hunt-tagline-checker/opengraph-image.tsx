@@ -1,4 +1,5 @@
 import { ImageResponse } from "@vercel/og";
+import { STATIC_OG_HEADERS } from "@/lib/seo";
 import { charLength } from "@/lib/limits";
 import { TAGLINE_LIMIT } from "@/lib/tagline-check";
 import { TAGLINE_CHECKER } from "@/lib/tools";
@@ -65,6 +66,6 @@ export default function TaglineCheckerOgImage() {
         </div>
       </div>
     ),
-    size,
+    { ...size, headers: STATIC_OG_HEADERS },
   );
 }

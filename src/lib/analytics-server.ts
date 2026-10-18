@@ -29,6 +29,8 @@ export interface ServerEvents {
   checkout_completed: CheckoutProperties & FeatureProperties & { stripeSessionId: string };
   /** The server couldn't get an assignment where it needed one (see resolveKitPromo). `remembered`: it used the kit's last assignment. */
   flag_fallback: { flag: ExperimentKey; variant: Variant; reason: FallbackReason; fallback: true; source: "checkout"; remembered: boolean; kitId: string };
+  /** A paid kit failed every automatic attempt and needs a manual delivery or refund. */
+  kit_generation_failed: { plan: "kit"; kitId: string; attempts: number; refund_needed: true; reason: string };
 }
 
 let client: PostHog | null = null;

@@ -105,8 +105,9 @@ function imageError(error: IngestError): string {
     case "repo_owner_not_found":
     case "github_rate_limited":
     case "github_unavailable":
-    case "llm_failed":
+    case "ai_busy":
     case "rate_limited":
+    case "busy":
     case "unknown":
       return "we couldn't reach it";
     default: {
