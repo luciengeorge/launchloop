@@ -6,15 +6,13 @@ import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { siteUrl } from "@/lib/env";
 import { OG_IMAGE, OG_MIN } from "@/lib/og-check";
+import { PAGES, toolPage } from "@/lib/pages";
 import { pageMetadata } from "@/lib/seo";
 import { SITE } from "@/lib/site";
-import { breadcrumbs } from "@/lib/structured-data";
+import { breadcrumbs, faqPage } from "@/lib/structured-data";
 import { OG_FAQ, OG_PREVIEW as tool, TAGLINE_CHECKER } from "@/lib/tools";
 
-export const metadata: Metadata = {
-  ...pageMetadata({ title: tool.metaTitle, description: tool.description, path: tool.path, image: { url: `${tool.path}/opengraph-image`, alt: tool.imageAlt } }),
-  robots: { index: true, follow: true },
-};
+export const metadata: Metadata = pageMetadata(toolPage(tool));
 
 const SIZE = `${OG_IMAGE.width}×${OG_IMAGE.height}`;
 
@@ -69,18 +67,18 @@ export default function OgPreviewPage() {
               offers: { "@type": "Offer", price: "0", priceCurrency: "GBP", availability: "https://schema.org/InStock" },
               publisher: { "@id": `${base}/#organization`, "@type": "Organization", name: SITE.name, url: `${base}/` },
             },
-            {
-              "@type": "FAQPage",
-              "@id": `${url}#faq`,
-              mainEntity: OG_FAQ.map((item) => ({ "@type": "Question", name: item.q, acceptedAnswer: { "@type": "Answer", text: item.a } })),
-            },
-            breadcrumbs(base, [{ name: tool.title, path: tool.path }]),
+            faqPage(`${url}#faq`, OG_FAQ),
+            breadcrumbs(base, [
+              { name: "Tools", path: PAGES.tools.path },
+              { name: tool.title, path: tool.path },
+            ]),
           ],
         }}
       />
 
       <nav aria-label="Breadcrumb" className="text-sm text-muted-foreground">
-        <Link href="/" className="hover:text-foreground">Home</Link> <span aria-hidden="true">/</span> <span>Tools</span> <span aria-hidden="true">/</span>{" "}
+        <Link href="/" className="hover:text-foreground">Home</Link> <span aria-hidden="true">/</span>{" "}
+        <Link href={PAGES.tools.path} className="hover:text-foreground">Tools</Link> <span aria-hidden="true">/</span>{" "}
         <span aria-current="page">OG preview</span>
       </nav>
 

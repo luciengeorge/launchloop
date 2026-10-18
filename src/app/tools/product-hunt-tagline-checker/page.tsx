@@ -5,15 +5,13 @@ import { TaglineChecker } from "@/components/tools/tagline-checker";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { siteUrl } from "@/lib/env";
+import { PAGES, toolPage } from "@/lib/pages";
 import { pageMetadata } from "@/lib/seo";
 import { SITE } from "@/lib/site";
-import { breadcrumbs } from "@/lib/structured-data";
+import { breadcrumbs, faqPage } from "@/lib/structured-data";
 import { TAGLINE_FAQ, TAGLINE_CHECKER as tool } from "@/lib/tools";
 
-export const metadata: Metadata = {
-  ...pageMetadata({ title: tool.metaTitle, description: tool.description, path: tool.path, image: { url: `${tool.path}/opengraph-image`, alt: tool.imageAlt } }),
-  robots: { index: true, follow: true },
-};
+export const metadata: Metadata = pageMetadata(toolPage(tool));
 
 const EXAMPLES = [
   { weak: "AI-powered platform for productivity", strong: "Turn your GitHub repo into a launch kit", why: "Names the input and the result. Anyone with a repo knows it's for them." },
@@ -57,18 +55,18 @@ export default function TaglineCheckerPage() {
               offers: { "@type": "Offer", price: "0", priceCurrency: "GBP", availability: "https://schema.org/InStock" },
               publisher: { "@id": `${base}/#organization`, "@type": "Organization", name: SITE.name, url: `${base}/` },
             },
-            {
-              "@type": "FAQPage",
-              "@id": `${url}#faq`,
-              mainEntity: TAGLINE_FAQ.map((item) => ({ "@type": "Question", name: item.q, acceptedAnswer: { "@type": "Answer", text: item.a } })),
-            },
-            breadcrumbs(base, [{ name: tool.title, path: tool.path }]),
+            faqPage(`${url}#faq`, TAGLINE_FAQ),
+            breadcrumbs(base, [
+              { name: "Tools", path: PAGES.tools.path },
+              { name: tool.title, path: tool.path },
+            ]),
           ],
         }}
       />
 
       <nav aria-label="Breadcrumb" className="text-sm text-muted-foreground">
-        <Link href="/" className="hover:text-foreground">Home</Link> <span aria-hidden="true">/</span> <span>Tools</span> <span aria-hidden="true">/</span>{" "}
+        <Link href="/" className="hover:text-foreground">Home</Link> <span aria-hidden="true">/</span>{" "}
+        <Link href={PAGES.tools.path} className="hover:text-foreground">Tools</Link> <span aria-hidden="true">/</span>{" "}
         <span aria-current="page">Tagline checker</span>
       </nav>
 
