@@ -1,14 +1,16 @@
 import { GitCommitHorizontal, Image as ImageIcon, MailCheck, PenLine } from "lucide-react";
 import type { Metadata } from "next";
 import { pageMetadata } from "@/lib/seo";
+import { KitPrice } from "@/components/kit-price";
 import { ShipLoopPlans } from "@/components/ship-loop-plans";
 import { StartLink } from "@/components/start-link";
 import { buttonVariants } from "@/components/ui/button";
+import { isLaunchPromoOn } from "@/lib/launch-promo-server";
 
 export const metadata: Metadata = pageMetadata({
   title: "Ship Loop: draft posts for every release",
   description:
-    "Coming soon. Every time you ship a release, Ship Loop drafts an X post, a LinkedIn post, a changelog blurb and an image in your colours, then emails them to you to approve. It never posts for you. £12/month or £99/year. Join the waitlist or pre-order.",
+    "Coming soon. Every time you ship a release, Ship Loop drafts an X post, a LinkedIn post, a changelog blurb and an image in your colours, then emails them to you to approve. It never posts for you. Planned pricing £12/month or £99/year. Join the waitlist to hear when it launches.",
   path: "/ship-loop",
 });
 
@@ -19,34 +21,40 @@ const FLOW = [
   { icon: MailCheck, title: "You approve.", body: "One email. Approve it as is or edit it, then post it yourself. Nothing is posted for you." },
 ];
 
-const COMPARISON = [
+const comparison = (promo: boolean) => [
   { label: "When", kit: "Launch day", loop: "Every release after" },
-  { label: "Price", kit: "£19 once", loop: "£12/month or £99/year" },
+  {
+    label: "Price",
+    kit: (
+      <>
+        <KitPrice promo={promo} /> once
+      </>
+    ),
+    loop: "£12/month or £99/year (planned)",
+  },
   { label: "You get", kit: "A full launch pack for one app", loop: "Draft posts and an image per release" },
-  { label: "Status", kit: "Available now", loop: "Coming soon" },
+  { label: "Status", kit: "Available now", loop: "Coming soon, not on sale yet" },
 ];
 
-export default function ShipLoopPage() {
+export default async function ShipLoopPage() {
+  const promo = await isLaunchPromoOn();
   return (
     <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
       <div className="grid gap-12 lg:grid-cols-[1fr_420px] lg:items-start">
         <div className="space-y-8">
           <div className="space-y-4">
-            <p className="font-mono text-xs uppercase tracking-widest text-primary">Coming soon · Waitlist and pre-orders open</p>
+            <p className="font-mono text-xs uppercase tracking-widest text-primary">Coming soon · Waitlist open</p>
             <h1 className="text-balance text-4xl font-semibold tracking-tight sm:text-5xl">You launched once. Now keep shipping in public.</h1>
             <p className="max-w-xl text-lg text-muted-foreground">
               Every time you ship a release, Ship Loop drafts an X post, a LinkedIn post, a changelog blurb and an image in your colours. You get one email. You approve or
               edit, then you post.
             </p>
             <div className="flex flex-wrap items-center gap-3 pt-2">
-              <a href="#plans" className={buttonVariants({ size: "lg", className: "px-5" })}>
-                Pre-order Ship Loop
-              </a>
-              <a href="#waitlist" className={buttonVariants({ variant: "outline", size: "lg", className: "px-5" })}>
-                Join the free waitlist
+              <a href="#waitlist" className={buttonVariants({ size: "lg", className: "px-5" })}>
+                Join the waitlist
               </a>
             </div>
-            <p className="text-sm text-muted-foreground">£12/month or £99/year. Pre-orders are refundable in full until Ship Loop launches.</p>
+            <p className="text-sm text-muted-foreground">Ship Loop is coming soon. Get notified when it launches. Planned pricing: £12/month or £99/year.</p>
           </div>
           <ol className="grid gap-4 sm:grid-cols-2">
             {FLOW.map(({ icon: Icon, title, body }) => (
@@ -75,7 +83,7 @@ export default function ShipLoopPage() {
                 </tr>
               </thead>
               <tbody className="text-muted-foreground">
-                {COMPARISON.map((row) => (
+                {comparison(promo).map((row) => (
                   <tr key={row.label} className="border-b border-border/60 last:border-0">
                     <th scope="row" className="py-2 pr-4 font-medium text-foreground">{row.label}</th>
                     <td className="py-2 pr-4">{row.kit}</td>
@@ -89,10 +97,10 @@ export default function ShipLoopPage() {
             </p>
             <div className="mt-4 flex flex-wrap gap-3">
               <StartLink plan="kit" className={buttonVariants({ variant: "outline" })}>
-                Get my launch kit, £19
+                Get my launch kit, <KitPrice promo={promo} />
               </StartLink>
-              <a href="#plans" className={buttonVariants({ variant: "ghost" })}>
-                Pre-order Ship Loop
+              <a href="#waitlist" className={buttonVariants({ variant: "ghost" })}>
+                Join the waitlist
               </a>
             </div>
           </section>

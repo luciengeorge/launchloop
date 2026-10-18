@@ -72,6 +72,6 @@ export const FAQ = [
   },
   {
     q: "What is Ship Loop?",
-    a: "Ship Loop is a separate subscription for after launch, coming soon (£12/month or £99/year). Every time you ship a release, it drafts an X post, a LinkedIn post, a changelog blurb and an image in your colours, and emails them to you to approve or edit. It never posts for you. Join the waitlist or pre-order now. Bought a Launch Kit? Subscribe within 14 days of buying it and we credit the £19.",
+    a: "Ship Loop is a separate subscription for after launch, coming soon, with planned pricing of £12/month or £99/year. It isn't on sale yet. Every time you ship a release, it drafts an X post, a LinkedIn post, a changelog blurb and an image in your colours, and emails them to you to approve or edit. It never posts for you. Join the waitlist and we'll email you when it launches. Bought a Launch Kit? Subscribe within 14 days of buying it and we credit the £19.",
   },
 ] as const;

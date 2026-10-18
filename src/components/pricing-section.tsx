@@ -23,7 +23,6 @@ const SHIP_LOOP_ITEMS = [
   "A fresh image in your colours for each one",
   "Emailed to you to approve or edit. We never post for you",
   "Bought a kit? Join within 14 days of buying and we credit the £19",
-  "Pre-orders refundable in full until Ship Loop launches",
 ];
 
 export function PricingTimeline({ promo, className = "" }: { promo: boolean; className?: string }) {
@@ -101,7 +100,7 @@ function HomeStrip({ promo }: { promo: boolean }) {
           badge="Coming soon"
           name="3. Ship Loop"
           price="from £12"
-          suffix="/month"
+          suffix="/month, planned"
           body="For after launch. Every time you release, we draft an X post, a LinkedIn post, a changelog blurb and an image, and email them to you to approve. Subscribe within 14 days of buying a kit and we credit your £19."
           cta={
             <Link href="/ship-loop" className={buttonVariants({ variant: "outline", className: "w-full" })}>
@@ -151,18 +150,13 @@ function PricingPage({ promo }: { promo: boolean }) {
             badge="Coming soon"
             name="Ship Loop"
             price="£12"
-            suffix="/month or £99/year"
-            body="For after launch. A draft post and image for every release."
+            suffix="/month or £99/year, planned"
+            body="Ship Loop is coming soon and isn't on sale yet. A draft post and image for every release."
             items={SHIP_LOOP_ITEMS}
             cta={
-              <div className="space-y-2">
-                <Link href="/ship-loop#plans" className={buttonVariants({ variant: "outline", className: "w-full" })}>
-                  Pre-order Ship Loop
-                </Link>
-                <Link href="/ship-loop#waitlist" className="block text-center text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground">
-                  Join the free waitlist
-                </Link>
-              </div>
+              <Link href="/ship-loop#plans" className={buttonVariants({ variant: "outline", className: "w-full" })}>
+                Join the waitlist
+              </Link>
             }
           />
         </div>
