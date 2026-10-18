@@ -33,6 +33,12 @@ describe("maxOutputTokens", () => {
     expect(ai.generateText.mock.calls[0][0].maxOutputTokens).toBe(400);
   });
 
+  it("tells the gateway not to route to providers that train on prompts", async () => {
+    ai.generateText.mockResolvedValueOnce(ok({ tagline: "Launch copy from your repo" }));
+    await generateStructured(request);
+    expect(ai.generateText.mock.calls[0][0].providerOptions.gateway).toMatchObject({ disallowPromptTraining: true });
+  });
+
   it("doubles the budget after an answer cut off at the limit", async () => {
     ai.generateText.mockRejectedValueOnce(truncated()).mockResolvedValueOnce(ok({ tagline: "Launch copy from your repo" }));
     const { value } = await generateStructured(request);

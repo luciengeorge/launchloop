@@ -133,7 +133,9 @@ export async function generateStructured<T>(req: StructuredRequest<T>): Promise<
         prompt,
         output: Output.object({ schema: req.schema }),
         maxOutputTokens,
-        providerOptions: { gateway: { models: fallbacks } satisfies GatewayProviderOptions },
+        // Only route to providers that don't train on prompts (applies to the fallbacks too). A model
+        // with no such provider fails with no_providers_available rather than being routed anyway.
+        providerOptions: { gateway: { models: fallbacks, disallowPromptTraining: true } satisfies GatewayProviderOptions },
         abortSignal: AbortSignal.timeout(ATTEMPT_TIMEOUT_MS),
       });
       last = { value: result.output, provider: `gateway:${result.response.modelId}` };
