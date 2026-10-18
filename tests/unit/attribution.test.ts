@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const stripe = vi.hoisted(() => ({ create: vi.fn(async (_params: Record<string, unknown>) => ({ url: "https://checkout.stripe.com/c/pay/cs_test" })) }));
+const stripe = vi.hoisted(() => ({ create: vi.fn<(params: Record<string, unknown>) => Promise<{ url: string }>>(async () => ({ url: "https://checkout.stripe.com/c/pay/cs_test" })) }));
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/observability", () => ({ captureException: vi.fn(), captureMessage: vi.fn() }));
