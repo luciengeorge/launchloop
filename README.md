@@ -56,7 +56,8 @@ All are optional locally. See [`.env.example`](.env.example) for the full annota
 | `KV_REST_API_URL`, `KV_REST_API_TOKEN` | **Production storage** (Upstash Redis / Vercel KV) |
 | `NEXT_PUBLIC_SITE_URL` | Canonical URLs, sitemap, email links |
 | `MOCK_MODE` | Force everything into mock mode |
-| `PREVIEW_RATE_LIMIT_PER_HOUR` | Free previews per IP per hour (default 12) |
+| `PREVIEW_RATE_LIMIT_PER_HOUR`, `PREVIEW_RATE_LIMIT_PER_DAY` | Free previews (and free tool generations) per IP: default 5 an hour and 20 a day, from `PREVIEW_LIMITS` in `src/lib/site.ts`, which the terms, privacy page and pricing quote. Override only for testing |
+| `OG_PREVIEW_RATE_LIMIT_PER_HOUR` | OG preview tool checks per IP per hour (default 60) |
 | `NEWSLETTER_RATE_LIMIT_PER_HOUR` | Newsletter signups per IP per hour, shared across instances (default 10) |
 | `NEWSLETTER_WELCOME_DAILY_CAP` | Newsletter welcome emails per day across everyone (default 200). Past it, signups still subscribe without the email |
 | `SENTRY_DSN` | Reserved for Sentry (see "Error logging") |
