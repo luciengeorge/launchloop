@@ -8,6 +8,7 @@
     "start": "next start -p 3417",
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
+    "test": "playwright test -c playwright.unit.config.ts",
     "test:e2e": "playwright test",
     "test:e2e:install": "playwright install --with-deps chromium"
   },

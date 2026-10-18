@@ -8,8 +8,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { type PreviewSource, track } from "@/lib/analytics";
 import { KitRequestError, createKitWithProgress } from "@/lib/client";
+import { LAUNCH_PROMO } from "@/lib/products";
 import { hasSessionHint } from "@/lib/session-hint";
 import { START_EVENT, type StartPlan } from "@/lib/start-intent";
+import { KitPrice } from "./kit-price";
 
 const previewSource = (value: string): PreviewSource => (value === "sample" ? "sample" : /github\.com/i.test(value) ? "github" : "site");
 
@@ -21,7 +23,8 @@ const STEPS = [
   { id: "images", label: "Drawing images" },
 ] as const;
 
-export function KitForm() {
+/** `promo` is isLaunchPromoOn() from the page: the Launch Kit price shown when the kit plan is picked. */
+export function KitForm({ promo }: { promo: boolean }) {
   const router = useRouter();
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
@@ -116,7 +119,15 @@ export function KitForm() {
         />
         <Button type="submit" disabled={loading} className="h-12 px-5 text-base">
           {loading ? <Loader2 className="animate-spin" /> : null}
-          {loading ? "Reading your app…" : plan === "kit" ? "Get my launch kit, £19" : "Get my free preview"}
+          {loading ? (
+            "Reading your app…"
+          ) : plan === "kit" ? (
+            <>
+              Get my launch kit, <KitPrice promo={promo} />
+            </>
+          ) : (
+            "Get my free preview"
+          )}
           {loading ? null : <ArrowRight />}
         </Button>
       </form>
@@ -136,7 +147,15 @@ export function KitForm() {
           </ol>
         ) : (
           <>
-            <span data-plan={plan}>{plan === "kit" ? "Launch Kit, £19 once · Preview first, then secure Stripe checkout" : "Free preview · No sign-up · Public repos only"}</span>
+            <span data-plan={plan}>
+              {plan === "kit" ? (
+                <>
+                  Launch Kit, <KitPrice promo={promo} /> once · {promo ? `${LAUNCH_PROMO.code} applied at checkout` : "Preview first, then secure Stripe checkout"}
+                </>
+              ) : (
+                "Free preview · No sign-up · Public repos only"
+              )}
+            </span>
             <span aria-hidden="true" className="hidden sm:inline">·</span>
             <button type="button" className="font-medium text-foreground underline underline-offset-4 hover:text-primary" onClick={() => void submit("sample")}>
               Try a sample app

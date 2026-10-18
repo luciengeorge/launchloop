@@ -1,5 +1,5 @@
 import { GUIDES, guidePath } from "@/lib/guides";
-import { FAQ, KIT_CONTENTS, SITE } from "@/lib/site";
+import { FAQ, KIT_CONTENTS, SITE, kitPriceText } from "@/lib/site";
 import { TOOLS } from "@/lib/tools";
 
 export function llmsText(base: string, full: boolean) {
@@ -19,7 +19,7 @@ The kit is delivered on a results page, as a ZIP download and by email.
 
 - Free preview: the product brief, the Product Hunt tagline, the first post of the X thread and three watermarked images. No account needed. Public repos and live sites only, up to 5 previews an hour and 20 a day.
 - Launch Kit: £19 once, for one app, paid through Stripe Checkout. Not a subscription. 14-day refund.
-- Ship Loop (coming soon, separate from the kit): £12/month or £99/year, for after launch. Drafts an X post, a LinkedIn post, a changelog blurb and an image on every release and emails them to the user to approve or edit. It never posts for the user. Waitlist and pre-orders are open; pre-orders are refundable in full until launch.
+- Ship Loop (coming soon, separate from the kit, not on sale yet): planned at £12/month or £99/year, for after launch. Drafts an X post, a LinkedIn post, a changelog blurb and an image on every release and emails them to the user to approve or edit. It never posts for the user. The waitlist is open; members are emailed when it launches.
 
 ## Rules it follows
 
@@ -33,7 +33,7 @@ The kit is delivered on a results page, as a ZIP download and by email.
 
 - [Home](${base}/): product overview, the input form and pricing
 - [Pricing](${base}/pricing): free preview, £19 Launch Kit, Ship Loop plans
-- [Ship Loop](${base}/ship-loop): the upcoming subscription, waitlist and pre-order
+- [Ship Loop](${base}/ship-loop): the upcoming subscription and its waitlist
 - [FAQ](${base}/faq): answers to common questions
 - [Guides](${base}/guides): every launch guide in one list
 - [Free tools](${base}/tools): every free tool in one list
@@ -52,7 +52,7 @@ ${GUIDES.map((g) => `- [${g.title}](${base}${guidePath(g)}): ${g.description}`).
     ? `
 ## FAQ
 
-${FAQ.map((item) => `### ${item.q}\n\n${item.a}`).join("\n\n")}
+${FAQ.map((item) => `### ${kitPriceText(item.q)}\n\n${kitPriceText(item.a)}`).join("\n\n")}
 `
     : `
 ## Optional

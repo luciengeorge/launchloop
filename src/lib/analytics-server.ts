@@ -4,6 +4,7 @@ import { PostHog } from "posthog-node";
 import { deployEnv } from "./deploy-env";
 import { env } from "./env";
 import { isAnalyticsId, type ExperimentKey, type Variant } from "./experiments";
+import { LAUNCH_PROMO_TIMEOUT_MS } from "./launch-promo";
 import { captureException } from "./observability";
 import { posthogHost } from "./posthog-config";
 import { productType, type ProductId } from "./products";
@@ -31,10 +32,11 @@ export interface ServerEvents {
 }
 
 let client: PostHog | null = null;
-function posthog(): PostHog | null {
+/** Shared by event capture and server-side flag reads. Null without NEXT_PUBLIC_POSTHOG_KEY. */
+export function posthog(): PostHog | null {
   if (!env.posthogKey) return null;
   // Serverless: send each event straight away rather than batching.
-  client ??= new PostHog(env.posthogKey, { host: posthogHost(), flushAt: 1, flushInterval: 0 });
+  client ??= new PostHog(env.posthogKey, { host: posthogHost(), flushAt: 1, flushInterval: 0, featureFlagsRequestTimeoutMs: LAUNCH_PROMO_TIMEOUT_MS });
   return client;
 }
 
