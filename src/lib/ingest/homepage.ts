@@ -1,7 +1,7 @@
 /** Hosts where a "homepage" is the code or package page (npm's default is the GitHub readme), not the product's live site. */
 const CODE_HOSTS = /^(www\.)?(github\.com|gitlab\.com|bitbucket\.org|npmjs\.com|codeberg\.org)$/i;
 
-/** The product's live page: the repo's homepage, else package.json's, when it's an http(s) site and not a code or package page. Pure, for unit tests. */
+/** The product's live page: the repo's homepage, else package.json's, when it's an http(s) site and not a code or package page. */
 export function liveHomepage(repoHomepage: string | undefined, packageHomepage: string | undefined): string | undefined {
   for (const candidate of [repoHomepage, packageHomepage]) {
     if (!candidate) continue;

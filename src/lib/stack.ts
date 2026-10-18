@@ -1,6 +1,6 @@
 import type { PackageJson, RepoData } from "./ingest/github";
 
-/** Pure: no server-only, so it can be unit tested. Ingest (github.ts) and the brief (brief.ts) share it. */
+// No server-only: unit tests import this directly.
 
 const STACK_MAP: Record<string, string> = {
   next: "Next.js",
