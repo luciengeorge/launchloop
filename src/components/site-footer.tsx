@@ -36,6 +36,8 @@ export function SiteFooter() {
             ))}
             <li><Link href="/product-hunt-launch-checklist" className="hover:text-foreground">Product Hunt launch checklist</Link></li>
             <li><Link href="/how-to-launch-a-vibe-coded-app" className="hover:text-foreground">How to launch a vibe-coded app</Link></li>
+            <li><Link href="/show-hn-launch-checklist" className="hover:text-foreground">Show HN launch checklist</Link></li>
+            <li><Link href="/how-to-write-a-product-hunt-tagline" className="hover:text-foreground">How to write a Product Hunt tagline</Link></li>
           </ul>
         </nav>
         <nav aria-label="Company" className="space-y-3 text-sm">

@@ -117,7 +117,10 @@ export default function TaglineCheckerPage() {
         </ul>
 
         <h2 id="examples">Good vs weak taglines</h2>
-        <p>Each weak tagline below fits the limit. It still loses to the stronger version next to it.</p>
+        <p>
+          Each weak tagline below fits the limit. It still loses to the stronger version next to it. For six more formulas, the mistakes a checker can&apos;t catch and how the
+          tagline fits with your description and gallery, read <Link href="/how-to-write-a-product-hunt-tagline">how to write a Product Hunt tagline</Link>.
+        </p>
       </div>
       <ul className="mt-5 grid max-w-3xl gap-3" data-testid="tagline-examples">
         {EXAMPLES.map((ex) => (
@@ -147,7 +150,8 @@ export default function TaglineCheckerPage() {
         </ul>
         <p>
           Work through the full <Link href="/product-hunt-launch-checklist">Product Hunt launch checklist</Link> for timing, images and launch-day steps. Built your app with
-          Cursor, Lovable, Bolt or v0? Read <Link href="/how-to-launch-a-vibe-coded-app">how to launch a vibe-coded app</Link> too.
+          Cursor, Lovable, Bolt or v0? Read <Link href="/how-to-launch-a-vibe-coded-app">how to launch a vibe-coded app</Link> too. Posting on Hacker News as well? Show HN
+          has its own rules, so follow the <Link href="/show-hn-launch-checklist">Show HN launch checklist</Link>.
         </p>
 
         <h2 id="faq">Tagline FAQ</h2>
