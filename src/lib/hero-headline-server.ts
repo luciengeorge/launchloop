@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { connection } from "next/server";
 import { env } from "./env";
 import type { Served } from "./experiments";
-import { lookupHeroHeadline } from "./hero-headline";
+import { HERO_FLAG_TIMEOUT_MS, lookupHeroHeadline } from "./hero-headline";
 import { captureExceptionThrottled } from "./observability";
 import { posthogHost } from "./posthog-config";
 
@@ -25,8 +25,13 @@ export async function heroHeadlineAssignment(): Promise<Served | null> {
     host: posthogHost(),
     token: env.posthogKey,
     distinctId: `hero:${randomUUID()}`,
-    timeoutMs: Number(process.env.HERO_FLAG_TIMEOUT_MS) || undefined,
+    timeoutMs: heroFlagTimeoutMs(),
     // A PostHog outage fails every view, so one report a minute per instance, not one per page view.
     onError: (error) => captureExceptionThrottled("flags.hero_headline", error, { stage: "flags.hero_headline" }),
   });
 }
+
+/** The h1 waits on the lookup, so an override (the e2e build's slow fake PostHog) can't hold it back more than this. */
+export const HERO_FLAG_TIMEOUT_CAP_MS = 2500;
+
+export const heroFlagTimeoutMs = () => Math.min(Number(process.env.HERO_FLAG_TIMEOUT_MS) || HERO_FLAG_TIMEOUT_MS, HERO_FLAG_TIMEOUT_CAP_MS);
