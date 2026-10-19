@@ -56,6 +56,8 @@ test.describe("KitPrice", () => {
     const copy = `What do I get for ${KIT_PRICE_TOKEN}? Ship Loop credits the £19.`;
     expect(text(<PricedText text={copy} promo={false} />)).toBe("What do I get for £19? Ship Loop credits the £19.");
     expect(html(<PricedText text={copy} promo />)).toMatch(/for <span[^>]*><s[^>]*>.*£19<\/s>.*£14<\/span>\? Ship Loop credits the £19\.$/);
-    expect(kitPriceText(copy)).toBe("What do I get for £19? Ship Loop credits the £19.");
+    expect(kitPriceText(copy, false)).toBe("What do I get for £19? Ship Loop credits the £19.");
+    // Plain text can't strike a price through, so the promo names the code instead.
+    expect(kitPriceText(copy, true)).toBe("What do I get for £14 with code LAUNCH14? Ship Loop credits the £19.");
   });
 });

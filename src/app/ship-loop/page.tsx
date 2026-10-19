@@ -29,7 +29,7 @@ const comparison = (promo: boolean) => [
         <KitPrice promo={promo} /> once
       </>
     ),
-    loop: "£12/month or £99/year (planned)",
+    loop: "Free waitlist, nothing to buy",
   },
   { label: "You get", kit: "A full launch pack for one app", loop: "Draft posts and an image per release" },
   { label: "Status", kit: "Available now", loop: "Coming soon, not on sale yet" },
@@ -55,7 +55,7 @@ export default async function ShipLoopPage() {
                 Join the waitlist
               </a>
             </div>
-            <p className="text-sm text-muted-foreground">Ship Loop is coming soon. Join the waitlist, we&apos;ll email you when it launches. Planned pricing: £12/month or £99/year.</p>
+            <p className="text-sm text-muted-foreground">Ship Loop is coming soon. Join the free waitlist, we&apos;ll email you when it launches.</p>
           </div>
           <h2 className="sr-only">How Ship Loop works</h2>
           <ol className="grid gap-4 sm:grid-cols-2">
