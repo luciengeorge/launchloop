@@ -1,12 +1,27 @@
 /**
- * First-touch attribution: the UTM tags and referring domain of the page a visitor landed on. Held in page memory in
- * the browser (no cookies or storage), sent with the preview request, stored on the kit, copied into Stripe Checkout
- * metadata and read back by the webhook. Pure, so the browser, server and tests share it.
+ * First-touch attribution: the UTM tags and referring domain of the page a visitor landed on, and whether it was
+ * internal QA traffic. Held in page memory in the browser, sent with the preview request, stored on the kit, copied
+ * into Stripe Checkout metadata and read back by the webhook. Pure, so the browser, server and tests share it.
  */
 export const UTM_KEYS = ["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content"] as const;
 export type UtmKey = (typeof UTM_KEYS)[number];
 
-export type Attribution = Partial<Record<UtmKey | "referring_domain", string>>;
+export type Attribution = Partial<Record<UtmKey | "referring_domain", string>> & {
+  /** Internal QA traffic: a landing tagged ?qa=1 or utm_source=qa. Only ever true, so analytics can filter on is_test = true. */
+  is_test?: true;
+};
+
+/** `?qa=1` on the landing URL marks the visit as QA traffic, as does utm_source=qa. */
+export const QA_PARAM = "qa";
+const QA_SOURCE = "qa";
+
+const isQaSource = (value: unknown) => typeof value === "string" && value.trim().toLowerCase() === QA_SOURCE;
+
+/** Whether a landing URL's query string tags the visit as QA traffic. */
+export function isQaLanding(search: string): boolean {
+  const params = new URLSearchParams(search);
+  return params.get(QA_PARAM) === "1" || isQaSource(params.get("utm_source"));
+}
 
 /** Comfortably inside Stripe's 500-character metadata values. */
 const MAX_UTM_LENGTH = 200;
@@ -35,24 +50,40 @@ export function parseAttribution(value: unknown): Attribution | undefined {
   }
   const domain = cleanDomain(raw.referring_domain);
   if (domain) out.referring_domain = domain;
+  // true from the browser and the kit record, "1" from Stripe metadata.
+  if (raw.is_test === true || raw.is_test === "1" || isQaSource(out.utm_source)) out.is_test = true;
   return Object.keys(out).length ? out : undefined;
 }
 
-/** The landing page's UTMs plus the referrer's host, when the visitor came from another site. */
+/** The landing page's UTMs plus the referrer's host, when the visitor came from another site, and whether it's QA traffic. */
 export function readLandingAttribution(location: { search: string; hostname: string }, referrer: string): Attribution | undefined {
   const params = new URLSearchParams(location.search);
-  const raw: Record<string, string | undefined> = Object.fromEntries(UTM_KEYS.map((key) => [key, params.get(key) ?? undefined]));
+  const raw: Record<string, unknown> = Object.fromEntries(UTM_KEYS.map((key) => [key, params.get(key) ?? undefined]));
   const referrerHost = URL.parse(referrer)?.hostname;
   if (referrerHost && referrerHost.replace(/^www\./, "") !== location.hostname.replace(/^www\./, "")) raw.referring_domain = referrerHost;
+  if (isQaLanding(location.search)) raw.is_test = true;
   return parseAttribution(raw);
 }
 
-/** Stripe Checkout session / PaymentIntent metadata. Same keys as the PostHog event properties. */
+/** A request from a QA-tagged visit marks the purchase as QA traffic, whatever the kit's own first touch was. */
+export function withTestTraffic(attribution: Attribution | undefined, isTest: boolean): Attribution | undefined {
+  return isTest ? { ...attribution, is_test: true } : attribution;
+}
+
+/** Stripe Checkout session / PaymentIntent metadata. Same keys as the PostHog event properties; values are strings. */
 export function attributionMetadata(attribution: Attribution | undefined): Record<string, string> {
-  return { ...parseAttribution(attribution) } as Record<string, string>;
+  const { is_test, ...rest } = parseAttribution(attribution) ?? {};
+  return { ...rest, ...(is_test ? { is_test: "1" } : {}) } as Record<string, string>;
 }
 
 /** PostHog event properties from a kit's attribution or from Stripe metadata (which also holds product, kitId and experiments). */
 export function attributionProperties(source: unknown): Attribution {
   return parseAttribution(source) ?? {};
+}
+
+export const isTestTraffic = (source: unknown): boolean => parseAttribution(source)?.is_test === true;
+
+/** Just `is_test: true` for QA traffic, for events that don't carry the UTMs. */
+export function testProperties(source: unknown): Pick<Attribution, "is_test"> {
+  return isTestTraffic(source) ? { is_test: true } : {};
 }

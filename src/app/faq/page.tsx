@@ -13,17 +13,17 @@ const page = PAGES.faq;
 
 export const metadata: Metadata = pageMetadata(page);
 
-const slug = (q: string) => kitPriceText(q).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-
-/** JSON-LD states the list price: the promo is applied at checkout, not part of the offer. */
-const PLAIN_FAQ = FAQ.map((item) => ({ q: kitPriceText(item.q), a: kitPriceText(item.a) }));
+/** Anchors use the list price so links to them survive a promo flip. */
+const slug = (q: string) => kitPriceText(q, false).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
 export default async function FaqPage() {
   const base = siteUrl();
   const promo = await isLaunchPromoOn();
+  // JSON-LD answers must match the visible ones, which show the promo price.
+  const plainFaq = FAQ.map((item) => ({ q: kitPriceText(item.q, promo), a: kitPriceText(item.a, promo) }));
   return (
     <article className="mx-auto max-w-3xl px-4 py-16 sm:px-6">
-      <JsonLd data={{ "@context": "https://schema.org", "@graph": [faqPage(`${base}${page.path}#faq`, PLAIN_FAQ), breadcrumbs(base, [{ name: "FAQ", path: page.path }])] }} />
+      <JsonLd data={{ "@context": "https://schema.org", "@graph": [faqPage(`${base}${page.path}#faq`, plainFaq), breadcrumbs(base, [{ name: "FAQ", path: page.path }])] }} />
       <header className="space-y-3">
         <h1 className="text-4xl font-semibold tracking-tight">Frequently asked questions</h1>
         <p className="text-muted-foreground">

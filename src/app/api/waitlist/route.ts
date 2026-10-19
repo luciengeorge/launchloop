@@ -18,7 +18,7 @@ export async function POST(req: Request) {
     const { existing } = await addContact(email, "waitlist", {
       tag: WAITLIST_TAG,
       signup_source: isWaitlistSource(source) ? source : "ship_loop_page",
-      plan: plan === "yearly" ? "yearly" : "monthly",
+      ...(plan === "monthly" || plan === "yearly" ? { plan } : {}),
     });
     await store().sAdd(WAITLIST_MEMBERS_KEY, email.trim().toLowerCase());
     if (isForm) return Response.redirect(new URL(`/ship-loop?joined=${existing ? "dup" : "1"}#waitlist`, req.url), 303);

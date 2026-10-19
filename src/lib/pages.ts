@@ -9,10 +9,10 @@ import { TOOLS, type Tool } from "@/lib/tools";
  */
 export type SitePage = {
   path: string;
-  /** Meta title. The root template appends " · LaunchLoop" unless absoluteTitle is set, so aim for 37 to 47 characters here. */
+  /** Meta title. The root template appends " · LaunchLoop" unless absoluteTitle is set, so aim for 37 to 46 characters here (50 to 59 in all). No kit price (see SITE). */
   title: string;
   absoluteTitle?: boolean;
-  /** Meta description, 120 to 160 characters. */
+  /** Meta description, 138 to 158 characters. No kit price (see SITE). */
   description: string;
   /** Last significant change to the page's main content (YYYY-MM-DD). Drives the sitemap lastmod: bump it when the copy changes. */
   updated: string;
@@ -40,25 +40,25 @@ export const PAGES = {
   },
   pricing: core({
     path: "/pricing",
-    title: "Pricing: free preview, £19 kit and Ship Loop",
+    title: "Pricing: free preview and a one-off launch kit",
     description:
-      "Try LaunchLoop free, then pay £19 once for a full launch kit: landing copy, Product Hunt post, X thread, LinkedIn post and images. Ship Loop is coming soon.",
-    updated: "2026-10-18",
-    card: { eyebrow: "Pricing", headline: "Try it free. Pay £19 once to launch." },
+      "Try LaunchLoop free, then pay once for a full launch kit: landing copy, Product Hunt post, X thread, LinkedIn post and images. Ship Loop has a free waitlist.",
+    updated: "2026-10-19",
+    card: { eyebrow: "Pricing", headline: "Try it free. Pay once to launch." },
   }),
   shipLoop: core({
     path: "/ship-loop",
     title: "Ship Loop: draft posts for every release",
     description:
       "Coming soon: Ship Loop drafts an X post, LinkedIn post, changelog blurb and image for every release. Join the free waitlist, we'll email you when it launches.",
-    updated: "2026-10-18",
+    updated: "2026-10-19",
     card: { eyebrow: "Ship Loop · Coming soon", headline: "Draft posts and an image for every release" },
   }),
   faq: core({
     path: "/faq",
     title: "FAQ: launch kits, character limits and refunds",
-    description: "How LaunchLoop reads your repo, what's in the £19 Launch Kit, which character limits it enforces, refunds, and the Ship Loop subscription.",
-    updated: "2026-10-18",
+    description: "How LaunchLoop reads your repo, what you get in the Launch Kit, which character limits it enforces, refunds, and the free Ship Loop waitlist.",
+    updated: "2026-10-19",
     card: { eyebrow: "FAQ", headline: "Launch kits, character limits and refunds" },
   }),
   guides: core({
@@ -89,8 +89,8 @@ export const PAGES = {
     path: "/terms",
     title: "Terms of service: previews, kits and refunds",
     description:
-      "The terms for using LaunchLoop: the free preview and its limits, buying a £19 Launch Kit, refunds within 14 days, and the free Ship Loop waitlist.",
-    updated: "2026-10-18",
+      "The terms for using LaunchLoop: the free preview and its limits, buying a Launch Kit, refunds within 14 days, and the free Ship Loop waitlist.",
+    updated: "2026-10-19",
     card: { eyebrow: "Terms", headline: "Previews, kits and refunds" },
   }),
 } satisfies Record<string, SitePage>;

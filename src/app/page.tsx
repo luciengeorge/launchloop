@@ -39,7 +39,7 @@ export default async function Home() {
   const promo = await isLaunchPromoOn();
   return (
     <>
-      <JsonLd data={siteGraph(url)} />
+      <JsonLd data={siteGraph(url, promo)} />
 
       <section id="start" className="relative scroll-mt-20 overflow-hidden border-b border-border/60">
         <div className="bg-grid absolute inset-0 [mask-image:radial-gradient(ellipse_at_top,black_30%,transparent_75%)]" aria-hidden="true" />
