@@ -2,8 +2,8 @@
 import { EXPERIMENTS, fallbackServed, isVariant, type Served } from "./experiments";
 
 export const HERO_HEADLINE_CONTROL = "Paste your repo. Get your whole launch.";
-/** Placeholder wording, pending owner approval: replace this string and nothing else. */
-export const HERO_HEADLINE_TEST = "Paste a GitHub link. Get your launch posts written for you.";
+/** The owner's wording. It wraps like control at every width, so neither arm reserves blank lines. */
+export const HERO_HEADLINE_TEST = "Your repo in. All your launch posts out.";
 
 /** The h1 waits on this lookup, so past this it's aborted and the page shows control rather than hold the headline back. */
 export const HERO_FLAG_TIMEOUT_MS = 500;
