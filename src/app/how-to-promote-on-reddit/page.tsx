@@ -19,8 +19,8 @@ const SRC = {
   selfPromotionWiki: "https://www.reddit.com/wiki/selfpromotion/",
   tenPercent: "https://www.reddit.com/r/modnews/comments/2oamgp/moderators_clarifications_around_our_101/",
   startupsRules: "https://www.reddit.com/r/startups/about/rules/",
-  startupsShare: "https://www.reddit.com/r/startups/comments/1utpfsi/share_your_startup_quarterly_post/",
   webdevRules: "https://www.reddit.com/r/webdev/about/rules/",
+  indieHackersRules: "https://www.reddit.com/r/indiehackers/about/rules/",
   indieHackersSub: "https://www.reddit.com/r/indiehackers/comments/1uzsfzy/community_reorganisation_new_posting_guidelines/",
   languageLearning: "https://www.reddit.com/r/languagelearning/wiki/rules_for_promotion/",
   ihTips: "https://www.indiehackers.com/post/how-do-you-make-a-successful-post-on-indie-hackers-f6745260fd",
@@ -39,7 +39,7 @@ const FAQ: FaqItem[] = [
   },
   {
     q: "Can I promote my app on Reddit from a new account?",
-    a: "You can try, but expect it to fail. Reddit's rules ask you to take part in communities where you have a personal interest, and some subreddits hold back posts from new or low-karma accounts without always publishing the threshold. Post from your own account, with a history of comments that have nothing to do with your product, and say that you built the thing you are sharing.",
+    a: "You can try, but expect it to fail. Reddit's rules ask you to take part in communities where you have a personal interest, and some subreddits restrict new accounts: r/indiehackers, for example, says new accounts have to wait and can only ask questions through modmail. Post from your own account, with a history of comments that have nothing to do with your product, and say that you built the thing you are sharing.",
   },
   {
     q: "Can I post my launch in several subreddits at once?",
@@ -51,7 +51,7 @@ const FAQ: FaqItem[] = [
   },
   {
     q: "Should I pay for Reddit ads instead?",
-    a: "If you want to post a pitch, ads are the route Reddit itself points to: its spam policy suggests its self-serve ads platform for people whose contributions are mostly links to their own business. Organic posts work best when they are useful on their own, so many founders do both: ads for reach, and honest posts and comments in the communities they already belong to.",
+    a: "If you want to post a pitch, ads are the route Reddit itself points to: its spam policy suggests its self-serve ads platform for people whose contributions are mostly links to their own business. Organic posts work best when they are useful on their own, and you can do both: ads for reach, and honest posts and comments in the communities you already belong to.",
   },
 ];
 
@@ -60,7 +60,7 @@ export default function RedditPromotionPage() {
     <GuideLayout guide={g}>
       <p>
         Reddit is where people ask for recommendations, compare tools and complain about the ones they use. It is also where a careless launch post gets
-        removed in minutes and an account gets banned for good. Reddit doesn&apos;t ban self-promotion outright: it bans spam, vote manipulation and accounts that only exist to
+        removed and an account can be banned for good. Reddit doesn&apos;t ban self-promotion outright: it bans spam, vote manipulation and accounts that only exist to
         sell. This guide covers what Reddit&apos;s own rules say, how subreddit rules differ, and how to write a post that stays up, with every rule linked to its source.
       </p>
 
@@ -115,25 +115,28 @@ export default function RedditPromotionPage() {
       </p>
       <ul>
         <li><strong>No promotion at all.</strong> Read along, answer questions, and don&apos;t mention your product.</li>
-        <li><strong>A pinned thread only.</strong> A weekly, monthly or quarterly thread is the one place to share what you built.</li>
+        <li><strong>A pinned thread only.</strong> A weekly or monthly thread is the one place to share what you built.</li>
         <li><strong>A set day and flair.</strong> Project posts are allowed on one day of the week, tagged with the right flair.</li>
         <li><strong>A flair for promotion.</strong> You may post your product, but only marked as self-promotion.</li>
         <li><strong>Moderator approval first.</strong> You send your post to the moderators and wait for a yes.</li>
       </ul>
-      <p>Some examples, as posted when we checked in October 2026. Rules change, so read the current version before you post:</p>
+      <p>Some examples, as of mid-2026. Rules change, so read the current version before you post:</p>
       <ul>
         <li>
           <strong>r/startups:</strong> the <a href={SRC.startupsRules}>rules</a> ban direct sales, advertisements and promotional posts, with exceptions only in stickied
-          threads such as the <a href={SRC.startupsShare}>Share your startup</a> thread. They count anything you have an interest, stake or relationship with as
-          self-promotion, including a friend&apos;s company.
+          threads. You may share your startup in the Monthly Share Your Startup thread, which is stickied at the top of the subreddit. The rules count anything you have an
+          interest, stake or relationship with as self-promotion, including a friend&apos;s company.
         </li>
         <li>
           <strong>r/webdev:</strong> the <a href={SRC.webdevRules}>rules</a> ban commercial promotion and limit sharing a project or asking for feedback to Showoff Saturday,
-          with the matching flair. Posts on other days are removed.
+          with the matching flair. Posts on other days are removed. Even on Showoff Saturday a commercial product isn&apos;t allowed: the rules say &ldquo;Commercial promotion
+          still falls under rule #4 and is not allowed. Think project, not product&rdquo;, and rule 4 violations can lead to a ban.
         </li>
         <li>
-          <strong>r/indiehackers:</strong> a <a href={SRC.indieHackersSub}>moderator post</a> asks founders promoting a product to use the Self Promotion flair, to be ready to
-          prove any revenue or growth numbers they mention, and not to fake questions to boost a product. It also has zero tolerance for vote manipulation.
+          <strong>r/indiehackers:</strong> rule 1 of the <a href={SRC.indieHackersRules}>rules</a> allows one promotional post per product: &ldquo;Users can self promote their
+          product 1 time using the Self Promotion flair.&rdquo; Posts that mention MRR must include proof, and without it the post is removed (&ldquo;no proof, no
+          post&rdquo;). A <a href={SRC.indieHackersSub}>moderator post</a> adds no fake questions to boost a product, zero tolerance for vote manipulation, and that new
+          accounts have to wait and can only ask questions through modmail.
         </li>
         <li>
           <strong>Niche communities can be stricter still.</strong> r/languagelearning, where many language apps would like to post, made all self-promotion permission-only
@@ -150,7 +153,7 @@ export default function RedditPromotionPage() {
       <ul>
         <li>
           <strong>Use your own account, with a real history.</strong> A fresh account or a brand-named one that only posts about your product looks like the spam the rules
-          describe. Some subreddits also hold back posts from new or low-karma accounts, and don&apos;t always publish the threshold.
+          describe. Some subreddits also restrict new accounts: r/indiehackers, for example, says new accounts have to wait and can only ask questions through modmail.
         </li>
         <li><strong>Pick two or three communities</strong> where your users already ask about the problem you solve. Not ten.</li>
         <li><strong>Read each one&apos;s sidebar, wiki and pinned posts.</strong> Note the thread, day, flair or approval step it needs.</li>
@@ -158,8 +161,9 @@ export default function RedditPromotionPage() {
         <li><strong>Message the moderators if you aren&apos;t sure.</strong> Reddit&apos;s spam policy suggests exactly this, and a short, polite message costs nothing.</li>
         <li><strong>Make it easy to try.</strong> A demo, sample data or a free tier without a card gets you real feedback instead of questions about the sign-up wall.</li>
         <li>
-          <strong>Link straight to your site.</strong> The spam policy lists link-masking and redirects among its examples, so skip link shorteners. Link posts usually show a
-          preview image from your page, so check it with the free <Link href={OG_PREVIEW.path}>OG image preview</Link>.
+          <strong>Link straight to your site.</strong> Reddit&apos;s spam policy lists link-masking or redirecting to harmful domains. Our advice is to skip link shorteners
+          too, so readers can see where a link goes. Link posts usually show a preview image from your page, so check it with the free{" "}
+          <Link href={OG_PREVIEW.path}>OG image preview</Link>.
         </li>
       </ul>
 
@@ -243,9 +247,9 @@ export default function RedditPromotionPage() {
         <li><a href={SRC.enforcement}>Content Moderation, Enforcement, and Appeals</a>, Reddit Help</li>
         <li><a href={SRC.selfPromotionWiki}>Self-promotion on Reddit</a>, Reddit&apos;s old guide, no longer updated</li>
         <li><a href={SRC.tenPercent}>Clarifications around our 10:1 self-promotional guidelines</a>, Reddit admins on r/modnews (December 2014)</li>
-        <li><a href={SRC.startupsRules}>r/startups rules</a> and its <a href={SRC.startupsShare}>Share your startup thread</a></li>
+        <li><a href={SRC.startupsRules}>r/startups rules</a></li>
         <li><a href={SRC.webdevRules}>r/webdev rules</a></li>
-        <li><a href={SRC.indieHackersSub}>r/indiehackers posting guidelines</a>, moderator post</li>
+        <li><a href={SRC.indieHackersRules}>r/indiehackers rules</a> and its <a href={SRC.indieHackersSub}>posting guidelines</a>, moderator post</li>
         <li><a href={SRC.languageLearning}>r/languagelearning rules for promotion</a></li>
         <li><a href={SRC.ihTips}>How do you make a successful post on Indie Hackers?</a>, by Courtland Allen (June 2019)</li>
         <li><a href={SRC.hnGuidelines}>Hacker News guidelines</a></li>

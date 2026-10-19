@@ -86,6 +86,15 @@ test("Reddit guide cites Reddit's rules and the HN no-AI-text guidance, and link
   }
   await expect(page.locator("#sources")).toBeVisible();
   await expect(article).toContainText("made-up product");
+  await expect(article).toContainText("Think project, not product");
+  await expect(article).toContainText("Users can self promote their product 1 time using the Self Promotion flair.");
+  await expect(article).toContainText("no proof, no post");
+  await expect(page.locator('a[href*="share_your_startup_quarterly_post"]')).toHaveCount(0);
+});
+
+test("guides hub description mentions Reddit", async ({ page }) => {
+  await page.goto("/guides");
+  await expect(page.locator('meta[name="description"]')).toHaveAttribute("content", /Reddit/);
 });
 
 test("Reddit guide is linked from the related guides and the OG preview tool", async ({ page }) => {
