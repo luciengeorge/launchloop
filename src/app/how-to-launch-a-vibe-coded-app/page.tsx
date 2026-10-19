@@ -64,7 +64,7 @@ export default function VibeCodedLaunchPage() {
         <li><strong>LinkedIn:</strong> one post with a strong first line, short paragraphs and the story of why you built it. The limit is 3,000 characters, but shorter usually does better.</li>
         <li>
           <strong>Communities:</strong> Indie Hackers, relevant subreddits and Discords, <Link href="/show-hn-launch-checklist">Show HN</Link>. Read the self-promotion rules
-          first and never ask for upvotes.
+          first (see <Link href="/how-to-promote-on-reddit">how to promote your app on Reddit</Link>) and never ask for upvotes.
         </li>
       </ul>
 

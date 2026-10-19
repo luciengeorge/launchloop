@@ -65,8 +65,8 @@ export const PAGES = {
     path: "/guides",
     title: "Launch guides for indie makers and vibe coders",
     description:
-      "Free guides for launching an app built with Cursor, Lovable, Bolt or v0: Product Hunt prep, launch copy, social images and the SEO basics to fix first.",
-    updated: "2026-10-18",
+      "Free guides for launching an app built with Cursor, Lovable, Bolt or v0: Product Hunt and Show HN prep, Reddit rules, launch copy and the SEO basics.",
+    updated: "2026-10-19",
     card: { eyebrow: "Guides", headline: "Launch guides for indie makers" },
   }),
   tools: core({

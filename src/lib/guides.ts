@@ -42,6 +42,14 @@ export const GUIDES: Guide[] = [
       "How to write a Product Hunt tagline that earns the click: six formulas, good and weak examples, mistakes to avoid, and how it fits with your listing.",
     updated: "2026-10-18",
   },
+  {
+    slug: "how-to-promote-on-reddit",
+    title: "How to promote your app on Reddit",
+    metaTitle: "How to promote on Reddit: self-promotion rules",
+    description:
+      "How to promote your app on Reddit without getting banned: Reddit's self-promotion rules, how subreddit rules differ, and how to write a post that stays up.",
+    updated: "2026-10-19",
+  },
 ];
 
 export const guidePath = (g: Pick<Guide, "slug">) => `/${g.slug}`;

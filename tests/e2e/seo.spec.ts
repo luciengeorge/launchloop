@@ -70,6 +70,7 @@ test("sitemap lists every indexable page once, with lastmod, and no redirecting 
     "/tools/og-preview",
     "/product-hunt-launch-checklist",
     "/how-to-launch-a-vibe-coded-app",
+    "/how-to-promote-on-reddit",
     "/privacy",
     "/terms",
   ];
