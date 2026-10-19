@@ -8,9 +8,9 @@ import type { Kit } from "@/lib/schema";
 import { cookies } from "next/headers";
 import { ANON_KITS_COOKIE, getSession, readAnonKits, secureCookies } from "@/lib/auth";
 import { type KitRequestTrace, phase, previewSourceOf, safeInput, traceKitRequest } from "@/lib/kit-tracing";
-import { type KitOptions, createKit, markKitFailed, markKitPending, newId } from "@/lib/kits";
+import { type KitOptions, type KitStep, createKit, markKitFailed, markKitPending, newId } from "@/lib/kits";
 import { captureException } from "@/lib/observability";
-import { freePreviewGate } from "@/lib/rate-limit";
+import { type PreviewSlot, freePreviewGate } from "@/lib/rate-limit";
 
 export const maxDuration = 300;
 
@@ -30,12 +30,14 @@ export async function POST(req: Request) {
     }
     const input = url;
     // Kill switch, input check, per-IP limit and global daily cap.
-    const refused = await phase("kits.rate_limit", "rate_limit", {}, () => freePreviewGate(req, input));
-    if (refused) {
+    const gate = await phase("kits.rate_limit", "rate_limit", {}, () => freePreviewGate(req, input));
+    if (gate.refused) {
+      const { refused } = gate;
       const { code } = (await refused.clone().json().catch(() => ({}))) as { code?: string };
       trace.end({ status: "error", code: code ?? `http_${refused.status}` });
       return refused;
     }
+    const usage = previewUsage(gate.slot);
 
     // Opt-in progress stream: newline-delimited JSON events, starting with {type:"accepted"} and ending
     // with {type:"done"} or {type:"error"}. The id is fixed up front so it can go in the cookie before the stream starts.
@@ -51,14 +53,15 @@ export async function POST(req: Request) {
       jar.set(ANON_KITS_COOKIE, ids.join(","), { httpOnly: true, secure: secureCookies(), sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 365 });
     }
 
-    if (stream) return streamKit(url, opts, trace);
+    if (stream) return streamKit(url, opts, trace, usage);
 
     try {
-      const kit = await createKit(url, undefined, opts);
+      const kit = await createKit(url, usage.onStep, opts);
       speculate(kit);
       trace.end({ status: "ok" });
       return Response.json({ id: kit.id, url: `/kit/${kit.id}` }, { status: 201 });
     } catch (error) {
+      await usage.failed();
       const { status, body } = toErrorResponse(error, url);
       trace.end({ status: "error", code: body.code });
       return Response.json(body, { status });
@@ -66,7 +69,24 @@ export async function POST(req: Request) {
   });
 }
 
-function streamKit(url: string, opts: KitOptions & { id: string }, trace: KitRequestTrace): Response {
+/**
+ * A preview counts once its first model call (the brief) has completed: createKit reports "copy" right after.
+ * A run that fails before then (private or missing repo, unreachable site, AI down) gives its slot back.
+ * A client that disconnects doesn't stop the run, so an abandoned preview that finishes still counts.
+ */
+function previewUsage(slot: PreviewSlot) {
+  let modelCallDone = false;
+  return {
+    onStep(step: KitStep) {
+      if (step === "copy") modelCallDone = true;
+    },
+    async failed() {
+      if (!modelCallDone) await slot.refund();
+    },
+  };
+}
+
+function streamKit(url: string, opts: KitOptions & { id: string }, trace: KitRequestTrace, usage: ReturnType<typeof previewUsage>): Response {
   const encoder = new TextEncoder();
   const body = new ReadableStream<Uint8Array>({
     async start(controller) {
@@ -86,11 +106,19 @@ function streamKit(url: string, opts: KitOptions & { id: string }, trace: KitReq
           captureException(error, { stage: "api.kits.markPending", kitId: opts.id }),
         );
         send({ type: "accepted", id: opts.id });
-        const kit = await createKit(url, (step) => send({ type: "step", step }), opts);
+        const kit = await createKit(
+          url,
+          (step) => {
+            usage.onStep(step);
+            send({ type: "step", step });
+          },
+          opts,
+        );
         speculate(kit);
         send({ type: "done", id: kit.id, url: `/kit/${kit.id}` });
         trace.end({ status: "ok" });
       } catch (error) {
+        await usage.failed();
         const { status, body } = toErrorResponse(error, url);
         await markKitFailed(opts.id, body).catch(() => undefined);
         send({ type: "error", status, ...body });

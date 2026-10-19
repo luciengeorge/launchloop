@@ -1,7 +1,8 @@
 import "server-only";
 import { after } from "next/server";
 import { kitAssignment } from "./analytics-server";
-import { EXPERIMENTS, type Served, type Variant } from "./experiments";
+import { EXPERIMENTS, fallbackServed, type Served, type Variant } from "./experiments";
+import { isBeforePromoEnd } from "./launch-promo";
 import { captureException } from "./observability";
 import { store } from "./store";
 
@@ -20,8 +21,10 @@ export interface KitPromo extends Served {
  * PostHog on `kit:<kitId>`; if PostHog doesn't answer (error or timeout), the variant PostHog last
  * assigned this kit, kept server-side next to the kit (nothing in the browser); otherwise control as a
  * fallback. A flag that's off is control for every kit, never the remembered variant. Never throws.
+ * From LAUNCH_PROMO_ENDS_AT it's control for every kit, as if the flag were off, without asking PostHog.
  */
 export async function resolveKitPromo(kitId: string): Promise<KitPromo> {
+  if (!isBeforePromoEnd(Date.now())) return { ...fallbackServed("unassigned"), source: "fallback" };
   const assigned = await kitAssignment(EXPERIMENTS.launchPromo, kitId);
   if (!assigned.fallback) {
     after(() => store().set(rememberedKey(kitId), assigned.variant, REMEMBER_SECONDS).catch((error) => captureException(error, { stage: "kitPromo.remember", kitId })));
