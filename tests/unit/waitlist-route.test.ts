@@ -22,6 +22,13 @@ beforeEach(() => {
 });
 
 describe("POST /api/waitlist", () => {
+  it("records no plan when the form sends none (the Ship Loop page shows no plans)", async () => {
+    expect((await join({ email: "noplan@launchloop.dev", source: "ship_loop_page" })).status).toBe(200);
+    const record = await mem.get<Record<string, string>>("contact:waitlist:noplan@launchloop.dev");
+    expect(record).toMatchObject({ tag: WAITLIST_TAG, signup_source: "ship_loop_page" });
+    expect(record).not.toHaveProperty("plan");
+  });
+
   it("stores the signup durably with email, timestamp, shiploop_waitlist tag and source, and adds it to the launch list", async () => {
     const res = await join({ email: "Maker@Launchloop.dev", plan: "yearly", source: "kit_upsell" });
     expect(res.status).toBe(200);
@@ -45,7 +52,7 @@ describe("POST /api/waitlist", () => {
 
   it("an unknown source is stored as the Ship Loop page", async () => {
     await join({ email: "maker@launchloop.dev", source: "elsewhere" });
-    expect(await mem.get("contact:waitlist:maker@launchloop.dev")).toMatchObject({ signup_source: "ship_loop_page", plan: "monthly" });
+    expect(await mem.get("contact:waitlist:maker@launchloop.dev")).toMatchObject({ signup_source: "ship_loop_page" });
   });
 
   it("if the store is down the signup fails loudly (500, reported) instead of pretending it was saved", async () => {

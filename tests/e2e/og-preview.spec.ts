@@ -7,7 +7,7 @@ test("OG preview has its own title, meta, canonical, share image and JSON-LD", a
   await page.goto(PATH);
   await expect(page).toHaveTitle("OG Image Preview & Checker (1200×630) · LaunchLoop");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("OG image preview");
-  await expect(page.locator('meta[name="description"]')).toHaveAttribute("content", /Open Graph.*1200×630.*£19/);
+  await expect(page.locator('meta[name="description"]')).toHaveAttribute("content", /Open Graph.*1200×630.*launch kit\.$/);
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", "index, follow");
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", new RegExp(`${PATH}$`));
   await expect(page.locator('meta[property="og:url"]')).toHaveAttribute("content", new RegExp(`${PATH}$`));

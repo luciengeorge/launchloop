@@ -36,7 +36,7 @@ export function PricingTimeline({ promo, className = "" }: { promo: boolean; cla
         </>
       ),
     },
-    { step: "Keep shipping", product: "Ship Loop, monthly (coming soon)" },
+    { step: "Keep shipping", product: "Ship Loop (coming soon, free waitlist)" },
   ];
   return (
     <ol aria-label="How the plans fit together" className={`flex flex-wrap items-center gap-x-3 gap-y-2 text-sm ${className}`}>
@@ -99,8 +99,8 @@ function HomeStrip({ promo }: { promo: boolean }) {
         <PriceCard
           badge="Coming soon"
           name="3. Ship Loop"
-          price="from £12"
-          suffix="/month, planned"
+          price="Waitlist"
+          suffix="free to join"
           body="For after launch. Every time you release, we draft an X post, a LinkedIn post, a changelog blurb and an image, and email them to you to approve. Join the waitlist, we'll email you when it launches."
           cta={
             <Link href="/ship-loop" className={buttonVariants({ variant: "outline", className: "w-full" })}>
@@ -152,9 +152,9 @@ function PricingPage({ promo }: { promo: boolean }) {
             muted
             badge="Coming soon"
             name="Ship Loop"
-            price="£12"
-            suffix="/month or £99/year, planned"
-            body="Ship Loop is coming soon and isn't on sale yet. A draft post and image for every release."
+            price="Waitlist"
+            suffix="free to join"
+            body="Ship Loop is coming soon and isn't on sale. A draft post and image for every release."
             items={SHIP_LOOP_ITEMS}
             cta={
               <Link href="/ship-loop#plans" className={buttonVariants({ variant: "outline", className: "w-full" })}>

@@ -17,7 +17,7 @@ export default async function PricingPage() {
   const promo = await isLaunchPromoOn();
   return (
     <>
-      <JsonLd data={{ "@context": "https://schema.org", "@graph": [launchLoopApp(base), breadcrumbs(base, [{ name: "Pricing", path: page.path }])] }} />
+      <JsonLd data={{ "@context": "https://schema.org", "@graph": [launchLoopApp(base, promo), breadcrumbs(base, [{ name: "Pricing", path: page.path }])] }} />
       <PricingSection variant="page" promo={promo} />
       <section id="start" className="mx-auto flex max-w-6xl scroll-mt-20 flex-col items-center px-4 py-16 text-center sm:px-6" aria-labelledby="start-heading">
         <h2 id="start-heading" className="text-2xl font-semibold tracking-tight">Start with a free preview</h2>

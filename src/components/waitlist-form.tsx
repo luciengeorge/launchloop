@@ -9,8 +9,8 @@ import type { WaitlistResponse, WaitlistSource } from "@/lib/waitlist";
 
 type State = "idle" | "loading" | "joined" | "duplicate";
 
-/** Ship Loop waitlist email capture, tagged shiploop_waitlist by /api/waitlist. `plan` is the billing period the visitor was looking at. */
-export function WaitlistForm({ source, plan = "monthly", className = "" }: { source: WaitlistSource; plan?: "monthly" | "yearly"; className?: string }) {
+/** Ship Loop waitlist email capture, tagged shiploop_waitlist by /api/waitlist. `plan`, when set, is recorded with the signup. */
+export function WaitlistForm({ source, plan, className = "" }: { source: WaitlistSource; plan?: "monthly" | "yearly"; className?: string }) {
   const [state, setState] = useState<State>("idle");
   const [error, setError] = useState<string | null>(null);
   const inputId = useId();
@@ -25,7 +25,7 @@ export function WaitlistForm({ source, plan = "monthly", className = "" }: { sou
     setState("loading");
     setError(null);
     try {
-      const { duplicate } = await postJson<WaitlistResponse>("/api/waitlist", { email: new FormData(e.currentTarget).get("email"), plan, source });
+      const { duplicate } = await postJson<WaitlistResponse>("/api/waitlist", { email: new FormData(e.currentTarget).get("email"), ...(plan ? { plan } : {}), source });
       setState(duplicate ? "duplicate" : "joined");
     } catch (err) {
       setError((err as Error).message);
@@ -43,7 +43,7 @@ export function WaitlistForm({ source, plan = "monthly", className = "" }: { sou
 
   return (
     <form onSubmit={onSubmit} method="post" action="/api/waitlist" className={`space-y-2 ${className}`} aria-label="Join the Ship Loop waitlist" data-testid="waitlist-form">
-      <input type="hidden" name="plan" value={plan} />
+      {plan ? <input type="hidden" name="plan" value={plan} /> : null}
       <input type="hidden" name="source" value={source} />
       <label htmlFor={inputId} className="sr-only">
         Email
