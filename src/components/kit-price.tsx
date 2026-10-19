@@ -40,14 +40,22 @@ export function KitPrice({ promo, size = "inline" }: { promo: boolean; size?: "i
   );
 }
 
-/** Shared copy with KIT_PRICE_TOKEN in it (the FAQ), with each token rendered as <KitPrice>. */
+/**
+ * Shared copy with KIT_PRICE_TOKEN in it (the FAQ), with each token rendered as <KitPrice>. Wrapped in one <span>: in a
+ * flex parent (the FAQ accordion trigger) bare text and the price would be separate flex items, which drops the space
+ * before the price ("What do I get for£19 £14?").
+ */
 export function PricedText({ text, promo }: { text: string; promo: boolean }) {
-  return text.split(KIT_PRICE_TOKEN).map((part, i) => (
-    <Fragment key={i}>
-      {i > 0 ? <KitPrice promo={promo} /> : null}
-      {part}
-    </Fragment>
-  ));
+  return (
+    <span>
+      {text.split(KIT_PRICE_TOKEN).map((part, i) => (
+        <Fragment key={i}>
+          {i > 0 ? <KitPrice promo={promo} /> : null}
+          {part}
+        </Fragment>
+      ))}
+    </span>
+  );
 }
 
 /** "LAUNCH14 applied at checkout", styled like the paywall's promo note. Renders nothing when the promo is off. */
