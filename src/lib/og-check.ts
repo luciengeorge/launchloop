@@ -105,7 +105,7 @@ function titleCheck(tags: OgTags): OgCheck {
     return { id: "title", status: "warn", label, detail: "No og:title, so apps fall back to your <title>. Add og:title so you control exactly what the card says." };
   }
   if (title.length > OG_TITLE_MAX) {
-    return { id: "title", status: "warn", label, detail: `og:title is ${title.length} characters. X, LinkedIn and Slack cut titles off around 60–70, so lead with the words that matter.` };
+    return { id: "title", status: "warn", label, detail: `og:title is ${title.length} characters. X, LinkedIn and Slack cut titles off around 60 to 70 characters, so lead with the words that matter.` };
   }
   return { id: "title", status: "pass", label, detail: `og:title is set (${title.length} characters).` };
 }
