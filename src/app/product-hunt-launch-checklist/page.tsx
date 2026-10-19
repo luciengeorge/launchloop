@@ -62,7 +62,10 @@ export default function ProductHuntChecklistPage() {
       <ol>
         <li>Confirm the listing is live just after 00:01 PT and post your maker comment.</li>
         <li>Post your X thread and LinkedIn post with the Product Hunt link, written ahead of time.</li>
-        <li>Email your list and post in the communities you are actually part of, following each one&apos;s self-promotion rules.</li>
+        <li>
+          Email your list and post in the communities you are actually part of, following each one&apos;s self-promotion rules. On Reddit, read{" "}
+          <Link href="/how-to-promote-on-reddit">how to promote your app on Reddit</Link> first.
+        </li>
         <li>Reply to every comment, quickly and specifically. This is the most valuable thing you can do all day.</li>
         <li>Post a mid-day update on X with something real: a fix shipped from feedback, a question you got asked a lot.</li>
         <li>Watch error tracking and sign-ups. A launch is a load test you did not schedule.</li>
