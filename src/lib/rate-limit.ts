@@ -60,6 +60,48 @@ export function freePreviewLimit(req: Request) {
   ]);
 }
 
+const REFUNDS_PER_HOUR = Number(process.env.PREVIEW_REFUNDS_PER_HOUR ?? 10);
+const REFUNDS_PER_DAY = Number(process.env.PREVIEW_REFUNDS_PER_DAY ?? 30);
+
+/**
+ * How many failed runs an IP gets back. Each one still cost a GitHub or site fetch, so past this a
+ * failure counts like a preview and one IP can't drain the shared GitHub quota with missing repos.
+ */
+function refundAllowance(ip: string) {
+  return sharedRateLimit(`kits-refunds:${ip}`, [
+    { limit: REFUNDS_PER_HOUR, seconds: 60 * 60 },
+    { limit: REFUNDS_PER_DAY, seconds: 24 * 60 * 60 },
+  ]);
+}
+
+/** A free run's place in its IP's budget. */
+export interface PreviewSlot {
+  /**
+   * Gives the slot back, for a run that ended before any model call completed (a private or missing
+   * repo, an unreachable site, the AI down). Within the refund allowance only. Never throws.
+   */
+  refund(): Promise<void>;
+}
+
+const NO_SLOT: PreviewSlot = { refund: async () => {} };
+
+function previewSlot(ip: string, counted: CountedWindow[]): PreviewSlot {
+  let refunded = false;
+  return {
+    async refund() {
+      if (refunded) return;
+      refunded = true;
+      try {
+        if ((await refundAllowance(ip)).ok) await uncount(counted);
+      } catch (error) {
+        captureExceptionThrottled("rate-limit.refund", error, { stage: "rate-limit.refund" });
+      }
+    },
+  };
+}
+
+export type FreePreviewGate = { refused: Response } | { refused: null; slot: PreviewSlot };
+
 const DEFAULT_GLOBAL_DAILY_CAP = 1500;
 
 /** A missing or malformed value falls back to the default rather than switching the cap off. */
@@ -83,36 +125,45 @@ const busy = () => Response.json(kitErrorBody("busy"), { status: 503 });
 
 /**
  * Runs before any free LLM work (the preview and the free tools). Returns the response to send
- * when the request is refused, or null to go ahead. Paid generation never goes through here.
+ * when the request is refused, or the slot it took to go ahead. Paid generation never goes through here.
  *
  * - The input is validated before anything is counted, so a malformed URL never uses up a slot.
- *   Inputs that fail later (a missing repo) still count: they cost a GitHub API call, and refunding
- *   them would let one IP drain the shared GitHub quota.
+ * - Inputs that fail later (a private or missing repo, an unreachable site) are refunded by the
+ *   caller through `slot.refund()`, up to the refund allowance (see refundAllowance).
+ * - A refused request (429, or busy from the global cap) gives its per-IP slot straight back, so
+ *   retrying while limited doesn't eat into the day's budget.
  * - The sample app is exempt from both counters: it's served from the 24-hour dedupe cache.
  * - The per-IP limit is checked first so one noisy IP can't use up the global cap for everyone.
+ *   The global cap counts every attempt that passes the per-IP limit and is never refunded.
  * - Fails closed: if the store (Upstash) errors, the request gets the "busy" 503 and Sentry gets
  *   the error. Kits and briefs live in the same store, so failing open would spend model calls on
  *   previews that can't be saved, and drop abuse protection exactly when nobody's watching.
  */
-export async function freePreviewGate(req: Request, rawInput: string): Promise<Response | null> {
-  if (freePreviewsDisabled()) return busy();
+export async function freePreviewGate(req: Request, rawInput: string): Promise<FreePreviewGate> {
+  if (freePreviewsDisabled()) return { refused: busy() };
   let input: string;
   try {
     input = normaliseInput(rawInput);
   } catch (error) {
-    if (error instanceof IngestError) return Response.json(kitErrorBody(error.code, error.userMessage), { status: 422 });
+    if (error instanceof IngestError) return { refused: Response.json(kitErrorBody(error.code, error.userMessage), { status: 422 }) };
     throw error;
   }
-  if (input === SAMPLE_INPUT) return null;
+  if (input === SAMPLE_INPUT) return { refused: null, slot: NO_SLOT };
   try {
     const limit = await freePreviewLimit(req);
-    if (!limit.ok) return Response.json(rateLimitedBody(limit.retryAfterSeconds), { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } });
-    if (await overGlobalDailyCap()) return busy();
+    if (!limit.ok) {
+      await uncount(limit.counted);
+      return { refused: Response.json(rateLimitedBody(limit.retryAfterSeconds), { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } }) };
+    }
+    if (await overGlobalDailyCap()) {
+      await uncount(limit.counted);
+      return { refused: busy() };
+    }
+    return { refused: null, slot: previewSlot(clientIp(req), limit.counted) };
   } catch (error) {
     captureExceptionThrottled("rate-limit.store", error, { stage: "rate-limit.store" });
-    return busy();
+    return { refused: busy() };
   }
-  return null;
 }
 
 const OG_PREVIEWS_PER_HOUR = Number(process.env.OG_PREVIEW_RATE_LIMIT_PER_HOUR ?? 60);
@@ -136,19 +187,39 @@ export function welcomeEmailLimit() {
   return sharedRateLimit("newsletter-welcome", [{ limit: WELCOME_EMAILS_PER_DAY, seconds: 24 * 60 * 60 }]);
 }
 
+/** One window's counter that a request incremented, and when (epoch seconds) that window ends. */
+export interface CountedWindow {
+  key: string;
+  seconds: number;
+  resetsAt: number;
+}
+
 /**
  * Fixed-window limits shared across instances via the store (Redis in
  * production). All windows are counted; the request fails if any is exceeded.
+ * `retryAfterSeconds` is the time until the latest exceeded window ends, from this request's clock.
  */
-export async function sharedRateLimit(key: string, windows: { limit: number; seconds: number }[]): Promise<{ ok: boolean; retryAfterSeconds: number }> {
+export async function sharedRateLimit(
+  key: string,
+  windows: { limit: number; seconds: number }[],
+): Promise<{ ok: boolean; retryAfterSeconds: number; counted: CountedWindow[] }> {
   const now = Math.floor(Date.now() / 1000);
   const counts = await Promise.all(
     windows.map(async (w) => {
       const bucket = Math.floor(now / w.seconds);
-      const count = await store().incr(`rl:${key}:${w.seconds}:${bucket}`, w.seconds);
-      return { ...w, count, retryAfter: (bucket + 1) * w.seconds - now };
+      const counterKey = `rl:${key}:${w.seconds}:${bucket}`;
+      const count = await store().incr(counterKey, w.seconds);
+      const resetsAt = (bucket + 1) * w.seconds;
+      return { ...w, count, key: counterKey, resetsAt, retryAfter: resetsAt - now };
     }),
   );
+  const counted = counts.map(({ key, seconds, resetsAt }) => ({ key, seconds, resetsAt }));
   const over = counts.filter((c) => c.count > c.limit);
-  return over.length ? { ok: false, retryAfterSeconds: Math.max(...over.map((c) => c.retryAfter)) } : { ok: true, retryAfterSeconds: 0 };
+  return over.length ? { ok: false, retryAfterSeconds: Math.max(...over.map((c) => c.retryAfter)), counted } : { ok: true, retryAfterSeconds: 0, counted };
+}
+
+/** Takes back what sharedRateLimit counted, in windows that haven't ended yet (an ended window is never read again). */
+async function uncount(counted: CountedWindow[]): Promise<void> {
+  const now = Math.floor(Date.now() / 1000);
+  await Promise.all(counted.filter((c) => c.resetsAt > now).map((c) => store().decr(c.key, c.seconds)));
 }

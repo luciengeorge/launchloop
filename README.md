@@ -71,10 +71,12 @@ All are optional locally. See [`.env.example`](.env.example) for the full annota
 `freePreviewGate` in `src/lib/rate-limit.ts` guards every free LLM call (`/api/kits` and `/api/tools/taglines`); paid kit generation never goes through it. In order:
 
 1. `FREE_PREVIEWS_DISABLED=1` returns 503 `busy`.
-2. The input is validated first, so a malformed URL returns 422 without using a slot. A valid URL that fails later (a missing repo) still counts: it costs a GitHub API call, and refunding it would let one IP drain the shared GitHub quota.
+2. The input is validated first, so a malformed URL returns 422 without using a slot.
 3. The sample app (`sample`) skips both counters; it's served from the 24-hour dedupe cache.
-4. Per IP, fixed hourly and UTC-daily windows in the store. IPv6 addresses are keyed by their /64. A refusal is a 429 with a `Retry-After` header and `retryAfterSeconds` in the body, and the form says "Try again in N min".
-5. The global daily cap (`cap:previews:<UTC day>`, `PREVIEW_GLOBAL_DAILY_CAP`) returns 503 `busy`. It's checked after the per-IP limit so one noisy IP can't use it up.
+4. Per IP, fixed hourly and UTC-daily windows in the store. IPv6 addresses are keyed by their /64. A refusal is a 429 with a `Retry-After` header and `retryAfterSeconds` in the body (time to the end of the window that's full), and the form says "Try again in N min". A refused request gives its slot straight back, so retrying while limited doesn't use up the day.
+5. The global daily cap (`cap:previews:<UTC day>`, `PREVIEW_GLOBAL_DAILY_CAP`) returns 503 `busy` (and gives the per-IP slot back). It's checked after the per-IP limit so one noisy IP can't use it up. It counts every attempt that gets this far and is never refunded.
+
+**A preview counts once a model call has completed.** A run that fails before the brief is written (a private or missing repo, an unreachable or empty site, the AI Gateway down) calls `slot.refund()` and gets its slot back. Each of those still cost a GitHub or site fetch, so an IP gets at most 10 refunds an hour and 30 a day (`PREVIEW_REFUNDS_PER_HOUR`, `PREVIEW_REFUNDS_PER_DAY`, testing only); past that a failure counts like a preview. A visitor who closes the tab doesn't stop the run: the preview is still written and saved (and reachable from the kit link or after login), so it counts.
 
 **Store errors fail closed.** If Upstash errors, the gate returns 503 `busy` and reports the error to Sentry (`stage: rate-limit.store`) rather than letting the request through. Kits and briefs live in the same store, so failing open would spend model calls on previews that can't be saved, and would drop abuse protection exactly when nobody's watching.
 
