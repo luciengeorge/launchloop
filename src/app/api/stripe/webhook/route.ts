@@ -1,7 +1,7 @@
 import { after } from "next/server";
 import type Stripe from "stripe";
 import { captureServerEvent, eventUuid, resolveDistinctId } from "@/lib/analytics-server";
-import { attributionProperties } from "@/lib/attribution";
+import { attributionProperties, testProperties } from "@/lib/attribution";
 import { env } from "@/lib/env";
 import { featureProperties, parseExperiments, parseFallbacks } from "@/lib/experiments";
 import type { KitOwnership } from "@/lib/accounts";
@@ -151,6 +151,7 @@ function trackFailure(eventId: string, session: Stripe.Checkout.Session, product
       stage,
       errorName: error instanceof Error ? error.name : typeof error,
       mock: false,
+      ...testProperties(m),
     },
   });
 }

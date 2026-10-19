@@ -1,4 +1,4 @@
-import { attributionProperties } from "@/lib/attribution";
+import { attributionProperties, testProperties, withTestTraffic } from "@/lib/attribution";
 import { isEmail } from "@/lib/audience";
 import { captureServerEvent, resolveDistinctId } from "@/lib/analytics-server";
 import { getSession } from "@/lib/auth";
@@ -18,7 +18,7 @@ import { clientIp, sharedRateLimit } from "@/lib/rate-limit";
 const GUEST_CHECKOUTS_PER_HOUR = Number(process.env.CHECKOUT_RATE_LIMIT_PER_HOUR ?? 20);
 
 export async function POST(req: Request) {
-  const body = (await req.json().catch(() => ({}))) as { product?: unknown; kitId?: unknown; email?: unknown; analyticsId?: unknown; experiments?: unknown; fallbacks?: unknown };
+  const body = (await req.json().catch(() => ({}))) as { product?: unknown; kitId?: unknown; email?: unknown; analyticsId?: unknown; experiments?: unknown; fallbacks?: unknown; isTest?: unknown };
   const rejected = checkoutRejection(body.product);
   if (rejected) return Response.json({ error: rejected.error, code: rejected.code }, { status: rejected.status });
 
@@ -33,7 +33,8 @@ export async function POST(req: Request) {
   if (!kit) return Response.json({ error: "That kit doesn't exist any more. Generate a new preview." }, { status: 404 });
   if (kit.paid) return Response.json({ url: session ? `/account/kits/${kit.id}` : `/kit/${kit.id}` });
   const kitId = kit.id;
-  const attribution = kit.attribution;
+  // A QA-tagged kit, or a checkout from a QA-tagged tab: checkout_started, flag_fallback and (via metadata) the webhook's events carry is_test.
+  const attribution = withTestTraffic(kit.attribution, body.isTest === true);
   // If the background budget was used up, start writing now so it's (nearly) ready after checkout.
   after(() => generateDraft(kit).catch(() => undefined));
 
@@ -72,7 +73,7 @@ export async function POST(req: Request) {
     if (launchPromo && promoFallback && kitId) {
       const properties = { flag: EXPERIMENTS.launchPromo, variant: launchPromo.variant, reason: "error", fallback: true, source: "checkout", remembered: launchPromo.source === "remembered", kitId } as const;
       captureMessage("exp_launch14_promo: PostHog didn't answer at checkout", properties);
-      after(() => captureServerEvent("flag_fallback", { distinctId: analyticsId, properties }));
+      after(() => captureServerEvent("flag_fallback", { distinctId: analyticsId, properties: { ...properties, ...testProperties(attribution) } }));
     }
     after(() =>
       captureServerEvent("checkout_started", {
