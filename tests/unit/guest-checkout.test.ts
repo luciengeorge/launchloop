@@ -433,6 +433,33 @@ describe("return URL", () => {
   });
 });
 
+describe("amount paid, for the kit emails", () => {
+  it("records Stripe's amount_total and currency from the webhook: £14 with LAUNCH14, £19 without", async () => {
+    await deliver(guestEvent({ amount_total: 1400, metadata: { ...guestEvent().data.object.metadata, promo_code: "LAUNCH14" } }));
+    expect(kit().paidAmount).toEqual({ amount: 1400, currency: "gbp" });
+
+    seedKit();
+    await deliver(guestEvent());
+    expect(kit().paidAmount).toEqual({ amount: 1900, currency: "gbp" });
+  });
+
+  it("records it from the return URL too, and a redelivery of the same session doesn't change it", async () => {
+    const event = guestEvent({ amount_total: 1400 });
+    m.retrieveSession.mockResolvedValue(event.data.object);
+    await checkoutReturn(new Request(`http://x/api/checkout/return?session_id=${event.data.object.id}`));
+    expect(kit().paidAmount).toEqual({ amount: 1400, currency: "gbp" });
+
+    await deliver(guestEvent({ amount_total: 1900 }, "checkout.session.completed", event.data.object.id));
+    expect(kit().paidAmount).toEqual({ amount: 1400, currency: "gbp" });
+  });
+
+  it("records nothing when Stripe reports no total, so the emails name no price", async () => {
+    await deliver(guestEvent({ amount_total: null }));
+    expect(kit()).toMatchObject({ paid: true });
+    expect(kit().paidAmount).toBeUndefined();
+  });
+});
+
 describe("QA traffic (is_test) on server events", () => {
   const eventProps = (name: string) => m.captureServerEvent.mock.calls.filter(([event]) => event === name).map(([, params]) => (params as { properties: Record<string, unknown> }).properties);
   const sessionMetadata = () => (m.createSession.mock.calls.at(-1)![0] as { metadata: Record<string, string> }).metadata;

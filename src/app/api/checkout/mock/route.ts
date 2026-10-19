@@ -36,7 +36,8 @@ export async function POST(req: Request) {
 
   const kit = typeof body.kitId === "string" ? await getKit(body.kitId) : null;
   if (!kit) return Response.json({ error: "Kit not found." }, { status: 404 });
-  await recordPayment({ product: "kit", kitId: kit.id, email: body.email, ref });
+  const { amount, currency } = checkoutPrice("kit", promo);
+  await recordPayment({ product: "kit", kitId: kit.id, email: body.email, ref, paidAmount: { amount, currency } });
   after(() => fulfilKit(kit.id));
   track("kit", kit);
   return Response.json({ url: withAnalyticsId(kitSuccessPath(kit.id, ref, isLoggedIn), body.analyticsId) });

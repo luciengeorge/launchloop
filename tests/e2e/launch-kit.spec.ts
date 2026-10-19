@@ -124,6 +124,7 @@ test("sample app: blurred preview without leaks, unlock via magic link, instant 
   const { emails } = (await (await request.get("/api/dev/outbox")).json()) as { emails: { to: string; subject: string; text: string }[] };
   const receipt = emails.find((e) => e.to === email && /launch kit is ready/.test(e.subject))!;
   expect(receipt.subject).toContain("Payment received");
+  expect(receipt.text).toContain("Receipt: LaunchLoop Launch Kit, £19 · Ref");
   expect(receipt.text).toContain(`/account/kits/${kitId}`);
   expect(receipt.text).toContain("X launch thread");
 });

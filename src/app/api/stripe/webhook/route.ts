@@ -8,6 +8,7 @@ import type { KitOwnership } from "@/lib/accounts";
 import { fulfilKit, recordPayment, type RecordedPayment } from "@/lib/fulfil";
 import { captureException, logEvent } from "@/lib/observability";
 import { deployEnv, stripeEventDecision } from "@/lib/deploy-env";
+import { sessionPaidAmount } from "@/lib/money";
 import { isPaidSession, sessionPromoCode, stripe } from "@/lib/payments";
 import { isProductId, type ProductId } from "@/lib/products";
 import { store } from "@/lib/store";
@@ -80,6 +81,7 @@ export async function POST(req: Request) {
       email: session.customer_details?.email ?? session.customer_email ?? undefined,
       ref: session.id,
       customerId: typeof session.customer === "string" ? session.customer : session.customer?.id,
+      paidAmount: sessionPaidAmount(session),
     });
   } catch (error) {
     captureException(error, { stage: "stripe.webhook.record", sessionId: session.id, eventId: event.id, product, kitId });

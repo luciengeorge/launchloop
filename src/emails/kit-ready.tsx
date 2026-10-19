@@ -1,16 +1,19 @@
 import { Column, Row, Section, Text } from "@react-email/components";
+import { formatPaidAmount } from "../lib/money";
+import { PRODUCTS } from "../lib/products";
 import { Cta, Divider, EmailLayout, FallbackLink, P, brand } from "./layout";
 
 export interface KitReadyProps {
   productName: string;
   accountUrl: string;
-  priceLabel: string;
+  /** What the buyer was charged, formatted by formatPaidAmount. Omitted when unknown: the receipt then names no price. */
+  amountPaid?: string;
   receiptRef?: string;
   zipFilename?: string;
   summary: { label: string; detail: string }[];
 }
 
-export function KitReadyEmail({ productName, accountUrl, priceLabel, receiptRef, zipFilename, summary }: KitReadyProps) {
+export function KitReadyEmail({ productName, accountUrl, amountPaid, receiptRef, zipFilename, summary }: KitReadyProps) {
   return (
     <EmailLayout preview={`Payment received. Your ${productName} launch kit is ready.`} heading={`Your ${productName} launch kit is ready`}>
       <P>Thanks for your payment. Every asset is written and waiting in your account, laid out as a launch checklist you can copy from and tick off.</P>
@@ -37,7 +40,7 @@ export function KitReadyEmail({ productName, accountUrl, priceLabel, receiptRef,
       ) : null}
       <Divider />
       <P muted>
-        Receipt: LaunchLoop Launch Kit, {priceLabel}
+        Receipt: LaunchLoop Launch Kit{amountPaid ? `, ${amountPaid}` : ""}
         {receiptRef ? ` · Ref ${receiptRef.slice(-12)}` : ""}. Not happy? Reply within 14 days for a full refund.
       </P>
       <FallbackLink href={accountUrl} />
@@ -48,7 +51,7 @@ export function KitReadyEmail({ productName, accountUrl, priceLabel, receiptRef,
 KitReadyEmail.PreviewProps = {
   productName: "Snapshelf",
   accountUrl: "https://launchloop.dev/account/kits/example",
-  priceLabel: "£19",
+  amountPaid: formatPaidAmount({ amount: PRODUCTS.kit.amountPence, currency: "gbp" }),
   receiptRef: "cs_test_a1b2c3d4e5f6",
   zipFilename: "snapshelf-launch-kit.zip",
   summary: [
