@@ -3,6 +3,7 @@ import { expect, test } from "@playwright/test";
 const NEW_GUIDES = [
   { path: "/show-hn-launch-checklist", h1: "The Show HN launch checklist", title: /^Show HN checklist: how to post on Show HN · LaunchLoop$/, updated: "2026-10-18" },
   { path: "/how-to-write-a-product-hunt-tagline", h1: "How to write a Product Hunt tagline", title: /^How to write a Product Hunt tagline: examples · LaunchLoop$/, updated: "2026-10-18" },
+  { path: "/how-to-promote-on-reddit", h1: "How to promote your app on Reddit", title: /^How to promote on Reddit: self-promotion rules · LaunchLoop$/, updated: "2026-10-19" },
 ] as const;
 
 for (const guide of NEW_GUIDES) {
@@ -43,7 +44,7 @@ for (const guide of NEW_GUIDES) {
     const article = page.locator("article");
     await expect(article.locator('a[href="/#start"]').first()).toBeVisible();
     await expect(article.locator('a[href="/pricing"]').first()).toBeVisible();
-    expect(await article.innerText()).not.toMatch(/\u2014/);
+    expect(await article.innerText()).not.toMatch(/[\u2013\u2014]/);
 
     const sitemap = await (await request.get("/sitemap.xml")).text();
     expect(sitemap).toMatch(new RegExp(`<loc>[^<]*${guide.path}</loc>\\s*<lastmod>${guide.updated}`));
@@ -67,6 +68,33 @@ test("tagline guide and checker link to each other", async ({ page }) => {
   await expect(page.locator('article a[href="/tools/product-hunt-tagline-checker"]').first()).toBeVisible();
   await page.goto("/tools/product-hunt-tagline-checker");
   await expect(page.locator('main a[href="/how-to-write-a-product-hunt-tagline"]').first()).toBeVisible();
+});
+
+test("Reddit guide cites Reddit's rules and the HN no-AI-text guidance, and links the Show HN checklist and OG preview", async ({ page }) => {
+  await page.goto("/how-to-promote-on-reddit");
+  const article = page.locator("article > div");
+  for (const href of [
+    "https://redditinc.com/policies/reddit-rules",
+    "https://support.reddithelp.com/hc/en-us/articles/360043504051-Spam",
+    "https://support.reddithelp.com/hc/en-us/articles/360043066412-Disrupting-Communities",
+    "https://news.ycombinator.com/newsguidelines.html",
+    "https://news.ycombinator.com/item?id=22336638",
+    "/show-hn-launch-checklist",
+    "/tools/og-preview",
+  ]) {
+    await expect(article.locator(`a[href="${href}"]`).first()).toBeVisible();
+  }
+  await expect(page.locator("#sources")).toBeVisible();
+  await expect(article).toContainText("made-up product");
+});
+
+test("Reddit guide is linked from the related guides and the OG preview tool", async ({ page }) => {
+  for (const path of ["/show-hn-launch-checklist", "/product-hunt-launch-checklist", "/how-to-launch-a-vibe-coded-app"]) {
+    await page.goto(path);
+    await expect(page.locator('article > div a[href="/how-to-promote-on-reddit"]').first(), path).toBeVisible();
+  }
+  await page.goto("/tools/og-preview");
+  await expect(page.locator('main a[href="/how-to-promote-on-reddit"]').first()).toBeVisible();
 });
 
 test("Show HN checklist is linked from the tools and the Product Hunt checklist", async ({ page }) => {
