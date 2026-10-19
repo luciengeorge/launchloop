@@ -1,5 +1,6 @@
 "use client";
 
+import { KitPrice } from "@/components/kit-price";
 import { ArrowRight, CircleCheck, CircleX, ImageOff, Loader2, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import { useId, useState } from "react";
@@ -102,7 +103,8 @@ function LinkCard({ preview }: { preview: Preview }) {
   );
 }
 
-export function OgPreview() {
+/** `promo` is isLaunchPromoOn() from the page: the kit price in the upsell. */
+export function OgPreview({ promo }: { promo: boolean }) {
   const [url, setUrl] = useState("");
   const [usedUrl, setUsedUrl] = useState<string | null>(null);
   const [preview, setPreview] = useState<Preview | null>(null);
@@ -239,14 +241,14 @@ export function OgPreview() {
             <h2 className="font-semibold">{preview.verdict === "pass" ? "Your link card is ready. Now the launch." : "Want a share image that passes every check?"}</h2>
             <p className="mt-1 text-sm text-muted-foreground">
               LaunchLoop reads your README, package.json, recent commits and live site, then makes a {OG_IMAGE.width}×{OG_IMAGE.height} OG image in your brand colours, plus X and Product Hunt images and all
-              your launch copy. Start with a free preview; the full kit is £19.
+              your launch copy. Start with a free preview; the full kit is <KitPrice promo={promo} />.
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
               <Link href={startHref} className={buttonVariants({ className: "h-10 px-4" })} data-testid="og-cta-start">
                 Get my free preview <ArrowRight />
               </Link>
               <Link href="/pricing" className={buttonVariants({ variant: "outline", className: "h-10 px-4" })}>
-                See the £19 kit
+                See the <KitPrice promo={promo} /> kit
               </Link>
             </div>
           </aside>

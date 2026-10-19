@@ -1,15 +1,20 @@
 import { GUIDES, guidePath } from "@/lib/guides";
-import { FAQ, KIT_CONTENTS, SITE, kitPriceText } from "@/lib/site";
+import { pricedPage, toolPage } from "@/lib/pages";
+import { FAQ, KIT_CONTENTS, SITE, kitPricePlain, kitPriceText, siteDescription } from "@/lib/site";
 import { TOOLS } from "@/lib/tools";
 
-export function llmsText(base: string, full: boolean) {
+/** `promo` is isLaunchPromoOn(), so the prices here always match the marketing pages and what Checkout charges. */
+export function llmsText(base: string, full: boolean, promo: boolean) {
+  const price = kitPricePlain(promo);
   const intro = `# ${SITE.name}
 
-> ${SITE.description}
+> ${siteDescription(promo)}
 
 ${SITE.name} (${base}) is a paid web app for indie developers and "vibe coders" who build apps with tools like Cursor, Lovable, Bolt and v0. You paste a public GitHub repository URL or a live website URL. ${SITE.name} reads the README, package.json, recent commits and the live page, writes a short product brief, and generates a launch kit from it.
 
-## What the Launch Kit contains (£19, one-off)
+## What the Launch Kit contains
+
+One payment of ${price}, for one app. Not a subscription.
 
 ${KIT_CONTENTS.map((item) => `- ${item.title}: ${item.body}`).join("\n")}
 
@@ -18,7 +23,7 @@ The kit is delivered on a results page, as a ZIP download and by email.
 ## Pricing (GBP)
 
 - Free preview: the product brief, the Product Hunt tagline, the first post of the X thread and three watermarked images. No account needed. Public repos and live sites only, up to 5 previews an hour and 20 a day.
-- Launch Kit: £19 once, for one app, paid through Stripe Checkout. Not a subscription. 14-day refund.
+- Launch Kit: ${price} once, for one app, paid through Stripe Checkout. Not a subscription. 14-day refund.
 - Ship Loop (coming soon, separate from the kit, not on sale yet): planned at £12/month or £99/year, for after launch. Drafts an X post, a LinkedIn post, a changelog blurb and an image on every release and emails them to the user to approve or edit. It never posts for the user. It is a free waitlist only, with nothing to buy; members are emailed if and when it launches.
 
 ## Rules it follows
@@ -32,7 +37,7 @@ The kit is delivered on a results page, as a ZIP download and by email.
 ## Pages
 
 - [Home](${base}/): product overview, the input form and pricing
-- [Pricing](${base}/pricing): free preview, £19 Launch Kit, Ship Loop plans
+- [Pricing](${base}/pricing): free preview, the Launch Kit at ${price}, Ship Loop plans
 - [Ship Loop](${base}/ship-loop): the upcoming subscription and its waitlist
 - [FAQ](${base}/faq): answers to common questions
 - [Guides](${base}/guides): every launch guide in one list
@@ -42,7 +47,7 @@ The kit is delivered on a results page, as a ZIP download and by email.
 
 ## Free tools
 
-${TOOLS.map((t) => `- [${t.title}](${base}${t.path}): ${t.description}`).join("\n")}
+${TOOLS.map((t) => `- [${t.title}](${base}${t.path}): ${pricedPage(toolPage(t), promo).description}`).join("\n")}
 
 ## Guides
 
@@ -52,7 +57,7 @@ ${GUIDES.map((g) => `- [${g.title}](${base}${guidePath(g)}): ${g.description}`).
     ? `
 ## FAQ
 
-${FAQ.map((item) => `### ${kitPriceText(item.q)}\n\n${kitPriceText(item.a)}`).join("\n\n")}
+${FAQ.map((item) => `### ${kitPriceText(item.q, promo)}\n\n${kitPriceText(item.a, promo)}`).join("\n\n")}
 `
     : `
 ## Optional

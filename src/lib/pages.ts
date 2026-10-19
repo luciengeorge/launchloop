@@ -1,6 +1,7 @@
 import { GUIDES, guidePath, type Guide } from "@/lib/guides";
 import type { ShareCard } from "@/lib/og-card";
-import { SITE } from "@/lib/site";
+import { LAUNCH_PROMO, PRODUCTS } from "@/lib/products";
+import { KIT_PRICE_TOKEN, SITE, kitPriceText } from "@/lib/site";
 import { TOOLS, type Tool } from "@/lib/tools";
 
 /**
@@ -12,7 +13,9 @@ export type SitePage = {
   /** Meta title. The root template appends " · LaunchLoop" unless absoluteTitle is set, so aim for 37 to 47 characters here. */
   title: string;
   absoluteTitle?: boolean;
-  /** Meta description, 120 to 160 characters. */
+  /** Meta title while the launch promo is on, when `title` names the kit price. Same length rules. */
+  promoTitle?: string;
+  /** Meta description, 120 to 160 characters with the promo on or off. KIT_PRICE_TOKEN is resolved by pricedPage(). */
   description: string;
   /** Last significant change to the page's main content (YYYY-MM-DD). Drives the sitemap lastmod: bump it when the copy changes. */
   updated: string;
@@ -40,11 +43,12 @@ export const PAGES = {
   },
   pricing: core({
     path: "/pricing",
-    title: "Pricing: free preview, £19 kit and Ship Loop",
-    description:
-      "Try LaunchLoop free, then pay £19 once for a full launch kit: landing copy, Product Hunt post, X thread, LinkedIn post and images. Ship Loop is coming soon.",
+    title: `Pricing: free preview, ${PRODUCTS.kit.priceLabel} kit and Ship Loop`,
+    promoTitle: `Pricing: free preview, ${LAUNCH_PROMO.priceLabel} kit (normally ${PRODUCTS.kit.priceLabel})`,
+    description: `Try LaunchLoop free, then pay ${KIT_PRICE_TOKEN} once for a launch kit: landing copy, Product Hunt post, X thread, LinkedIn post and images.`,
     updated: "2026-10-18",
-    card: { eyebrow: "Pricing", headline: "Try it free. Pay £19 once to launch." },
+    // The share image is cached at the edge for a day, so it doesn't name a price that can change.
+    card: { eyebrow: "Pricing", headline: "Try it free. Pay once to launch." },
   }),
   shipLoop: core({
     path: "/ship-loop",
@@ -57,7 +61,7 @@ export const PAGES = {
   faq: core({
     path: "/faq",
     title: "FAQ: launch kits, character limits and refunds",
-    description: "How LaunchLoop reads your repo, what's in the £19 Launch Kit, which character limits it enforces, refunds, and the Ship Loop subscription.",
+    description: "How LaunchLoop reads your repo, what's in the Launch Kit and what it costs, which character limits it enforces, refunds, and the Ship Loop subscription.",
     updated: "2026-10-18",
     card: { eyebrow: "FAQ", headline: "Launch kits, character limits and refunds" },
   }),
@@ -89,7 +93,7 @@ export const PAGES = {
     path: "/terms",
     title: "Terms of service: previews, kits and refunds",
     description:
-      "The terms for using LaunchLoop: the free preview and its limits, buying a £19 Launch Kit, refunds within 14 days, and the free Ship Loop waitlist.",
+      "The terms for using LaunchLoop: the free preview and its limits, buying a one-off Launch Kit, refunds within 14 days, and the free Ship Loop waitlist.",
     updated: "2026-10-18",
     card: { eyebrow: "Terms", headline: "Previews, kits and refunds" },
   }),
@@ -110,6 +114,11 @@ export function guidePage(g: Guide): SitePage {
 
 export function toolPage(t: Tool): SitePage {
   return { path: t.path, title: t.metaTitle, description: t.description, updated: t.updated, type: "website", image: { url: `${t.path}/opengraph-image`, alt: t.imageAlt } };
+}
+
+/** A page's meta copy with the kit price as the marketing pages show it. `promo` is isLaunchPromoOn(). */
+export function pricedPage(page: SitePage, promo: boolean): SitePage {
+  return { ...page, title: promo && page.promoTitle ? page.promoTitle : page.title, description: kitPriceText(page.description, promo) };
 }
 
 /** Every page that belongs in the sitemap. Redirect aliases, noindex pages and robots-disallowed paths must never be added. */

@@ -1,10 +1,14 @@
-import { SITE } from "@/lib/site";
+import { chargedPence } from "@/lib/products";
+import { SITE, siteDescription } from "@/lib/site";
 
 const SHIP_LOOP_DESCRIPTION =
   "Coming soon, with a free waitlist. Every time you ship a release, Ship Loop drafts an X post, a LinkedIn post, a changelog blurb and an image in your colours, and emails them to you to approve or edit. It never posts for you.";
 
-/** LaunchLoop itself, with what's on sale as Offers. Shared by the home and pricing pages under one @id. */
-export function launchLoopApp(base: string) {
+/**
+ * LaunchLoop itself, with what's on sale as Offers. Shared by the home and pricing pages under one @id.
+ * `promo` is isLaunchPromoOn(): the kit Offer is what Checkout charges, like the price on the page.
+ */
+export function launchLoopApp(base: string, promo: boolean) {
   return {
     "@type": "SoftwareApplication",
     "@id": `${base}/#app`,
@@ -13,11 +17,11 @@ export function launchLoopApp(base: string) {
     image: `${base}/opengraph-image`,
     applicationCategory: "BusinessApplication",
     operatingSystem: "Web",
-    description: SITE.description,
+    description: siteDescription(promo),
     publisher: { "@id": `${base}/#organization` },
     offers: [
       { "@type": "Offer", name: "Free preview", price: "0", priceCurrency: "GBP", url: `${base}/#start`, availability: "https://schema.org/InStock" },
-      { "@type": "Offer", name: "Launch Kit (one-off)", price: "19.00", priceCurrency: "GBP", url: `${base}/pricing`, availability: "https://schema.org/InStock" },
+      { "@type": "Offer", name: "Launch Kit (one-off)", price: (chargedPence("kit", promo) / 100).toFixed(2), priceCurrency: "GBP", url: `${base}/pricing`, availability: "https://schema.org/InStock" },
     ],
   };
 }
@@ -39,7 +43,7 @@ export function shipLoopApp(base: string) {
 }
 
 /** Site-wide schema.org graph: Organization, WebSite and the SoftwareApplication with GBP offers. */
-export function siteGraph(base: string) {
+export function siteGraph(base: string, promo: boolean) {
   const org = `${base}/#organization`;
   return {
     "@context": "https://schema.org",
@@ -58,11 +62,11 @@ export function siteGraph(base: string) {
         "@id": `${base}/#website`,
         name: SITE.name,
         url: `${base}/`,
-        description: SITE.description,
+        description: siteDescription(promo),
         inLanguage: "en-GB",
         publisher: { "@id": org },
       },
-      launchLoopApp(base),
+      launchLoopApp(base, promo),
     ],
   };
 }

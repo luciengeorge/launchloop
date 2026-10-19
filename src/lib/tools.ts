@@ -1,7 +1,10 @@
+import { KIT_PRICE_TOKEN } from "@/lib/site";
+
 export type Tool = {
   path: string;
   title: string;
   metaTitle: string;
+  /** Contains KIT_PRICE_TOKEN: read it through pricedPage(toolPage(tool), promo). */
   description: string;
   imageAlt: string;
   updated: string;
@@ -12,7 +15,7 @@ export const TAGLINE_CHECKER: Tool = {
   title: "Product Hunt tagline checker",
   metaTitle: "Product Hunt Tagline Checker (60 chars)",
   description:
-    "Free Product Hunt tagline checker: live 60-character count and tips, or generate 3 taglines from your GitHub repo. Then get the full £19 launch kit.",
+    `Free Product Hunt tagline checker: live 60-character count and tips, or 3 taglines from your repo. Then the full kit for ${KIT_PRICE_TOKEN}.`,
   imageAlt: "Product Hunt tagline checker by LaunchLoop: live 60-character count, checklist and feed preview",
   updated: "2026-10-15",
 };
@@ -22,13 +25,14 @@ export const OG_PREVIEW: Tool = {
   title: "OG image preview",
   metaTitle: "OG Image Preview & Checker (1200×630)",
   description:
-    "Free OG preview: paste a URL to see its Open Graph card, check the share image is 1200×630 and fix missing tags. No sign-up. Then get the full £19 launch kit.",
+    `Free OG preview: paste a URL to see its Open Graph card, check the image is 1200×630, fix missing tags. Then the full kit for ${KIT_PRICE_TOKEN}.`,
   imageAlt: "OG image preview by LaunchLoop: a link card at 1200×630 with a checklist of Open Graph tags",
   updated: "2026-10-15",
 };
 
 export const TOOLS: Tool[] = [TAGLINE_CHECKER, OG_PREVIEW];
 
+/** Answers contain KIT_PRICE_TOKEN: render them through kitPriceText(answer, promo). */
 export const TAGLINE_FAQ = [
   {
     q: "How long can a Product Hunt tagline be?",
@@ -48,7 +52,7 @@ export const TAGLINE_FAQ = [
   },
   {
     q: "Is the checker free?",
-    a: "Yes. Checking is free with no sign-up, as many times as you like, and runs in your browser. Generating taglines is free too, within the same hourly allowance as the free preview. The full launch kit, with the rest of your Product Hunt post, X thread, LinkedIn post and images, is £19.",
+    a: `Yes. Checking is free with no sign-up, as many times as you like, and runs in your browser. Generating taglines is free too, within the same hourly allowance as the free preview. The full launch kit, with the rest of your Product Hunt post, X thread, LinkedIn post and images, is ${KIT_PRICE_TOKEN}.`,
   },
 ] as const;
 
@@ -67,7 +71,7 @@ export const OG_FAQ = [
   },
   {
     q: "Does this tool make an OG image for me?",
-    a: "No, it reads the tags and the image you already have and tells you what to fix. If you want one made, LaunchLoop reads your README, package.json, recent commits and live site and renders a 1200×630 OG image in your brand colours, along with the X and Product Hunt images and your launch copy. The free preview shows watermarked versions of all three; the full kit is £19.",
+    a: `No, it reads the tags and the image you already have and tells you what to fix. If you want one made, LaunchLoop reads your README, package.json, recent commits and live site and renders a 1200×630 OG image in your brand colours, along with the X and Product Hunt images and your launch copy. The free preview shows watermarked versions of all three; the full kit is ${KIT_PRICE_TOKEN}.`,
   },
   {
     q: "Is the OG preview free?",

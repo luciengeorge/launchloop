@@ -1,15 +1,18 @@
 import Link from "next/link";
 import { JsonLd } from "@/components/json-ld";
 import { buttonVariants } from "@/components/ui/button";
+import { KitPrice } from "@/components/kit-price";
 import { siteUrl } from "@/lib/env";
+import { isLaunchPromoOn } from "@/lib/launch-promo-server";
 import type { SitePage } from "@/lib/pages";
-import { SITE } from "@/lib/site";
+import { SITE, kitPriceText } from "@/lib/site";
 import { breadcrumbs, collectionPage } from "@/lib/structured-data";
 
+/** `description` may contain KIT_PRICE_TOKEN (the tools do). */
 type HubItem = { path: string; title: string; description: string; updated?: string };
 
 /** A crawlable index of guides or tools: CollectionPage JSON-LD, breadcrumbs, the main list and links to the sibling hub. */
-export function HubPage({
+export async function HubPage({
   page,
   crumb,
   heading,
@@ -24,6 +27,7 @@ export function HubPage({
   items: HubItem[];
   related: { heading: string; hubPath: string; hubLabel: string; items: HubItem[] };
 }) {
+  const promo = await isLaunchPromoOn();
   const base = siteUrl();
   return (
     <div className="mx-auto max-w-3xl px-4 py-16 sm:px-6">
@@ -53,7 +57,7 @@ export function HubPage({
                   {item.title}
                 </Link>
               </h2>
-              <p className="mt-2 text-muted-foreground">{item.description}</p>
+              <p className="mt-2 text-muted-foreground">{kitPriceText(item.description, promo)}</p>
               {item.updated ? (
                 <p className="mt-3 text-xs text-muted-foreground">
                   Updated <time dateTime={item.updated}>{new Date(item.updated).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}</time>
@@ -70,7 +74,7 @@ export function HubPage({
           {related.items.map((item) => (
             <li key={item.path}>
               <Link href={item.path} className="font-medium underline underline-offset-4 hover:text-primary">{item.title}</Link>
-              <span className="text-muted-foreground">: {item.description}</span>
+              <span className="text-muted-foreground">: {kitPriceText(item.description, promo)}</span>
             </li>
           ))}
           <li>
@@ -83,7 +87,7 @@ export function HubPage({
         <h2 className="max-w-xl text-balance text-2xl font-semibold tracking-tight">Want the whole launch drafted for you?</h2>
         <p className="max-w-xl text-background/75">
           Paste your repo and {SITE.name} writes your landing copy, Product Hunt post, X thread and LinkedIn post, plus three images in your brand colours. The preview is
-          free; the full kit is £19.
+          free; the full kit is <KitPrice promo={promo} />.
         </p>
         <Link href="/#start" className={buttonVariants({ size: "lg", className: "h-11 px-5 text-base" })}>Get my free preview</Link>
       </aside>

@@ -6,13 +6,17 @@ import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { siteUrl } from "@/lib/env";
 import { OG_IMAGE, OG_MIN } from "@/lib/og-check";
-import { PAGES, toolPage } from "@/lib/pages";
+import { isLaunchPromoOn } from "@/lib/launch-promo-server";
+import { PAGES, pricedPage, toolPage } from "@/lib/pages";
 import { pageMetadata } from "@/lib/seo";
-import { SITE } from "@/lib/site";
+import { KitPrice } from "@/components/kit-price";
+import { SITE, kitPriceText } from "@/lib/site";
 import { breadcrumbs, faqPage } from "@/lib/structured-data";
 import { OG_FAQ, OG_PREVIEW as tool, TAGLINE_CHECKER } from "@/lib/tools";
 
-export const metadata: Metadata = pageMetadata(toolPage(tool));
+export async function generateMetadata(): Promise<Metadata> {
+  return pageMetadata(pricedPage(toolPage(tool), await isLaunchPromoOn()));
+}
 
 const SIZE = `${OG_IMAGE.width}×${OG_IMAGE.height}`;
 
@@ -37,8 +41,10 @@ const PITFALLS = [
 const prose =
   "space-y-5 leading-relaxed [&_h2]:mt-14 [&_h2]:scroll-mt-20 [&_h2]:text-2xl [&_h2]:font-semibold [&_h2]:tracking-tight [&_h3]:mt-6 [&_h3]:font-semibold [&_li]:text-muted-foreground [&_ul]:list-disc [&_ul]:space-y-2 [&_ul]:pl-5 [&_p]:text-muted-foreground [&_a]:font-medium [&_a]:text-foreground [&_a]:underline [&_a]:underline-offset-4 [&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-sm [&_code]:text-foreground";
 
-export default function OgPreviewPage() {
+export default async function OgPreviewPage() {
   const base = siteUrl();
+  const promo = await isLaunchPromoOn();
+  const faq = OG_FAQ.map((item) => ({ q: item.q, a: kitPriceText(item.a, promo) }));
   const url = `${base}${tool.path}`;
   return (
     <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6 sm:py-16">
@@ -51,7 +57,7 @@ export default function OgPreviewPage() {
               "@id": `${url}#app`,
               name: "OG Image Preview",
               url,
-              description: tool.description,
+              description: pricedPage(toolPage(tool), promo).description,
               image: `${url}/opengraph-image`,
               applicationCategory: "DeveloperApplication",
               operatingSystem: "Web",
@@ -67,7 +73,7 @@ export default function OgPreviewPage() {
               offers: { "@type": "Offer", price: "0", priceCurrency: "GBP", availability: "https://schema.org/InStock" },
               publisher: { "@id": `${base}/#organization`, "@type": "Organization", name: SITE.name, url: `${base}/` },
             },
-            faqPage(`${url}#faq`, OG_FAQ),
+            faqPage(`${url}#faq`, faq),
             breadcrumbs(base, [
               { name: "Tools", path: PAGES.tools.path },
               { name: tool.title, path: tool.path },
@@ -92,7 +98,7 @@ export default function OgPreviewPage() {
       </header>
 
       <section aria-label="OG preview tool" className="mt-8 rounded-2xl border border-border bg-card p-4 shadow-lg shadow-primary/5 sm:p-6">
-        <OgPreview />
+        <OgPreview promo={promo} />
         <noscript>
           <p className="mt-4 text-sm text-muted-foreground">
             The live preview needs JavaScript. The tips below cover everything it checks: a {SIZE} PNG or JPG at a full https:// URL, og:title, og:description, og:url,
@@ -163,7 +169,7 @@ export default function OgPreviewPage() {
 
         <h2 id="faq">OG preview FAQ</h2>
         <div className="space-y-8">
-          {OG_FAQ.map((item) => (
+          {faq.map((item) => (
             <section key={item.q}>
               <h3>{item.q}</h3>
               <p className="mt-2">{item.a}</p>
@@ -176,7 +182,7 @@ export default function OgPreviewPage() {
         <h2 className="max-w-xl text-balance text-2xl font-semibold tracking-tight sm:text-3xl">Link card sorted. Now get the rest of your launch.</h2>
         <p className="max-w-xl text-background/75">
           Paste your repo and {SITE.name} makes your OG, X and Product Hunt images in your brand colours, and drafts your Product Hunt post, maker comment, X thread and
-          LinkedIn post, all inside each platform&apos;s limits. The preview is free; the full kit is £19.
+          LinkedIn post, all inside each platform&apos;s limits. The preview is free; the full kit is <KitPrice promo={promo} />.
         </p>
         <div className="flex flex-wrap gap-3">
           <Link href="/#start" className={buttonVariants({ size: "lg", className: "h-11 px-5 text-base" })}>Get my free preview</Link>

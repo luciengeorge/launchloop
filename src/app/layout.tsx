@@ -5,33 +5,37 @@ import { SiteHeader } from "@/components/site-header";
 import { LazyToaster } from "@/components/lazy-toaster";
 import { VercelInsights } from "@/components/vercel-insights";
 import { siteUrl } from "@/lib/env";
-import { SITE } from "@/lib/site";
+import { isLaunchPromoOn } from "@/lib/launch-promo-server";
+import { SITE, siteDescription } from "@/lib/site";
 import "./globals.css";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"], display: "swap" });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"], display: "swap" });
 
-export const metadata: Metadata = {
-  metadataBase: new URL(siteUrl()),
-  title: { default: `${SITE.name}: ${SITE.tagline}`, template: `%s · ${SITE.name}` },
-  description: SITE.description,
-  applicationName: SITE.name,
-  keywords: ["launch kit", "Product Hunt launch", "launch copy", "OG image generator", "vibe coding", "indie hackers", "X thread", "landing page copy"],
-  // No canonical, og:url or robots here: every child inherits them, so the 404 and noindex pages would canonicalise to the
-  // home page and the 404 would carry a conflicting robots tag. Indexable pages set their own through pageMetadata.
-  openGraph: {
-    type: "website",
-    siteName: SITE.name,
-    title: `${SITE.name}: ${SITE.tagline}`,
-    description: SITE.description,
-    locale: "en_GB",
-    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: `${SITE.name}: ${SITE.tagline}` }],
-  },
-  twitter: { card: "summary_large_image", site: SITE.twitter, title: `${SITE.name}: ${SITE.tagline}`, description: SITE.shortDescription, images: ["/opengraph-image"] },
-  manifest: "/manifest.webmanifest",
-  formatDetection: { telephone: false },
-  category: "technology",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const description = siteDescription(await isLaunchPromoOn());
+  return {
+    metadataBase: new URL(siteUrl()),
+    title: { default: `${SITE.name}: ${SITE.tagline}`, template: `%s · ${SITE.name}` },
+    description,
+    applicationName: SITE.name,
+    keywords: ["launch kit", "Product Hunt launch", "launch copy", "OG image generator", "vibe coding", "indie hackers", "X thread", "landing page copy"],
+    // No canonical, og:url or robots here: every child inherits them, so the 404 and noindex pages would canonicalise to the
+    // home page and the 404 would carry a conflicting robots tag. Indexable pages set their own through pageMetadata.
+    openGraph: {
+      type: "website",
+      siteName: SITE.name,
+      title: `${SITE.name}: ${SITE.tagline}`,
+      description,
+      locale: "en_GB",
+      images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: `${SITE.name}: ${SITE.tagline}` }],
+    },
+    twitter: { card: "summary_large_image", site: SITE.twitter, title: `${SITE.name}: ${SITE.tagline}`, description: SITE.shortDescription, images: ["/opengraph-image"] },
+    manifest: "/manifest.webmanifest",
+    formatDetection: { telephone: false },
+    category: "technology",
+  };
+}
 
 export const viewport: Viewport = {
   themeColor: "#faf8f5",

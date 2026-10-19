@@ -1,5 +1,6 @@
 "use client";
 
+import { KitPrice } from "@/components/kit-price";
 import { ArrowRight, CircleCheck, CircleX, Loader2, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import { useId, useRef, useState } from "react";
@@ -64,7 +65,8 @@ function Counter({ length, id }: { length: number; id?: string }) {
   );
 }
 
-export function TaglineChecker() {
+/** `promo` is isLaunchPromoOn() from the page: the kit price in the upsell. */
+export function TaglineChecker({ promo }: { promo: boolean }) {
   const [mode, setMode] = useState<Mode>("check");
   const [tagline, setTagline] = useState("");
   const [name, setName] = useState("");
@@ -276,14 +278,14 @@ export function TaglineChecker() {
         <aside className="rounded-xl border border-primary/30 bg-primary/5 p-5" data-testid="tagline-cta">
           <h2 className="font-semibold">{mode === "check" && result.verdict === "pass" ? "Your tagline is ready." : "Want the rest of your launch written too?"}</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Get the full Product Hunt post, maker comment, X thread, LinkedIn post and images from the same repo. Start with a free preview; the full kit is £19.
+            Get the full Product Hunt post, maker comment, X thread, LinkedIn post and images from the same repo. Start with a free preview; the full kit is <KitPrice promo={promo} />.
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
             <Link href={startHref} className={buttonVariants({ className: "h-10 px-4" })} data-testid="tagline-cta-start">
               Get my free preview <ArrowRight />
             </Link>
             <Link href="/pricing" className={buttonVariants({ variant: "outline", className: "h-10 px-4" })}>
-              See the £19 kit
+              See the <KitPrice promo={promo} /> kit
             </Link>
           </div>
         </aside>

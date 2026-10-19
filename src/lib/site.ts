@@ -1,18 +1,30 @@
-import { PRODUCTS } from "./products";
+import { LAUNCH_PROMO, PRODUCTS } from "./products";
 
-/** Marks a Launch Kit price mention in shared copy. Render with <PricedText>, or kitPriceText() for plain text (JSON-LD, slugs). */
+/** Marks a Launch Kit price mention in shared copy. Render with <PricedText>, or kitPriceText() for plain text (meta tags, JSON-LD, llms.txt). */
 export const KIT_PRICE_TOKEN = "{kitPrice}";
-export const kitPriceText = (text: string) => text.replaceAll(KIT_PRICE_TOKEN, PRODUCTS.kit.priceLabel);
+
+/**
+ * The Launch Kit price as plain text, worded like <KitPrice>: "£19", or with the launch promo
+ * "£14 (launch price, normally £19)". `promo` is isLaunchPromoOn() from the server.
+ */
+export const kitPricePlain = (promo: boolean) =>
+  promo ? `${LAUNCH_PROMO.priceLabel} (launch price, normally ${PRODUCTS.kit.priceLabel})` : PRODUCTS.kit.priceLabel;
+export const kitPriceText = (text: string, promo: boolean) => text.replaceAll(KIT_PRICE_TOKEN, kitPricePlain(promo));
 
 export const SITE = {
   name: "LaunchLoop",
   tagline: "Paste your repo. Get your whole launch.",
-  description:
-    "LaunchLoop reads your GitHub README, package.json and recent commits, plus your live site, then writes your landing page copy, Product Hunt post, X thread and LinkedIn post, and renders on-brand social images. Free preview, £19 once for the full kit.",
   shortDescription: "Turn a vibe-coded app into a complete launch kit in minutes.",
   twitter: "@launchloop",
   email: "hello@launchloop.dev",
 } as const;
+
+/** The site-wide description (root meta tags, JSON-LD, llms.txt), with the kit price as the marketing pages show it. */
+export const siteDescription = (promo: boolean) =>
+  kitPriceText(
+    `${SITE.name} reads your GitHub README, package.json and recent commits, plus your live site, then writes your landing page copy, Product Hunt post, X thread and LinkedIn post, and renders on-brand social images. Free preview, then the full kit for ${KIT_PRICE_TOKEN}, paid once.`,
+    promo,
+  );
 
 /** What an unpaid kit page actually shows. Keep every free-tier mention in sync with this. */
 export const FREE_PREVIEW = ["Product brief from your repo", "Product Hunt tagline", "First post of your X thread", "3 watermarked images"] as const;

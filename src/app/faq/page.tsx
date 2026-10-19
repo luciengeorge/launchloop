@@ -13,17 +13,18 @@ const page = PAGES.faq;
 
 export const metadata: Metadata = pageMetadata(page);
 
-const slug = (q: string) => kitPriceText(q).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+/** Anchors stay the same whether or not the launch promo is on. */
+const slug = (q: string) => kitPriceText(q, false).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
-/** JSON-LD states the list price: the promo is applied at checkout, not part of the offer. */
-const PLAIN_FAQ = FAQ.map((item) => ({ q: kitPriceText(item.q), a: kitPriceText(item.a) }));
+/** JSON-LD says what the page shows: "£14 (launch price, normally £19)" while the promo is on. */
+const plainFaq = (promo: boolean) => FAQ.map((item) => ({ q: kitPriceText(item.q, promo), a: kitPriceText(item.a, promo) }));
 
 export default async function FaqPage() {
   const base = siteUrl();
   const promo = await isLaunchPromoOn();
   return (
     <article className="mx-auto max-w-3xl px-4 py-16 sm:px-6">
-      <JsonLd data={{ "@context": "https://schema.org", "@graph": [faqPage(`${base}${page.path}#faq`, PLAIN_FAQ), breadcrumbs(base, [{ name: "FAQ", path: page.path }])] }} />
+      <JsonLd data={{ "@context": "https://schema.org", "@graph": [faqPage(`${base}${page.path}#faq`, plainFaq(promo)), breadcrumbs(base, [{ name: "FAQ", path: page.path }])] }} />
       <header className="space-y-3">
         <h1 className="text-4xl font-semibold tracking-tight">Frequently asked questions</h1>
         <p className="text-muted-foreground">
