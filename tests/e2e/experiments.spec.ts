@@ -147,6 +147,8 @@ test.describe("promo bucketing", () => {
       await page.reload();
       await expect(page.getByTestId("kit-price")).toContainText("£14");
       await expect(page.getByTestId("launch-promo")).toBeVisible();
+      // The price is in the server HTML, so it shows before hydration; the exposure is sent once the page has hydrated.
+      await expect.poll(async () => (await exposures(page.request)).length - before).toBe(i + 1);
     }
     const other = await browser.newContext({ userAgent, extraHTTPHeaders: ownBucket });
     await notABot(other);
@@ -251,6 +253,7 @@ test.describe("promo bucketing", () => {
       await page.reload();
       await expect(page.getByTestId("kit-price")).toContainText("£19");
       await expect(page.getByTestId("kit-price").locator("s")).toHaveCount(0);
+      await expect.poll(async () => (await exposures(page.request)).length - before).toBe(i + 1);
     }
     await expect.poll(async () => (await exposures(page.request)).slice(before).map((e) => e.properties.$feature_flag_response)).toEqual(["control", "control"]);
   });
