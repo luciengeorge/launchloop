@@ -11,7 +11,7 @@ export default function PrivacyPage() {
   return (
     <article className="mx-auto max-w-3xl space-y-6 px-4 py-16 leading-relaxed sm:px-6 [&_a]:font-medium [&_a]:text-foreground [&_a]:underline [&_a]:underline-offset-4 [&_h2]:mt-8 [&_h2]:text-xl [&_h2]:font-semibold [&_li]:text-muted-foreground [&_p]:text-muted-foreground [&_strong]:text-foreground">
       <h1 className="text-4xl font-semibold tracking-tight">Privacy policy</h1>
-      <p>Last updated 18 October 2026. This page explains what LaunchLoop does with your data, in plain English.</p>
+      <p>Last updated 19 October 2026. This page explains what LaunchLoop does with your data, in plain English.</p>
 
       <h2>Who we are</h2>
       <p>
@@ -57,7 +57,10 @@ export default function PrivacyPage() {
       <ul className="list-disc space-y-2 pl-5">
         <li>A sign-in cookie that keeps you signed in for up to 30 days, and a second one that tells the page you&apos;re signed in.</li>
         <li>A cookie that remembers the previews you made in this browser, so we can add them to your account when you sign in.</li>
-        <li>Your browser also stores your email address (to fill in forms for you) and your checklist progress. This stays on your device.</li>
+        <li>
+          Your browser also stores your email address (to fill in forms for you) and your checklist progress. This stays on your device. If you open one of our own test
+          links (tagged qa), the tab also remembers that until you close it, so our testing isn&apos;t counted as real visits.
+        </li>
       </ul>
       <p>
         We use Vercel Analytics to count page views and Vercel Speed Insights to measure how fast pages load. We use PostHog to see how many people go from a free preview to

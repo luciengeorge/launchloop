@@ -1,4 +1,4 @@
-import { analyticsId, firstTouch } from "./analytics";
+import { analyticsId, firstTouch, isTestVisit } from "./analytics";
 import type { ExperimentKey, Served } from "./experiments";
 
 export async function postJson<T>(url: string, body: unknown): Promise<T> {
@@ -28,6 +28,7 @@ export async function startCheckout(product: "kit", kitId: string, served: Parti
     analyticsId: await analyticsId(),
     experiments: Object.fromEntries(entries.map(([key, s]) => [key, s.variant])),
     fallbacks: entries.filter(([, s]) => s.fallback).map(([key]) => key),
+    ...(isTestVisit() ? { isTest: true } : {}),
   });
 }
 

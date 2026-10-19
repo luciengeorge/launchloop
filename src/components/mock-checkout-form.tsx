@@ -6,6 +6,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { isTestVisit } from "@/lib/analytics";
 import { postJson } from "@/lib/client";
 import type { ProductId } from "@/lib/products";
 
@@ -30,7 +31,7 @@ export function MockCheckoutForm({ product, kitId, priceLabel, defaultEmail, ana
     setError(null);
     try {
       const email = String(new FormData(e.currentTarget).get("email") ?? "");
-      const { url } = await postJson<{ url: string }>("/api/checkout/mock", { product, kitId, email, analyticsId, promo });
+      const { url } = await postJson<{ url: string }>("/api/checkout/mock", { product, kitId, email, analyticsId, promo, ...(isTestVisit() ? { isTest: true } : {}) });
       window.location.assign(url);
     } catch (err) {
       setError((err as Error).message);
