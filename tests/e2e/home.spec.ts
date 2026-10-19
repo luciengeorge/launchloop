@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { h1Tags, logIn, makeSampleKit, setHeroHeadline, uniqueEmail } from "./helpers";
+import { h1Tags, logIn, MAIN_H1_HEIGHTS, makeSampleKit, setHeroHeadline, uniqueEmail } from "./helpers";
 
 test("home page explains the product and offers the input", async ({ page }) => {
   await page.goto("/");
@@ -21,6 +21,15 @@ test("HERO_EXPERIMENT unset (production): the home h1 is main's static h1, whate
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Paste your repo. Get your whole launch.");
   } finally {
     await setHeroHeadline(page.request, null);
+  }
+});
+
+test("HERO_EXPERIMENT unset: the home h1 is main's height at each width", async ({ page, isMobile }) => {
+  for (const { width, height } of MAIN_H1_HEIGHTS.filter((w) => w.mobile === isMobile)) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/");
+    await page.waitForLoadState("load");
+    expect((await page.getByRole("heading", { level: 1 }).boundingBox())!.height, `h1 height at ${width}px`).toBe(height);
   }
 });
 

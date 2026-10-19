@@ -64,6 +64,15 @@ export async function setHeroHeadline(request: APIRequestContext, variant: "cont
   await request.post("http://127.0.0.1:3419/ph/_flags", { data: { distinctId: "hero:*", flags, delayMs } });
 }
 
+/** main's home h1 height at each width (phones run in the mobile projects): 40 px lines below sm, 60 px from sm. */
+export const MAIN_H1_HEIGHTS = [
+  { width: 360, height: 120, mobile: true },
+  { width: 375, height: 80, mobile: true },
+  { width: 414, height: 80, mobile: true },
+  { width: 768, height: 120, mobile: false },
+  { width: 1280, height: 120, mobile: false },
+] as const;
+
 /** Opening tags of <h1> elements in a page's HTML. */
 export const h1Tags = (html: string) => html.match(/<h1[\s>]/g) ?? [];
 

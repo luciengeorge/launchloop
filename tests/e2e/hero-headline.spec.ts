@@ -1,6 +1,6 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 import { HERO_HEADLINE_CONTROL, HERO_HEADLINE_TEST } from "../../src/lib/hero-headline";
-import { h1Tags, logIn, makeSampleKit, setHeroHeadline, uniqueEmail } from "./helpers";
+import { h1Tags, logIn, MAIN_H1_HEIGHTS, makeSampleKit, setHeroHeadline, uniqueEmail } from "./helpers";
 
 // Runs against the HERO_EXPERIMENT=1 build (projects hero-desktop and hero-mobile), whose flag lookup gets 2.5 s.
 
@@ -235,7 +235,7 @@ test.describe("layout", () => {
   }
 
   test("zero layout shift, and the form and CTA sit in the same place in both arms", async ({ page, isMobile }) => {
-    for (const width of isMobile ? [360, 412] : [1280, 700]) {
+    for (const { width } of MAIN_H1_HEIGHTS.filter((w) => w.mobile === isMobile)) {
       await page.setViewportSize({ width, height: 900 });
       const control = await positions(page, "control", HERO_HEADLINE_CONTROL);
       const variant = await positions(page, "test", HERO_HEADLINE_TEST);
@@ -244,6 +244,24 @@ test.describe("layout", () => {
       expect(variant, `positions at ${width}px`).toEqual(control);
     }
   });
+
+  /**
+   * Pending the owner's choice of test copy (HERO_HEADLINE_TEST in src/lib/hero-headline.ts): the box is sized to the
+   * longer test headline, so with the gate on control has blank reserved lines under it at these widths. Control's h1
+   * height today, in px; drop a width once the chosen copy brings control back to main's height there.
+   */
+  const CONTROL_HEIGHT_UNTIL_COPY_DECIDED: Partial<Record<number, number>> = { 360: 160, 375: 160, 414: 120, 768: 180, 1280: 180 };
+
+  for (const { width, height, mobile } of MAIN_H1_HEIGHTS) {
+    test(`control's h1 is main's height at ${width}px (${height}px)`, async ({ page, isMobile }) => {
+      test.skip(isMobile !== mobile, mobile ? "Phone widths" : "Desktop widths");
+      const today = CONTROL_HEIGHT_UNTIL_COPY_DECIDED[width];
+      test.fixme(today !== undefined, `Pending the hero copy decision: control is ${today}px here, main is ${height}px`);
+      await page.setViewportSize({ width, height: 900 });
+      await positions(page, "control", HERO_HEADLINE_CONTROL);
+      expect((await headline(page).boundingBox())!.height).toBe(height);
+    });
+  }
 
   test("the test headline fits phones and leaves the rest of the hero alone", async ({ page, isMobile }) => {
     test.skip(!isMobile, "Phones only");
