@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { KitPrice } from "@/components/kit-price";
+import { isLaunchPromoOn } from "@/lib/launch-promo-server";
 import { PAGES } from "@/lib/pages";
 import { pageMetadata } from "@/lib/seo";
 import { PREVIEW_LIMITS, SITE } from "@/lib/site";
@@ -7,12 +9,13 @@ export const metadata: Metadata = pageMetadata(PAGES.terms);
 
 const mail = <a href={`mailto:${SITE.email}`}>{SITE.email}</a>;
 
-export default function TermsPage() {
+export default async function TermsPage() {
+  const promo = await isLaunchPromoOn();
   return (
     <article className="mx-auto max-w-3xl space-y-6 px-4 py-16 leading-relaxed sm:px-6 [&_a]:font-medium [&_a]:text-foreground [&_a]:underline [&_a]:underline-offset-4 [&_h2]:mt-8 [&_h2]:text-xl [&_h2]:font-semibold [&_li]:text-muted-foreground [&_p]:text-muted-foreground [&_strong]:text-foreground">
       <h1 className="text-4xl font-semibold tracking-tight">Terms of service</h1>
       <p>
-        Last updated 18 October 2026. These terms are between you and Lucien George, a sole trader trading as LaunchLoop (&quot;we&quot; or &quot;us&quot;). Contact: {mail}.
+        Last updated 19 October 2026. These terms are between you and Lucien George, a sole trader trading as LaunchLoop (&quot;we&quot; or &quot;us&quot;). Contact: {mail}.
       </p>
 
       <h2>What LaunchLoop does</h2>
@@ -32,7 +35,7 @@ export default function TermsPage() {
 
       <h2>Launch Kit</h2>
       <p>
-        The Launch Kit is a one-off £19 payment for one app. It&apos;s not a subscription. Prices are as shown on the site and at checkout. You get the full kit on its page, as
+        The Launch Kit is a one-off payment of <KitPrice promo={promo} /> for one app. It&apos;s not a subscription. Prices are as shown on the site and at checkout. You get the full kit on its page, as
         a ZIP download and by email, and you sign in with a link we email you.
       </p>
       <p>One kit covers one app. For another app, buy another kit.</p>
