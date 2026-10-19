@@ -92,16 +92,16 @@ test("unknown pages and kits get a helpful not-found page", async ({ page }) => 
   await expect(page.getByRole("heading", { name: "We can't find that kit" })).toBeVisible();
 });
 
-test("preview requests are rate limited per IP across the hour; invalid URLs and the sample don't count", async ({ request }) => {
+test("preview requests are rate limited per IP across the hour; invalid URLs, the sample and the first missing repos don't count", async ({ request }) => {
   const ip = `203.0.113.${Math.floor(Math.random() * 250) + 1}`;
   const post = (url: string, from = ip) => request.post("/api/kits", { data: { url }, headers: { "x-forwarded-for": from } });
   for (let i = 0; i < 5; i++) expect((await post("not a url")).status()).toBe(422);
   expect((await post("sample")).status()).toBe(201);
-  // A missing repo is a valid request that costs a GitHub call, so it counts.
+  // A missing repo gets its slot back 10 times an hour; past that it costs a GitHub call per try, so it counts (40 an hour here).
   const statuses: number[] = [];
-  for (let i = 0; i < 41; i++) statuses.push((await post("github.com/real-owner/secret-repo")).status());
-  expect(statuses.slice(0, 40).every((s) => s === 422)).toBe(true);
-  expect(statuses[40]).toBe(429);
+  for (let i = 0; i < 51; i++) statuses.push((await post("github.com/real-owner/secret-repo")).status());
+  expect(statuses.slice(0, 50).every((s) => s === 422)).toBe(true);
+  expect(statuses[50]).toBe(429);
   const res = await post("github.com/real-owner/secret-repo");
   const body = (await res.json()) as { code: string; fix: string; retryAfterSeconds: number };
   expect(body.code).toBe("rate_limited");

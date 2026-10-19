@@ -19,14 +19,18 @@ export async function POST(req: Request) {
   if (typeof url !== "string" || !url.trim()) {
     return Response.json(kitErrorBody("invalid_url", "Paste a GitHub repo URL or your live site URL."), { status: 400 });
   }
-  const refused = await freePreviewGate(req, url);
-  if (refused) return refused;
+  const gate = await freePreviewGate(req, url);
+  if (gate.refused) return gate.refused;
 
+  let briefDone = false;
   try {
     const brief = await briefFor(url);
+    briefDone = true;
     const { taglines } = await generateTaglines(brief);
     return Response.json({ name: brief.name, taglines });
   } catch (error) {
+    // Same rule as the preview: no model call completed, so it doesn't count.
+    if (!briefDone) await gate.slot.refund();
     if (error instanceof IngestError) return Response.json(kitErrorBody(error.code, error.userMessage), { status: 422 });
     // llm.ts already reported it (throttled).
     if (error instanceof LlmError) return Response.json(kitErrorBody("ai_busy"), { status: 503 });
