@@ -245,21 +245,24 @@ test.describe("layout", () => {
     }
   });
 
-  /**
-   * Pending the owner's choice of test copy (HERO_HEADLINE_TEST in src/lib/hero-headline.ts): the box is sized to the
-   * longer test headline, so with the gate on control has blank reserved lines under it at these widths. Control's h1
-   * height today, in px; drop a width once the chosen copy brings control back to main's height there.
-   */
-  const CONTROL_HEIGHT_UNTIL_COPY_DECIDED: Partial<Record<number, number>> = { 360: 160, 375: 160, 414: 120, 768: 180, 1280: 180 };
+  /** The h1's height, and the height of the headline text in it (the reserved other arm's headline isn't text). */
+  async function heights(page: Page, variant: "control" | "test", expected: string) {
+    await positions(page, variant, expected);
+    const h1 = headline(page);
+    return { h1: (await h1.boundingBox())!.height, text: (await h1.locator(":scope > span").boundingBox())!.height };
+  }
 
   for (const { width, height, mobile } of MAIN_H1_HEIGHTS) {
-    test(`control's h1 is main's height at ${width}px (${height}px)`, async ({ page, isMobile }) => {
+    test(`both arms' h1 is main's height at ${width}px (${height}px), with no blank reserved lines`, async ({ page, isMobile }) => {
       test.skip(isMobile !== mobile, mobile ? "Phone widths" : "Desktop widths");
-      const today = CONTROL_HEIGHT_UNTIL_COPY_DECIDED[width];
-      test.fixme(today !== undefined, `Pending the hero copy decision: control is ${today}px here, main is ${height}px`);
       await page.setViewportSize({ width, height: 900 });
-      await positions(page, "control", HERO_HEADLINE_CONTROL);
-      expect((await headline(page).boundingBox())!.height).toBe(height);
+      const control = await heights(page, "control", HERO_HEADLINE_CONTROL);
+      const variant = await heights(page, "test", HERO_HEADLINE_TEST);
+      expect(control.h1, "control's h1").toBe(height);
+      expect(variant.h1, "test's h1").toBe(control.h1);
+      // The headline fills its box: the other arm's reserved headline doesn't wrap onto more lines.
+      expect(control.text, "control's headline text").toBe(control.h1);
+      expect(variant.text, "test's headline text").toBe(variant.h1);
     });
   }
 
