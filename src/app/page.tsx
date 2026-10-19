@@ -12,7 +12,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { siteUrl } from "@/lib/env";
-import { heroHeadlineAssignment } from "@/lib/hero-headline-server";
+import { heroExperimentEnabled, heroHeadlineAssignment } from "@/lib/hero-headline-server";
 import { isLaunchPromoOn } from "@/lib/launch-promo-server";
 import { PAGES } from "@/lib/pages";
 import { pageMetadata } from "@/lib/seo";
@@ -50,9 +50,15 @@ export default async function Home() {
           <Badge variant="outline" className="mb-6 bg-background/80 px-3 py-1 text-xs">
             For apps built with Cursor, Lovable, Bolt and v0
           </Badge>
-          <Suspense fallback={<HeroHeadlinePending />}>
-            <AssignedHeroHeadline />
-          </Suspense>
+          {heroExperimentEnabled() ? (
+            <Suspense fallback={<HeroHeadlinePending />}>
+              <AssignedHeroHeadline />
+            </Suspense>
+          ) : (
+            <h1 className="max-w-3xl text-balance text-4xl font-semibold tracking-tight sm:text-6xl">
+              Paste your repo. <span className="text-primary">Get your whole launch.</span>
+            </h1>
+          )}
           <p className="mt-5 max-w-2xl text-pretty text-lg text-muted-foreground">
             LaunchLoop reads your repo&apos;s README, package.json and recent commits, plus your live site, then writes your landing page copy, Product Hunt
             post, X thread and LinkedIn post, plus three images in your brand colours.
@@ -177,7 +183,7 @@ export default async function Home() {
   );
 }
 
-/** The only per-request part of the page: everything else stays in the static shell. */
+/** With HERO_EXPERIMENT=1, the only per-request part of the page: everything else stays in the static shell. */
 async function AssignedHeroHeadline() {
   return <HeroHeadline served={await heroHeadlineAssignment()} />;
 }

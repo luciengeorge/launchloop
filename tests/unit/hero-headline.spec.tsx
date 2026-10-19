@@ -2,80 +2,120 @@ import { expect, test } from "@playwright/test";
 import { renderToStaticMarkup } from "react-dom/server";
 import { HeroHeadline, HeroHeadlinePending } from "@/components/hero-headline";
 import { EXPERIMENTS, isVariant, parseExperiments } from "@/lib/experiments";
-import { HERO_HEADLINE_CONTROL, HERO_HEADLINE_TEST, resolveHeroHeadline, splitHeadline } from "@/lib/hero-headline";
-
-const H1_CLASS = "max-w-3xl text-balance text-4xl font-semibold tracking-tight sm:text-6xl";
-/** The home h1 exactly as it was before the experiment. */
-const CONTROL_MARKUP = `<h1 class="${H1_CLASS}">Paste your repo. <span class="text-primary">Get your whole launch.</span></h1>`;
+import { HERO_HEADLINE_CONTROL, HERO_HEADLINE_TEST, lookupHeroHeadline, splitHeadline } from "@/lib/hero-headline";
 
 const html = (node: React.ReactNode) => renderToStaticMarkup(<>{node}</>);
-/** The h1 alone, without the marker attribute and the early-show script that ride along with it. */
-const h1 = (node: React.ReactNode) => html(node).match(/<h1[^]*?<\/h1>/)![0].replace(' data-hero-ready=""', "");
+const h1 = (node: React.ReactNode) => html(node).match(/<h1[^]*?<\/h1>/)![0];
+/** The visible headline: the h1's text (the other arm's headline is generated content, not text). */
 const text = (node: React.ReactNode) => h1(node).replace(/<[^>]+>/g, "");
-const flags = (value: unknown) => async () => ({ [EXPERIMENTS.heroHeadline]: value });
+const reserve = (node: React.ReactNode) => h1(node).match(/data-reserve="([^"]*)"/)?.[1];
 
 test.describe("HeroHeadline", () => {
-  test("control is the current headline, unchanged: not running, assigned control, and every fallback", () => {
+  test("control: the current headline and highlight, not running, assigned control, and every fallback", () => {
     expect(HERO_HEADLINE_CONTROL).toBe("Paste your repo. Get your whole launch.");
     for (const served of [null, { variant: "control" as const }, { variant: "control" as const, fallback: "timeout" as const }, { variant: "control" as const, fallback: "unassigned" as const }]) {
-      expect(h1(<HeroHeadline served={served} />)).toBe(CONTROL_MARKUP);
+      expect(text(<HeroHeadline served={served} />)).toBe(HERO_HEADLINE_CONTROL);
+      expect(h1(<HeroHeadline served={served} />)).toContain('<span class="[grid-area:1/1]">Paste your repo. <span class="text-primary">Get your whole launch.</span></span>');
     }
   });
 
   test("test shows HERO_HEADLINE_TEST in the same h1, styled the same way", () => {
-    const markup = h1(<HeroHeadline served={{ variant: "test" }} />);
-    expect(text(<HeroHeadline served={{ variant: "test" }} />)).toBe(HERO_HEADLINE_TEST);
     const [lead, rest] = splitHeadline(HERO_HEADLINE_TEST);
-    expect(markup).toBe(`<h1 class="${H1_CLASS}">${lead} <span class="text-primary">${rest}</span></h1>`);
+    expect(text(<HeroHeadline served={{ variant: "test" }} />)).toBe(HERO_HEADLINE_TEST);
+    expect(h1(<HeroHeadline served={{ variant: "test" }} />)).toContain(`${lead} <span class="text-primary">${rest}</span>`);
   });
 
-  test("until the assignment arrives: control held invisible (the same box, so nothing moves), shown without JavaScript", () => {
+  test("each arm reserves the other's headline, so both boxes are as tall as the taller one", () => {
+    expect(reserve(<HeroHeadline served={null} />)).toBe(HERO_HEADLINE_TEST);
+    expect(reserve(<HeroHeadline served={{ variant: "test" }} />)).toBe(HERO_HEADLINE_CONTROL);
+    expect(reserve(<HeroHeadlinePending />)).toBe(HERO_HEADLINE_TEST);
+    expect(h1(<HeroHeadlinePending />)).toContain("after:content-[attr(data-reserve)]");
+  });
+
+  test("until it arrives: control held invisible, shown by a CSS failsafe after 700 ms, and without JavaScript", () => {
     const markup = html(<HeroHeadlinePending />);
-    expect(markup).toContain(`<h1 class="${H1_CLASS} invisible" data-hero-pending="">Paste your repo. <span class="text-primary">Get your whole launch.</span></h1>`);
-    expect(markup).toContain("<noscript><style>[data-hero-pending]{visibility:visible}</style></noscript>");
+    expect(text(<HeroHeadlinePending />)).toBe(HERO_HEADLINE_CONTROL);
+    expect(markup).toContain('data-hero-pending=""');
+    expect(markup).toContain("[data-hero-pending]{visibility:hidden;animation:hero-failsafe 0s 700ms forwards}@keyframes hero-failsafe{to{visibility:visible}}");
+    expect(markup).toContain("<noscript><style>[data-hero-pending]{visibility:visible;animation:none}</style></noscript>");
   });
 
-  test("the streamed headline brings a script that shows it in the placeholder as soon as it arrives", () => {
+  test("the streamed headline brings a script that shows it in the placeholder, unless the failsafe already showed control", () => {
     const markup = html(<HeroHeadline served={{ variant: "test" }} />);
-    expect(markup).toMatch(/<\/h1><script type="text\/javascript">.*data-hero-pending.*data-hero-ready.*<\/script>$/);
+    expect(markup).toMatch(/<\/h1><script type="text\/javascript">.*data-hero-pending.*data-hero-ready.*data-hero-failsafe.*<\/script>$/);
   });
 
   test("splitHeadline highlights everything after the first sentence, and nothing without a sentence break", () => {
     expect(splitHeadline("Paste your repo. Get your whole launch.")).toEqual(["Paste your repo.", "Get your whole launch."]);
     expect(splitHeadline("Ship it! Then tell everyone. Twice.")).toEqual(["Ship it!", "Then tell everyone. Twice."]);
     expect(splitHeadline("One link, your whole launch")).toEqual(["One link, your whole launch", ""]);
-    expect(text(<HeroHeadline served={{ variant: "test" }} />)).toBe(HERO_HEADLINE_TEST);
   });
 });
 
-test.describe("resolveHeroHeadline", () => {
-  test("assigned: control or test", async () => {
-    expect(await resolveHeroHeadline(flags("control"))).toEqual({ variant: "control" });
-    expect(await resolveHeroHeadline(flags("test"))).toEqual({ variant: "test" });
+test.describe("lookupHeroHeadline", () => {
+  const calls: { url: string; init: RequestInit }[] = [];
+  const answering =
+    (body: unknown, status = 200): typeof fetch =>
+    async (url, init) => {
+      calls.push({ url: String(url), init: init! });
+      return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+    };
+  const flag = (detail: unknown) => ({ flags: { [EXPERIMENTS.heroHeadline]: detail }, errorsWhileComputingFlags: false });
+  const lookup = (fetchImpl: typeof fetch, extra: Partial<Parameters<typeof lookupHeroHeadline>[0]> = {}) =>
+    lookupHeroHeadline({ host: "https://ph.test", token: "phc_test", distinctId: "hero:abc", fetch: fetchImpl, ...extra });
+  test.beforeEach(() => {
+    calls.length = 0;
   });
 
-  test("not running: the flag is missing or off (or PostHog is off), so null and nothing is recorded", async () => {
-    expect(await resolveHeroHeadline(async () => ({}))).toBeNull();
-    expect(await resolveHeroHeadline(async () => ({ exp_launch14_promo: "treatment" }))).toBeNull();
+  test("one POST to /flags for this flag and id, with a timeout signal", async () => {
+    expect(await lookup(answering(flag({ enabled: true, variant: "test" })))).toEqual({ variant: "test" });
+    expect(calls).toHaveLength(1);
+    expect(calls[0].url).toBe("https://ph.test/flags/?v=2");
+    expect(JSON.parse(String(calls[0].init.body))).toEqual({ token: "phc_test", distinct_id: "hero:abc", flag_keys_to_evaluate: ["exp_hero_headline"], geoip_disable: true });
+    expect(calls[0].init.signal).toBeInstanceOf(AbortSignal);
+    expect(await lookup(answering(flag({ enabled: true, variant: "control" })))).toEqual({ variant: "control" });
+  });
+
+  test("not running: the flag is missing or disabled (PostHog leaves it out), so null and nothing is recorded", async () => {
+    expect(await lookup(answering({ flags: {}, errorsWhileComputingFlags: false }))).toBeNull();
+    expect(await lookup(answering({ flags: { exp_launch14_promo: { enabled: true, variant: "treatment" } } }))).toBeNull();
   });
 
   test("unassigned: the flag gives this id no variant, or one this page doesn't know", async () => {
-    for (const value of [false, true, "treatment", "TEST", null]) {
-      expect(await resolveHeroHeadline(flags(value))).toEqual({ variant: "control", fallback: "unassigned" });
+    for (const detail of [{ enabled: false, variant: null }, { enabled: true, variant: null }, { enabled: true, variant: "treatment" }, { enabled: true, variant: "TEST" }]) {
+      expect(await lookup(answering(flag(detail)))).toEqual({ variant: "control", fallback: "unassigned" });
     }
   });
 
-  test("error: a thrown lookup is control and reported", async () => {
+  test("error, reported, without a retry: a failed request, a bad status, or PostHog unable to compute the flag", async () => {
     const errors: unknown[] = [];
-    const boom = new Error("flags request failed");
-    expect(await resolveHeroHeadline(() => Promise.reject(boom), { onError: (e) => errors.push(e) })).toEqual({ variant: "control", fallback: "error" });
+    const onError = (e: unknown) => errors.push(e);
+    const boom = new Error("connect ECONNREFUSED");
+    let attempts = 0;
+    const failing: typeof fetch = async () => {
+      attempts++;
+      throw boom;
+    };
+    expect(await lookup(failing, { onError })).toEqual({ variant: "control", fallback: "error" });
+    expect(attempts).toBe(1);
     expect(errors).toEqual([boom]);
+    expect(await lookup(answering({}, 503), { onError })).toEqual({ variant: "control", fallback: "error" });
+    expect(calls).toHaveLength(1);
+    expect(await lookup(answering({ flags: {}, errorsWhileComputingFlags: true }))).toEqual({ variant: "control", fallback: "error" });
+    expect(await lookup(answering({ flags: {}, quotaLimited: ["feature_flags"] }))).toEqual({ variant: "control", fallback: "error" });
   });
 
-  test("timeout: a slow lookup is control, without holding the headline", async () => {
+  test("timeout: the request is aborted at the deadline, so nothing keeps running after control is served", async () => {
+    let signal: AbortSignal | undefined;
+    const hanging: typeof fetch = (_url, init) =>
+      new Promise((_resolve, reject) => {
+        signal = init!.signal!;
+        signal.addEventListener("abort", () => reject(signal!.reason));
+      });
     const started = Date.now();
-    expect(await resolveHeroHeadline(() => new Promise(() => {}), { timeoutMs: 50 })).toEqual({ variant: "control", fallback: "timeout" });
+    expect(await lookup(hanging, { timeoutMs: 50 })).toEqual({ variant: "control", fallback: "timeout" });
     expect(Date.now() - started).toBeLessThan(1000);
+    expect(signal!.aborted).toBe(true);
   });
 });
 
