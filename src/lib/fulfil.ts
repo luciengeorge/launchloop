@@ -4,6 +4,7 @@ import { launchChecklist } from "./copy";
 import { assemble, generateDraft, getDraft } from "./generation";
 import { kitFailedEmail, kitReadyEmail, sendEmail } from "./email";
 import { assignPaidKit, type KitOwnership } from "./accounts";
+import { testProperties } from "./attribution";
 import { getStoredBillingCustomer, recordBillingCustomer } from "./billing";
 import { getKit, normaliseEmail, updateKit } from "./kits";
 import { captureServerEvent, eventUuid } from "./analytics-server";
@@ -163,7 +164,7 @@ async function giveUp(id: string, error: unknown): Promise<void> {
   await captureServerEvent("kit_generation_failed", {
     distinctId: `kit_${id}`,
     uuid: eventUuid(`kit_generation_failed:${id}:${kit.failedAt}`),
-    properties: { plan: "kit", kitId: id, attempts: kit.attempts, refund_needed: true, reason },
+    properties: { plan: "kit", kitId: id, attempts: kit.attempts, refund_needed: true, reason, ...testProperties(kit.attribution) },
   });
   if (!kit.email || kit.failureEmailedAt) return;
   try {

@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { after } from "next/server";
 import { claimPendingKits, recordLogin } from "./accounts";
 import { ANON_KITS_COOKIE, SESSION_COOKIE, SESSION_HINT_COOKIE, SESSION_TTL_SECONDS, encodeSession, readAnonKits, secureCookies, type MagicLinkRecord } from "./auth";
+import { QA_PARAM, isTestTraffic } from "./attribution";
 import { ensureStripeCustomer } from "./billing";
 import { isStripeMock } from "./env";
 import { withAnalyticsId } from "./experiments";
@@ -57,7 +58,9 @@ export async function completeLogin(record: MagicLinkRecord): Promise<string> {
     const kit = claimed.includes(intentKit) ? await getKit(intentKit).catch(() => null) : null;
     if (!kit) return "/account";
     if (kit.paid) return `/account/kits/${kit.id}`;
-    return withAnalyticsId(record.intent?.type === "unlock" ? `/kit/${kit.id}?unlock=1` : `/kit/${kit.id}?saved=1`, record.intent?.aid);
+    const path = record.intent?.type === "unlock" ? `/kit/${kit.id}?unlock=1` : `/kit/${kit.id}?saved=1`;
+    // The link may open in a new tab, which a QA tab's sessionStorage doesn't reach, so a QA kit's tag rides along.
+    return withAnalyticsId(isTestTraffic(kit.attribution) ? `${path}&${QA_PARAM}=1` : path, record.intent?.aid);
   }
   return record.next ?? "/account";
 }

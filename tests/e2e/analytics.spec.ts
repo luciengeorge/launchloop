@@ -126,6 +126,7 @@ test("header CTA from another page keeps the visitor's id and UTMs, through to t
   expect(checkoutStarted.properties).not.toHaveProperty("$feature/exp_launch14_promo");
   const purchase = await serverEvent(page, id, "checkout_completed");
   expect(purchase.properties).toMatchObject({ plan: "kit", product_type: "kit", amount: 1900, currency: "gbp", mock: true, ...firstTouch });
+  for (const e of [pageview, started, checkoutStarted, purchase]) expect(e.properties).not.toHaveProperty("is_test");
   expect(JSON.stringify(purchase)).not.toContain("@example.com");
   expect(await page.context().cookies()).not.toContainEqual(expect.objectContaining({ value: expect.stringContaining(campaign) }));
   expect(await page.evaluate(() => JSON.stringify({ ...localStorage }) + JSON.stringify({ ...sessionStorage }))).not.toContain(campaign);
@@ -262,4 +263,42 @@ test("a guest checkout started before the PostHog SDK loads waits for it and joi
   expect((await serverEvent(page, analyticsId!, "checkout_started")).properties).toMatchObject({ product_type: "kit", amount: 1900 });
   const pageview = await serverEvent(page, analyticsId!, "$pageview");
   expect(pageview.properties.$pathname).toBe("/kit/[id]");
+});
+
+test("QA traffic: every browser and server event carries is_test, through client navigations, a reload and checkout", async ({ page }) => {
+  const campaign = `qa-${Date.now()}`;
+  await page.goto(`/?utm_source=qa&utm_medium=internal&utm_campaign=${campaign}&qa=1`);
+  const landing = await campaignEvent(page, campaign, "$pageview");
+  expect(landing.properties).toMatchObject({ is_test: true, qa: true });
+  // The URL scrubber keeps only utm_* tags, so is_test (not $current_url) is what marks the visit.
+  expect(landing.properties.$current_url).not.toContain("qa=1");
+
+  // Client navigation into the kit: the preview events and the paywall's flag event keep the tag.
+  await page.getByRole("button", { name: "Try a sample app" }).click();
+  await page.waitForURL(/\/kit\/[\w-]+$/);
+  for (const name of ["preview_started", "preview_completed"]) expect((await campaignEvent(page, campaign, name)).properties.is_test).toBe(true);
+  const firstView = distinctId(landing)!;
+  const served = await serverEvent(page, firstView, "flag_fallback");
+  expect(served.properties).toMatchObject({ flag: "exp_launch14_promo", is_test: true });
+
+  // A full reload drops the tag from the URL and gets a new anonymous id; the tab still remembers it's QA.
+  await page.reload();
+  const unlock = page.getByRole("button", { name: "Unlock the full kit, £19" });
+  await expect(unlock).toBeEnabled();
+  const checkout = page.waitForRequest(isCheckout);
+  await unlock.click();
+  const body = (await checkout).postDataJSON() as { analyticsId: string; isTest?: boolean };
+  expect(body.isTest).toBe(true);
+  expect(body.analyticsId).not.toBe(firstView);
+  const reloaded = await serverEvent(page, body.analyticsId, "$pageview");
+  expect(reloaded.properties).toMatchObject({ $pathname: "/kit/[id]", is_test: true });
+  expect((await serverEvent(page, body.analyticsId, "checkout_started")).properties).toMatchObject({ plan: "kit", utm_source: "qa", is_test: true });
+
+  await page.waitForURL(/\/checkout\/mock\?product=kit/);
+  await page.getByLabel("Email for your receipt and kit").fill(uniqueEmail("qa-purchase"));
+  await page.getByRole("button", { name: "Pay £19 (test mode)" }).click();
+  await page.waitForURL(/\/checkout\/success\?/);
+  expect((await serverEvent(page, body.analyticsId, "checkout_completed")).properties).toMatchObject({ mock: true, is_test: true });
+  const events = (await phEvents(page)).filter((e) => [firstView, body.analyticsId].includes(distinctId(e)!));
+  expect(events.filter((e) => e.properties.is_test !== true).map((e) => e.event)).toEqual([]);
 });

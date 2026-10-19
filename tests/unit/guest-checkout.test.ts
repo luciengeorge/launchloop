@@ -413,3 +413,56 @@ describe("return URL", () => {
     expect(m.fulfilKit).toHaveBeenCalledWith(KIT_ID);
   });
 });
+
+describe("QA traffic (is_test) on server events", () => {
+  const eventProps = (name: string) => m.captureServerEvent.mock.calls.filter(([event]) => event === name).map(([, params]) => (params as { properties: Record<string, unknown> }).properties);
+  const sessionMetadata = () => (m.createSession.mock.calls.at(-1)![0] as { metadata: Record<string, string> }).metadata;
+
+  it("a checkout from a QA tab tags checkout_started, flag_fallback and the session, so the webhook's checkout_completed is tagged too", async () => {
+    m.kitAssignment.mockResolvedValue({ variant: "control", fallback: "error" });
+    await postCheckout({ product: "kit", kitId: KIT_ID, analyticsId: "ph_qa", isTest: true });
+    await flush();
+    expect(eventProps("checkout_started")).toEqual([expect.objectContaining({ kitId: KIT_ID, utm_source: "hn", is_test: true })]);
+    expect(eventProps("flag_fallback")).toEqual([expect.objectContaining({ flag: "exp_launch14_promo", is_test: true })]);
+    expect(sessionMetadata()).toMatchObject({ kitId: KIT_ID, is_test: "1" });
+
+    await deliver(guestEvent({ metadata: sessionMetadata() }));
+    expect(eventProps("checkout_completed")).toEqual([expect.objectContaining({ kitId: KIT_ID, utm_source: "hn", is_test: true })]);
+  });
+
+  it("a kit made on a QA visit stays test from any tab, including utm_source=qa kits stored before is_test existed", async () => {
+    for (const attribution of [{ utm_source: "hn", is_test: true as const }, { utm_source: "qa" }]) {
+      seedKit({ attribution });
+      await postCheckout({ product: "kit", kitId: KIT_ID, analyticsId: "ph_qa" });
+      await flush();
+      expect(eventProps("checkout_started").at(-1)).toMatchObject({ is_test: true });
+      expect(sessionMetadata()).toMatchObject({ is_test: "1" });
+    }
+  });
+
+  it("real traffic carries no is_test, and the request can't fake a false one onto a QA kit", async () => {
+    await postCheckout({ product: "kit", kitId: KIT_ID, analyticsId: "ph_real", isTest: "yes" });
+    await flush();
+    expect(eventProps("checkout_started")[0]).not.toHaveProperty("is_test");
+    expect(sessionMetadata()).not.toHaveProperty("is_test");
+    await deliver(guestEvent());
+    expect(eventProps("checkout_completed")[0]).not.toHaveProperty("is_test");
+
+    seedKit({ attribution: { is_test: true } });
+    await postCheckout({ product: "kit", kitId: KIT_ID, analyticsId: "ph_qa", isTest: false });
+    await flush();
+    expect(eventProps("checkout_started").at(-1)).toMatchObject({ is_test: true });
+  });
+
+  it("the magic link for a QA kit lands with qa=1, so the new tab's browser events are tagged too", async () => {
+    seedKit({ attribution: { is_test: true } });
+    const qa = await completeLogin({ email: BUYER, intent: { type: "unlock", kitId: KIT_ID, aid: "ph_qa" }, createdAt: new Date().toISOString() });
+    expect(qa).toBe(`/kit/${KIT_ID}?unlock=1&qa=1&aid=ph_qa`);
+
+    m.kv.clear();
+    m.sets.clear();
+    seedKit();
+    const real = await completeLogin({ email: BUYER, intent: { type: "unlock", kitId: KIT_ID, aid: "ph_real" }, createdAt: new Date().toISOString() });
+    expect(real).toBe(`/kit/${KIT_ID}?unlock=1&aid=ph_real`);
+  });
+});
