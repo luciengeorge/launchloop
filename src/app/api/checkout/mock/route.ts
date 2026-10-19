@@ -1,6 +1,6 @@
 import { after } from "next/server";
 import { captureServerEvent, resolveDistinctId } from "@/lib/analytics-server";
-import { attributionProperties } from "@/lib/attribution";
+import { attributionProperties, withTestTraffic } from "@/lib/attribution";
 import { isEmail } from "@/lib/audience";
 import { getSession } from "@/lib/auth";
 import { isStripeMock } from "@/lib/env";
@@ -18,7 +18,7 @@ export const maxDuration = 120;
 export async function POST(req: Request) {
   if (!isStripeMock()) return Response.json({ error: "Mock checkout is disabled when Stripe is configured." }, { status: 404 });
 
-  const body = (await req.json().catch(() => ({}))) as { product?: unknown; kitId?: unknown; email?: unknown; analyticsId?: unknown; promo?: unknown };
+  const body = (await req.json().catch(() => ({}))) as { product?: unknown; kitId?: unknown; email?: unknown; analyticsId?: unknown; promo?: unknown; isTest?: unknown };
   const rejected = checkoutRejection(body.product);
   if (rejected) return Response.json({ error: rejected.error, code: rejected.code }, { status: rejected.status });
   if (!isEmail(body.email)) return Response.json({ error: "Enter a valid email so we can send your receipt." }, { status: 400 });
@@ -30,13 +30,14 @@ export async function POST(req: Request) {
     after(() =>
       captureServerEvent("checkout_completed", {
         distinctId: resolveDistinctId(body.analyticsId),
-        properties: { plan: product, kitId: kit?.id, ...attributionProperties(kit?.attribution), ...checkoutPrice(product, promo), isLoggedIn, mock: true, stripeSessionId: ref },
+        properties: { plan: product, kitId: kit?.id, ...attributionProperties(withTestTraffic(kit?.attribution, body.isTest === true)), ...checkoutPrice(product, promo), isLoggedIn, mock: true, stripeSessionId: ref },
       }),
     );
 
   const kit = typeof body.kitId === "string" ? await getKit(body.kitId) : null;
   if (!kit) return Response.json({ error: "Kit not found." }, { status: 404 });
-  await recordPayment({ product: "kit", kitId: kit.id, email: body.email, ref });
+  const { amount, currency } = checkoutPrice("kit", promo);
+  await recordPayment({ product: "kit", kitId: kit.id, email: body.email, ref, paidAmount: { amount, currency } });
   after(() => fulfilKit(kit.id));
   track("kit", kit);
   return Response.json({ url: withAnalyticsId(kitSuccessPath(kit.id, ref, isLoggedIn), body.analyticsId) });

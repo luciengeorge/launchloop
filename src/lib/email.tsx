@@ -8,7 +8,7 @@ import { LOGO_CID, LOGO_PNG_BASE64 } from "../emails/logo-data";
 import { MagicLinkEmail } from "../emails/magic-link";
 import { NewsletterWelcomeEmail } from "../emails/newsletter-welcome";
 import { LEAD_MAGNET } from "./newsletter";
-import { PRODUCTS } from "./products";
+import { formatPaidAmount } from "./money";
 import type { Kit } from "./schema";
 import { store } from "./store";
 
@@ -111,7 +111,7 @@ export async function kitReadyEmail(params: {
     <KitReadyEmail
       productName={kit.brief.name}
       accountUrl={`${deploymentUrl()}/account/kits/${kit.id}`}
-      priceLabel={PRODUCTS.kit.priceLabel}
+      amountPaid={formatPaidAmount(kit.paidAmount)}
       receiptRef={kit.paymentRef}
       zipFilename={params.zip.filename}
       summary={summary}
@@ -132,7 +132,7 @@ export async function kitFailedEmail(params: { to: string; kit: Kit }): Promise<
     to: params.to,
     subject: `We hit a problem generating your ${kit.brief.name} launch kit`,
     ...(await renderEmail(
-      <KitFailedEmail productName={kit.brief.name} accountUrl={`${deploymentUrl()}/account/kits/${kit.id}`} priceLabel={PRODUCTS.kit.priceLabel} receiptRef={kit.paymentRef} />,
+      <KitFailedEmail productName={kit.brief.name} accountUrl={`${deploymentUrl()}/account/kits/${kit.id}`} amountPaid={formatPaidAmount(kit.paidAmount)} receiptRef={kit.paymentRef} />,
     )),
   };
 }

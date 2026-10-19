@@ -12,7 +12,7 @@ vi.mock("stripe", () => ({
   },
 }));
 
-const { attributionMetadata, attributionProperties, parseAttribution, readLandingAttribution } = await import("@/lib/attribution");
+const { attributionMetadata, attributionProperties, isQaLanding, isTestTraffic, parseAttribution, readLandingAttribution, testProperties, withTestTraffic } = await import("@/lib/attribution");
 const { createCheckoutUrl } = await import("@/lib/payments");
 
 const landingPage = { search: "?utm_source=hn&utm_medium=social&utm_campaign=launch&utm_term=vibe%20coding&utm_content=top-comment&plan=kit", hostname: "launchloop.dev" };
@@ -84,5 +84,50 @@ describe("attribution passthrough: landing page to the checkout_completed event"
     const params = stripe.create.mock.calls[0]![0] as { metadata: Record<string, string> };
     expect(params.metadata.kitId).toBe("kit_old");
     expect(Object.keys(params.metadata).filter((k) => k.startsWith("utm_") || k === "referring_domain")).toEqual([]);
+  });
+});
+
+describe("QA traffic (is_test)", () => {
+  it("is a landing with qa=1 or utm_source=qa, and nothing else", () => {
+    for (const search of ["?qa=1", "?utm_source=qa", "?utm_source=QA&utm_campaign=smoke", "?utm_source=%20qa%20", "?utm_source=hn&qa=1"]) expect(isQaLanding(search)).toBe(true);
+    for (const search of ["", "?qa=0", "?qa=true", "?utm_source=qatar", "?utm_medium=qa", "?utm_campaign=qa"]) expect(isQaLanding(search)).toBe(false);
+  });
+
+  it("goes on first touch next to the UTMs, even without any", () => {
+    expect(readLandingAttribution({ search: "?utm_source=hn&qa=1", hostname: "launchloop.dev" }, "https://news.ycombinator.com/")).toEqual({
+      utm_source: "hn",
+      referring_domain: "news.ycombinator.com",
+      is_test: true,
+    });
+    expect(readLandingAttribution({ search: "?qa=1", hostname: "launchloop.dev" }, "")).toEqual({ is_test: true });
+    expect(readLandingAttribution(landingPage, "")).not.toHaveProperty("is_test");
+  });
+
+  it("parses true (browser, kit record) and \"1\" (Stripe metadata), and follows utm_source=qa on kits stored before the flag", () => {
+    expect(parseAttribution({ is_test: true })).toEqual({ is_test: true });
+    expect(parseAttribution({ is_test: "1", product: "kit" })).toEqual({ is_test: true });
+    expect(parseAttribution({ utm_source: "qa" })).toEqual({ utm_source: "qa", is_test: true });
+    for (const is_test of [false, "0", "true", 1, "yes"]) expect(parseAttribution({ utm_source: "hn", is_test })).toEqual({ utm_source: "hn" });
+  });
+
+  it("survives the /api/kits body, the kit, Checkout metadata (as \"1\") and the webhook", async () => {
+    stripe.create.mockClear();
+    const firstTouch = readLandingAttribution({ search: "?utm_source=hn&utm_campaign=smoke&qa=1", hostname: "launchloop.dev" }, "");
+    const kitAttribution = parseAttribution(JSON.parse(JSON.stringify(firstTouch)));
+    await createCheckoutUrl({ product: "kit", origin: "https://launchloop.dev", kitId: "kit_qa", analyticsId: "ph_1", isLoggedIn: false, experiments: {}, fallbacks: [], attribution: kitAttribution });
+    const { metadata } = stripe.create.mock.calls[0]![0] as { metadata: Record<string, string> };
+    expect(metadata).toMatchObject({ kitId: "kit_qa", utm_source: "hn", utm_campaign: "smoke", is_test: "1" });
+    expect(attributionProperties(metadata)).toEqual({ utm_source: "hn", utm_campaign: "smoke", is_test: true });
+    expect(testProperties(metadata)).toEqual({ is_test: true });
+  });
+
+  it("a QA-tagged request marks an untagged kit's purchase; real traffic carries no is_test at all", () => {
+    expect(withTestTraffic({ utm_source: "hn" }, true)).toEqual({ utm_source: "hn", is_test: true });
+    expect(withTestTraffic(undefined, true)).toEqual({ is_test: true });
+    expect(withTestTraffic({ utm_source: "hn" }, false)).toEqual({ utm_source: "hn" });
+    expect(attributionMetadata({ utm_source: "hn" })).toEqual({ utm_source: "hn" });
+    expect(testProperties({ utm_source: "hn" })).toEqual({});
+    expect(testProperties(undefined)).toEqual({});
+    expect(isTestTraffic({ utm_source: "qa" })).toBe(true);
   });
 });

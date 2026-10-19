@@ -1,4 +1,5 @@
 import { type APIRequestContext, expect, type Page, test } from "@playwright/test";
+import { PRODUCTS } from "../../src/lib/products";
 
 test("home has title, description and Open Graph tags", async ({ page }) => {
   await page.goto("/");
@@ -23,7 +24,8 @@ test("robots, sitemap and llms.txt", async ({ request }) => {
   expect(llms.headers()["content-type"]).toContain("text/plain");
   const text = await llms.text();
   expect(text).toMatch(/^# LaunchLoop/);
-  expect(text).toContain("£19");
+  // The e2e build has the launch promo off, so the kit is at its list price.
+  expect(text).toContain(`Launch Kit: ${PRODUCTS.kit.priceLabel} once`);
 });
 
 type JsonLdNode = { "@type": string; [key: string]: unknown };
@@ -68,6 +70,7 @@ test("sitemap lists every indexable page once, with lastmod, and no redirecting 
     "/tools/og-preview",
     "/product-hunt-launch-checklist",
     "/how-to-launch-a-vibe-coded-app",
+    "/how-to-promote-on-reddit",
     "/privacy",
     "/terms",
   ];
@@ -87,9 +90,9 @@ test("every sitemap page has unique, well-sized metadata with a self canonical a
     const title = await page.title();
     const description = (await page.locator('meta[name="description"]').getAttribute("content")) ?? "";
     expect(title.length, `${path} title "${title}"`).toBeGreaterThanOrEqual(50);
-    expect(title.length, `${path} title "${title}"`).toBeLessThanOrEqual(60);
-    expect(description.length, `${path} description`).toBeGreaterThanOrEqual(120);
-    expect(description.length, `${path} description`).toBeLessThanOrEqual(160);
+    expect(title.length, `${path} title "${title}"`).toBeLessThanOrEqual(59);
+    expect(description.length, `${path} description`).toBeGreaterThanOrEqual(138);
+    expect(description.length, `${path} description`).toBeLessThanOrEqual(158);
     titles.add(title);
     descriptions.add(description);
 

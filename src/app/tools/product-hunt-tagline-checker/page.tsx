@@ -1,13 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { JsonLd } from "@/components/json-ld";
+import { KitPrice, PricedText } from "@/components/kit-price";
 import { TaglineChecker } from "@/components/tools/tagline-checker";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { siteUrl } from "@/lib/env";
 import { PAGES, toolPage } from "@/lib/pages";
+import { isLaunchPromoOn } from "@/lib/launch-promo-server";
 import { pageMetadata } from "@/lib/seo";
-import { SITE } from "@/lib/site";
+import { SITE, kitPriceText } from "@/lib/site";
 import { breadcrumbs, faqPage } from "@/lib/structured-data";
 import { TAGLINE_FAQ, TAGLINE_CHECKER as tool } from "@/lib/tools";
 
@@ -25,9 +27,10 @@ const EXAMPLES = [
 const prose =
   "space-y-5 leading-relaxed [&_h2]:mt-14 [&_h2]:scroll-mt-20 [&_h2]:text-2xl [&_h2]:font-semibold [&_h2]:tracking-tight [&_h3]:mt-6 [&_h3]:font-semibold [&_li]:text-muted-foreground [&_ul]:list-disc [&_ul]:space-y-2 [&_ul]:pl-5 [&_p]:text-muted-foreground [&_a]:font-medium [&_a]:text-foreground [&_a]:underline [&_a]:underline-offset-4 [&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-sm [&_code]:text-foreground";
 
-export default function TaglineCheckerPage() {
+export default async function TaglineCheckerPage() {
   const base = siteUrl();
   const url = `${base}${tool.path}`;
+  const promo = await isLaunchPromoOn();
   return (
     <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6 sm:py-16">
       <JsonLd
@@ -55,7 +58,10 @@ export default function TaglineCheckerPage() {
               offers: { "@type": "Offer", price: "0", priceCurrency: "GBP", availability: "https://schema.org/InStock" },
               publisher: { "@id": `${base}/#organization`, "@type": "Organization", name: SITE.name, url: `${base}/` },
             },
-            faqPage(`${url}#faq`, TAGLINE_FAQ),
+            faqPage(
+              `${url}#faq`,
+              TAGLINE_FAQ.map((item) => ({ q: item.q, a: kitPriceText(item.a, promo) })),
+            ),
             breadcrumbs(base, [
               { name: "Tools", path: PAGES.tools.path },
               { name: tool.title, path: tool.path },
@@ -80,7 +86,7 @@ export default function TaglineCheckerPage() {
       </header>
 
       <section aria-label="Tagline checker" className="mt-8 rounded-2xl border border-border bg-card p-4 shadow-lg shadow-primary/5 sm:p-6">
-        <TaglineChecker />
+        <TaglineChecker promo={promo} />
         <noscript>
           <p className="mt-4 text-sm text-muted-foreground">
             The live checker needs JavaScript. The rules below cover everything it checks: 60 characters at most, no trailing full stop, no all caps, no emoji, no vague
@@ -157,7 +163,9 @@ export default function TaglineCheckerPage() {
           {TAGLINE_FAQ.map((item) => (
             <section key={item.q}>
               <h3>{item.q}</h3>
-              <p className="mt-2">{item.a}</p>
+              <p className="mt-2">
+                <PricedText text={item.a} promo={promo} />
+              </p>
             </section>
           ))}
         </div>
@@ -167,7 +175,7 @@ export default function TaglineCheckerPage() {
         <h2 className="max-w-xl text-balance text-2xl font-semibold tracking-tight sm:text-3xl">Tagline sorted. Now get the rest of your launch.</h2>
         <p className="max-w-xl text-background/75">
           Paste your repo and {SITE.name} drafts your Product Hunt description and maker comment, X thread, LinkedIn post and launch images, all inside each platform&apos;s
-          limits. The preview is free; the full kit is £19.
+          limits. The preview is free; the full kit is <KitPrice promo={promo} />.
         </p>
         <div className="flex flex-wrap gap-3">
           <Link href="/#start" className={buttonVariants({ size: "lg", className: "h-11 px-5 text-base" })}>Get my free preview</Link>

@@ -102,6 +102,7 @@ const { completeLogin } = await import("@/lib/login");
 const { encodeSession, ANON_KITS_COOKIE, SESSION_COOKIE } = await import("@/lib/auth");
 const { listUserKitIds } = await import("@/lib/kits");
 const { getStoredBillingCustomer } = await import("@/lib/billing");
+const { LAUNCH_PROMO_ENDS_AT } = await import("@/lib/launch-promo");
 const { default: Stripe } = (await import("stripe")) as unknown as { default: { errors: { StripeInvalidRequestError: new (message: string) => Error } } };
 
 const KIT_ID = "kitGuestCheckout01";
@@ -177,6 +178,7 @@ beforeEach(() => {
   seedKit();
 });
 afterEach(() => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
   vi.unstubAllEnvs();
 });
@@ -199,6 +201,7 @@ describe("/api/checkout without a user", () => {
   });
 
   it("keeps LAUNCH14 for a guest whose kit is in the treatment: Customer creation stays on, since the code is first-time-only; a rejected code falls back to a guest session", async () => {
+    vi.useFakeTimers({ toFake: ["Date"], now: LAUNCH_PROMO_ENDS_AT - 1 });
     m.kitAssignment.mockResolvedValue({ variant: "treatment" });
     const res = await postCheckout({ product: "kit", kitId: KIT_ID, analyticsId: "ph_guest", experiments: {} });
 
@@ -225,6 +228,22 @@ describe("/api/checkout without a user", () => {
     expect(fullPrice).toMatchObject({ customer_creation: "if_required" });
     expect(fullPrice.discounts).toBeUndefined();
     expect(fullPrice.metadata.promo_code).toBeUndefined();
+  });
+
+  it("charges the full £19 from the end of LAUNCH14, even for a kit PostHog still puts in the treatment", async () => {
+    vi.useFakeTimers({ toFake: ["Date"], now: LAUNCH_PROMO_ENDS_AT });
+    m.kitAssignment.mockResolvedValue({ variant: "treatment" });
+    m.kv.set(`kitpromo:${KIT_ID}`, "treatment");
+    const res = await postCheckout({ product: "kit", kitId: KIT_ID, analyticsId: "ph_guest", experiments: { exp_launch14_promo: "treatment" } });
+    await flush();
+
+    expect(await res.json()).toEqual({ url: "https://checkout.stripe.com/c/pay/cs_test_new", promo: "none" });
+    expect(m.kitAssignment).not.toHaveBeenCalled();
+    const params = m.createSession.mock.calls[0]![0] as Record<string, unknown> & { metadata: Record<string, string> };
+    expect(params.discounts).toBeUndefined();
+    expect(params.metadata.promo_code).toBeUndefined();
+    expect(params.metadata.exp_launch14_promo).toBe("control");
+    expect(m.captureServerEvent).toHaveBeenCalledWith("checkout_started", expect.objectContaining({ properties: expect.objectContaining({ amount: 1900 }) }));
   });
 
   it("sells a guest the kit only: every Ship Loop or other product is a 400 before Stripe or the rate limit", async () => {
@@ -411,5 +430,85 @@ describe("return URL", () => {
     expect(members(`pending:${BUYER}:kits`)).toEqual([KIT_ID]);
     await flush();
     expect(m.fulfilKit).toHaveBeenCalledWith(KIT_ID);
+  });
+});
+
+describe("amount paid, for the kit emails", () => {
+  it("records Stripe's amount_total and currency from the webhook: £14 with LAUNCH14, £19 without", async () => {
+    await deliver(guestEvent({ amount_total: 1400, metadata: { ...guestEvent().data.object.metadata, promo_code: "LAUNCH14" } }));
+    expect(kit().paidAmount).toEqual({ amount: 1400, currency: "gbp" });
+
+    seedKit();
+    await deliver(guestEvent());
+    expect(kit().paidAmount).toEqual({ amount: 1900, currency: "gbp" });
+  });
+
+  it("records it from the return URL too, and a redelivery of the same session doesn't change it", async () => {
+    const event = guestEvent({ amount_total: 1400 });
+    m.retrieveSession.mockResolvedValue(event.data.object);
+    await checkoutReturn(new Request(`http://x/api/checkout/return?session_id=${event.data.object.id}`));
+    expect(kit().paidAmount).toEqual({ amount: 1400, currency: "gbp" });
+
+    await deliver(guestEvent({ amount_total: 1900 }, "checkout.session.completed", event.data.object.id));
+    expect(kit().paidAmount).toEqual({ amount: 1400, currency: "gbp" });
+  });
+
+  it("records nothing when Stripe reports no total, so the emails name no price", async () => {
+    await deliver(guestEvent({ amount_total: null }));
+    expect(kit()).toMatchObject({ paid: true });
+    expect(kit().paidAmount).toBeUndefined();
+  });
+});
+
+describe("QA traffic (is_test) on server events", () => {
+  const eventProps = (name: string) => m.captureServerEvent.mock.calls.filter(([event]) => event === name).map(([, params]) => (params as { properties: Record<string, unknown> }).properties);
+  const sessionMetadata = () => (m.createSession.mock.calls.at(-1)![0] as { metadata: Record<string, string> }).metadata;
+
+  it("a checkout from a QA tab tags checkout_started, flag_fallback and the session, so the webhook's checkout_completed is tagged too", async () => {
+    m.kitAssignment.mockResolvedValue({ variant: "control", fallback: "error" });
+    await postCheckout({ product: "kit", kitId: KIT_ID, analyticsId: "ph_qa", isTest: true });
+    await flush();
+    expect(eventProps("checkout_started")).toEqual([expect.objectContaining({ kitId: KIT_ID, utm_source: "hn", is_test: true })]);
+    expect(eventProps("flag_fallback")).toEqual([expect.objectContaining({ flag: "exp_launch14_promo", is_test: true })]);
+    expect(sessionMetadata()).toMatchObject({ kitId: KIT_ID, is_test: "1" });
+
+    await deliver(guestEvent({ metadata: sessionMetadata() }));
+    expect(eventProps("checkout_completed")).toEqual([expect.objectContaining({ kitId: KIT_ID, utm_source: "hn", is_test: true })]);
+  });
+
+  it("a kit made on a QA visit stays test from any tab, including utm_source=qa kits stored before is_test existed", async () => {
+    for (const attribution of [{ utm_source: "hn", is_test: true as const }, { utm_source: "qa" }]) {
+      seedKit({ attribution });
+      await postCheckout({ product: "kit", kitId: KIT_ID, analyticsId: "ph_qa" });
+      await flush();
+      expect(eventProps("checkout_started").at(-1)).toMatchObject({ is_test: true });
+      expect(sessionMetadata()).toMatchObject({ is_test: "1" });
+    }
+  });
+
+  it("real traffic carries no is_test, and the request can't fake a false one onto a QA kit", async () => {
+    await postCheckout({ product: "kit", kitId: KIT_ID, analyticsId: "ph_real", isTest: "yes" });
+    await flush();
+    expect(eventProps("checkout_started")[0]).not.toHaveProperty("is_test");
+    expect(sessionMetadata()).not.toHaveProperty("is_test");
+    await deliver(guestEvent());
+    expect(eventProps("checkout_completed")[0]).not.toHaveProperty("is_test");
+
+    seedKit({ attribution: { is_test: true } });
+    await postCheckout({ product: "kit", kitId: KIT_ID, analyticsId: "ph_qa", isTest: false });
+    await flush();
+    expect(eventProps("checkout_started").at(-1)).toMatchObject({ is_test: true });
+  });
+
+  it("the magic link for a QA kit lands with qa=1, so the new tab's browser events are tagged too", async () => {
+    seedKit({ attribution: { is_test: true } });
+    const qa = await completeLogin({ email: BUYER, intent: { type: "unlock", kitId: KIT_ID, aid: "ph_qa" }, createdAt: new Date().toISOString() });
+    expect(qa).toBe(`/kit/${KIT_ID}?unlock=1&qa=1&aid=ph_qa`);
+
+    m.kv.clear();
+    m.sets.clear();
+    seedKit();
+    const real = await completeLogin({ email: BUYER, intent: { type: "unlock", kitId: KIT_ID, aid: "ph_real" }, createdAt: new Date().toISOString() });
+    expect(real).toBe(`/kit/${KIT_ID}?unlock=1&aid=ph_real`);
   });
 });

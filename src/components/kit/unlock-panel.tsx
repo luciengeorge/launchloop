@@ -10,7 +10,7 @@ import { postJson, startCheckout } from "@/lib/client";
 import { EXPERIMENTS, type Served } from "@/lib/experiments";
 import { useClaimPrimaryCta } from "@/lib/primary-cta";
 import { LAUNCH_PROMO } from "@/lib/products";
-import { useAssignedExperiment } from "@/lib/use-experiment";
+import { useServerAssignment } from "@/lib/use-experiment";
 
 const EMAIL_KEY = "launchloop:email";
 
@@ -18,8 +18,11 @@ interface Props {
   kitId: string;
   /** Full kit price. The exp_launch14_promo treatment shows it struck through next to the LAUNCH14 price. */
   priceLabel: string;
-  /** This kit's exp_launch14_promo assignment (or fallback), made on the server so every reload shows the same price. */
-  launchPromo: Promise<Served>;
+  /**
+   * This kit's exp_launch14_promo assignment (or fallback) from resolveKitPromo, resolved on the server before the
+   * panel renders, the same way /api/checkout resolves it. The price, the LAUNCH14 note and the button all come from it.
+   */
+  launchPromo: Served;
   /** Logged-in email, if any. */
   email?: string;
   /** Arrived from the magic link (or the "£19 kit" plan): go straight to checkout. */
@@ -49,7 +52,7 @@ export function UnlockPanel({ kitId, priceLabel, launchPromo, email, autoCheckou
   const [saveError, setSaveError] = useState<string | null>(null);
   const started = useRef(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const promoVariant = useAssignedExperiment(EXPERIMENTS.launchPromo, launchPromo)?.variant;
+  const promoVariant = useServerAssignment(EXPERIMENTS.launchPromo, launchPromo).variant;
   useClaimPrimaryCta();
   /** Full-price Checkout URL, set when the promo arm's LAUNCH14 was turned down by Stripe. */
   const [fullPriceUrl, setFullPriceUrl] = useState<string | null>(null);
@@ -102,13 +105,12 @@ export function UnlockPanel({ kitId, priceLabel, launchPromo, email, autoCheckou
   }
 
   useEffect(() => {
-    // Wait for the variant so the session matches the price this page shows.
-    if (autoCheckout && promoVariant && !started.current) {
+    if (autoCheckout && !started.current) {
       started.current = true;
       void checkout();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on arrival, once the variant is known
-  }, [promoVariant]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on arrival
+  }, []);
 
   async function verifyCode(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -165,9 +167,7 @@ export function UnlockPanel({ kitId, priceLabel, launchPromo, email, autoCheckou
         The full kit
       </h3>
       <p className="mt-1" data-testid="kit-price">
-        {promoVariant === undefined ? (
-          <span className="inline-block h-10 w-16 animate-pulse rounded-md bg-muted align-bottom" aria-label="Loading price" />
-        ) : promo ? (
+        {promo ? (
           <>
             <s className="mr-2 text-2xl text-muted-foreground">
               <span className="sr-only">Was </span>
@@ -227,10 +227,10 @@ export function UnlockPanel({ kitId, priceLabel, launchPromo, email, autoCheckou
           type="button"
           className="mt-6 h-11 w-full text-base"
           onClick={() => (fullPriceUrl ? window.location.assign(fullPriceUrl) : void checkout())}
-          disabled={loading || promoVariant === undefined}
+          disabled={loading}
         >
           <Lock aria-hidden="true" />
-          {promoVariant === undefined ? "Unlock the full kit" : `Unlock the full kit, ${shownPrice}`}
+          {`Unlock the full kit, ${shownPrice}`}
         </Button>
       ) : null}
       {step === "cta" && !signedIn ? (

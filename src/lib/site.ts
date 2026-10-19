@@ -1,14 +1,21 @@
-import { PRODUCTS } from "./products";
+import { LAUNCH_PROMO, PRODUCTS } from "./products";
 
-/** Marks a Launch Kit price mention in shared copy. Render with <PricedText>, or kitPriceText() for plain text (JSON-LD, slugs). */
+/** Marks a Launch Kit price mention in shared copy. Render with <PricedText>, or kitPriceText() for plain text (JSON-LD, llms.txt, slugs). */
 export const KIT_PRICE_TOKEN = "{kitPrice}";
-export const kitPriceText = (text: string) => text.replaceAll(KIT_PRICE_TOKEN, PRODUCTS.kit.priceLabel);
 
+/** The kit price as plain text, where a struck-through price can't be shown: "£19", or "£14 with code LAUNCH14" while exp_launch14_promo is on. */
+export const kitPriceLabel = (promo: boolean) => (promo ? `${LAUNCH_PROMO.priceLabel} with code ${LAUNCH_PROMO.code}` : PRODUCTS.kit.priceLabel);
+export const kitPriceText = (text: string, promo: boolean) => text.replaceAll(KIT_PRICE_TOKEN, kitPriceLabel(promo));
+
+/**
+ * Static strings (meta tags, share cards, SITE.description) don't name the kit price: they can't follow exp_launch14_promo,
+ * so they'd show £19 next to a page selling it for £14. Put prices in page copy with <KitPrice>, or in text with kitPriceText().
+ */
 export const SITE = {
   name: "LaunchLoop",
   tagline: "Paste your repo. Get your whole launch.",
   description:
-    "LaunchLoop reads your GitHub README, package.json and recent commits, plus your live site, then writes your landing page copy, Product Hunt post, X thread and LinkedIn post, and renders on-brand social images. Free preview, £19 once for the full kit.",
+    "LaunchLoop reads your GitHub README, package.json and recent commits, plus your live site, then writes your landing page copy, Product Hunt post, X thread and LinkedIn post, and renders on-brand social images. Free preview, then pay once for the full kit.",
   shortDescription: "Turn a vibe-coded app into a complete launch kit in minutes.",
   twitter: "@launchloop",
   email: "hello@launchloop.dev",
@@ -72,6 +79,6 @@ export const FAQ = [
   },
   {
     q: "What is Ship Loop?",
-    a: "Ship Loop is a separate subscription for after launch, coming soon, with planned pricing of £12/month or £99/year. It isn't on sale yet. Every time you ship a release, it drafts an X post, a LinkedIn post, a changelog blurb and an image in your colours, and emails them to you to approve or edit. It never posts for you. Join the waitlist, we'll email you when it launches. The waitlist is free.",
+    a: "Ship Loop is a separate tool for after launch, coming soon. It isn't on sale: for now it's a free waitlist, with nothing to buy. Every time you ship a release, it drafts an X post, a LinkedIn post, a changelog blurb and an image in your colours, and emails them to you to approve or edit. It never posts for you. Join the waitlist, we'll email you when it launches.",
   },
 ] as const;

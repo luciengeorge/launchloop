@@ -1,5 +1,5 @@
 import type { CaptureResult, PostHog, PostHogInterface } from "posthog-js";
-import { type Attribution, readLandingAttribution } from "./attribution";
+import { type Attribution, QA_PARAM, readLandingAttribution } from "./attribution";
 import { ANALYTICS_ID_PARAM, EXPERIMENTS, isAnalyticsId, type ExperimentKey, type FallbackReason, type Served, type Variant } from "./experiments";
 import type { NewsletterPlacement, WelcomeOutcome } from "./newsletter";
 import { POSTHOG_PROXY_PATH, posthogUiHost } from "./posthog-config";
@@ -31,9 +31,6 @@ export interface ClientEvents {
   flag_fallback: { flag: ExperimentKey; variant: Variant; reason: FallbackReason; fallback: true };
 }
 
-/** Landing with ?qa=1 tags every event on this page load as QA traffic. */
-const QA_PARAM = "qa";
-
 const key = process.env.NEXT_PUBLIC_POSTHOG_KEY;
 
 export const analyticsEnabled = Boolean(key);
@@ -46,15 +43,35 @@ let landed = false;
 
 /**
  * Reads the landing URL's UTMs and the referrer's domain once per page load and keeps them in memory (no cookies or
- * storage). In-app navigations keep them; the preview request sends them so the kit remembers where the buyer came from.
+ * storage, except the QA tag below). In-app navigations keep them; the preview request sends them so the kit remembers
+ * where the buyer came from.
  */
 export function rememberFirstTouch() {
   if (landed) return;
   landed = true;
   landing = readLandingAttribution(window.location, document.referrer);
+  if (rememberTestVisit(landing?.is_test === true)) landing = { ...landing, is_test: true };
+}
+
+const TEST_VISIT_KEY = "launchloop:is_test";
+
+/**
+ * QA traffic stays QA for the rest of the tab: a QA-tagged landing is kept in sessionStorage, so a reload or the trip
+ * to Stripe Checkout and back still counts as test. Nothing is written for any other visit.
+ */
+function rememberTestVisit(tagged: boolean): boolean {
+  try {
+    if (tagged) sessionStorage.setItem(TEST_VISIT_KEY, "1");
+    return tagged || sessionStorage.getItem(TEST_VISIT_KEY) === "1";
+  } catch {
+    return tagged;
+  }
 }
 
 export const firstTouch = (): Attribution | undefined => landing;
+
+/** This tab landed on a QA-tagged URL (?qa=1 or utm_source=qa): every event it sends carries is_test: true. */
+export const isTestVisit = (): boolean => landing?.is_test === true;
 
 let client: Promise<PostHog | undefined> | undefined;
 
@@ -114,6 +131,8 @@ function initAnalytics(posthog: PostHog, token: string, start: { url: string; at
         // posthog-js already drops events when this is true unless its bot filter is turned off.
         is_webdriver: navigator.webdriver === true,
         ...(params.get(QA_PARAM) === "1" ? { qa: true } : {}),
+        // Super properties last for the page, so client navigations keep it.
+        ...(isTestVisit() ? { is_test: true } : {}),
       });
       if (window.location.href !== start.url) recordLanding(ph, start);
     },

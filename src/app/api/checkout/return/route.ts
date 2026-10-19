@@ -3,6 +3,7 @@ import { getSession } from "@/lib/auth";
 import { withAnalyticsId } from "@/lib/experiments";
 import { fulfilKit, recordPayment } from "@/lib/fulfil";
 import { normaliseEmail } from "@/lib/kits";
+import { sessionPaidAmount } from "@/lib/money";
 import { captureException } from "@/lib/observability";
 import { checkoutDecision, isPaidSession, kitSuccessPath, stripe } from "@/lib/payments";
 import { isProductId } from "@/lib/products";
@@ -31,7 +32,14 @@ export async function GET(req: Request) {
     // Same anonymous id on the success page, so its flags and any upsell checkout join this purchase.
     const aid = session.metadata?.ph_distinct_id;
     const email = session.customer_details?.email ?? session.customer_email ?? undefined;
-    await recordPayment({ product, kitId, email, ref: session.id, customerId: typeof session.customer === "string" ? session.customer : session.customer?.id });
+    await recordPayment({
+      product,
+      kitId,
+      email,
+      ref: session.id,
+      customerId: typeof session.customer === "string" ? session.customer : session.customer?.id,
+      paidAmount: sessionPaidAmount(session),
+    });
     after(() => fulfilKit(kitId));
     // A guest who logged in during checkout as someone else would 404 in /account, so they get the guest page too.
     const account = await getSession();

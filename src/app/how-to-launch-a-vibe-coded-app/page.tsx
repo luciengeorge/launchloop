@@ -60,11 +60,11 @@ export default function VibeCodedLaunchPage() {
       <h2 id="channels">3. Pick your launch channels</h2>
       <ul>
         <li><strong>Product Hunt:</strong> best for tools aimed at makers and early adopters. Follow the <Link href="/product-hunt-launch-checklist">Product Hunt launch checklist</Link>.</li>
-        <li><strong>X:</strong> a 5–7 post thread showing the problem, the product in action and the link. Each post must fit X&apos;s 280-character weighting, where every link counts as 23.</li>
+        <li><strong>X:</strong> a 5 to 7 post thread showing the problem, the product in action and the link. Each post must fit X&apos;s 280-character weighting, where every link counts as 23.</li>
         <li><strong>LinkedIn:</strong> one post with a strong first line, short paragraphs and the story of why you built it. The limit is 3,000 characters, but shorter usually does better.</li>
         <li>
           <strong>Communities:</strong> Indie Hackers, relevant subreddits and Discords, <Link href="/show-hn-launch-checklist">Show HN</Link>. Read the self-promotion rules
-          first and never ask for upvotes.
+          first (see <Link href="/how-to-promote-on-reddit">how to promote your app on Reddit</Link>) and never ask for upvotes.
         </li>
       </ul>
 

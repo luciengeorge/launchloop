@@ -1,7 +1,11 @@
 import { expect, test, type APIRequestContext, type BrowserContext, type Page, type Request } from "@playwright/test";
+import { isBeforePromoEnd } from "@/lib/launch-promo";
 import { logIn, magicLinkFor, makeSampleKit, uniqueEmail } from "./helpers";
 
 type Variant = "control" | "treatment";
+
+/** The server ignores exp_launch14_promo from LAUNCH_PROMO_ENDS_AT, so tests that need the flag read can't run after it. */
+const skipIfPromoEnded = () => test.skip(!isBeforePromoEnd(Date.now()), "LAUNCH14 has ended: the server no longer reads exp_launch14_promo");
 
 const FIXTURE = "http://127.0.0.1:3419";
 
@@ -68,6 +72,7 @@ test("promo control: plain £19, no code on checkout, and the page sends nothing
 });
 
 test("promo treatment: £19 struck through, £14 with LAUNCH14, kept through the magic link on another device", async ({ page, browser }) => {
+  skipIfPromoEnded();
   const kitId = await makeSampleKit(page);
   await setKitPromo(page.request, kitId, "treatment");
   await page.reload();
@@ -101,6 +106,41 @@ test("promo treatment: £19 struck through, £14 with LAUNCH14, kept through the
   await phone.getByRole("button", { name: "Pay £14 (test mode)" }).click();
   await phone.waitForURL(new RegExp(`/account/kits/${kitId}\\?paid=1&aid=${aid}$`));
   await other.close();
+
+  // The receipt quotes what was charged, not the list price.
+  let receipt = "";
+  await expect
+    .poll(
+      async () => {
+        const { emails } = (await (await page.request.get("/api/dev/outbox")).json()) as { emails: { to: string; subject: string; text: string }[] };
+        receipt = emails.find((e) => e.to === email && /launch kit is ready/.test(e.subject))?.text ?? "";
+        return receipt;
+      },
+      { timeout: 60_000 },
+    )
+    .toContain("Receipt: LaunchLoop Launch Kit, £14 · Ref");
+  expect(receipt).not.toContain("£19");
+});
+
+test("promo treatment: the price line, LAUNCH14 note and £14 button are in the server HTML and on every reload, with the browser's flags blocked", async ({ page }) => {
+  const kitId = await makeSampleKit(page);
+  await setKitPromo(page.request, kitId, "treatment");
+  // Nothing on the paywall may depend on PostHog in the browser.
+  await page.route(/\/lp-relay\//, (route) => route.abort());
+
+  const html = await (await page.request.get(`/kit/${kitId}`)).text();
+  expect(html).toContain("takes £5 off, applied for you at checkout");
+  expect(html).toContain("Unlock the full kit, £14");
+  expect(html).not.toContain("Unlock the full kit, £19");
+
+  for (let i = 0; i < 5; i++) {
+    await page.reload();
+    const price = page.getByTestId("kit-price");
+    await expect(price.locator("s")).toHaveText("Was £19");
+    await expect(price).toContainText("once, no subscription");
+    await expect(page.getByTestId("launch-promo")).toContainText("LAUNCH14 takes £5 off, applied for you at checkout. Launch offer for first-time buyers, while it lasts.");
+    await expect(page.getByRole("button", { name: "Unlock the full kit, £14" })).toBeEnabled();
+  }
 });
 
 // posthog-js drops every event from a likely bot (HeadlessChrome UA or brand, navigator.webdriver).
@@ -116,6 +156,7 @@ test.describe("promo bucketing", () => {
   test.beforeEach(({ context }) => notABot(context));
 
   test("the same kit shows the same price on every reload, with one exposure per view on that view's id", async ({ page, browser }) => {
+    skipIfPromoEnded();
     const kitId = await makeSampleKit(page);
     await setKitPromo(page.request, kitId, "treatment");
     // What posthog-js would bucket each page's fresh anonymous id into must not matter.
@@ -127,6 +168,8 @@ test.describe("promo bucketing", () => {
       await page.reload();
       await expect(page.getByTestId("kit-price")).toContainText("£14");
       await expect(page.getByTestId("launch-promo")).toBeVisible();
+      // The price is in the server HTML, so it shows before hydration; the exposure is sent once the page has hydrated.
+      await expect.poll(async () => (await exposures(page.request)).length - before).toBe(i + 1);
     }
     const other = await browser.newContext({ userAgent, extraHTTPHeaders: ownBucket });
     await notABot(other);
@@ -145,6 +188,7 @@ test.describe("promo bucketing", () => {
   });
 
   test("PostHog too slow for the kit: £19 served as a fallback, logged as flag_fallback (not an exposure), and checkout logs the same", async ({ page }) => {
+    skipIfPromoEnded();
     await logIn(page, uniqueEmail("promo-fallback"));
     const kitId = await makeSampleKit(page);
     // Would be treatment, but the answer comes after the server's 1.5s flags budget.
@@ -223,6 +267,7 @@ test.describe("promo bucketing", () => {
   });
 
   test("a control kit shows £19 on every reload, with a control exposure each view", async ({ page }) => {
+    skipIfPromoEnded();
     const kitId = await makeSampleKit(page);
     await setKitPromo(page.request, kitId, "control");
     await forceFlags(page, { exp_launch14_promo: "treatment" });
@@ -231,6 +276,7 @@ test.describe("promo bucketing", () => {
       await page.reload();
       await expect(page.getByTestId("kit-price")).toContainText("£19");
       await expect(page.getByTestId("kit-price").locator("s")).toHaveCount(0);
+      await expect.poll(async () => (await exposures(page.request)).length - before).toBe(i + 1);
     }
     await expect.poll(async () => (await exposures(page.request)).slice(before).map((e) => e.properties.$feature_flag_response)).toEqual(["control", "control"]);
   });
@@ -246,6 +292,7 @@ function checkoutAs(page: Page, kitId: string) {
 }
 
 test("a forged client variant can't get the promo: the server resolves exp_launch14_promo for the kit", async ({ page }) => {
+  skipIfPromoEnded();
   await logIn(page, uniqueEmail("promo-forged"));
   const kitId = await makeSampleKit(page);
   const checkout = checkoutAs(page, kitId);
@@ -262,6 +309,7 @@ test("a forged client variant can't get the promo: the server resolves exp_launc
 });
 
 test("PostHog down at checkout: the kit's last assignment decides (logged); a flag switched off is control for everyone", async ({ page }) => {
+  skipIfPromoEnded();
   await logIn(page, uniqueEmail("promo-remembered"));
   const kitId = await makeSampleKit(page);
   const checkout = checkoutAs(page, kitId);

@@ -1,4 +1,6 @@
 import { BriefcaseBusiness, Check, FileArchive, Image as ImageIcon, ListChecks, Lock, MessageSquareText, PanelsTopLeft, Rocket } from "lucide-react";
+import { type ComponentProps, Suspense } from "react";
+import { Button } from "@/components/ui/button";
 import { CopyButton } from "@/components/copy-button";
 import type { Served } from "@/lib/experiments";
 import { IMAGE_VARIANTS } from "@/lib/image-variants";
@@ -92,16 +94,39 @@ export function PreviewPaywall({ kitId, productName, counts, free, launchPromo, 
       </div>
 
       <div className="border-t border-border bg-muted/40 p-6 sm:p-8 lg:border-l lg:border-t-0">
-        <UnlockPanel
-          kitId={kitId}
-          priceLabel={PRODUCTS.kit.priceLabel}
-          launchPromo={launchPromo}
-          email={email}
-          autoCheckout={query.unlock === "1"}
-          cancelled={query.checkout === "cancelled"}
-          saved={query.saved === "1"}
-        />
+        <Suspense fallback={<UnlockPanelLoading />}>
+          <ResolvedUnlockPanel
+            kitId={kitId}
+            priceLabel={PRODUCTS.kit.priceLabel}
+            launchPromo={launchPromo}
+            email={email}
+            autoCheckout={query.unlock === "1"}
+            cancelled={query.checkout === "cancelled"}
+            saved={query.saved === "1"}
+          />
+        </Suspense>
       </div>
+    </section>
+  );
+}
+
+/** Waits for the kit's promo on the server, so the panel's first HTML already has the price Checkout will charge. */
+async function ResolvedUnlockPanel({ launchPromo, ...props }: Omit<ComponentProps<typeof UnlockPanel>, "launchPromo"> & { launchPromo: Promise<Served> }) {
+  return <UnlockPanel {...props} launchPromo={await launchPromo} />;
+}
+
+/** Until the promo resolves (at most the 1.5s flags timeout): no price at all, rather than one that might change. */
+function UnlockPanelLoading() {
+  return (
+    <section aria-label="The full kit" data-testid="unlock-panel-loading">
+      <h3 className="text-sm font-medium text-muted-foreground">The full kit</h3>
+      <p className="mt-1">
+        <span className="inline-block h-10 w-16 animate-pulse rounded-md bg-muted align-bottom" aria-label="Loading price" />
+      </p>
+      <Button type="button" className="mt-6 h-11 w-full text-base" disabled>
+        <Lock aria-hidden="true" />
+        Unlock the full kit
+      </Button>
     </section>
   );
 }

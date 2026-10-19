@@ -46,6 +46,14 @@ export class MemoryStore implements KeyValueStore {
     return value;
   }
 
+  async decr(key: string, ttlSeconds: number): Promise<number> {
+    this.check();
+    const entry = this.read(key);
+    const value = ((entry?.value as number) ?? 0) - 1;
+    this.data.set(key, { value, expiresAt: value <= 0 ? Date.now() + ttlSeconds * 1000 : entry?.expiresAt });
+    return value;
+  }
+
   async sAdd(key: string, member: string): Promise<void> {
     const members = (await this.get<string[]>(key)) ?? [];
     if (!members.includes(member)) await this.set(key, [...members, member]);

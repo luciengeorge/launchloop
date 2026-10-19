@@ -4,13 +4,14 @@ import { launchChecklist } from "./copy";
 import { assemble, generateDraft, getDraft } from "./generation";
 import { kitFailedEmail, kitReadyEmail, sendEmail } from "./email";
 import { assignPaidKit, type KitOwnership } from "./accounts";
+import { testProperties } from "./attribution";
 import { getStoredBillingCustomer, recordBillingCustomer } from "./billing";
 import { getKit, normaliseEmail, updateKit } from "./kits";
 import { captureServerEvent, eventUuid } from "./analytics-server";
 import { gatewayErrorType } from "./llm";
 import { captureException, captureExceptionThrottled } from "./observability";
 import type { ProductId } from "./products";
-import type { Kit } from "./schema";
+import type { Kit, PaidAmount } from "./schema";
 import { buildKitZip, zipFileName } from "./zip";
 
 const STALE_GENERATION_MS = 3 * 60_000;
@@ -32,6 +33,8 @@ export interface PaidOrder {
   email?: string;
   /** Stripe customer id, when Checkout created one. */
   customerId?: string;
+  /** What Checkout charged. The kit emails quote it, so a receipt never follows the promo flag. */
+  paidAmount?: PaidAmount;
 }
 
 export interface RecordedPayment {
@@ -45,13 +48,18 @@ export async function recordPayment(order: PaidOrder): Promise<RecordedPayment> 
   const ready = assemble((await getDraft(order.kitId)).sections);
   await updateKit(order.kitId, (kit) =>
     kit.paid
-      ? { email: kit.email ?? order.email, ownerEmail: kit.ownerEmail ?? (order.email ? normaliseEmail(order.email) : undefined) }
+      ? {
+          email: kit.email ?? order.email,
+          ownerEmail: kit.ownerEmail ?? (order.email ? normaliseEmail(order.email) : undefined),
+          paidAmount: kit.paidAmount ?? (kit.paymentRef === order.ref ? order.paidAmount : undefined),
+        }
       : {
           paid: true,
           status: "paid",
           email: order.email,
           ownerEmail: kit.ownerEmail ?? (order.email ? normaliseEmail(order.email) : undefined),
           paymentRef: order.ref,
+          paidAmount: order.paidAmount,
           paidAt: new Date().toISOString(),
           ...(ready
             ? { status: "ready" as const, content: ready, checklist: launchChecklist(kit.brief), generatedAt: new Date().toISOString(), readyAt: new Date().toISOString() }
@@ -163,7 +171,7 @@ async function giveUp(id: string, error: unknown): Promise<void> {
   await captureServerEvent("kit_generation_failed", {
     distinctId: `kit_${id}`,
     uuid: eventUuid(`kit_generation_failed:${id}:${kit.failedAt}`),
-    properties: { plan: "kit", kitId: id, attempts: kit.attempts, refund_needed: true, reason },
+    properties: { plan: "kit", kitId: id, attempts: kit.attempts, refund_needed: true, reason, ...testProperties(kit.attribution) },
   });
   if (!kit.email || kit.failureEmailedAt) return;
   try {

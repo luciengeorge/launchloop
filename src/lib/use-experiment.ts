@@ -63,14 +63,19 @@ export function useExperiment(key: ExperimentKey): Served | undefined {
 }
 
 /**
- * Like useExperiment, for an assignment the server made on a fixed id (see resolveKitPromo), so it
- * doesn't change with this page's anonymous id. Undefined until the server's answer streams in.
+ * For an assignment the server made on a fixed id and already rendered into the page (see resolveKitPromo):
+ * returns it as is, so the server HTML and the first client render show it, and records it once per mount
+ * like useExperiment. Nothing about what's shown waits on the browser.
  */
-export function useAssignedExperiment(key: ExperimentKey, assigned: Promise<Served>): Served | undefined {
-  return useServed(key, (settle) => {
-    assigned.then(settle, () => settle(fallbackServed("error")));
-    return () => {};
-  });
+export function useServerAssignment(key: ExperimentKey, served: Served): Served {
+  const tracked = useRef(false);
+  useEffect(() => {
+    if (tracked.current) return;
+    tracked.current = true;
+    trackServed(key, served);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per mount, with what the first render showed
+  }, [key]);
+  return served;
 }
 
 /**
