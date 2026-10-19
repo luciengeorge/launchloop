@@ -4,7 +4,7 @@ import { connection } from "next/server";
 import { env } from "./env";
 import type { Served } from "./experiments";
 import { lookupHeroHeadline } from "./hero-headline";
-import { captureException } from "./observability";
+import { captureExceptionThrottled } from "./observability";
 import { posthogHost } from "./posthog-config";
 
 /**
@@ -26,6 +26,7 @@ export async function heroHeadlineAssignment(): Promise<Served | null> {
     token: env.posthogKey,
     distinctId: `hero:${randomUUID()}`,
     timeoutMs: Number(process.env.HERO_FLAG_TIMEOUT_MS) || undefined,
-    onError: (error) => captureException(error, { stage: "flags.hero_headline" }),
+    // A PostHog outage fails every view, so one report a minute per instance, not one per page view.
+    onError: (error) => captureExceptionThrottled("flags.hero_headline", error, { stage: "flags.hero_headline" }),
   });
 }
