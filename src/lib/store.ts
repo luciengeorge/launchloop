@@ -16,6 +16,8 @@ export interface KeyValueStore {
   getDel<T>(key: string): Promise<T | null>;
   /** Increments a counter, setting its TTL when it is first created. Returns the new value. */
   incr(key: string, ttlSeconds: number): Promise<number>;
+  /** Decrements a counter. A counter that ends at zero or below gets `ttlSeconds`, so a recreated key never lives forever. */
+  decr(key: string, ttlSeconds: number): Promise<number>;
   sAdd(key: string, member: string): Promise<void>;
   sRem(key: string, member: string): Promise<void>;
   sMembers(key: string): Promise<string[]>;
@@ -81,6 +83,23 @@ class FileStore implements KeyValueStore {
     });
   }
 
+  decr(key: string, ttlSeconds: number): Promise<number> {
+    return this.serial(async () => {
+      let parsed: { value: number; expiresAt?: number } | null = null;
+      try {
+        parsed = JSON.parse(await fs.readFile(this.file(key), "utf8"));
+      } catch {
+        parsed = null;
+      }
+      if (!parsed || (parsed.expiresAt && parsed.expiresAt < Date.now())) parsed = { value: 0 };
+      const value = parsed.value - 1;
+      const expiresAt = value <= 0 ? Date.now() + ttlSeconds * 1000 : parsed.expiresAt;
+      await fs.mkdir(this.dir, { recursive: true });
+      await fs.writeFile(this.file(key), JSON.stringify({ value, expiresAt }));
+      return value;
+    });
+  }
+
   sAdd(key: string, member: string): Promise<void> {
     return this.serial(async () => {
       const members = (await this.get<string[]>(key)) ?? [];
@@ -141,6 +160,12 @@ class RedisRestStore implements KeyValueStore {
     return value;
   }
 
+  async decr(key: string, ttlSeconds: number): Promise<number> {
+    const value = await this.command<number>(["DECR", key]);
+    if (value <= 0) await this.command(["EXPIRE", key, ttlSeconds]);
+    return value;
+  }
+
   async sAdd(key: string, member: string): Promise<void> {
     await this.command(["SADD", key, member]);
   }
@@ -174,6 +199,9 @@ class PrefixedStore implements KeyValueStore {
   }
   incr(key: string, ttlSeconds: number) {
     return this.inner.incr(this.k(key), ttlSeconds);
+  }
+  decr(key: string, ttlSeconds: number) {
+    return this.inner.decr(this.k(key), ttlSeconds);
   }
   sAdd(key: string, member: string) {
     return this.inner.sAdd(this.k(key), member);

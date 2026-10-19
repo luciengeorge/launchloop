@@ -53,6 +53,9 @@ export function PricingTimeline({ promo, className = "" }: { promo: boolean; cla
   );
 }
 
+/** One text node, so the card and its served HTML both read "Waitlist, free to join" (two spans read "Waitlistfree to join"). */
+const shipLoopLabel = <span className="text-2xl font-semibold tracking-tight">Waitlist, free to join</span>;
+
 const freeCta = <StartLink className={buttonVariants({ variant: "outline", className: "w-full" })}>Get my free preview</StartLink>;
 const kitCta = (promo: boolean) => (
   <StartLink plan="kit" className={buttonVariants({ className: "w-full" })}>
@@ -99,8 +102,7 @@ function HomeStrip({ promo }: { promo: boolean }) {
         <PriceCard
           badge="Coming soon"
           name="3. Ship Loop"
-          price="Waitlist"
-          suffix="free to join"
+          price={shipLoopLabel}
           body="For after launch. Every time you release, we draft an X post, a LinkedIn post, a changelog blurb and an image, and email them to you to approve. Join the waitlist, we'll email you when it launches."
           cta={
             <Link href="/ship-loop" className={buttonVariants({ variant: "outline", className: "w-full" })}>
@@ -152,8 +154,7 @@ function PricingPage({ promo }: { promo: boolean }) {
             muted
             badge="Coming soon"
             name="Ship Loop"
-            price="Waitlist"
-            suffix="free to join"
+            price={shipLoopLabel}
             body="Ship Loop is coming soon and isn't on sale. A draft post and image for every release."
             items={SHIP_LOOP_ITEMS}
             cta={

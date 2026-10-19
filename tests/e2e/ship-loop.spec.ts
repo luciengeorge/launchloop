@@ -76,9 +76,17 @@ test("no Ship Loop surface offers a pre-order or a £99 buy, repeats the old pro
   await expect(page.locator("#plans").getByRole("radio")).toHaveCount(0);
   await expect(page.locator("#plans").getByRole("button")).toHaveText(["Join the waitlist"]);
 
+  for (const path of ["/", "/pricing"]) {
+    expect(await (await page.request.get(path)).text(), path).toContain("Waitlist, free to join");
+    await page.goto(path);
+    const label = page.getByText("Waitlist, free to join", { exact: true });
+    await expect(label, path).toHaveCount(1);
+    expect(await label.evaluate((el) => el.closest("p")!.textContent), path).toBe("Waitlist, free to join");
+  }
+
   await page.goto("/pricing");
   const shipLoop = page.getByTestId("ship-loop-plan");
-  await expect(shipLoop).toContainText("free to join");
+  await expect(shipLoop).toContainText("Waitlist, free to join");
   await expect(shipLoop).not.toContainText(/£|planned|\/month|\/year/);
   await shipLoop.getByRole("link", { name: "Join the waitlist" }).click();
   await expect(page).toHaveURL(/\/ship-loop#plans$/);
