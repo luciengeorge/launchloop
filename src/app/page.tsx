@@ -151,7 +151,10 @@ export default async function Home() {
           {FAQ.slice(0, 5).map((item) => (
             <AccordionItem key={item.q} value={item.q}>
               <AccordionTrigger className="text-base">
-                <PricedText text={item.q} promo={promo} />
+                {/* One inline run: as direct flex children, "for" and the price would lose the space between them. */}
+                <span data-testid="faq-question">
+                  <PricedText text={item.q} promo={promo} />
+                </span>
               </AccordionTrigger>
               <AccordionContent className="text-muted-foreground">
                 <PricedText text={item.a} promo={promo} />
