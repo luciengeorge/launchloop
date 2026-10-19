@@ -108,6 +108,27 @@ test("promo treatment: £19 struck through, £14 with LAUNCH14, kept through the
   await other.close();
 });
 
+test("promo treatment: the price line, LAUNCH14 note and £14 button are in the server HTML and on every reload, with the browser's flags blocked", async ({ page }) => {
+  const kitId = await makeSampleKit(page);
+  await setKitPromo(page.request, kitId, "treatment");
+  // Nothing on the paywall may depend on PostHog in the browser.
+  await page.route(/\/lp-relay\//, (route) => route.abort());
+
+  const html = await (await page.request.get(`/kit/${kitId}`)).text();
+  expect(html).toContain("takes £5 off, applied for you at checkout");
+  expect(html).toContain("Unlock the full kit, £14");
+  expect(html).not.toContain("Unlock the full kit, £19");
+
+  for (let i = 0; i < 5; i++) {
+    await page.reload();
+    const price = page.getByTestId("kit-price");
+    await expect(price.locator("s")).toHaveText("Was £19");
+    await expect(price).toContainText("once, no subscription");
+    await expect(page.getByTestId("launch-promo")).toContainText("LAUNCH14 takes £5 off, applied for you at checkout. Launch offer for first-time buyers, while it lasts.");
+    await expect(page.getByRole("button", { name: "Unlock the full kit, £14" })).toBeEnabled();
+  }
+});
+
 test.describe("promo bucketing", () => {
   // posthog-js drops every event from a likely bot (HeadlessChrome UA or brand, navigator.webdriver).
   const userAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36";
@@ -132,6 +153,8 @@ test.describe("promo bucketing", () => {
       await page.reload();
       await expect(page.getByTestId("kit-price")).toContainText("£14");
       await expect(page.getByTestId("launch-promo")).toBeVisible();
+      // The price is in the server HTML, so it shows before hydration; the exposure is sent once the page has hydrated.
+      await expect.poll(async () => (await exposures(page.request)).length - before).toBe(i + 1);
     }
     const other = await browser.newContext({ userAgent, extraHTTPHeaders: ownBucket });
     await notABot(other);
@@ -238,6 +261,7 @@ test.describe("promo bucketing", () => {
       await page.reload();
       await expect(page.getByTestId("kit-price")).toContainText("£19");
       await expect(page.getByTestId("kit-price").locator("s")).toHaveCount(0);
+      await expect.poll(async () => (await exposures(page.request)).length - before).toBe(i + 1);
     }
     await expect.poll(async () => (await exposures(page.request)).slice(before).map((e) => e.properties.$feature_flag_response)).toEqual(["control", "control"]);
   });
