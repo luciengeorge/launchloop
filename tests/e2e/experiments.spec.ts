@@ -1,7 +1,11 @@
 import { expect, test, type APIRequestContext, type BrowserContext, type Page, type Request } from "@playwright/test";
+import { isBeforePromoEnd } from "@/lib/launch-promo";
 import { logIn, magicLinkFor, makeSampleKit, uniqueEmail } from "./helpers";
 
 type Variant = "control" | "treatment";
+
+/** The server ignores exp_launch14_promo from LAUNCH_PROMO_ENDS_AT, so tests that need the flag read can't run after it. */
+const skipIfPromoEnded = () => test.skip(!isBeforePromoEnd(Date.now()), "LAUNCH14 has ended: the server no longer reads exp_launch14_promo");
 
 const FIXTURE = "http://127.0.0.1:3419";
 
@@ -68,6 +72,7 @@ test("promo control: plain £19, no code on checkout, and the page sends nothing
 });
 
 test("promo treatment: £19 struck through, £14 with LAUNCH14, kept through the magic link on another device", async ({ page, browser }) => {
+  skipIfPromoEnded();
   const kitId = await makeSampleKit(page);
   await setKitPromo(page.request, kitId, "treatment");
   await page.reload();
@@ -115,6 +120,7 @@ test.describe("promo bucketing", () => {
   test.beforeEach(({ context }) => notABot(context));
 
   test("the same kit shows the same price on every reload, with one exposure per view on that view's id", async ({ page, browser }) => {
+    skipIfPromoEnded();
     const kitId = await makeSampleKit(page);
     await setKitPromo(page.request, kitId, "treatment");
     // What posthog-js would bucket each page's fresh anonymous id into must not matter.
@@ -144,6 +150,7 @@ test.describe("promo bucketing", () => {
   });
 
   test("PostHog too slow for the kit: £19 served as a fallback, logged as flag_fallback (not an exposure), and checkout logs the same", async ({ page }) => {
+    skipIfPromoEnded();
     await logIn(page, uniqueEmail("promo-fallback"));
     const kitId = await makeSampleKit(page);
     // Would be treatment, but the answer comes after the server's 1.5s flags budget.
@@ -222,6 +229,7 @@ test.describe("promo bucketing", () => {
   });
 
   test("a control kit shows £19 on every reload, with a control exposure each view", async ({ page }) => {
+    skipIfPromoEnded();
     const kitId = await makeSampleKit(page);
     await setKitPromo(page.request, kitId, "control");
     await forceFlags(page, { exp_launch14_promo: "treatment" });
@@ -245,6 +253,7 @@ function checkoutAs(page: Page, kitId: string) {
 }
 
 test("a forged client variant can't get the promo: the server resolves exp_launch14_promo for the kit", async ({ page }) => {
+  skipIfPromoEnded();
   await logIn(page, uniqueEmail("promo-forged"));
   const kitId = await makeSampleKit(page);
   const checkout = checkoutAs(page, kitId);
@@ -261,6 +270,7 @@ test("a forged client variant can't get the promo: the server resolves exp_launc
 });
 
 test("PostHog down at checkout: the kit's last assignment decides (logged); a flag switched off is control for everyone", async ({ page }) => {
+  skipIfPromoEnded();
   await logIn(page, uniqueEmail("promo-remembered"));
   const kitId = await makeSampleKit(page);
   const checkout = checkoutAs(page, kitId);
