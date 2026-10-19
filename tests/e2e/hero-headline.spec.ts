@@ -287,6 +287,10 @@ test("the server HTML has exactly one h1, the streamed headline, whatever the fl
     const html = await (await request.get("/")).text();
     expect(html, `flag ${variant}`).toContain("data-hero-pending");
     expect(h1Tags(html), `flag ${variant}`).toHaveLength(1);
+    const placeholder = html.match(/<div\b[^>]*\bdata-hero-pending\b[^>]*>/g) ?? [];
+    expect(placeholder, `flag ${variant}`).toHaveLength(1);
+    expect(placeholder[0], `flag ${variant}`).toContain('role="heading"');
+    expect(placeholder[0], `flag ${variant}`).toContain('aria-level="1"');
   }
 });
 
@@ -298,5 +302,7 @@ test.describe("without JavaScript", () => {
     await page.goto("/");
     await expect(headline(page)).toHaveText(HERO_HEADLINE_CONTROL);
     await expect(headline(page)).toBeVisible();
+    await expect(headline(page)).toHaveAttribute("role", "heading");
+    await expect(headline(page)).toHaveAttribute("aria-level", "1");
   });
 });
