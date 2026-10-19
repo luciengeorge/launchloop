@@ -1,11 +1,7 @@
-"use client";
-
-import { useState } from "react";
 import { WaitlistForm } from "./waitlist-form";
 
-/** Ship Loop isn't on sale: planned pricing and the free waitlist. */
+/** Ship Loop isn't on sale: no price, no plans, just the free waitlist. */
 export function ShipLoopPlans() {
-  const [plan, setPlan] = useState<"monthly" | "yearly">("yearly");
   // On lg the card is sticky, so on short screens it scrolls inside itself rather than running off the bottom of the viewport.
   return (
     <div
@@ -18,30 +14,9 @@ export function ShipLoopPlans() {
           Join the waitlist, we&apos;ll email you when it launches. It&apos;s free.
         </p>
       </div>
-      <div role="radiogroup" aria-label="Billing period" className="inline-flex rounded-lg bg-muted p-1 text-sm">
-        {(["monthly", "yearly"] as const).map((p) => (
-          <button
-            key={p}
-            type="button"
-            role="radio"
-            aria-checked={plan === p}
-            onClick={() => setPlan(p)}
-            className={`rounded-md px-3 py-1.5 font-medium transition ${plan === p ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            {p === "monthly" ? "Monthly" : "Yearly (save 31%)"}
-          </button>
-        ))}
-      </div>
-      <div>
-        <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Planned pricing</p>
-        <p className="mt-1">
-          <span className="text-4xl font-semibold tracking-tight">{plan === "monthly" ? "£12" : "£99"}</span>
-          <span className="ml-1 text-muted-foreground">{plan === "monthly" ? "/month" : "/year"}</span>
-        </p>
-        <p className="mt-1 text-xs text-muted-foreground">Not on sale yet. We&apos;ll confirm the price when Ship Loop launches.</p>
-      </div>
+      <p className="text-sm text-muted-foreground">Not on sale, so there&apos;s nothing to buy. Joining the waitlist doesn&apos;t commit you to anything.</p>
       <div id="waitlist" className="scroll-mt-20">
-        <WaitlistForm source="ship_loop_page" plan={plan} />
+        <WaitlistForm source="ship_loop_page" />
       </div>
     </div>
   );
