@@ -1,6 +1,6 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 import { HERO_HEADLINE_CONTROL, HERO_HEADLINE_TEST } from "../../src/lib/hero-headline";
-import { logIn, makeSampleKit, setHeroHeadline, uniqueEmail } from "./helpers";
+import { h1Tags, logIn, makeSampleKit, setHeroHeadline, uniqueEmail } from "./helpers";
 
 // Runs against the HERO_EXPERIMENT=1 build (projects hero-desktop and hero-mobile), whose flag lookup gets 2.5 s.
 
@@ -41,7 +41,8 @@ test.beforeEach(async ({ context }) => {
       for (const e of list.getEntries() as (PerformanceEntry & { value: number; hadRecentInput: boolean })[]) if (!e.hadRecentInput) w.__shift += e.value;
     }).observe({ type: "layout-shift", buffered: true });
     const tick = () => {
-      for (const h1 of location.pathname === "/" ? document.querySelectorAll("main #start h1") : []) {
+      // The h1, or the placeholder standing in for it until React reveals the streamed h1.
+      for (const h1 of location.pathname === "/" ? document.querySelectorAll('main #start :is(h1, [role="heading"])') : []) {
         if (getComputedStyle(h1).visibility !== "visible") continue;
         w.__firstVisibleAt ??= performance.now();
         const text = h1.textContent ?? "";
@@ -256,6 +257,16 @@ test.describe("layout", () => {
       expect(overflow, `document wider than a ${width}px viewport`).toBeLessThanOrEqual(0);
     }
   });
+});
+
+test("the server HTML has exactly one h1, the streamed headline, whatever the flag says", async ({ request, isMobile }) => {
+  test.skip(isMobile, "The HTML doesn't depend on the viewport");
+  for (const variant of [null, false, "control", "test"] as const) {
+    await setHeroHeadline(request, variant);
+    const html = await (await request.get("/")).text();
+    expect(html, `flag ${variant}`).toContain("data-hero-pending");
+    expect(h1Tags(html), `flag ${variant}`).toHaveLength(1);
+  }
 });
 
 test.describe("without JavaScript", () => {

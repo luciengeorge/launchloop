@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { logIn, makeSampleKit, setHeroHeadline, uniqueEmail } from "./helpers";
+import { h1Tags, logIn, makeSampleKit, setHeroHeadline, uniqueEmail } from "./helpers";
 
 test("home page explains the product and offers the input", async ({ page }) => {
   await page.goto("/");
@@ -16,6 +16,7 @@ test("HERO_EXPERIMENT unset (production): the home h1 is main's static h1, whate
     const html = await (await page.request.get("/")).text();
     expect(html).toContain('<h1 class="max-w-3xl text-balance text-4xl font-semibold tracking-tight sm:text-6xl">Paste your repo. <span class="text-primary">Get your whole launch.</span></h1>');
     expect(html).not.toMatch(/data-hero|data-reserve|hero-failsafe/);
+    expect(h1Tags(html)).toHaveLength(1);
     await page.goto("/");
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Paste your repo. Get your whole launch.");
   } finally {

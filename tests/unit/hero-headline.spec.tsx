@@ -5,10 +5,12 @@ import { EXPERIMENTS, isVariant, parseExperiments } from "@/lib/experiments";
 import { HERO_HEADLINE_CONTROL, HERO_HEADLINE_TEST, lookupHeroHeadline, splitHeadline } from "@/lib/hero-headline";
 
 const html = (node: React.ReactNode) => renderToStaticMarkup(<>{node}</>);
-const h1 = (node: React.ReactNode) => html(node).match(/<h1[^]*?<\/h1>/)![0];
+/** The headline element: the h1, or the placeholder div standing in for it. */
+const h1 = (node: React.ReactNode) => html(node).match(/<(h1|div)\b[^>]*data-reserve[^]*?<\/\1>/)![0];
 /** The visible headline: the h1's text (the other arm's headline is generated content, not text). */
 const text = (node: React.ReactNode) => h1(node).replace(/<[^>]+>/g, "");
 const reserve = (node: React.ReactNode) => h1(node).match(/data-reserve="([^"]*)"/)?.[1];
+const h1Count = (node: React.ReactNode) => html(node).match(/<h1[\s>]/g)?.length ?? 0;
 
 test.describe("HeroHeadline", () => {
   test("control: the current headline and highlight, not running, assigned control, and every fallback", () => {
@@ -38,6 +40,14 @@ test.describe("HeroHeadline", () => {
     expect(markup).toContain('data-hero-pending=""');
     expect(markup).toContain("[data-hero-pending]{visibility:hidden;animation:hero-failsafe 0s 700ms forwards}@keyframes hero-failsafe{to{visibility:visible}}");
     expect(markup).toContain("<noscript><style>[data-hero-pending]{visibility:visible;animation:none}</style></noscript>");
+  });
+
+  test("one h1: the streamed headline is the h1, the placeholder is a div with the heading role and the same box", () => {
+    expect(h1Count(<HeroHeadline served={{ variant: "test" }} />)).toBe(1);
+    expect(h1Count(<HeroHeadlinePending />)).toBe(0);
+    const placeholder = h1(<HeroHeadlinePending />);
+    expect(placeholder).toMatch(/^<div role="heading" aria-level="1" class="([^"]+)"/);
+    expect(placeholder.match(/class="([^"]+)"/)![1]).toBe(h1(<HeroHeadline served={null} />).match(/class="([^"]+)"/)![1]);
   });
 
   test("the streamed headline brings a script that shows it in the placeholder, unless the failsafe already showed control", () => {

@@ -64,6 +64,9 @@ export async function setHeroHeadline(request: APIRequestContext, variant: "cont
   await request.post("http://127.0.0.1:3419/ph/_flags", { data: { distinctId: "hero:*", flags, delayMs } });
 }
 
+/** Opening tags of <h1> elements in a page's HTML. */
+export const h1Tags = (html: string) => html.match(/<h1[\s>]/g) ?? [];
+
 export async function makeSampleKit(page: Page): Promise<string> {
   await page.goto("/");
   await page.getByRole("button", { name: "Try a sample app" }).click();
