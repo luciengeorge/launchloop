@@ -97,6 +97,7 @@ test.describe("recording", () => {
     const id = await pageId(page, before);
     await expect.poll(async () => (await heroEvents(page.request, id)).map((e) => e.event)).toEqual(["$feature_flag_called"]);
     expect((await heroEvents(page.request, id))[0].properties).toMatchObject({ $feature_flag_response: "test", "$feature/exp_hero_headline": "test" });
+    expect((await heroEvents(page.request, id))[0].properties).not.toHaveProperty("is_test");
     // The exposure waited for the SDK to load after the page, as before: it didn't pull posthog-js in early.
     const timing = await page.evaluate(() => ({
       loadAt: (window as unknown as Watch).__loadAt!,
@@ -136,6 +137,24 @@ test.describe("recording", () => {
     await expect(headline(page)).toHaveText(HERO_HEADLINE_CONTROL);
     const id = await pageId(page, before);
     await expect.poll(async () => (await heroEvents(page.request, id)).map((e) => [e.event, e.properties.reason])).toEqual([["flag_fallback", "unassigned"]]);
+  });
+
+  test("QA visits (?qa=1 or utm_source=qa): the hero exposure and its fallback carry is_test", async ({ page }) => {
+    await setHeroHeadline(page.request, "test");
+    let before = (await phEvents(page.request)).length;
+    await page.goto("/?qa=1");
+    await expect(headline(page)).toHaveText(HERO_HEADLINE_TEST);
+    let id = await pageId(page, before);
+    await expect.poll(async () => (await heroEvents(page.request, id)).map((e) => [e.event, e.properties.is_test])).toEqual([["$feature_flag_called", true]]);
+
+    // A fresh QA landing, not the tab remembering the last one.
+    await page.evaluate(() => sessionStorage.clear());
+    await setHeroHeadline(page.request, false);
+    before = (await phEvents(page.request)).length;
+    await page.goto("/?utm_source=qa");
+    await expect(headline(page)).toHaveText(HERO_HEADLINE_CONTROL);
+    id = await pageId(page, before);
+    await expect.poll(async () => (await heroEvents(page.request, id)).map((e) => [e.event, e.properties.reason, e.properties.is_test])).toEqual([["flag_fallback", "unassigned", true]]);
   });
 
   test("coming back to the home page client-side keeps the headline this page load showed", async ({ page }) => {
