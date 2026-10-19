@@ -71,6 +71,12 @@ export interface SourceSummary {
   warnings: string[];
 }
 
+/** What Stripe charged: `amount_total` in minor units (pence) and its lowercase ISO currency. */
+export interface PaidAmount {
+  amount: number;
+  currency: string;
+}
+
 export interface Kit {
   id: string;
   createdAt: string;
@@ -91,6 +97,8 @@ export interface Kit {
   /** First-touch UTMs and referring domain from the browser that requested the preview. Absent on older kits. */
   attribution?: Attribution;
   paymentRef?: string;
+  /** Absent on kits paid before it was recorded: their emails name no price. */
+  paidAmount?: PaidAmount;
   paidAt?: string;
   content?: KitContent;
   checklist?: string[];

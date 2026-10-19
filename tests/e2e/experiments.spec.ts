@@ -101,6 +101,20 @@ test("promo treatment: £19 struck through, £14 with LAUNCH14, kept through the
   await phone.getByRole("button", { name: "Pay £14 (test mode)" }).click();
   await phone.waitForURL(new RegExp(`/account/kits/${kitId}\\?paid=1&aid=${aid}$`));
   await other.close();
+
+  // The receipt quotes what was charged, not the list price.
+  let receipt = "";
+  await expect
+    .poll(
+      async () => {
+        const { emails } = (await (await page.request.get("/api/dev/outbox")).json()) as { emails: { to: string; subject: string; text: string }[] };
+        receipt = emails.find((e) => e.to === email && /launch kit is ready/.test(e.subject))?.text ?? "";
+        return receipt;
+      },
+      { timeout: 60_000 },
+    )
+    .toContain("Receipt: LaunchLoop Launch Kit, £14 · Ref");
+  expect(receipt).not.toContain("£19");
 });
 
 test.describe("promo bucketing", () => {
