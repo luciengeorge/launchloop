@@ -93,15 +93,28 @@ For comparison, "how to write a Show HN title" already returns the HN guidelines
 - Reddit Help, Content Moderation, Enforcement, and Appeals: https://support.reddithelp.com/hc/en-us/articles/23511059871252-Content-Moderation-Enforcement-and-Appeals
 - Reddit's old self-promotion guide (marked no longer updated): https://www.reddit.com/wiki/selfpromotion/
 - Reddit admins on the 10:1 guideline, r/modnews, December 2014: https://www.reddit.com/r/modnews/comments/2oamgp/moderators_clarifications_around_our_101/
-- r/startups rules and Share your startup thread: https://www.reddit.com/r/startups/about/rules/ and https://www.reddit.com/r/startups/comments/1utpfsi/share_your_startup_quarterly_post/
+- r/startups rules (Monthly Share Your Startup thread, stickied): https://www.reddit.com/r/startups/about/rules/
 - r/webdev rules: https://www.reddit.com/r/webdev/about/rules/
-- r/indiehackers moderator post: https://www.reddit.com/r/indiehackers/comments/1uzsfzy/community_reorganisation_new_posting_guidelines/
+- r/indiehackers rules and moderator post: https://www.reddit.com/r/indiehackers/about/rules/ and https://www.reddit.com/r/indiehackers/comments/1uzsfzy/community_reorganisation_new_posting_guidelines/
 - r/languagelearning rules for promotion: https://www.reddit.com/r/languagelearning/wiki/rules_for_promotion/
 - Courtland Allen, How do you make a successful post on Indie Hackers? (June 2019): https://www.indiehackers.com/post/how-do-you-make-a-successful-post-on-indie-hackers-f6745260fd
 - Hacker News guidelines: https://news.ycombinator.com/newsguidelines.html
 - dang, Tips for presenting a Show HN: https://news.ycombinator.com/item?id=22336638
 
 reddit.com returned HTTP 403 to `curl` from the research VM and timed out through a fetch proxy, so the subreddit rule text (r/startups, r/webdev, r/indiehackers) was read from search-index copies of those reddit.com pages. Site QA should open the three subreddit rule pages in a browser and confirm the wording before merge.
+
+## Site QA review at a247a66, and follow-up
+
+Site QA supplied the current rule wording for the changes made after review:
+
+- r/webdev: "Commercial promotion still falls under rule #4 and is not allowed. Think project, not product." Rule 4 violations can lead to a ban.
+- r/indiehackers rule 1: "Users can self promote their product 1 time using the Self Promotion flair." Posts mentioning MRR must include proof ("no proof, no post").
+- r/startups: the rules now say "Monthly Share Your Startup thread", so the page no longer links the older quarterly thread.
+
+Dated claims checked against archived copies, because reddit.com and indiehackers.com return HTTP 403 to `curl` from the VM:
+
+- r/modnews 10:1 clarification, December 2014: verified. The Wayback snapshot shows the post title "Moderators: Clarifications around our 10:1 self-promotional guidelines", author u/krispykrackers, `created-timestamp="2014-12-04T20:49:15.819000+0000"`, and the quoted text ("For every 1 time you post self-promotional content, 9 other posts (submissions or comments) should not contain self-promotional content." and "If someone exceeds the 10% that doesn't automatically make them a spammer!"). The post says "We made some small changes in our self-promotional wiki and our faq language", which only Reddit staff can do. Archive: http://web.archive.org/web/20250728232805/https://www.reddit.com/r/modnews/comments/2oamgp/moderators_clarifications_around_our_101/
+- Courtland Allen, "How do you make a successful post on Indie Hackers?", June 2019: verified. The Wayback snapshot shows the author "Courtland Allen @csallen" and the date header "June 18, 2019" above the title. Archive: http://web.archive.org/web/20201117084401/https://www.indiehackers.com/post/how-do-you-make-a-successful-post-on-indie-hackers-f6745260fd
 
 ## Raw responses
 
