@@ -35,8 +35,10 @@ const SRC = {
   peerlistFaq: "https://help.peerlist.io/individual/launchpad/frequently-asked-questions-about-spotlight-by-peerlist",
   peerlistVerification: "https://help.peerlist.io/individual/peerlist-profile/verification",
   indieHackersAbout: "https://www.indiehackers.com/about",
-  sideProject: "https://www.reddit.com/r/SideProject/about/rules/",
-  alphaBeta: "https://www.reddit.com/r/alphaandbetausers/about/rules/",
+  sideProject: "https://www.reddit.com/r/SideProject/",
+  sideProjectArchive: "https://web.archive.org/web/20260828184531/https://old.reddit.com/r/SideProject/about/rules",
+  alphaBeta: "https://www.reddit.com/r/alphaandbetausers/",
+  alphaBetaArchive: "https://web.archive.org/web/20260824183616/https://old.reddit.com/r/alphaandbetausers/about/rules/",
 } as const;
 
 const FAQ: FaqItem[] = [
@@ -121,7 +123,7 @@ export default function ProductHuntAlternativesPostPage() {
             <tr className="border-b border-border">
               <td className="py-2 pr-4 align-top">Tiny Startups</td>
               <td className="py-2 pr-4 align-top">Free launch, review queue</td>
-              <td className="py-2 align-top">Skip the queue: £29 on its About page, a higher price in its terms</td>
+              <td className="py-2 align-top">Skip the queue: £29 on its About page; higher in its terms and submit form</td>
             </tr>
             <tr className="border-b border-border">
               <td className="py-2 pr-4 align-top">Microlaunch</td>
@@ -239,9 +241,9 @@ export default function ProductHuntAlternativesPostPage() {
 
       <h3 id="alphaandbetausers">r/alphaandbetausers</h3>
       <p>
-        <strong>What it is.</strong> A subreddit for finding early testers. Its sidebar says{" "}
-        <q>Our innovators need people to use their products and give them feedback!</q> Reddit blocked our requests to its own pages, so this section is based on the Internet
-        Archive&apos;s copy of <a href={SRC.alphaBeta}>its rules page</a> from 24 August 2026. Open the live page before you post.
+        <strong>What it is.</strong> <a href={SRC.alphaBeta}>r/alphaandbetausers</a> is a subreddit for finding early testers. Its sidebar says{" "}
+        <q>Our innovators need people to use their products and give them feedback!</q> Reddit blocked our requests to its own pages, so this section is based on the{" "}
+        <a href={SRC.alphaBetaArchive}>Internet Archive&apos;s copy of its rules page</a> from 24 August 2026. Open the live subreddit before you post.
       </p>
       <p>
         <strong>How to submit.</strong> A text post. <q>Please tag title with stage and system, i.e., [Android, Alpha] or [IOS, Beta]</q>, and{" "}
@@ -306,7 +308,7 @@ export default function ProductHuntAlternativesPostPage() {
         <strong>How to submit.</strong> Make an account, then fill in the launch form: name, tagline, description, category, thumbnail and gallery.
       </p>
       <p>
-        <strong>Free or paid.</strong> Four tiers, each shown with a crossed-out higher price next to it:
+        <strong>Free or paid.</strong> A free tier and three paid tiers, each paid tier with a crossed-out price next to it:
       </p>
       <ul>
         <li>
@@ -314,13 +316,13 @@ export default function ProductHuntAlternativesPostPage() {
           <q>A backlink to our site is required (on your homepage or footer)</q>.
         </li>
         <li>
-          <strong>Lite, $29.</strong> Publish now or schedule, no backlink to Fazier required, and a high-authority backlink for the top 3 daily products.
+          <strong>Lite, $29 (crossed out at $39).</strong> Publish now or schedule, no backlink to Fazier required, and a high-authority backlink for the top 3 daily products.
         </li>
         <li>
-          <strong>Premium, $49.</strong> Everything in Lite, promotion across Fazier for 15 days and a guaranteed backlink.
+          <strong>Premium, $49 (crossed out at $69).</strong> Everything in Lite, promotion across Fazier for 15 days and a guaranteed backlink.
         </li>
         <li>
-          <strong>Super, $99.</strong> Sponsor placement at the top of the homepage for 15 days.
+          <strong>Super, $99 (crossed out at $139).</strong> Sponsor placement at the top of the homepage for 15 days.
         </li>
       </ul>
       <p>
@@ -345,7 +347,8 @@ export default function ProductHuntAlternativesPostPage() {
       <p>
         <strong>Free or paid.</strong> The About page says <q>Launching is free; Skip the queue (£29) puts you in the next Monday batch</q>. Its{" "}
         <a href={SRC.tinyTerms}>terms of service</a> list Skip the queue at a higher price, along with paid upgrades for backlinks, a newsletter feature and an SEO review.
-        The two pages disagree, so check the price at checkout. The terms are strict about refunds: <q>All sales are final. We do not offer refunds.</q> If a paid listing is rejected,
+        The submit form&apos;s upgrades step is higher than £29 too: it offers <q>Instant listing + DR 71+ do-follow backlink</q> at £69, described as{" "}
+        <q>Your free listing skips the queue, launches this week, and its backlink switches to do-follow.</q> The three disagree, so check the price at checkout. The terms are strict about refunds: <q>All sales are final. We do not offer refunds.</q> If a paid listing is rejected,
         you get a credit for a future submission instead.
       </p>
       <p>
@@ -438,10 +441,10 @@ export default function ProductHuntAlternativesPostPage() {
 
       <h3 id="sideproject">r/SideProject, and other subreddits</h3>
       <p>
-        <strong>What it is.</strong> From the subreddit&apos;s sidebar:{" "}
-        <q>Welcome to r/SideProject, a subreddit for sharing and receiving constructive feedback on side projects.</q> As with r/alphaandbetausers, this is from the Internet
-        Archive&apos;s copy of <a href={SRC.sideProject}>its rules page</a>, from 28 August 2026, because Reddit blocked our requests. That copy showed the sidebar but no
-        numbered rules, so read the live rules before you post.
+        <strong>What it is.</strong> From the <a href={SRC.sideProject}>subreddit</a>&apos;s sidebar:{" "}
+        <q>Welcome to r/SideProject, a subreddit for sharing and receiving constructive feedback on side projects.</q> As with r/alphaandbetausers, this is from the{" "}
+        <a href={SRC.sideProjectArchive}>Internet Archive&apos;s copy of its rules page</a>, from 28 August 2026, because Reddit blocked our requests. That copy showed the
+        sidebar but no numbered rules, so read the live rules before you post.
       </p>
       <p>
         <strong>How to submit.</strong> A link or text post, with a set title format:{" "}
@@ -484,7 +487,7 @@ export default function ProductHuntAlternativesPostPage() {
       </p>
       <p>
         LaunchLoop isn&apos;t a launch platform. It drafts your launch copy: a LaunchLoop kit writes your Product Hunt listing (name, tagline, description and maker comment),
-        landing copy, X thread, LinkedIn post and launch images from your repo. A tagline, a description and images are the same kind of fields boards like Fazier and
+        landing copy, X thread, LinkedIn post and launch images from your repo and live page. A tagline, a description and images are the same kind of fields boards like Fazier and
         Peerlist ask for, so the kit gives you a draft to adapt for each site. It doesn&apos;t write Show HN, Reddit or Indie Hackers posts. Start with a <Link href="/#start">free preview</Link> or see{" "}
         <Link href="/pricing">pricing</Link>.
       </p>
@@ -501,14 +504,14 @@ export default function ProductHuntAlternativesPostPage() {
         <li><a href={SRC.devhuntFaq}>DevHunt FAQ</a> and <a href={SRC.devhuntAdvertise}>Advertise on DevHunt</a></li>
         <li><a href={SRC.showHn}>Show HN guidelines</a>, Hacker News</li>
         <li><a href={SRC.betalistFaq}>BetaList Support &amp; FAQ</a>, <a href={SRC.betalistCriteria}>Submission Guidelines</a>, <a href={SRC.betalistBoost}>Boost</a> and <a href={SRC.betalistAdvertise}>Advertise</a></li>
-        <li><a href={SRC.alphaBeta}>Rules for r/alphaandbetausers</a> (Internet Archive copy, 24 August 2026)</li>
+        <li><a href={SRC.alphaBetaArchive}>Rules for r/alphaandbetausers</a> (Internet Archive copy, 24 August 2026), for <a href={SRC.alphaBeta}>r/alphaandbetausers</a></li>
         <li><a href={SRC.uneedHowItWorks}>How it works</a>, <a href={SRC.uneedPricing}>Pricing</a> and <a href={SRC.uneedAccept}>What we accept (and what we don&apos;t)</a>, Uneed</li>
         <li><a href={SRC.fazierSubmit}>Submit Product</a>, <a href={SRC.fazierFaqs}>Help Center FAQs</a> and <a href={SRC.fazierTerms}>Terms &amp; Conditions</a>, Fazier</li>
         <li><a href={SRC.tinyAbout}>About</a>, <a href={SRC.tinySubmit}>Launch a startup</a> and <a href={SRC.tinyTerms}>Terms of Service</a>, Tiny Startups</li>
         <li><a href={SRC.microlaunchPremium}>Microlaunch Premium</a>, with its FAQ, and the launch window and rules on <a href={SRC.microlaunch}>microlaunch.net</a></li>
         <li><a href={SRC.peerlistIntro}>What is Peerlist Launchpad?</a>, <a href={SRC.peerlistRules}>Launchpad Rules and Guidelines</a>, <a href={SRC.peerlistHowTo}>How do I launch a project on Peerlist Launchpad?</a>, <a href={SRC.peerlistFaq}>Launchpad FAQ</a> and <a href={SRC.peerlistVerification}>Verification</a>, Peerlist Help Center</li>
         <li><a href={SRC.indieHackersAbout}>About Indie Hackers</a></li>
-        <li><a href={SRC.sideProject}>Rules for r/SideProject</a> (Internet Archive copy, 28 August 2026)</li>
+        <li><a href={SRC.sideProjectArchive}>Rules for r/SideProject</a> (Internet Archive copy, 28 August 2026), for <a href={SRC.sideProject}>r/SideProject</a></li>
       </ul>
     </BlogPostLayout>
   );
