@@ -1,11 +1,12 @@
 import { GUIDES, guidePath } from "@/lib/guides";
 import { LAUNCH_PROMO, PRODUCTS } from "@/lib/products";
-import { FAQ, KIT_CONTENTS, PREVIEW_LIMITS, SITE, kitPriceLabel, kitPriceText } from "@/lib/site";
+import { FAQ, KIT_CONTENTS, SITE, kitPriceLabel, kitPriceText, resolvedPreviewLimits } from "@/lib/site";
 import { TOOLS } from "@/lib/tools";
 
 /** `promo` is isLaunchPromoOn(), so the kit price here matches the pages and Checkout. */
 export function llmsText(base: string, full: boolean, promo: boolean) {
   const kitPrice = kitPriceLabel(promo);
+  const limits = resolvedPreviewLimits();
   const kitPricing = promo
     ? `${kitPrice} (full price ${PRODUCTS.kit.priceLabel}; ${LAUNCH_PROMO.code} is applied at checkout), once, for one app, paid through Stripe Checkout.`
     : `${kitPrice} once, for one app, paid through Stripe Checkout.`;
@@ -23,7 +24,7 @@ The kit is delivered on a results page, as a ZIP download and by email.
 
 ## Pricing (GBP)
 
-- Free preview: the product brief, the Product Hunt tagline, the first post of the X thread and three watermarked images. No account needed. Public repos and live sites only, up to ${PREVIEW_LIMITS.perHour} previews an hour and ${PREVIEW_LIMITS.perDay} a day.
+- Free preview: the product brief, the Product Hunt tagline, the first post of the X thread and three watermarked images. No account needed. Public repos and live sites only, up to ${limits.perHour} previews an hour and ${limits.perDay} a day.
 - Launch Kit: ${kitPricing} Not a subscription. 14-day refund.
 - Ship Loop (coming soon, separate from the kit, not on sale): a free waitlist only, with nothing to buy and no price yet. For after launch: drafts an X post, a LinkedIn post, a changelog blurb and an image on every release and emails them to the user to approve or edit. It never posts for the user. Members are emailed if and when it launches.
 
