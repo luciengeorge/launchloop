@@ -104,11 +104,14 @@ test("preview requests are rate limited per IP across the hour; invalid URLs, th
   expect(statuses.slice(0, 50).every((s) => s === 422)).toBe(true);
   expect(statuses[50]).toBe(429);
   const res = await post("github.com/real-owner/secret-repo");
-  const body = (await res.json()) as { code: string; fix: string; retryAfterSeconds: number };
+  const body = (await res.json()) as { code: string; fix: string; retryAfterSeconds: number; limits: { perHour: number; perDay: number } };
   expect(body.code).toBe("rate_limited");
   expect(body.retryAfterSeconds).toBeGreaterThan(0);
   expect(res.headers()["retry-after"]).toBe(String(body.retryAfterSeconds));
   expect(body.fix).toMatch(/Try again in \d+ (min|hours)/);
+  // The copy states the limits this server enforces (PREVIEW_RATE_LIMIT_PER_HOUR/_PER_DAY in playwright.config.ts), not the defaults.
+  expect(body.limits).toEqual({ perHour: 40, perDay: 60 });
+  expect(body.fix).toContain("You can run 40 an hour and 60 a day.");
   // A different IP is unaffected.
   expect((await post("not a url", "198.51.100.7")).status()).toBe(422);
 });
@@ -134,6 +137,24 @@ test("rate limited previews say when to try again", async ({ page }) => {
   await expect(retry).toHaveAttribute("aria-disabled", "true");
   await retry.focus();
   await expect(retry).toBeFocused();
+});
+
+test("the limit box states the allowance the server sent, not the bundle's defaults", async ({ page }) => {
+  await page.route("**/api/kits", (route) => route.fulfill({ status: 429, headers: { "Retry-After": "600" }, json: rateLimitedBody(600, { perHour: 3, perDay: 7 }) }));
+  await page.goto("/");
+  await page.getByLabel("GitHub repo or live site URL").fill("github.com/acme/app");
+  await page.getByRole("button", { name: "Get my free preview" }).first().click();
+  const alert = page.getByTestId("kit-error");
+  await expect(alert).toHaveAttribute("data-code", "rate_limited");
+  await expect(alert).toContainText("You can run 3 an hour and 7 a day.");
+  await expect(alert).not.toContainText("10 an hour");
+});
+
+test("pricing and terms state the limits the server enforces", async ({ page }) => {
+  await page.goto("/pricing");
+  await expect(page.locator("main")).toContainText("Public repos only. 40 per hour, 60 per day.");
+  await page.goto("/terms");
+  await expect(page.locator("main")).toContainText("40 previews an hour and 60 a day.");
 });
 
 test("rate limited with a preview from this browser: 'Unlock my kit' opens it, and the retry comes back at the reset", async ({ page }) => {
