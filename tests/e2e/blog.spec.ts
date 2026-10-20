@@ -257,7 +257,11 @@ test("the Product Hunt post hands the step-by-step to the checklist instead of r
 test("the Indie Hackers post dates old advice and quotes the terms as they read now", async ({ page }) => {
   await page.goto(postPath(BLOG_POSTS.find((p) => p.slug === "how-to-launch-on-indie-hackers")!));
   const body = page.locator("article > div").first();
-  await expect(body).toContainText("indiehackers.com/groups no longer loads");
+  await expect(body).toContainText("Indie Hackers retired groups in 2026");
+  await expect(body.locator('a[href="https://www.indiehackers.com/groups"]').first()).toBeVisible();
+  await expect(body.locator("q", { hasText: "Groups no longer exists." })).toBeVisible();
+  await expect(body.locator("q", { hasText: "Indie Hackers retired this feature in 2026, and it's not coming back." })).toBeVisible();
+  await expect(body).not.toContainText("no longer loads");
   await expect(body).not.toContainText("404");
   await expect(body.locator("h2#replies ~ ul strong").first()).toContainText("2019 and 2020 tips");
   await expect(body.locator("q", { hasText: "You will only use the Services for your own internal, personal, non-commercial use" })).toBeVisible();

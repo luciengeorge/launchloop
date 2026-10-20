@@ -20,6 +20,7 @@ const SRC = {
   milestones: `${IH}/post/what-milestones-should-indie-hackers-be-sharing-5ff94ae08c`,
   welcome: `${IH}/post/welcome-to-indie-hackers-december-2019-welcomeIntro-2019-12-01`,
   showIh: `${IH}/post/post-a-show-ih-and-appear-on-the-indie-hackers-podcast-0d304a166d`,
+  groups: `${IH}/groups`,
   phSharing: "https://www.producthunt.com/launch/sharing-your-launch",
 } as const;
 
@@ -98,7 +99,8 @@ export default function IndieHackersLaunchPostPage() {
         <q>It&apos;s also worth thinking about what makes your post interesting to other IHers.</q>
       </p>
       <p>
-        The 2020 tips also suggest posting inside a relevant group. indiehackers.com/groups no longer loads, so that advice is likely out of date.
+        The 2020 tips also suggest posting inside a relevant group. Indie Hackers retired groups in 2026: <a href={SRC.groups}>indiehackers.com/groups</a> now says{" "}
+        <q>Groups no longer exists.</q> and <q>Indie Hackers retired this feature in 2026, and it&apos;s not coming back.</q> So that advice is out of date.
       </p>
       <h3>Not the subreddit</h3>
       <p>
@@ -252,6 +254,7 @@ export default function IndieHackersLaunchPostPage() {
         <li><a href={SRC.welcome}>Welcome to Indie Hackers! (December 2019)</a>, by Courtland Allen</li>
         <li><a href={SRC.tips2020}>Tips for making successful posts on Indie Hackers</a>, by Courtland Allen (March 2020)</li>
         <li><a href={SRC.showIh}>Post a &ldquo;Show IH&rdquo; and appear on the Indie Hackers podcast</a>, by Courtland Allen (January 2022)</li>
+        <li><a href={SRC.groups}>Groups</a>, Indie Hackers (retired; the page returns HTTP 410)</li>
         <li><a href={SRC.phSharing}>Sharing your launch</a>, Product Hunt launch guide</li>
       </ul>
     </BlogPostLayout>

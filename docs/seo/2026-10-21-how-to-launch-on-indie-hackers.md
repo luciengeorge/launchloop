@@ -28,7 +28,7 @@ So the post rests on the About page, the terms of service, and six posts and com
 - `curl` with a browser user agent: HTTP 403 with a Cloudflare challenge on every indiehackers.com URL. Playwright (Chromium headless, and Google Chrome headed) got the same challenge on producthunt.com and was not re-tried here.
 - A server-side fetch service (Cursor's WebFetch) returned the About page and every Indie Hackers post cited below on 20 October 2026, with authors and dates. Indie Hackers posts use straight apostrophes, and the quotes keep them.
 - The terms of service were first read from the Internet Archive's copy of 29 September 2026 (`http://web.archive.org/web/20260929071043/https://www.indiehackers.com/terms`), because the live page showed a security check. After Site QA reported that `/terms` loads, it was fetched live again on 20 October 2026: all three quoted clauses (the "spam" clause, the "offensive, defamatory, or inappropriate" clause and the "personal, non-commercial use" clause) match the live page word for word, so the post's Sources note no longer mentions the archive.
-- Cross-check: every `<q>` on the page was searched for in the Internet Archive's latest copy of its source. 36 of the 42 quotes match word for word. The other 6 are from the December 2019 welcome post and the October 2019 milestones thread, which have no archive copy, and were re-checked by hand against the live text.
+- Cross-check: every `<q>` on the page was searched for in the Internet Archive's latest copy of its source. 38 of the 44 quotes match word for word, including the two from the retired `/groups` page, which match the Internet Archive's 410 capture of 26 September 2026. The other 6 are from the December 2019 welcome post and the October 2019 milestones thread, which have no archive copy, and were re-checked by hand against the live text.
 
 ## Sources
 
@@ -39,6 +39,7 @@ So the post rests on the About page, the terms of service, and six posts and com
 - Courtland Allen, "Welcome to Indie Hackers! (December 2019)": https://www.indiehackers.com/post/welcome-to-indie-hackers-december-2019-welcomeIntro-2019-12-01
 - Courtland Allen, "Tips for making successful posts on Indie Hackers", March 7, 2020: https://www.indiehackers.com/post/tips-for-making-successful-posts-on-indie-hackers-b04454a57a
 - Courtland Allen, "Post a "Show IH" and appear on the Indie Hackers podcast", January 20, 2022: https://www.indiehackers.com/post/post-a-show-ih-and-appear-on-the-indie-hackers-podcast-0d304a166d
+- Groups (retired; HTTP 410, read in Google Chrome on 20 October 2026): https://www.indiehackers.com/groups
 - Product Hunt, "Sharing your launch" (for its line about Reddit and Indie Hackers): https://www.producthunt.com/launch/sharing-your-launch
 
 ## Every quote on the page
@@ -61,32 +62,34 @@ So the post rests on the About page, the terms of service, and six posts and com
 | 14 | "what you're working on (link to it!)" | https://www.indiehackers.com/post/post-a-show-ih-and-appear-on-the-indie-hackers-podcast-0d304a166d | yes (2024-01-18) |
 | 15 | "how much revenue it's making" | https://www.indiehackers.com/post/post-a-show-ih-and-appear-on-the-indie-hackers-podcast-0d304a166d | yes (2024-01-18) |
 | 16 | "It's also worth thinking about what makes your post interesting to other IHers." | https://www.indiehackers.com/post/post-a-show-ih-and-appear-on-the-indie-hackers-podcast-0d304a166d | yes (2024-01-18) |
-| 17 | "Runs Maillist, Listserv, any form of auto-responder or "spam" on the Services" | https://www.indiehackers.com/terms | yes (2026-09-29) |
-| 18 | "Submits, posts, or distributes any content that may be considered by Indie Hackers or its moderators as offensive, defamatory, or inappropriate." | https://www.indiehackers.com/terms | yes (2026-09-29) |
-| 19 | "You will only use the Services for your own internal, personal, non-commercial use, and not on behalf of or for the benefit of any third party, and only in a manner that complies with all laws that apply to you." | https://www.indiehackers.com/terms | yes (2026-09-29) |
-| 20 | "If you're just posting links to your blog, you won't find a lot of success." | https://www.indiehackers.com/post/how-do-you-make-a-successful-post-on-indie-hackers-f6745260fd | yes (2020-11-17) |
-| 21 | "you should put the useful info in the tweet itself, not in a link to a blog post. Same on Indie Hackers." | https://www.indiehackers.com/post/how-do-you-make-a-successful-post-on-indie-hackers-f6745260fd | yes (2020-11-17) |
-| 22 | "State their problems first, and put your solution/question/offer later." | https://www.indiehackers.com/post/how-do-you-make-a-successful-post-on-indie-hackers-f6745260fd | yes (2020-11-17) |
-| 23 | "posts where people share their wins are actually quite helpful and popular for a reason!" | https://www.indiehackers.com/post/how-do-you-make-a-successful-post-on-indie-hackers-f6745260fd | yes (2020-11-17) |
-| 24 | "more details about how people had those wins and what they learned in the process." | https://www.indiehackers.com/post/how-do-you-make-a-successful-post-on-indie-hackers-f6745260fd | yes (2020-11-17) |
-| 25 | "Launch day is not a time to go spamming Reddit and Indie Hackers if you haven’t already been posting there" | https://www.producthunt.com/launch/sharing-your-launch | yes (2026-06-10) |
-| 26 | "Describe your post in the title using something close to a full sentence." | https://www.indiehackers.com/post/tips-for-making-successful-posts-on-indie-hackers-b04454a57a | yes (2022-10-25) |
-| 27 | "If you're asking a question, put your question in the title. If you're giving an opinion, put that in the title. If you're sharing advice, state the advice. If you're looking for feedback, say so." | https://www.indiehackers.com/post/tips-for-making-successful-posts-on-indie-hackers-b04454a57a | yes (2022-10-25) |
-| 28 | "How I figured out direct sales" | https://www.indiehackers.com/post/tips-for-making-successful-posts-on-indie-hackers-b04454a57a | yes (2022-10-25) |
-| 29 | "unless you have an extremely popular company with a recognizable name, it's almost never helpful to put your company's name in the title of your post." | https://www.indiehackers.com/post/tips-for-making-successful-posts-on-indie-hackers-b04454a57a | yes (2022-10-25) |
-| 30 | "Posts with questions in the title are more successful than posts without." | https://www.indiehackers.com/post/how-do-you-make-a-successful-post-on-indie-hackers-f6745260fd | yes (2020-11-17) |
-| 31 | "Write as if nobody's going to read past the first 5 sentences, because in many cases, they won't." | https://www.indiehackers.com/post/tips-for-making-successful-posts-on-indie-hackers-b04454a57a | yes (2022-10-25) |
-| 32 | "You should start offering value in your post in the first few sentences." | https://www.indiehackers.com/post/how-do-you-make-a-successful-post-on-indie-hackers-f6745260fd | yes (2020-11-17) |
-| 33 | "If someone opens up your posts and sees a giant wall of text, they're unlikely to engage" | https://www.indiehackers.com/post/how-do-you-make-a-successful-post-on-indie-hackers-f6745260fd | yes (2020-11-17) |
-| 34 | "Indie Hackers supports Markdown" | https://www.indiehackers.com/post/tips-for-making-successful-posts-on-indie-hackers-b04454a57a | yes (2022-10-25) |
-| 35 | "please, please, please put blank lines between them." | https://www.indiehackers.com/post/tips-for-making-successful-posts-on-indie-hackers-b04454a57a | yes (2022-10-25) |
-| 36 | "Agreed, good point." | https://www.indiehackers.com/post/how-do-you-make-a-successful-post-on-indie-hackers-f6745260fd | yes (2020-11-17) |
-| 37 | "If you have a question, put it at the end on its own line with a clear question mark. If you have a link, again, put it at the end in its own paragraph." | https://www.indiehackers.com/post/how-do-you-make-a-successful-post-on-indie-hackers-f6745260fd | yes (2020-11-17) |
-| 38 | "Our ranking algorithm rewards posts that generate discussion and have more comments." | https://www.indiehackers.com/post/how-do-you-make-a-successful-post-on-indie-hackers-f6745260fd | yes (2020-11-17) |
-| 39 | "Indie Hackers rewards posts that generate the most discussion, because we want more people to see the best stuff." | https://www.indiehackers.com/post/tips-for-making-successful-posts-on-indie-hackers-b04454a57a | yes (2022-10-25) |
-| 40 | "Also, don't be shy about sharing posts on Twitter or with colleagues." | https://www.indiehackers.com/post/tips-for-making-successful-posts-on-indie-hackers-b04454a57a | yes (2022-10-25) |
-| 41 | "on a regular basis" | https://www.indiehackers.com/post/how-do-you-make-a-successful-post-on-indie-hackers-f6745260fd | yes (2020-11-17) |
-| 42 | "If at first you don't succeed, there's no law against coming back to try again." | https://www.indiehackers.com/post/how-do-you-make-a-successful-post-on-indie-hackers-f6745260fd | yes (2020-11-17) |
+| 17 | "Groups no longer exists." | https://www.indiehackers.com/groups | yes (2026-09-26) |
+| 18 | "Indie Hackers retired this feature in 2026, and it's not coming back." | https://www.indiehackers.com/groups | yes (2026-09-26) |
+| 19 | "Runs Maillist, Listserv, any form of auto-responder or "spam" on the Services" | https://www.indiehackers.com/terms | yes (2026-09-29) |
+| 20 | "Submits, posts, or distributes any content that may be considered by Indie Hackers or its moderators as offensive, defamatory, or inappropriate." | https://www.indiehackers.com/terms | yes (2026-09-29) |
+| 21 | "You will only use the Services for your own internal, personal, non-commercial use, and not on behalf of or for the benefit of any third party, and only in a manner that complies with all laws that apply to you." | https://www.indiehackers.com/terms | yes (2026-09-29) |
+| 22 | "If you're just posting links to your blog, you won't find a lot of success." | https://www.indiehackers.com/post/how-do-you-make-a-successful-post-on-indie-hackers-f6745260fd | yes (2020-11-17) |
+| 23 | "you should put the useful info in the tweet itself, not in a link to a blog post. Same on Indie Hackers." | https://www.indiehackers.com/post/how-do-you-make-a-successful-post-on-indie-hackers-f6745260fd | yes (2020-11-17) |
+| 24 | "State their problems first, and put your solution/question/offer later." | https://www.indiehackers.com/post/how-do-you-make-a-successful-post-on-indie-hackers-f6745260fd | yes (2020-11-17) |
+| 25 | "posts where people share their wins are actually quite helpful and popular for a reason!" | https://www.indiehackers.com/post/how-do-you-make-a-successful-post-on-indie-hackers-f6745260fd | yes (2020-11-17) |
+| 26 | "more details about how people had those wins and what they learned in the process." | https://www.indiehackers.com/post/how-do-you-make-a-successful-post-on-indie-hackers-f6745260fd | yes (2020-11-17) |
+| 27 | "Launch day is not a time to go spamming Reddit and Indie Hackers if you haven’t already been posting there" | https://www.producthunt.com/launch/sharing-your-launch | yes (2026-06-10) |
+| 28 | "Describe your post in the title using something close to a full sentence." | https://www.indiehackers.com/post/tips-for-making-successful-posts-on-indie-hackers-b04454a57a | yes (2022-10-25) |
+| 29 | "If you're asking a question, put your question in the title. If you're giving an opinion, put that in the title. If you're sharing advice, state the advice. If you're looking for feedback, say so." | https://www.indiehackers.com/post/tips-for-making-successful-posts-on-indie-hackers-b04454a57a | yes (2022-10-25) |
+| 30 | "How I figured out direct sales" | https://www.indiehackers.com/post/tips-for-making-successful-posts-on-indie-hackers-b04454a57a | yes (2022-10-25) |
+| 31 | "unless you have an extremely popular company with a recognizable name, it's almost never helpful to put your company's name in the title of your post." | https://www.indiehackers.com/post/tips-for-making-successful-posts-on-indie-hackers-b04454a57a | yes (2022-10-25) |
+| 32 | "Posts with questions in the title are more successful than posts without." | https://www.indiehackers.com/post/how-do-you-make-a-successful-post-on-indie-hackers-f6745260fd | yes (2020-11-17) |
+| 33 | "Write as if nobody's going to read past the first 5 sentences, because in many cases, they won't." | https://www.indiehackers.com/post/tips-for-making-successful-posts-on-indie-hackers-b04454a57a | yes (2022-10-25) |
+| 34 | "You should start offering value in your post in the first few sentences." | https://www.indiehackers.com/post/how-do-you-make-a-successful-post-on-indie-hackers-f6745260fd | yes (2020-11-17) |
+| 35 | "If someone opens up your posts and sees a giant wall of text, they're unlikely to engage" | https://www.indiehackers.com/post/how-do-you-make-a-successful-post-on-indie-hackers-f6745260fd | yes (2020-11-17) |
+| 36 | "Indie Hackers supports Markdown" | https://www.indiehackers.com/post/tips-for-making-successful-posts-on-indie-hackers-b04454a57a | yes (2022-10-25) |
+| 37 | "please, please, please put blank lines between them." | https://www.indiehackers.com/post/tips-for-making-successful-posts-on-indie-hackers-b04454a57a | yes (2022-10-25) |
+| 38 | "Agreed, good point." | https://www.indiehackers.com/post/how-do-you-make-a-successful-post-on-indie-hackers-f6745260fd | yes (2020-11-17) |
+| 39 | "If you have a question, put it at the end on its own line with a clear question mark. If you have a link, again, put it at the end in its own paragraph." | https://www.indiehackers.com/post/how-do-you-make-a-successful-post-on-indie-hackers-f6745260fd | yes (2020-11-17) |
+| 40 | "Our ranking algorithm rewards posts that generate discussion and have more comments." | https://www.indiehackers.com/post/how-do-you-make-a-successful-post-on-indie-hackers-f6745260fd | yes (2020-11-17) |
+| 41 | "Indie Hackers rewards posts that generate the most discussion, because we want more people to see the best stuff." | https://www.indiehackers.com/post/tips-for-making-successful-posts-on-indie-hackers-b04454a57a | yes (2022-10-25) |
+| 42 | "Also, don't be shy about sharing posts on Twitter or with colleagues." | https://www.indiehackers.com/post/tips-for-making-successful-posts-on-indie-hackers-b04454a57a | yes (2022-10-25) |
+| 43 | "on a regular basis" | https://www.indiehackers.com/post/how-do-you-make-a-successful-post-on-indie-hackers-f6745260fd | yes (2020-11-17) |
+| 44 | "If at first you don't succeed, there's no law against coming back to try again." | https://www.indiehackers.com/post/how-do-you-make-a-successful-post-on-indie-hackers-f6745260fd | yes (2020-11-17) |
 
 ## Dating old advice
 
@@ -100,7 +103,7 @@ Site QA asked for inline dates where 2019 and 2020 advice reads as current. Ever
 - A member complained in the comments about self-promotional posts, and Courtland Allen replied: comments by `alchemist` (June 18, 2019) and Courtland Allen (June 19, 2019) on the 2019 tips post.
 - A member added that requests for help need enough context, and Courtland Allen replied "Agreed, good point.": comments by `louisswiss` and Courtland Allen (both June 18, 2019) on the 2019 tips post.
 - A member asked what milestones are for: `louisswiss`, October 14, 2019, in the milestones thread.
-- The 2020 tips suggest posting inside a relevant group: Tips for making successful posts, section 4. On 20 October 2026 `https://www.indiehackers.com/groups` returned HTTP 404 through the fetch service, and Site QA saw HTTP 410 (the Internet Archive has a copy from 10 September 2026 that still lists groups). The page says it "no longer loads", which is true either way, calls the advice likely out of date, and doesn't link to `/groups`.
+- The 2020 tips suggest posting inside a relevant group: Tips for making successful posts, section 4. Indie Hackers has retired groups. `https://www.indiehackers.com/groups` returns HTTP 410 to a browser: Google Chrome (headed, via Playwright) loaded it at about 19:35 UTC on 20 October 2026 and showed "Error 410", "Groups no longer exists." and "Indie Hackers retired this feature in 2026, and it's not coming back." (straight apostrophe). The Internet Archive also has a 410 capture from 26 September 2026 (its last 200 capture, which still lists groups, is from 10 September 2026). Earlier on 20 October the fetch service reported HTTP 404 and `curl` got a Cloudflare challenge. The page now says "Indie Hackers retired groups in 2026", quotes both sentences verbatim, links `/groups` as the source and calls the advice out of date. Both quotes are in the table above.
 - r/indiehackers is a subreddit with its own rules, including a limit on self-promotion: verified for the Reddit guide (`2026-10-19-reddit-self-promotion-guide.md`, rule 1: "Users can self promote their product 1 time using the Self Promotion flair."). The post links to `/how-to-promote-on-reddit` rather than quoting it again.
 
 ## Left out
