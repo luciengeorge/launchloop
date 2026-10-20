@@ -1,6 +1,6 @@
 import "server-only";
 import { kitErrorBody, rateLimitedBody } from "./errors";
-import { IngestError, normaliseInput } from "./ingest";
+import { IngestError, normaliseKitInput } from "./ingest";
 import { SAMPLE_INPUT } from "./ingest/sample";
 import { captureExceptionThrottled } from "./observability";
 import { PREVIEW_LIMITS } from "./site";
@@ -144,7 +144,7 @@ export async function freePreviewGate(req: Request, rawInput: string): Promise<F
   if (freePreviewsDisabled()) return { refused: busy() };
   let input: string;
   try {
-    input = normaliseInput(rawInput);
+    input = normaliseKitInput(rawInput);
   } catch (error) {
     if (error instanceof IngestError) return { refused: Response.json(kitErrorBody(error.code, error.userMessage), { status: 422 }) };
     throw error;

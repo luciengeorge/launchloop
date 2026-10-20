@@ -5,6 +5,7 @@ import type { Attribution } from "./attribution";
 import { deployEnv } from "./deploy-env";
 import { env } from "./env";
 import { fallbackServed, isAnalyticsId, kitBucketingId, type ExperimentKey, type FallbackReason, type FeatureProperties, type Served, type Variant } from "./experiments";
+import type { PreviewSource } from "./kit-tracing";
 import { LAUNCH_PROMO_TIMEOUT_MS } from "./launch-promo";
 import { captureException } from "./observability";
 import { posthogHost } from "./posthog-config";
@@ -30,6 +31,21 @@ type TestTraffic = Pick<Attribution, "is_test">;
 
 /** Kit purchases also carry the kit's first-touch utm_* and referring_domain. */
 export interface ServerEvents {
+  /**
+   * A free preview kit was saved, whether or not the browser was still there to send preview_completed.
+   * A separate event so dashboards built on preview_completed don't double count.
+   */
+  kit_created: {
+    kitId: string;
+    source: PreviewSource;
+    isLoggedIn: boolean;
+    stream: boolean;
+    /** Made from a kit of the same repo state in the last 24 hours (see reuseKit). */
+    reused: boolean;
+    durationMs: number;
+    /** The stream had lost the browser before the kit was saved. */
+    client_disconnected?: true;
+  } & Attribution;
   checkout_started: CheckoutProperties & FeatureProperties & Attribution;
   checkout_completed: CheckoutProperties & FeatureProperties & Attribution & { stripeSessionId: string };
   /** The server couldn't get an assignment where it needed one (see resolveKitPromo). `remembered`: it used the kit's last assignment. */

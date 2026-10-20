@@ -6,7 +6,7 @@ import { env } from "@/lib/env";
 import { featureProperties, parseExperiments, parseFallbacks } from "@/lib/experiments";
 import type { KitOwnership } from "@/lib/accounts";
 import { fulfilKit, recordPayment, type RecordedPayment } from "@/lib/fulfil";
-import { captureException, logEvent } from "@/lib/observability";
+import { captureException, captureExceptionThrottled, logEvent } from "@/lib/observability";
 import { deployEnv, stripeEventDecision } from "@/lib/deploy-env";
 import { sessionPaidAmount } from "@/lib/money";
 import { isPaidSession, sessionPromoCode, stripe } from "@/lib/payments";
@@ -119,7 +119,13 @@ async function markHandled(eventId: string) {
 /** The purchase event. Keyed on the session id, so webhook retries and the async-payment event don't double count. */
 async function trackCompleted(s: Stripe, session: Stripe.Checkout.Session, product: ProductId) {
   const m = session.metadata ?? {};
-  const promoCode = await sessionPromoCode(s, session);
+  // The purchase still counts without its promo code; a throw here would drop checkout_completed entirely.
+  let promoCode: string | undefined;
+  try {
+    promoCode = await sessionPromoCode(s, session);
+  } catch (error) {
+    captureExceptionThrottled("stripe.webhook.promo", error, { stage: "stripe.webhook.promo", sessionId: session.id });
+  }
   return captureServerEvent("checkout_completed", {
     distinctId: resolveDistinctId(m.ph_distinct_id),
     uuid: eventUuid(`checkout_completed:${session.id}`),
