@@ -120,7 +120,7 @@ test("rate limited previews say when to try again", async ({ page }) => {
   const alert = page.getByTestId("kit-error");
   await expect(alert).toHaveAttribute("data-code", "rate_limited");
   await expect(alert).toContainText("You've used your free previews for now.");
-  await expect(alert).toContainText("You can run 5 an hour and 20 a day.");
+  await expect(alert).toContainText("You can run 10 an hour and 40 a day.");
   await expect(alert).not.toHaveClass(/text-destructive/);
   // The wait lives only in the countdown, outside the alert, so screen readers don't hear it every minute.
   await expect(alert).not.toContainText("Try again in");

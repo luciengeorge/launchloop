@@ -55,7 +55,7 @@ All are optional locally. See [`.env.example`](.env.example) for the full annota
 | `KV_REST_API_URL`, `KV_REST_API_TOKEN` | **Production storage** (Upstash Redis / Vercel KV) |
 | `NEXT_PUBLIC_SITE_URL` | Canonical URLs, sitemap, email links |
 | `MOCK_MODE` | Force everything into mock mode |
-| `PREVIEW_RATE_LIMIT_PER_HOUR`, `PREVIEW_RATE_LIMIT_PER_DAY` | Free previews (and free tool generations) per IP: default 5 an hour and 20 a day, from `PREVIEW_LIMITS` in `src/lib/site.ts`, which the terms, privacy page and pricing quote. Override only for testing. See "Free preview limits" |
+| `PREVIEW_RATE_LIMIT_PER_HOUR`, `PREVIEW_RATE_LIMIT_PER_DAY` | Free previews (and free tool generations) per IP: default 10 an hour and 40 a day, from `PREVIEW_LIMITS` in `src/lib/site.ts`, which the terms, privacy page and pricing quote. Override only for testing. See "Free preview limits" |
 | `OG_PREVIEW_RATE_LIMIT_PER_HOUR` | OG preview tool checks per IP per hour (default 60) |
 | `NEWSLETTER_RATE_LIMIT_PER_HOUR` | Newsletter signups per IP per hour, shared across instances (default 10) |
 | `NEWSLETTER_WELCOME_DAILY_CAP` | Newsletter welcome emails per day across everyone (default 200). Past it, signups still subscribe without the email |
@@ -260,7 +260,7 @@ Playwright builds the app into `.next-test` and runs it on port 3418 in forced m
 - Ship Loop waitlist
 - the SEO endpoints
 
-Unit tests in `tests/unit` run without a browser or server. `npm test` runs both sets: the Playwright `*.spec.ts` files (`playwright.unit.config.ts`) and the Vitest `*.test.ts` files (`vitest.config.mts`, against an in-memory store): the free-preview gate, the `/api/kits` rate limit (6th request in an hour and 21st in a day get a 429 with `Retry-After`; Upstash errors fail closed), the no-template `ai_busy` path, paid kit retries and `refund_needed`, the LLM output budgets and `disallowPromptTraining`.
+Unit tests in `tests/unit` run without a browser or server. `npm test` runs both sets: the Playwright `*.spec.ts` files (`playwright.unit.config.ts`) and the Vitest `*.test.ts` files (`vitest.config.mts`, against an in-memory store): the free-preview gate, the `/api/kits` rate limit (11th request in an hour and 41st in a day get a 429 with `Retry-After`; Upstash errors fail closed), the no-template `ai_busy` path, paid kit retries and `refund_needed`, the LLM output budgets and `disallowPromptTraining`.
 
 Also: `npm run lint`, `npm run typecheck`, `npm run build`. `.github/workflows/ci.yml` runs all of them plus the e2e suite.
 
