@@ -16,7 +16,8 @@ export type KitImageAssets = {
 
 export const ASSET_TIMEOUT_MS = 4000;
 const CACHE_TTL_MS = 10 * 60 * 1000;
-const CACHE_MAX = 24;
+/** Entries are base64 data URIs of up to ~4 MB each, so the cache stays small. */
+const CACHE_MAX = 12;
 
 const MIME: Record<KitImageFormat, string> = { png: "image/png", jpeg: "image/jpeg", gif: "image/gif", webp: "image/webp", svg: "image/svg+xml" };
 

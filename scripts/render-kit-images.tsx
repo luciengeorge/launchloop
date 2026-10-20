@@ -7,6 +7,10 @@
  * mock LLM's copy. `render` draws every kit in <kitsDir> as <slug>-<og|x|ph>-<label>.png with whatever
  * src/lib/images.tsx is checked out, so two checkouts can render the same kits for a before/after.
  * `sheet` lays out <slug>-*-before.png and -after.png side by side as <slug>-contact-sheet.png.
+ *
+ * Outside a Next build, @vercel/og 1.0.3 looks for an hb.wasm it doesn't ship and every render hangs.
+ * Copy harfbuzzjs@0.10.0's hb.wasm to node_modules/@vercel/og/dist/ first:
+ *   npm pack harfbuzzjs@0.10.0 && tar xzf harfbuzzjs-0.10.0.tgz package/hb.wasm && mv package/hb.wasm node_modules/@vercel/og/dist/
  */
 /* eslint-disable @next/next/no-img-element -- Satori draws plain <img>; next/image does not exist there. */
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
