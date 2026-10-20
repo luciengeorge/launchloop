@@ -13,6 +13,12 @@ async function jsonLdNodes(page: Page): Promise<JsonLdNode[]> {
   });
 }
 
+function findNode<T>(nodes: JsonLdNode[], type: string): T {
+  const node = nodes.find((n) => n["@type"] === type);
+  expect(node, type).toBeTruthy();
+  return node as unknown as T;
+}
+
 const SELF = (path: string) => new RegExp(`^http://127\\.0\\.0\\.1:\\d+${path.replace(/\//g, "\\/")}$`);
 
 /** Per post: links the copy must make, and quotes that must appear verbatim. */
@@ -163,8 +169,7 @@ for (const p of BLOG_POSTS) {
     await expect(byline).toContainText(`${p.readingMinutes} min read`);
 
     const nodes = await jsonLdNodes(page);
-    const posting = nodes.find((n) => n["@type"] === "BlogPosting") as Record<string, unknown> | undefined;
-    expect(posting).toBeTruthy();
+    const posting = findNode<Record<string, unknown>>(nodes, "BlogPosting");
     expect(posting).toMatchObject({
       headline: p.title,
       description: p.description,
@@ -173,12 +178,12 @@ for (const p of BLOG_POSTS) {
       author: { "@type": "Person", name: BLOG_AUTHOR.name },
       publisher: { "@type": "Organization", name: "LaunchLoop" },
     });
-    expect(posting!.image).toMatch(SELF(`/og/${p.slug}`));
-    expect(posting!.mainEntityOfPage).toMatch(SELF(path));
-    const crumbs = nodes.find((n) => n["@type"] === "BreadcrumbList") as { itemListElement: { name: string; item: string }[] };
+    expect(posting.image).toMatch(SELF(`/og/${p.slug}`));
+    expect(posting.mainEntityOfPage).toMatch(SELF(path));
+    const crumbs = findNode<{ itemListElement: { name: string; item: string }[] }>(nodes, "BreadcrumbList");
     expect(crumbs.itemListElement.map((c) => c.name)).toEqual(["Home", "Blog", p.title]);
     expect(crumbs.itemListElement[2].item).toMatch(SELF(path));
-    const faq = nodes.find((n) => n["@type"] === "FAQPage") as { mainEntity: unknown[] };
+    const faq = findNode<{ mainEntity: unknown[] }>(nodes, "FAQPage");
     expect(faq.mainEntity.length).toBeGreaterThanOrEqual(4);
     await expect(page.locator("article #faq ~ div h3")).toHaveCount(faq.mainEntity.length);
 
