@@ -75,6 +75,7 @@ test("sitemap lists every indexable page once, with lastmod, and no redirecting 
     "/blog",
     "/blog/how-to-launch-on-product-hunt",
     "/blog/how-to-launch-on-indie-hackers",
+    "/blog/product-hunt-alternatives",
     "/privacy",
     "/terms",
   ];

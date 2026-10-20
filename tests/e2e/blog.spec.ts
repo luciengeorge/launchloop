@@ -59,6 +59,34 @@ const EXPECT: Record<string, { links: string[]; quotes: string[] }> = {
       "Our ranking algorithm rewards posts that generate discussion and have more comments.",
     ],
   },
+  "product-hunt-alternatives": {
+    links: [
+      "/how-to-write-a-show-hn-post",
+      "/show-hn-launch-checklist",
+      "/how-to-promote-on-reddit",
+      "/blog/how-to-launch-on-indie-hackers",
+      "/blog/how-to-launch-on-product-hunt",
+      "/product-hunt-launch-checklist",
+      "https://betalist.com/faq",
+      "https://devhunt.org/faq",
+      "https://news.ycombinator.com/showhn.html",
+      "https://www.uneed.best/how-it-works",
+      "https://help.peerlist.io/individual/launchpad/guidelines-faqs",
+      "https://fazier.com/submit",
+      "https://www.tinystartups.com/terms",
+      "https://microlaunch.net/premium",
+    ],
+    quotes: [
+      "All submissions are paid. There is no free submission option.",
+      "DevHunt is a launchpad for developer tools, built by developers.",
+      "Show HN is for something you've made that other people can play with.",
+      "Submitting is not scheduling.",
+      "Anyone with a Verified Peerlist profile can launch their products on Peerlist Launchpad.",
+      "Products rank over 1 month",
+      "Launching is free; Skip the queue (£29) puts you in the next Monday batch",
+      "Skip the queue £99",
+    ],
+  },
 };
 
 test("/blog is a real page now, not a redirect, with every post newest first and a Guides section", async ({ page, request }) => {
@@ -222,6 +250,19 @@ for (const p of BLOG_POSTS) {
     for (const quote of EXPECT[p.slug].quotes) await expect(body.locator("q", { hasText: quote }).first(), quote).toBeVisible();
   });
 }
+
+test("the alternatives post groups sites by fit, prices each one, and never lists LaunchLoop as a platform", async ({ page }) => {
+  await page.goto("/blog/product-hunt-alternatives");
+  for (const id of ["at-a-glance", "dev-tools", "early-stage", "general", "communities", "choosing"]) await expect(page.locator(`h2#${id}`)).toBeVisible();
+  const sites = ["DevHunt", "Show HN", "BetaList", "r/alphaandbetausers", "Uneed", "Fazier", "Tiny Startups", "Microlaunch", "Peerlist Launchpad", "Indie Hackers", "r/SideProject"];
+  const rows = page.locator("#at-a-glance + p + div table tbody tr");
+  await expect(rows.locator("td:first-child")).toHaveText(sites);
+  for (const id of ["devhunt", "show-hn", "betalist", "alphaandbetausers", "uneed", "fazier", "tiny-startups", "microlaunch", "peerlist", "indie-hackers", "sideproject"]) {
+    await expect(page.locator(`h3#${id}`)).toBeVisible();
+  }
+  await expect(page.locator("article h3", { hasText: "LaunchLoop" })).toHaveCount(0);
+  await expect(page.locator("article > div").first()).toContainText("LaunchLoop isn't a launch platform.");
+});
 
 test("the Product Hunt post hands the step-by-step to the checklist instead of repeating it", async ({ page }) => {
   const ph: BlogPost = BLOG_POSTS.find((p) => p.slug === "how-to-launch-on-product-hunt")!;

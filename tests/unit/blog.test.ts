@@ -72,6 +72,20 @@ describe("Product Hunt post", () => {
   });
 });
 
+describe("Product Hunt alternatives post", () => {
+  const p = post("product-hunt-alternatives");
+
+  it("targets both queries, is dated 22 October 2026 and doesn't echo the Product Hunt how-to", () => {
+    expect(fullTitle(p.metaTitle)).toBe("Product Hunt alternatives: where to launch · LaunchLoop");
+    expect(p.description).toMatch(/^Sites like Product Hunt/);
+    expect(p).toMatchObject({ published: "2026-10-22", updated: "2026-10-22" });
+    expect(blogPosts()[0].slug).toBe(p.slug);
+    const howTo = post("how-to-launch-on-product-hunt");
+    expect(p.metaTitle).not.toBe(howTo.metaTitle);
+    expect(p.description).not.toBe(howTo.description);
+  });
+});
+
 describe("blog pages", () => {
   it.each(BLOG_POSTS.map((p) => [p.slug, p] as const))("%s is an article at /blog/<slug> with its own /og/<slug> card", (slug, p) => {
     const page = postPage(p);
