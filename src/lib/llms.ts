@@ -1,4 +1,6 @@
+import { BLOG_AUTHOR, BLOG_FEED_PATH, blogPosts, postPath } from "@/lib/blog";
 import { GUIDES, guidePath } from "@/lib/guides";
+import { PAGES } from "@/lib/pages";
 import { LAUNCH_PROMO, PRODUCTS } from "@/lib/products";
 import { FAQ, KIT_CONTENTS, PREVIEW_LIMITS, SITE, kitPriceLabel, kitPriceText } from "@/lib/site";
 import { TOOLS } from "@/lib/tools";
@@ -42,6 +44,7 @@ The kit is delivered on a results page, as a ZIP download and by email.
 - [Ship Loop](${base}/ship-loop): what Ship Loop will do, and its free waitlist
 - [FAQ](${base}/faq): answers to common questions
 - [Guides](${base}/guides): every launch guide in one list
+- [Blog](${base}${PAGES.blog.path}): launch how-tos sourced from each platform's own rules, newest first ([RSS](${base}${BLOG_FEED_PATH}))
 - [Free tools](${base}/tools): every free tool in one list
 - [Privacy](${base}/privacy)
 - [Terms](${base}/terms)
@@ -53,6 +56,10 @@ ${TOOLS.map((t) => `- [${t.title}](${base}${t.path}): ${t.description}`).join("\
 ## Guides
 
 ${GUIDES.map((g) => `- [${g.title}](${base}${guidePath(g)}): ${g.description}`).join("\n")}
+
+## Blog
+
+${blogPosts().map((p) => `- [${p.title}](${base}${postPath(p)}) (published ${p.published}, by ${BLOG_AUTHOR.name}): ${p.description}`).join("\n")}
 `;
   const tail = full
     ? `
