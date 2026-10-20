@@ -170,6 +170,18 @@ describe("POST /api/kits rate limit", () => {
     expect((await post("203.0.113.55")).status).toBe(429);
   });
 
+  it("the day caps cache-hit refunds at 30: past that, even a fresh hour's cache hits count", async () => {
+    vi.mocked(createKit).mockImplementation(cachedKit as typeof createKit);
+    for (let hour = 0; hour < 3; hour++) {
+      vi.setSystemTime(new Date(Date.UTC(2026, 9, 18, hour, 10)));
+      for (let i = 0; i < 10; i++) expect((await post("203.0.113.58", "https://github.com/acme/cached")).status).toBe(201);
+    }
+    // All 30 were refunded, so the day's refunds are gone: from here each cache hit uses one of the hour's 5.
+    vi.setSystemTime(new Date("2026-10-18T03:10:00Z"));
+    for (let i = 0; i < 5; i++) expect((await post("203.0.113.58", "https://github.com/acme/cached")).status).toBe(201);
+    expect((await post("203.0.113.58", "https://github.com/acme/cached")).status).toBe(429);
+  });
+
   it("the 429 carries the visitor's newest unpaid preview, found from the anonymous-kits cookie", async () => {
     jar.anonKits = "kit_older_0000000000,kit_newest_000000000";
     vi.mocked(latestUnpaidKitId).mockResolvedValueOnce("kit_newest_000000000");

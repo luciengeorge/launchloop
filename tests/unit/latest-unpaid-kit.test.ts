@@ -11,7 +11,7 @@ const NOW = Date.parse("2026-10-20T10:00:00Z");
 const hoursAgo = (h: number) => new Date(NOW - h * 3600_000).toISOString();
 let mem: MemoryStore;
 
-const saveKit = (id: string, createdAt: string, paid = false) => mem.set(`kit:${id}`, { id, createdAt, paid });
+const saveKit = (id: string, createdAt: string, paid = false, ownerEmail?: string) => mem.set(`kit:${id}`, { id, createdAt, paid, ownerEmail });
 
 beforeEach(() => {
   mem = new MemoryStore();
@@ -39,8 +39,19 @@ describe("latestUnpaidKitId (the rate-limit box's 'Unlock my kit')", () => {
   it("signed in, also looks at the account's kits (the cookie isn't set for them)", async () => {
     await saveKit("kit_anon_00000000000", hoursAgo(4));
     await saveKit("kit_owned_0000000000", hoursAgo(2));
+    await saveKit("kit_owned_0000000000", hoursAgo(2), false, "me@example.com");
     await mem.sAdd("user:me@example.com:kits", "kit_owned_0000000000");
     expect(await latestUnpaidKitId(["kit_anon_00000000000"], "Me@Example.com")).toBe("kit_owned_0000000000");
     expect(await latestUnpaidKitId(["kit_anon_00000000000"])).toBe("kit_anon_00000000000");
+  });
+
+  it("never returns a cookie id that another account has claimed", async () => {
+    await saveKit("kit_mine_00000000000", hoursAgo(3), false, "me@example.com");
+    await saveKit("kit_theirs_000000000", hoursAgo(1), false, "someone@example.com");
+    const cookie = ["kit_mine_00000000000", "kit_theirs_000000000"];
+    expect(await latestUnpaidKitId(cookie, "me@example.com")).toBe("kit_mine_00000000000");
+    expect(await latestUnpaidKitId(["kit_theirs_000000000"], "me@example.com")).toBeNull();
+    // Signed out, only unowned kits qualify, even ones this browser made before they were claimed.
+    expect(await latestUnpaidKitId(cookie)).toBeNull();
   });
 });
