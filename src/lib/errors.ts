@@ -57,6 +57,8 @@ export interface KitErrorBody {
   fix: string;
   /** Only on rate_limited: when the visitor's limit resets, also sent as the Retry-After header. */
   retryAfterSeconds?: number;
+  /** Only on rate_limited: the visitor's newest unpaid preview, for the "Unlock my kit" button. */
+  kitId?: string;
 }
 
 export const kitErrorBody = (code: KitErrorCode, title?: string): KitErrorBody => ({ error: title ?? KIT_ERRORS[code].title, code, fix: KIT_ERRORS[code].fix });

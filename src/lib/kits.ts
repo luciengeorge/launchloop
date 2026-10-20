@@ -193,6 +193,19 @@ export async function listUserKits(email: string): Promise<Kit[]> {
   return kits.filter((k): k is Kit => !!k).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
+const RECENT_PREVIEW_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * The newest unpaid preview from the last day that this visitor made: from the anonymous-kits cookie
+ * (newest last) or, signed in, their account. For the free-preview limit's "Unlock my kit" button.
+ */
+export async function latestUnpaidKitId(anonIds: string[], email?: string): Promise<string | null> {
+  const [anon, owned] = await Promise.all([Promise.all(anonIds.slice(-5).map(getKit)), email ? listUserKits(email) : []]);
+  const since = Date.now() - RECENT_PREVIEW_MS;
+  const recent = [...anon, ...owned].filter((k): k is Kit => !!k && !k.paid && Date.parse(k.createdAt) >= since);
+  return recent.sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0]?.id ?? null;
+}
+
 /** Claims anonymous kits made in this browser. Kits already owned by another account are skipped. */
 export async function claimKits(email: string, kitIds: string[]): Promise<string[]> {
   const owner = normaliseEmail(email);

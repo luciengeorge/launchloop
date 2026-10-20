@@ -64,8 +64,8 @@ const REFUNDS_PER_HOUR = Number(process.env.PREVIEW_REFUNDS_PER_HOUR ?? 10);
 const REFUNDS_PER_DAY = Number(process.env.PREVIEW_REFUNDS_PER_DAY ?? 30);
 
 /**
- * How many failed runs an IP gets back. Each one still cost a GitHub or site fetch, so past this a
- * failure counts like a preview and one IP can't drain the shared GitHub quota with missing repos.
+ * How many failed or cached runs an IP gets back. Each one still cost a GitHub or site fetch, so past this
+ * it counts like a preview and one IP can't drain the shared GitHub quota with missing repos.
  */
 function refundAllowance(ip: string) {
   return sharedRateLimit(`kits-refunds:${ip}`, [
@@ -78,7 +78,7 @@ function refundAllowance(ip: string) {
 export interface PreviewSlot {
   /**
    * Gives the slot back, for a run that ended before any model call completed (a private or missing
-   * repo, an unreachable site, the AI down). Within the refund allowance only. Never throws.
+   * repo, an unreachable site, the AI down) or was served from the dedupe cache. Within the refund allowance only. Never throws.
    */
   refund(): Promise<void>;
 }
@@ -128,8 +128,9 @@ const busy = () => Response.json(kitErrorBody("busy"), { status: 503 });
  * when the request is refused, or the slot it took to go ahead. Paid generation never goes through here.
  *
  * - The input is validated before anything is counted, so a malformed URL never uses up a slot.
- * - Inputs that fail later (a private or missing repo, an unreachable site) are refunded by the
- *   caller through `slot.refund()`, up to the refund allowance (see refundAllowance).
+ * - Inputs that fail later (a private or missing repo, an unreachable site) and previews served from
+ *   the dedupe cache are refunded by the caller through `slot.refund()`, up to the refund allowance
+ *   (see refundAllowance).
  * - A refused request (429, or busy from the global cap) gives its per-IP slot straight back, so
  *   retrying while limited doesn't eat into the day's budget.
  * - The sample app is exempt from both counters: it's served from the 24-hour dedupe cache.
