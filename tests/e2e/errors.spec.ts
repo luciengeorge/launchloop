@@ -120,8 +120,55 @@ test("rate limited previews say when to try again", async ({ page }) => {
   const alert = page.getByTestId("kit-error");
   await expect(alert).toHaveAttribute("data-code", "rate_limited");
   await expect(alert).toContainText("You've used your free previews for now.");
-  await expect(alert).toContainText("Try again in 23 min");
+  await expect(alert).toContainText("You can run 5 an hour and 20 a day.");
   await expect(alert).not.toHaveClass(/text-destructive/);
+  // The wait lives only in the countdown, outside the alert, so screen readers don't hear it every minute.
+  await expect(alert).not.toContainText("Try again in");
+  await expect(alert.getByTestId("rate-limit-actions")).toHaveCount(0);
+  const actions = page.getByTestId("rate-limit-actions");
+  // No preview to unlock: the way forward is the pricing page, and the retry waits for the reset.
+  await expect(actions.getByRole("link", { name: /^See the Launch Kit, .*£\d+$/ })).toHaveAttribute("href", "/pricing");
+  const retry = actions.getByRole("button", { name: "Try again in 23 min" });
+  await expect(retry).toBeDisabled();
+  await expect(retry).toHaveAttribute("aria-disabled", "true");
+  await retry.focus();
+  await expect(retry).toBeFocused();
+});
+
+test("rate limited with a preview from this browser: 'Unlock my kit' opens it, and the retry comes back at the reset", async ({ page }) => {
+  const kitId = "kit_limitedPreview01";
+  let posts = 0;
+  await page.route("**/api/kits", (route) => {
+    posts += 1;
+    return route.fulfill({ status: 429, headers: { "Retry-After": "2" }, json: { ...rateLimitedBody(2), kitId } });
+  });
+  await page.setViewportSize({ width: 375, height: 800 });
+  await page.goto("/");
+  await page.getByLabel("GitHub repo or live site URL").fill("github.com/acme/app");
+  await page.getByRole("button", { name: "Get my free preview" }).first().click();
+  const actions = page.getByTestId("rate-limit-actions");
+  const unlock = actions.getByRole("link", { name: /^Unlock my kit, .*£\d+$/ });
+  await expect(unlock).toHaveAttribute("href", `/kit/${kitId}?unlock=1`);
+  // Both actions fit a 375px screen.
+  for (const action of [unlock, actions.getByTestId("rate-limit-retry")]) {
+    const box = (await action.boundingBox())!;
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(375);
+  }
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(375);
+
+  const retry = actions.getByRole("button", { name: /^Try again/ });
+  const status = page.getByTestId("rate-limit-status");
+  await expect(retry).toBeDisabled();
+  await expect(status).toHaveText("");
+  // Clicking while it counts down does nothing.
+  await retry.click({ force: true });
+  await expect(retry).toHaveText("Try again", { timeout: 5_000 });
+  await expect(status).toHaveText("You can try again now");
+  await expect(status).toHaveAttribute("aria-live", "polite");
+  expect(posts).toBe(1);
+  await retry.click();
+  await expect.poll(() => posts).toBe(2);
 });
 
 test("busy (global cap or kill switch) shows the friendly notice, not an error", async ({ page }) => {

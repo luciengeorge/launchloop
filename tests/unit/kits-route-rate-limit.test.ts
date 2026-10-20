@@ -5,8 +5,14 @@ const kv = vi.hoisted(() => ({ store: undefined as unknown }));
 vi.mock("@/lib/store", () => ({ store: () => kv.store }));
 vi.mock("@/lib/observability", () => ({ captureException: vi.fn(), captureExceptionThrottled: vi.fn(), captureMessage: vi.fn() }));
 vi.mock("next/server", () => ({ after: vi.fn() }));
-vi.mock("next/headers", () => ({ cookies: async () => ({ get: () => undefined, set: vi.fn() }) }));
-vi.mock("@/lib/auth", () => ({ ANON_KITS_COOKIE: "ll_anon_kits", getSession: async () => null, readAnonKits: () => [], secureCookies: () => false }));
+const jar = vi.hoisted(() => ({ anonKits: undefined as string | undefined }));
+vi.mock("next/headers", () => ({ cookies: async () => ({ get: () => (jar.anonKits ? { value: jar.anonKits } : undefined), set: vi.fn() }) }));
+vi.mock("@/lib/auth", () => ({
+  ANON_KITS_COOKIE: "ll_anon_kits",
+  getSession: async () => null,
+  readAnonKits: (v?: string) => (v ? v.split(",") : []),
+  secureCookies: () => false,
+}));
 vi.mock("@/lib/generation", () => ({ speculateDraft: vi.fn(async () => "capped") }));
 const okKit = async (_url: string, _onStep: unknown, opts: { id: string }) => ({ id: opts.id });
 vi.mock("@/lib/kits", () => ({
@@ -14,10 +20,11 @@ vi.mock("@/lib/kits", () => ({
   createKit: vi.fn(okKit),
   markKitPending: vi.fn(async () => {}),
   markKitFailed: vi.fn(async () => {}),
+  latestUnpaidKitId: vi.fn(async () => null),
 }));
 
 const { captureExceptionThrottled } = await import("@/lib/observability");
-const { createKit } = await import("@/lib/kits");
+const { createKit, latestUnpaidKitId } = await import("@/lib/kits");
 const { IngestError } = await import("@/lib/ingest");
 const { LlmError } = await import("@/lib/llm");
 const { POST } = await import("@/app/api/kits/route");
@@ -51,11 +58,18 @@ const failingKit = async (url: string, onStep: (step: string) => void = () => {}
   return { id: opts.id };
 };
 
+/** Like createKit on a dedupe hit: the same steps as a fresh preview, then a kit `reusedFrom` the original, with no model call. */
+const cachedKit = async (url: string, onStep: (step: string) => void = () => {}, opts: { id: string }) => {
+  for (const step of ["repo", "brief", "copy"]) onStep(step);
+  return url.includes("cached") ? { id: opts.id, reusedFrom: "kit_original_000000" } : { id: opts.id };
+};
+
 let mem: MemoryStore;
 
 beforeEach(() => {
   mem = new MemoryStore();
   kv.store = mem;
+  jar.anonKits = undefined;
   vi.useFakeTimers({ toFake: ["Date"] });
   // 10 minutes into a UTC day, so the hourly and daily windows line up predictably.
   vi.setSystemTime(new Date("2026-10-18T00:10:00Z"));
@@ -137,6 +151,55 @@ describe("POST /api/kits rate limit", () => {
     vi.mocked(createKit).mockImplementation(failingKit as typeof createKit);
     for (let i = 0; i < 5; i++) expect((await post("203.0.113.53", "https://github.com/acme/after-brief")).status).toBe(503);
     expect((await post("203.0.113.53")).status).toBe(429);
+  });
+
+  it("previewing the same repo at the same commit again (a dedupe cache hit, no model call) doesn't count", async () => {
+    vi.mocked(createKit).mockImplementation(cachedKit as typeof createKit);
+    for (let i = 0; i < 4; i++) {
+      expect((await post("203.0.113.54", "https://github.com/acme/cached")).status).toBe(201);
+      const streamed = await post("203.0.113.54", "https://github.com/acme/cached", "application/x-ndjson");
+      expect(await streamed.text()).toContain('"type":"done"');
+    }
+    for (let i = 0; i < 5; i++) expect((await post("203.0.113.54")).status).toBe(201);
+    expect((await post("203.0.113.54")).status).toBe(429);
+  });
+
+  it("past the refund allowance (10 an hour), cache hits count like previews, so one IP can't hammer GitHub", async () => {
+    vi.mocked(createKit).mockImplementation(cachedKit as typeof createKit);
+    for (let i = 0; i < 15; i++) expect((await post("203.0.113.55", "https://github.com/acme/cached")).status).toBe(201);
+    expect((await post("203.0.113.55")).status).toBe(429);
+  });
+
+  it("the day caps cache-hit refunds at 30: past that, even a fresh hour's cache hits count", async () => {
+    vi.mocked(createKit).mockImplementation(cachedKit as typeof createKit);
+    for (let hour = 0; hour < 3; hour++) {
+      vi.setSystemTime(new Date(Date.UTC(2026, 9, 18, hour, 10)));
+      for (let i = 0; i < 10; i++) expect((await post("203.0.113.58", "https://github.com/acme/cached")).status).toBe(201);
+    }
+    // All 30 were refunded, so the day's refunds are gone: from here each cache hit uses one of the hour's 5.
+    vi.setSystemTime(new Date("2026-10-18T03:10:00Z"));
+    for (let i = 0; i < 5; i++) expect((await post("203.0.113.58", "https://github.com/acme/cached")).status).toBe(201);
+    expect((await post("203.0.113.58", "https://github.com/acme/cached")).status).toBe(429);
+  });
+
+  it("the 429 carries the visitor's newest unpaid preview, found from the anonymous-kits cookie", async () => {
+    jar.anonKits = "kit_older_0000000000,kit_newest_000000000";
+    vi.mocked(latestUnpaidKitId).mockResolvedValueOnce("kit_newest_000000000");
+    for (let i = 0; i < 5; i++) expect((await post("203.0.113.56")).status).toBe(201);
+    const res = await post("203.0.113.56");
+    expect(res.status).toBe(429);
+    expect(await res.json()).toMatchObject({ code: "rate_limited", retryAfterSeconds: 50 * 60, kitId: "kit_newest_000000000" });
+    expect(res.headers.get("Retry-After")).toBe("3000");
+    expect(latestUnpaidKitId).toHaveBeenCalledWith(["kit_older_0000000000", "kit_newest_000000000"], undefined);
+  });
+
+  it("without a recent unpaid preview the 429 has no kitId, and a failed lookup still sends the 429", async () => {
+    for (let i = 0; i < 5; i++) expect((await post("203.0.113.57")).status).toBe(201);
+    expect(await (await post("203.0.113.57")).json()).not.toHaveProperty("kitId");
+    vi.mocked(latestUnpaidKitId).mockRejectedValueOnce(new Error("store down"));
+    const res = await post("203.0.113.57");
+    expect(res.status).toBe(429);
+    expect(await res.json()).not.toHaveProperty("kitId");
   });
 
   it("doesn't fail open when Upstash errors: 503 busy, no generation, reported to Sentry", async () => {
