@@ -98,6 +98,20 @@ describe("safeFetch address validation", () => {
     expect(init.headers["User-Agent"]).toMatch(/^LaunchLoopBot\//);
   });
 
+  it("sends origin-bound headers to the first origin only, never across a redirect", async () => {
+    dns.lookup.mockResolvedValue(resolvesTo(PUBLIC_V4));
+    undiciFetch.fetch
+      .mockResolvedValueOnce(new Response(null, { status: 301, headers: { location: "/moved" } }))
+      .mockResolvedValueOnce(new Response(null, { status: 302, headers: { location: "https://cdn.example.net/file" } }));
+    await safeFetch("https://api.example.com/start", { headers: { "X-Api-Version": "1" }, originHeaders: { Authorization: "Bearer secret" } });
+    const headers = undiciFetch.fetch.mock.calls.map(([target, init]) => [String(target), init.headers.Authorization, init.headers["X-Api-Version"]]);
+    expect(headers).toEqual([
+      ["https://api.example.com/start", "Bearer secret", "1"],
+      ["https://api.example.com/moved", "Bearer secret", "1"],
+      ["https://cdn.example.net/file", undefined, "1"],
+    ]);
+  });
+
   it("fetches an ordinary https site by hostname", async () => {
     dns.lookup.mockResolvedValue(resolvesTo(PUBLIC_V4, "2606:4700::1111"));
     const page = await safeFetch("https://example.com/");

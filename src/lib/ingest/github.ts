@@ -22,6 +22,8 @@ export interface RepoData {
   commits: { message: string; date: string }[];
   /** Latest commit on the default branch, used to dedupe identical repo states. */
   headSha?: string;
+  /** The owner's avatar, only when the owner is an organisation (a person's avatar is their face, not a logo). */
+  orgAvatarUrl?: string;
 }
 
 export interface PackageJson {
@@ -48,14 +50,17 @@ export function parseGitHubUrl(input: string): { owner: string; name: string } |
   return { owner: m[1], name: m[2] };
 }
 
+export const githubApiUrl = (path: string) => `${process.env.GITHUB_API_URL ?? "https://api.github.com"}${path}`;
+export const githubAuthHeaders = (): Record<string, string> => (env.githubToken ? { Authorization: `Bearer ${env.githubToken}` } : {});
+
 export async function gh(path: string, accept = "application/vnd.github+json", signal: AbortSignal = AbortSignal.timeout(8000)): Promise<Response> {
   const headers: Record<string, string> = {
     Accept: accept,
     "User-Agent": USER_AGENT,
     "X-GitHub-Api-Version": "2022-11-28",
+    ...githubAuthHeaders(),
   };
-  if (env.githubToken) headers.Authorization = `Bearer ${env.githubToken}`;
-  return fetch(`${process.env.GITHUB_API_URL ?? "https://api.github.com"}${path}`, { headers, signal, cache: "no-store" });
+  return fetch(githubApiUrl(path), { headers, signal, cache: "no-store" });
 }
 
 async function raw(owner: string, name: string, file: string): Promise<string | undefined> {
@@ -116,8 +121,10 @@ export async function fetchRepo(owner: string, name: string, warnings: string[])
     language?: string | null;
     license?: { spdx_id?: string } | null;
     html_url: string;
+    owner?: { type?: string; avatar_url?: string };
   };
   repo.url = info.html_url;
+  if (info.owner?.type === "Organization" && info.owner.avatar_url) repo.orgAvatarUrl = info.owner.avatar_url;
   repo.description = info.description ?? undefined;
   repo.homepage = info.homepage || undefined;
   repo.stars = info.stargazers_count;

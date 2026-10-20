@@ -1,7 +1,7 @@
 import "server-only";
 import { phase } from "../kit-tracing";
 import { captureException } from "../observability";
-import type { Palette, SourceSummary } from "../schema";
+import type { KitVisuals, Palette, SourceSummary } from "../schema";
 import { DEFAULT_PALETTE, extractPalette } from "./colors";
 import { fetchRepo, parseGitHubUrl, type RepoData } from "./github";
 import { liveHomepage } from "./homepage";
@@ -9,6 +9,7 @@ import { IngestError } from "./safe-fetch";
 import { fetchRepoPalette } from "./repo-palette";
 import { SAMPLE_INPUT, sampleRepo, sampleSite } from "./sample";
 import { fetchSite, type SiteData } from "./site";
+import { discoverVisuals } from "./visuals";
 
 export { IngestError } from "./safe-fetch";
 
@@ -18,6 +19,7 @@ export interface IngestResult {
   repo?: RepoData;
   site?: SiteData;
   palette: Palette;
+  visuals: KitVisuals;
   source: SourceSummary;
 }
 
@@ -67,6 +69,7 @@ export async function ingest(rawInput: string, onStep: (step: IngestStep) => voi
       repo: sampleRepo,
       site: sampleSite,
       palette: extractPalette({ css: sampleSite.css, themeColor: sampleSite.themeColor }),
+      visuals: {},
       source: summarise(input, sampleRepo, sampleSite, warnings),
     };
   }
@@ -104,10 +107,16 @@ export async function ingest(rawInput: string, onStep: (step: IngestStep) => voi
     }
   }
 
-  let palette = site ? extractPalette({ css: site.css, themeColor: site.themeColor }) : DEFAULT_PALETTE;
-  if (palette.source === "default" && repo) palette = await tracedRepoPalette(repo.owner, repo.name);
-  return { primary: gh ? "repo" : "site", repo, site, palette, source: summarise(input, repo, site, warnings) };
+  const sitePalette = site ? extractPalette({ css: site.css, themeColor: site.themeColor }) : DEFAULT_PALETTE;
+  const [palette, visuals] = await Promise.all([
+    sitePalette.source === "default" && repo ? tracedRepoPalette(repo.owner, repo.name) : sitePalette,
+    tracedVisuals(repo, site),
+  ]);
+  return { primary: gh ? "repo" : "site", repo, site, palette, visuals, source: summarise(input, repo, site, warnings) };
 }
+
+const tracedVisuals = (repo: RepoData | undefined, site: SiteData | undefined) =>
+  phase("ingest.visuals", "http.client", { "kit.repo": repo ? `${repo.owner}/${repo.name}` : "[none]" }, () => discoverVisuals(repo, site));
 
 const tracedRepoPalette = (owner: string, name: string) =>
   phase("ingest.repo_palette", "http.client.github", { "kit.repo": `${owner}/${name}` }, () => fetchRepoPalette(owner, name));
