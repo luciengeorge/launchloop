@@ -75,7 +75,7 @@ export default function ShowHnPostGuidePage() {
 
       <h2 id="title">The title</h2>
       <p>
-        The rule itself is one line in the guidelines: <q>To post, submit a story whose title begins with &quot;Show HN&quot;.</q> Everything after those two words is up to
+        The rule itself is one line in the Show HN guidelines: <q>To post, submit a story whose title begins with &quot;Show HN&quot;.</q> Everything after those two words is up to
         you, within the general <a href={SRC.guidelines}>HN guidelines</a>.
       </p>
       <h3>Say what it is, plainly</h3>
