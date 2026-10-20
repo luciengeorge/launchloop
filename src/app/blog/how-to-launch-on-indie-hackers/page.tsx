@@ -26,7 +26,7 @@ const SRC = {
 const FAQ: FaqItem[] = [
   {
     q: "Does Indie Hackers allow self-promotion?",
-    a: "It publishes no rule either way. There is no public guidelines page; the terms of service ban running spam and forbid posting anything Indie Hackers or its moderators consider inappropriate. Founder Courtland Allen's advice is to share lessons and questions rather than announcements, and to put any link at the end of the post.",
+    a: "It publishes no rule either way. There is no public guidelines page; the terms of service ban running spam, forbid posting anything Indie Hackers or its moderators consider inappropriate, and limit use of the site to personal, non-commercial use without saying how that applies to founders posting their own products. Founder Courtland Allen's advice is to share lessons and questions rather than announcements, and to put any link at the end of the post.",
   },
   {
     q: "Where do I post a product launch on Indie Hackers?",
@@ -34,11 +34,11 @@ const FAQ: FaqItem[] = [
   },
   {
     q: "What makes a good Indie Hackers post title?",
-    a: "Something close to a full sentence that says what the post is: the question, the opinion or the advice. Courtland Allen's 2020 tips say to make it useful to others and to leave your company name out of the title unless the company is extremely well known.",
+    a: "Courtland Allen's tips from 2020 suggest something close to a full sentence that says what the post is: the question, the opinion or the advice. The same tips say to make it useful to others and to leave your company name out of the title unless the company is extremely well known.",
   },
   {
     q: "How long should an Indie Hackers post be?",
-    a: "As short as it can be. The 2020 tips say to put the important part first and to write as if nobody will read past the first five sentences. For a longer post, use Markdown headings and lists so it can be skimmed, and leave blank lines between paragraphs.",
+    a: "As short as it can be, according to Courtland Allen's tips from 2019 and 2020. The 2020 tips say to put the important part first and to write as if nobody will read past the first five sentences. For a longer post, they suggest Markdown headings and lists so it can be skimmed, and blank lines between paragraphs.",
   },
   {
     q: "Is r/indiehackers the same as Indie Hackers?",
@@ -98,7 +98,7 @@ export default function IndieHackersLaunchPostPage() {
         <q>It&apos;s also worth thinking about what makes your post interesting to other IHers.</q>
       </p>
       <p>
-        The 2020 tips also suggest posting inside a relevant group. When this post was checked, indiehackers.com/groups returned a 404, so that advice may be out of date.
+        The 2020 tips also suggest posting inside a relevant group. indiehackers.com/groups no longer loads, so that advice is likely out of date.
       </p>
       <h3>Not the subreddit</h3>
       <p>
@@ -118,11 +118,17 @@ export default function IndieHackersLaunchPostPage() {
           what counts as inappropriate is their call.
         </li>
         <li>
-          <strong>Link-only posts don&apos;t work.</strong> From the 2019 tips: <q>If you&apos;re just posting links to your blog, you won&apos;t find a lot of success.</q> And:{" "}
+          <strong>The terms also limit commercial use.</strong> They say{" "}
+          <q>You will only use the Services for your own internal, personal, non-commercial use, and not on behalf of or for the benefit of any third party, and only in a
+          manner that complies with all laws that apply to you.</q> They don&apos;t say how that applies to founders posting about their own products, while Courtland
+          Allen&apos;s posts encourage product pages and milestones. If you are unsure, the terms give contact@indiehackers.com for questions.
+        </li>
+        <li>
+          <strong>Link-only posts don&apos;t work (2019 tip).</strong> From the 2019 tips: <q>If you&apos;re just posting links to your blog, you won&apos;t find a lot of success.</q> And:{" "}
           <q>you should put the useful info in the tweet itself, not in a link to a blog post. Same on Indie Hackers.</q>
         </li>
         <li>
-          <strong>Problem first, product later.</strong> <q>State their problems first, and put your solution/question/offer later.</q>
+          <strong>Problem first, product later (2019 tip).</strong> <q>State their problems first, and put your solution/question/offer later.</q>
         </li>
         <li>
           <strong>Wins are welcome, with the how.</strong> When a member complained in the comments about self-promotion, Courtland Allen replied in June 2019 that{" "}
@@ -143,20 +149,20 @@ export default function IndieHackersLaunchPostPage() {
       <h3>The title</h3>
       <ul>
         <li>
-          <strong>Say what the post is.</strong> The 2020 tips: <q>Describe your post in the title using something close to a full sentence.</q> And:{" "}
+          <strong>Say what the post is (2020 tip).</strong> The 2020 tips: <q>Describe your post in the title using something close to a full sentence.</q> And:{" "}
           <q>If you&apos;re asking a question, put your question in the title. If you&apos;re giving an opinion, put that in the title. If you&apos;re sharing advice, state the
           advice. If you&apos;re looking for feedback, say so.</q>
         </li>
         <li>
-          <strong>Make it useful to someone else.</strong> His good example is <q>How I figured out direct sales</q>; his bad one is &ldquo;Progress report #2933&rdquo;. Other
+          <strong>Make it useful to someone else (2020 tip).</strong> His good example is <q>How I figured out direct sales</q>; his bad one is &ldquo;Progress report #2933&rdquo;. Other
           bad titles he lists include &ldquo;Promo&rdquo; and &ldquo;My app&rdquo;.
         </li>
         <li>
-          <strong>Leave the company name out.</strong> <q>unless you have an extremely popular company with a recognizable name, it&apos;s almost never helpful to put your
+          <strong>Leave the company name out (2020 tip).</strong> <q>unless you have an extremely popular company with a recognizable name, it&apos;s almost never helpful to put your
           company&apos;s name in the title of your post.</q>
         </li>
         <li>
-          <strong>Consider a question.</strong> From 2019: <q>Posts with questions in the title are more successful than posts without.</q>
+          <strong>Consider a question (2019 tip).</strong> <q>Posts with questions in the title are more successful than posts without.</q>
         </li>
       </ul>
       <p>For a made-up product, here is the difference:</p>
@@ -168,19 +174,19 @@ export default function IndieHackersLaunchPostPage() {
       <h3>The body</h3>
       <ul>
         <li>
-          <strong>Lead with the interesting part.</strong> The 2020 tips: <q>Write as if nobody&apos;s going to read past the first 5 sentences, because in many cases, they
+          <strong>Lead with the interesting part (2019 and 2020 tips).</strong> The 2020 tips: <q>Write as if nobody&apos;s going to read past the first 5 sentences, because in many cases, they
           won&apos;t.</q> The 2019 tips: <q>You should start offering value in your post in the first few sentences.</q>
         </li>
         <li>
-          <strong>Keep it short, or make it skimmable.</strong> <q>If someone opens up your posts and sees a giant wall of text, they&apos;re unlikely to engage</q>. If it has to
+          <strong>Keep it short, or make it skimmable (2019 and 2020 tips).</strong> <q>If someone opens up your posts and sees a giant wall of text, they&apos;re unlikely to engage</q>. If it has to
           be long, <q>Indie Hackers supports Markdown</q>, so use headings and lists, and <q>please, please, please put blank lines between them.</q>
         </li>
         <li>
-          <strong>Give enough context to answer.</strong> In the comments on the 2019 tips, a member added that a request for help still needs enough backstory for people to
+          <strong>Give enough context to answer (2019 comment).</strong> In the comments on the 2019 tips, a member added that a request for help still needs enough backstory for people to
           give a useful answer. Courtland Allen replied: <q>Agreed, good point.</q>
         </li>
         <li>
-          <strong>End with one clear ask.</strong> <q>If you have a question, put it at the end on its own line with a clear question mark. If you have a link, again, put it at
+          <strong>End with one clear ask (2019 tip).</strong> <q>If you have a question, put it at the end on its own line with a clear question mark. If you have a link, again, put it at
           the end in its own paragraph.</q>
         </li>
       </ul>
@@ -197,18 +203,18 @@ export default function IndieHackersLaunchPostPage() {
       <h2 id="replies">Replying, and after you post</h2>
       <ul>
         <li>
-          <strong>Comments are what lift a post.</strong> The 2019 tips: <q>Our ranking algorithm rewards posts that generate discussion and have more comments.</q> The 2020
-          tips: <q>Indie Hackers rewards posts that generate the most discussion, because we want more people to see the best stuff.</q> Answer every comment with something
-          specific, and ask a follow-up question when it helps.
+          <strong>Comments lifted posts, according to the 2019 and 2020 tips.</strong> The 2019 tips: <q>Our ranking algorithm rewards posts that generate discussion and have more comments.</q> The 2020
+          tips: <q>Indie Hackers rewards posts that generate the most discussion, because we want more people to see the best stuff.</q> Indie Hackers&apos; public pages don&apos;t say how ranking works today, but
+          answering every comment with something specific is good practice either way.
         </li>
         <li>
-          <strong>Share it elsewhere.</strong> <q>Also, don&apos;t be shy about sharing posts on Twitter or with colleagues.</q>
+          <strong>Share it elsewhere (2020 tip).</strong> <q>Also, don&apos;t be shy about sharing posts on Twitter or with colleagues.</q>
         </li>
         <li>
-          <strong>Keep posting milestones.</strong> The 2019 tip was to post them <q>on a regular basis</q>, with what you learned each time.
+          <strong>Keep posting milestones (2019 tip).</strong> The 2019 tip was to post them <q>on a regular basis</q>, with what you learned each time.
         </li>
         <li>
-          <strong>Try again.</strong> <q>If at first you don&apos;t succeed, there&apos;s no law against coming back to try again.</q>
+          <strong>Try again (2019 tip).</strong> <q>If at first you don&apos;t succeed, there&apos;s no law against coming back to try again.</q>
         </li>
       </ul>
 
@@ -234,8 +240,8 @@ export default function IndieHackersLaunchPostPage() {
 
       <h2 id="sources">Sources</h2>
       <p>
-        Checked as of October 2026. Every quote on this page was read on 20 October 2026: the Indie Hackers posts on indiehackers.com, and the terms of service from the
-        Internet Archive&apos;s copy of 29 September 2026, because indiehackers.com showed a security check instead of the page. Most of this advice is from 2019 and 2020, and
+        Checked as of October 2026. Every quote on this page was read on indiehackers.com on 20 October 2026, apart from one line from Product Hunt&apos;s launch guide.
+        Most of this advice is from 2019 and 2020, and
         Indie Hackers has changed since, so treat it as the founder&apos;s guidance at the time.
       </p>
       <ul>

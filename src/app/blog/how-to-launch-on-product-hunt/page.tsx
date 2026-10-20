@@ -299,31 +299,24 @@ export default function ProductHuntLaunchPostPage() {
 
       <h2 id="listing">What the listing needs</h2>
       <p>
-        The <a href={SRC.howToPost}>How to post a product</a> article lists every field, and the launch preparation page gives advice for each. The ones that decide how your
-        launch reads:
+        The name, tagline, description, topics, thumbnail, video and maker comment are covered in the checklist&apos;s{" "}
+        <Link href="/product-hunt-launch-checklist#the-listing">Write the listing</Link> and <Link href="/product-hunt-launch-checklist#images">Prepare the images</Link>{" "}
+        sections, and the tagline has its own guide: <Link href="/how-to-write-a-product-hunt-tagline">how to write a Product Hunt tagline</Link>. Product Hunt&apos;s{" "}
+        <a href={SRC.howToPost}>How to post a product</a> article and launch preparation page add a few rules the checklist doesn&apos;t cover:
       </p>
       <ul>
         <li>
-          <strong>Name.</strong> <q>Only the product&apos;s name, no description or emojis (unless it is a part of the name) in this part.</q>
+          <strong>Two images or more.</strong> <q>The gallery will need 2+ images before it is viewable.</q>
         </li>
         <li>
-          <strong>Tagline.</strong> The Launch Guide asks for <q>A name and tagline that grab attention (tagline caps at 60 characters)</q>. Writing it is its own job, covered in{" "}
-          <Link href="/how-to-write-a-product-hunt-tagline">how to write a Product Hunt tagline</Link>; the <Link href={TAGLINE_CHECKER.path}>tagline checker</Link> counts the
-          characters.
+          <strong>YouTube only.</strong> <q>For videos, only YouTube links are supported.</q>
         </li>
         <li>
-          <strong>Description.</strong> The Launch Guide asks for <q>A short, plain-language description of what you built (260 characters max)</q>, and the help center article
-          agrees on 260. The older launch preparation page still says <q>max 500 characters</q>, so write to 260.
+          <strong>No shortened or tracking links.</strong> <q>Shortened links (e.g. bit.ly) and track links (e.g. Google UTMs) are not accepted.</q>
         </li>
         <li>
-          <strong>Thumbnail and gallery.</strong> For the thumbnail, <q>It is best to use an image with square dimensions. We recommend 240x240.</q> For the gallery,{" "}
-          <q>The gallery will need 2+ images before it is viewable.</q> The Launch Guide asks for <q>images or GIFs that show the product in use</q>.
-        </li>
-        <li>
-          <strong>Video.</strong> Optional. <q>For videos, only YouTube links are supported.</q>
-        </li>
-        <li>
-          <strong>Topics.</strong> <q>Up to three topics that fit your product</q>, in the Launch Guide&apos;s words. The launch preparation page calls them launch tags.
+          <strong>Linking straight to the product is fine.</strong> On the myth that direct links are penalised, Product Hunt says:{" "}
+          <q>There is no penalty for linking directly to your product, in actuality, we encourage it!</q>
         </li>
         <li>
           <strong>Pricing.</strong> <q>Broadly, the three options are: free, paid, and paid (with a free trial or plan).</q>
@@ -331,17 +324,6 @@ export default function ProductHuntLaunchPostPage() {
         <li>
           <strong>Shoutouts.</strong> The Launch Guide suggests <q>Shoutouts to the tools that helped you build it (in the Shoutouts field)</q>, and the launch preparation page
           notes <q>You only get three shoutouts per product launch</q>. If you built with Cursor, Lovable, Bolt or v0, this is where to credit them.
-        </li>
-        <li>
-          <strong>Link.</strong> <q>Shortened links (e.g. bit.ly) and track links (e.g. Google UTMs) are not accepted.</q> And on the myth that direct links are penalised:{" "}
-          <q>There is no penalty for linking directly to your product, in actuality, we encourage it!</q>
-        </li>
-        <li>
-          <strong>First comment.</strong> The Launch Guide asks you to{" "}
-          <q>write a genuine first comment that introduces your product, your team, what makes it unique, and the story behind the build.</q> and says{" "}
-          <q>This is your Maker comment, and it sets the tone for the whole conversation on your launch.</q> The launch preparation page asks you to{" "}
-          <q>Ask for feedback (NOT upvotes)</q>, and on tone: <q>Marketing-speak doesn&apos;t usually resonate very well either.</q> It also gives a figure:{" "}
-          <q>70% of products that achieved Product of the Day, Week, or Month included a first comment by the maker.</q>
         </li>
       </ul>
 
@@ -411,7 +393,7 @@ export default function ProductHuntLaunchPostPage() {
       <h2 id="sources">Sources</h2>
       <p>
         Checked as of October 2026. Every quote on this page was read on Product Hunt&apos;s help center and on producthunt.com on 20 October 2026. Product Hunt&apos;s pages
-        don&apos;t always agree with each other (the description limit is one example), and they change without notice, so check the links before you launch.
+        don&apos;t always agree with each other, and they change without notice, so check the links before you launch.
       </p>
       <ul>
         <li><a href={SRC.launchGuide}>Launch Guide</a>, Product Hunt Help Center</li>

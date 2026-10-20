@@ -17,6 +17,8 @@ Targets "how to launch on product hunt" and "launching on product hunt". No keyw
 
 An earlier draft had a pre-submit list and a first-comment outline. Both were removed after review because the checklist already has a listing section, a maker comment item and launch-day steps.
 
+Site QA review (GO with nits, 20 October 2026): "What the listing needs" still repeated the checklist's "Write the listing" and "Prepare the images" (name, tagline 60, description 260, topics, thumbnail 240x240, video, maker comment). Those items, and their quotes, were cut. The section now keeps only what the checklist lacks: 2+ gallery images, YouTube links only, no shortened or UTM links, the direct-link myth, the pricing options and shoutouts. For everything else it links `/product-hunt-launch-checklist#the-listing` and `/product-hunt-launch-checklist#images`; both anchors exist on the checklist (`<h2 id="the-listing">Write the listing</h2>`, `<h2 id="images">Prepare the images</h2>`). The e2e test checks that the section links both anchors, that the anchors exist, and that none of the cut items appear in it.
+
 The post's title and description share no wording with the checklist's (`Product Hunt launch checklist (2026 guide)`, `A step-by-step Product Hunt launch checklist: ...`). `tests/unit/blog.test.ts` checks that neither contains "checklist" or "step-by-step", and that every indexable page has a unique title and description.
 
 ## Method
@@ -25,7 +27,7 @@ The post's title and description share no wording with the checklist's (`Product
 - Playwright: Chromium headless, and the installed Google Chrome headed on the VM display, both got the same challenge (HTTP 403, title "Just a moment...") on the Launch Guide and `/launch/before-launch`.
 - A server-side fetch service (Cursor's WebFetch) returned the full text of every page cited below on 20 October 2026. It keeps the pages' own characters: straight and curly apostrophes appear as each page has them (the `/launch` pages mostly use curly ones, the help center mostly straight), and the quotes on the page keep them.
 - Help center article URLs came from the Posting, Product Hunt and Support collections in the Internet Archive's copy of `https://help.producthunt.com/en/` (16 October 2026), because the fetch service drops links.
-- Cross-check: the Internet Archive's latest copy of each cited page was downloaded and every `<q>` on the page was searched for in it. 68 of the 95 quotes match an archive copy word for word. The other 27 are from pages with no archive copy (the Launch Guide, Daily Hunt Limits, the fair voting article, How to share a scheduled launch, Product of the Day), apart from one scheduling quote whose wording changed after the archive copy (see the note under the table). Those 27 were re-checked by hand against the live text.
+- Cross-check: the Internet Archive's latest copy of each cited page was downloaded and every `<q>` on the page was searched for in it. After the QA cuts, 62 of the 83 quotes match an archive copy word for word. The other 21 are from pages with no archive copy (the Launch Guide, Daily Hunt Limits, the fair voting article, How to share a scheduled launch, Product of the Day), apart from one scheduling quote whose wording changed after the archive copy (see the note under the table). Those 21 were re-checked by hand against the live text.
 
 ## Sources
 
@@ -125,40 +127,28 @@ Product Hunt launch guide on producthunt.com (undated pages):
 | 59 | "Self-promoting in comments will also be removed." | https://help.producthunt.com/en/articles/3615694-community-guidelines | yes (2025-12-28) |
 | 60 | "Ask for feedback, comments, opinions, help spreading the word, not for upvotes." | https://www.producthunt.com/launch/sharing-your-launch | yes (2026-06-10) |
 | 61 | "Product Hunt’s ranking system considers more than just upvotes." | https://help.producthunt.com/en/articles/2690626-how-do-i-share-my-post | yes (2025-12-28) |
-| 62 | "Only the product's name, no description or emojis (unless it is a part of the name) in this part." | https://help.producthunt.com/en/articles/479557-how-to-post-a-product | yes (2026-02-09) |
-| 63 | "A name and tagline that grab attention (tagline caps at 60 characters)" | https://help.producthunt.com/en/articles/17350772-launch-guide | no copy with this wording; live page only |
-| 64 | "A short, plain-language description of what you built (260 characters max)" | https://help.producthunt.com/en/articles/17350772-launch-guide | no copy with this wording; live page only |
-| 65 | "max 500 characters" | https://www.producthunt.com/launch/preparing-for-launch | yes (2026-10-12) |
-| 66 | "It is best to use an image with square dimensions. We recommend 240x240." | https://help.producthunt.com/en/articles/479557-how-to-post-a-product | yes (2026-02-09) |
-| 67 | "The gallery will need 2+ images before it is viewable." | https://help.producthunt.com/en/articles/479557-how-to-post-a-product | yes (2026-02-09) |
-| 68 | "images or GIFs that show the product in use" | https://help.producthunt.com/en/articles/17350772-launch-guide | no copy with this wording; live page only |
-| 69 | "For videos, only YouTube links are supported." | https://help.producthunt.com/en/articles/479557-how-to-post-a-product | yes (2026-02-09) |
-| 70 | "Up to three topics that fit your product" | https://help.producthunt.com/en/articles/17350772-launch-guide | no copy with this wording; live page only |
-| 71 | "Broadly, the three options are: free, paid, and paid (with a free trial or plan)." | https://help.producthunt.com/en/articles/479557-how-to-post-a-product | yes (2026-02-09) |
-| 72 | "Shoutouts to the tools that helped you build it (in the Shoutouts field)" | https://help.producthunt.com/en/articles/17350772-launch-guide | no copy with this wording; live page only |
-| 73 | "You only get three shoutouts per product launch" | https://www.producthunt.com/launch/preparing-for-launch | yes (2026-10-12) |
-| 74 | "Shortened links (e.g. bit.ly) and track links (e.g. Google UTMs) are not accepted." | https://www.producthunt.com/launch/preparing-for-launch | yes (2026-10-12) |
-| 75 | "There is no penalty for linking directly to your product, in actuality, we encourage it!" | https://www.producthunt.com/launch/launch-day-questions | yes (2026-10-12) |
-| 76 | "write a genuine first comment that introduces your product, your team, what makes it unique, and the story behind the build." | https://help.producthunt.com/en/articles/17350772-launch-guide | no copy with this wording; live page only |
-| 77 | "This is your Maker comment, and it sets the tone for the whole conversation on your launch." | https://help.producthunt.com/en/articles/17350772-launch-guide | no copy with this wording; live page only |
-| 78 | "Ask for feedback (NOT upvotes)" | https://www.producthunt.com/launch/preparing-for-launch | yes (2026-10-12) |
-| 79 | "Marketing-speak doesn't usually resonate very well either." | https://www.producthunt.com/launch/preparing-for-launch | yes (2026-10-12) |
-| 80 | "70% of products that achieved Product of the Day, Week, or Month included a first comment by the maker." | https://www.producthunt.com/launch/preparing-for-launch | yes (2026-10-12) |
-| 81 | "When launch day arrives, show up and be present. Reply to comments quickly and honestly, and walk people through how and why you built it." | https://help.producthunt.com/en/articles/17350772-launch-guide | no copy with this wording; live page only |
-| 82 | "Your two most important tasks on launch day are getting the word out, and being accessible to the community by responding to comments in real time or as close to it as possible." | https://www.producthunt.com/launch/sharing-your-launch | yes (2026-06-10) |
-| 83 | "Engage like a human. Invite feedback instead of fishing for votes." | https://help.producthunt.com/en/articles/17350772-launch-guide | no copy with this wording; live page only |
-| 84 | "will track your position, upvotes, comments, and reviews throughout the day (and after launch day)." | https://www.producthunt.com/launch/launch-day-duties | yes (2026-03-10) |
-| 85 | "isn’t being penalized" | https://help.producthunt.com/en/articles/4853541-why-did-my-launch-points-go-down | yes (2025-12-28) |
-| 86 | "Launch day is not a time to go spamming Reddit and Indie Hackers if you haven’t already been posting there" | https://www.producthunt.com/launch/sharing-your-launch | yes (2026-06-10) |
-| 87 | "You should request access to edit your Product Page as soon as you launch." | https://www.producthunt.com/launch/launch-day-duties | yes (2026-03-10) |
-| 88 | "Keep replying to comments for a few days afterward." | https://help.producthunt.com/en/articles/17350772-launch-guide | no copy with this wording; live page only |
-| 89 | "Turn the best feedback into real improvements." | https://help.producthunt.com/en/articles/17350772-launch-guide | no copy with this wording; live page only |
-| 90 | "You can promote your Launch Page for two weeks after launch day." | https://www.producthunt.com/launch/days-after-launch | yes (2026-02-24) |
-| 91 | "Your Product Page is your permanent and comprehensive source of truth for your product." | https://www.producthunt.com/launch/days-after-launch | yes (2026-02-24) |
-| 92 | "Every thread posted within a product forum notifies all of that product’s followers" | https://help.producthunt.com/en/articles/11432379-maker-s-guide-to-product-forums | yes (2025-12-28) |
-| 93 | "Announce new updates in the Forums to reach new users." | https://help.producthunt.com/en/articles/17350772-launch-guide | no copy with this wording; live page only |
-| 94 | "You can launch again every time you ship a major feature or update." | https://help.producthunt.com/en/articles/17350772-launch-guide | no copy with this wording; live page only |
-| 95 | "New UIs, pricing plan changes, etc. are not considered significant updates." | https://help.producthunt.com/en/articles/484934-can-i-relaunch-my-product | yes (2026-10-12) |
+| 62 | "The gallery will need 2+ images before it is viewable." | https://help.producthunt.com/en/articles/479557-how-to-post-a-product | yes (2026-02-09) |
+| 63 | "For videos, only YouTube links are supported." | https://help.producthunt.com/en/articles/479557-how-to-post-a-product | yes (2026-02-09) |
+| 64 | "Shortened links (e.g. bit.ly) and track links (e.g. Google UTMs) are not accepted." | https://www.producthunt.com/launch/preparing-for-launch | yes (2026-10-12) |
+| 65 | "There is no penalty for linking directly to your product, in actuality, we encourage it!" | https://www.producthunt.com/launch/launch-day-questions | yes (2026-10-12) |
+| 66 | "Broadly, the three options are: free, paid, and paid (with a free trial or plan)." | https://help.producthunt.com/en/articles/479557-how-to-post-a-product | yes (2026-02-09) |
+| 67 | "Shoutouts to the tools that helped you build it (in the Shoutouts field)" | https://help.producthunt.com/en/articles/17350772-launch-guide | no copy with this wording; live page only |
+| 68 | "You only get three shoutouts per product launch" | https://www.producthunt.com/launch/preparing-for-launch | yes (2026-10-12) |
+| 69 | "When launch day arrives, show up and be present. Reply to comments quickly and honestly, and walk people through how and why you built it." | https://help.producthunt.com/en/articles/17350772-launch-guide | no copy with this wording; live page only |
+| 70 | "Your two most important tasks on launch day are getting the word out, and being accessible to the community by responding to comments in real time or as close to it as possible." | https://www.producthunt.com/launch/sharing-your-launch | yes (2026-06-10) |
+| 71 | "Engage like a human. Invite feedback instead of fishing for votes." | https://help.producthunt.com/en/articles/17350772-launch-guide | no copy with this wording; live page only |
+| 72 | "will track your position, upvotes, comments, and reviews throughout the day (and after launch day)." | https://www.producthunt.com/launch/launch-day-duties | yes (2026-03-10) |
+| 73 | "isn’t being penalized" | https://help.producthunt.com/en/articles/4853541-why-did-my-launch-points-go-down | yes (2025-12-28) |
+| 74 | "Launch day is not a time to go spamming Reddit and Indie Hackers if you haven’t already been posting there" | https://www.producthunt.com/launch/sharing-your-launch | yes (2026-06-10) |
+| 75 | "You should request access to edit your Product Page as soon as you launch." | https://www.producthunt.com/launch/launch-day-duties | yes (2026-03-10) |
+| 76 | "Keep replying to comments for a few days afterward." | https://help.producthunt.com/en/articles/17350772-launch-guide | no copy with this wording; live page only |
+| 77 | "Turn the best feedback into real improvements." | https://help.producthunt.com/en/articles/17350772-launch-guide | no copy with this wording; live page only |
+| 78 | "You can promote your Launch Page for two weeks after launch day." | https://www.producthunt.com/launch/days-after-launch | yes (2026-02-24) |
+| 79 | "Your Product Page is your permanent and comprehensive source of truth for your product." | https://www.producthunt.com/launch/days-after-launch | yes (2026-02-24) |
+| 80 | "Every thread posted within a product forum notifies all of that product’s followers" | https://help.producthunt.com/en/articles/11432379-maker-s-guide-to-product-forums | yes (2025-12-28) |
+| 81 | "Announce new updates in the Forums to reach new users." | https://help.producthunt.com/en/articles/17350772-launch-guide | no copy with this wording; live page only |
+| 82 | "You can launch again every time you ship a major feature or update." | https://help.producthunt.com/en/articles/17350772-launch-guide | no copy with this wording; live page only |
+| 83 | "New UIs, pricing plan changes, etc. are not considered significant updates." | https://help.producthunt.com/en/articles/484934-can-i-relaunch-my-product | yes (2026-10-12) |
 
 Note on the scheduling quote ("the day within 30 days of your current day for the post to go live."): the live article, dated 2 February 2026, says "pick the day within 30 days of your current day". The archive copy from 28 December 2025 says "pick the day and time (in PST) within 30 days". The page quotes the live wording.
 
@@ -173,10 +163,8 @@ Note on the scheduling quote ("the day within 30 days of your current day for th
 - Two launches from one company on the same day may be rescheduled: Featuring Guidelines, "Moderation Process", item 4.
 - Before launch describes makers who ship early and makers who refine with beta testers first: Before launch, "Ready to launch?".
 - The choice of when to launch depends on your goals: Before launch, "Ready to launch?" ("when you launch largely depends on your goals, your product, and even your own strategic style").
-- Profile requirements (first and last name, clear photo, headline or about, a unique non-company username): Community Guidelines, "Profile setup".
 - Makers are added by Product Hunt username and tagged makers comment with a Maker badge: Preparing for launch ("Makers") and Hunter vs Makers.
 - Two options when someone hunts you first: Launch Day questions.
-- Avoid days you are travelling, shipping something else, or your audience is offline: Launch Guide, "Picking your date".
 - The sharing article's list of what to avoid (mass messages asking for upvotes, discounts or freebies for upvotes, coordinated voting): How do I share my post?.
 - Product Hunt asks you to stop a contest that rewards upvotes before it unfeatures: Sharing your launch, "How NOT to market".
 - Making a scheduled launch public from the lock icon: How to share a scheduled launch.
@@ -186,15 +174,16 @@ Note on the scheduling quote ("the day within 30 days of your current day for th
 
 ## Where Product Hunt's own pages disagree
 
-- **Description length.** The Launch Guide and How to post a product say 260 characters. Preparing for launch says "Description (max 500 characters)". The page says to write to 260, as the tagline guide already does.
-- **Topics.** The Launch Guide and How to post a product say topics; Preparing for launch says "Launch tags". The page mentions both names.
+- **Description length.** The Launch Guide and How to post a product say 260 characters. Preparing for launch says "Description (max 500 characters)". Since the QA cut, the post doesn't discuss the description; the checklist and the tagline guide both say 260.
+- **Topics.** The Launch Guide and How to post a product say topics; Preparing for launch says "Launch tags". No longer discussed on the page after the QA cut.
 - **How far ahead you can schedule.** How to schedule a post says "within 30 days"; Preparing for launch says "up to 1 month". The page says "up to about a month ahead" and quotes the help center.
 
 ## Left out
 
 - **The checklist's steps.** Timed, step-by-step prep, launch-day actions and the week after stay on `/product-hunt-launch-checklist` (see Scope).
+- **Listing fields the checklist already covers** (name, tagline, description, topics, thumbnail, gallery size, video, maker comment), and with them the first-comment figure ("70% of products that achieved Product of the Day, Week, or Month included a first comment by the maker."). Cut after Site QA (see Scope).
 - **Day-of-week advice.** Preparing for launch says weekend launches get "15% more “Visit” button clicks than those on weekdays". It is Product Hunt's own figure, but it is undated, about clicks rather than outcomes, and the checklist already covers picking a day, so the post doesn't use it.
-- **Other Product Hunt figures:** "About 53% of products that reached Product of the Day since 2021 include a video", "Less than a third of Product of the Day products used an animated GIF as a thumbnail", and "Typically a lead requires 10 marketing touches before they become a customer" (Days after your launch). Not needed for the post's scope, and the last one has no source on the page. The post keeps three Product Hunt figures, each quoted verbatim and attributed: the two self-hunting figures (noted as undated) and the first-comment figure.
+- **Other Product Hunt figures:** "About 53% of products that reached Product of the Day since 2021 include a video", "Less than a third of Product of the Day products used an animated GIF as a thumbnail", and "Typically a lead requires 10 marketing touches before they become a customer" (Days after your launch). Not needed for the post's scope, and the last one has no source on the page. The post keeps two Product Hunt figures, quoted verbatim, attributed and noted as undated: the self-hunting figures on the before launch page.
 - **Time zone conversions** (Pacific time to UK time). Not stated by Product Hunt; the post gives only "12:01 AM Pacific".
 - **How the ranking algorithm works in detail.** Product Hunt says it doesn't disclose it, and the post quotes that.
 - **Hunter and maker email notifications** ("The Hunter's followers do not receive e-mail notifications of the post"). True to source, left out for length.

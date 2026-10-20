@@ -44,7 +44,7 @@ The kit is delivered on a results page, as a ZIP download and by email.
 - [Ship Loop](${base}/ship-loop): what Ship Loop will do, and its free waitlist
 - [FAQ](${base}/faq): answers to common questions
 - [Guides](${base}/guides): every launch guide in one list
-- [Blog](${base}${PAGES.blog.path}): launch how-tos sourced from each platform's own rules, newest first ([RSS](${base}${BLOG_FEED_PATH}))
+- [Blog](${base}${PAGES.blog.path}): launch how-tos sourced from each platform's own rules and guidance, newest first ([RSS](${base}${BLOG_FEED_PATH}))
 - [Free tools](${base}/tools): every free tool in one list
 - [Privacy](${base}/privacy)
 - [Terms](${base}/terms)
