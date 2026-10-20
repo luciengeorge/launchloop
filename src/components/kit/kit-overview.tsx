@@ -72,7 +72,7 @@ export function KitOverview({ kit }: { kit: Kit }) {
           </ul>
         </div>
         <div>
-          <h2 className="text-sm font-medium">Brand colours {palette.source === "default" ? "(defaults)" : "(from your site)"}</h2>
+          <h2 className="text-sm font-medium">Brand colours {palette.source === "default" ? "(defaults)" : palette.source === "repo" ? "(from your repo)" : "(from your site)"}</h2>
           <ul className="mt-3 flex gap-2" aria-label="Palette">
             {[palette.background, palette.accent, palette.foreground, palette.muted].map((c, i) => (
               <li key={`${c}-${i}`} className="flex flex-col items-center gap-1">

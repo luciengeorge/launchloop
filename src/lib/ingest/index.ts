@@ -6,6 +6,7 @@ import { DEFAULT_PALETTE, extractPalette } from "./colors";
 import { fetchRepo, parseGitHubUrl, type RepoData } from "./github";
 import { liveHomepage } from "./homepage";
 import { IngestError } from "./safe-fetch";
+import { fetchRepoPalette } from "./repo-palette";
 import { SAMPLE_INPUT, sampleRepo, sampleSite } from "./sample";
 import { fetchSite, type SiteData } from "./site";
 
@@ -89,9 +90,13 @@ export async function ingest(rawInput: string, onStep: (step: IngestStep) => voi
     }
   }
 
-  const palette = site ? extractPalette({ css: site.css, themeColor: site.themeColor }) : DEFAULT_PALETTE;
+  let palette = site ? extractPalette({ css: site.css, themeColor: site.themeColor }) : DEFAULT_PALETTE;
+  if (palette.source === "default" && repo) palette = await tracedRepoPalette(repo.owner, repo.name);
   return { primary: gh ? "repo" : "site", repo, site, palette, source: summarise(input, repo, site, warnings) };
 }
+
+const tracedRepoPalette = (owner: string, name: string) =>
+  phase("ingest.repo_palette", "http.client.github", { "kit.repo": `${owner}/${name}` }, () => fetchRepoPalette(owner, name));
 
 /** Repo URLs are public, so the span names the repo; a site is recorded by host only. */
 const tracedRepo = (owner: string, name: string, warnings: string[]) =>

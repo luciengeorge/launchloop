@@ -48,14 +48,14 @@ export function parseGitHubUrl(input: string): { owner: string; name: string } |
   return { owner: m[1], name: m[2] };
 }
 
-async function gh(path: string, accept = "application/vnd.github+json"): Promise<Response> {
+export async function gh(path: string, accept = "application/vnd.github+json", signal: AbortSignal = AbortSignal.timeout(8000)): Promise<Response> {
   const headers: Record<string, string> = {
     Accept: accept,
     "User-Agent": USER_AGENT,
     "X-GitHub-Api-Version": "2022-11-28",
   };
   if (env.githubToken) headers.Authorization = `Bearer ${env.githubToken}`;
-  return fetch(`${process.env.GITHUB_API_URL ?? "https://api.github.com"}${path}`, { headers, signal: AbortSignal.timeout(8000), cache: "no-store" });
+  return fetch(`${process.env.GITHUB_API_URL ?? "https://api.github.com"}${path}`, { headers, signal, cache: "no-store" });
 }
 
 async function raw(owner: string, name: string, file: string): Promise<string | undefined> {
