@@ -231,6 +231,35 @@ test("the Product Hunt post hands the step-by-step to the checklist instead of r
   await expect(page.locator("h2#one-week-out, h2#checklist")).toHaveCount(0);
   await expect(body).not.toContainText("Post a mid-day update");
 
+  const listing = await page.locator("h2#listing").evaluate((h2) => {
+    const parts: string[] = [];
+    const links: string[] = [];
+    for (let el = h2.nextElementSibling; el && el.tagName !== "H2"; el = el.nextElementSibling) {
+      parts.push((el as HTMLElement).innerText);
+      el.querySelectorAll("a").forEach((a) => links.push(a.getAttribute("href") ?? ""));
+    }
+    return { text: parts.join("\n"), links };
+  });
+  expect(listing.links).toEqual(expect.arrayContaining(["/product-hunt-launch-checklist#the-listing", "/product-hunt-launch-checklist#images"]));
+  for (const repeated of ["240x240", "1270x760", "260 characters", "60 characters", "Up to three topics", "first comment", "Only the product", "Maker comment"]) {
+    expect(listing.text, repeated).not.toContain(repeated);
+  }
+  for (const kept of ["2+ images", "only YouTube links", "Google UTMs", "no penalty for linking directly", "free, paid, and paid", "three shoutouts"]) {
+    expect(listing.text, kept).toContain(kept);
+  }
+
   await page.goto("/product-hunt-launch-checklist");
   await expect(page).not.toHaveTitle(/how it works/i);
+  await expect(page.locator("h2#the-listing")).toBeVisible();
+  await expect(page.locator("h2#images")).toBeVisible();
+});
+
+test("the Indie Hackers post dates old advice and quotes the terms as they read now", async ({ page }) => {
+  await page.goto(postPath(BLOG_POSTS.find((p) => p.slug === "how-to-launch-on-indie-hackers")!));
+  const body = page.locator("article > div").first();
+  await expect(body).toContainText("indiehackers.com/groups no longer loads");
+  await expect(body).not.toContainText("404");
+  await expect(body.locator("h2#replies ~ ul strong").first()).toContainText("2019 and 2020 tips");
+  await expect(body.locator("q", { hasText: "You will only use the Services for your own internal, personal, non-commercial use" })).toBeVisible();
+  await expect(body.locator("h2#sources ~ p").first()).not.toContainText("Internet Archive");
 });
