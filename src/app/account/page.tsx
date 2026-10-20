@@ -35,11 +35,14 @@ async function Dashboard() {
   const session = await getSession();
   if (!session) redirect("/login?next=/account");
   const [kits, shipLoop, promo] = await Promise.all([listUserKits(session.email), getShipLoop(session.email), isLaunchPromoOn()]);
-  const progress = await Promise.all(kits.map((k) => (k.paid && k.content ? kitProgress(k) : null)));
-  const showBilling = await hasBillingAccess(
-    session.email,
-    kits.some((k) => k.paid),
-  );
+  const [progress, showBilling] = await Promise.all([
+    Promise.all(kits.map((k) => (k.paid && k.content ? kitProgress(k) : null))),
+    hasBillingAccess(
+      session.email,
+      kits.some((k) => k.paid),
+      shipLoop,
+    ),
+  ]);
 
   return (
     <div className="space-y-8">
