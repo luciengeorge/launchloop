@@ -43,7 +43,7 @@ let landed = false;
 
 /**
  * Reads the landing URL's UTMs and the referrer's domain once per page load and keeps them in memory (no cookies or
- * storage, except the QA tag below and the anonymous id, see pageAnalyticsId). In-app navigations keep them; the preview request sends them so the kit remembers
+ * storage, except the QA tag below). In-app navigations keep them; the preview request sends them so the kit remembers
  * where the buyer came from.
  */
 export function rememberFirstTouch() {
@@ -92,46 +92,26 @@ export function loadAnalytics(): Promise<PostHog | undefined> {
   return client;
 }
 
-const ANALYTICS_ID_KEY = "launchloop:aid";
-
-let pageId: string | null | undefined;
+let pageId: string | undefined;
 
 /**
- * This tab's anonymous PostHog id, settled before the SDK loads so a request that can't wait for it
- * (the preview) still carries it. `?aid=` wins when we caused the page load in a new tab (magic
- * link), then the id this tab already had, else a new one. Kept in sessionStorage only: one tab,
- * gone when it closes, so a reload or the trip to Stripe Checkout and back stays on one id, and
- * a new tab or visit starts fresh. Undefined when analytics is off; with storage blocked, it lasts
- * for the page as before.
+ * This page's anonymous id, settled before the SDK loads so the preview request (which mustn't wait for
+ * the SDK) carries the id the page's events will use. Page memory only, like the rest of the identity:
+ * `?aid=` when we caused the page load, else a new id for this page load. Undefined when analytics is off.
  */
 export function pageAnalyticsId(): string | undefined {
   if (!key || !pageStart) return undefined;
-  pageId ??= resolvePageAnalyticsId(pageStart.url);
-  return pageId ?? undefined;
-}
-
-function resolvePageAnalyticsId(url: string): string | null {
-  const handoff = new URL(url).searchParams.get(ANALYTICS_ID_PARAM);
-  let stored: string | null = null;
-  try {
-    stored = sessionStorage.getItem(ANALYTICS_ID_KEY);
-  } catch {
-    // Storage blocked: the id lasts for this page only.
-  }
-  const id = isAnalyticsId(handoff) ? handoff : isAnalyticsId(stored) ? stored : (globalThis.crypto?.randomUUID?.() ?? null);
-  if (id && id !== stored) {
-    try {
-      sessionStorage.setItem(ANALYTICS_ID_KEY, id);
-    } catch {
-      // As above.
-    }
-  }
-  return id;
+  const handoff = new URL(pageStart.url).searchParams.get(ANALYTICS_ID_PARAM);
+  pageId ??= isAnalyticsId(handoff) ? handoff : globalThis.crypto?.randomUUID?.();
+  return pageId;
 }
 
 /**
- * No cookies, and PostHog's own state stays in page memory. The anonymous id is bootstrapped from
- * pageAnalyticsId(), so it survives reloads in the tab, and flag variants don't re-roll mid-purchase.
+ * Cookieless: identity lives in page memory only, so nothing is written to cookies or
+ * storage and no consent banner is needed. The trade-off is a new anonymous id per full
+ * page load. Where we cause the reload (magic link, Stripe Checkout and back) the previous
+ * page's id rides along as `?aid=` and is reused here, so flag variants don't re-roll
+ * mid-purchase. A manual reload or a new visit still gets a fresh id.
  */
 function initAnalytics(posthog: PostHog, token: string, start: { url: string; at: Date }) {
   if (posthog.__loaded) return;

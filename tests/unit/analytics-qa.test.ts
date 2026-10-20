@@ -58,13 +58,13 @@ describe("QA traffic in the browser", () => {
     expect(await superProperties(analytics)).toMatchObject({ is_test: true });
   });
 
-  it("a real visit stores no QA flag (only the tab's anonymous id) and sends no is_test", async () => {
+  it("a real visit stores nothing and sends no is_test", async () => {
     const storage = tabStorage();
     const analytics = await landOn("https://launchloop.dev/?utm_source=hn&qa=0", storage);
     expect(analytics.isTestVisit()).toBe(false);
     expect(analytics.firstTouch()).toEqual({ utm_source: "hn" });
     expect(await superProperties(analytics)).not.toHaveProperty("is_test");
-    expect([...storage.data.keys()]).toEqual(["launchloop:aid"]);
+    expect(storage.data.size).toBe(0);
   });
 
   it("with storage blocked, the tagged page itself still counts as test", async () => {
