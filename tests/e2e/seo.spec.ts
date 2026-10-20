@@ -71,6 +71,7 @@ test("sitemap lists every indexable page once, with lastmod, and no redirecting 
     "/product-hunt-launch-checklist",
     "/how-to-launch-a-vibe-coded-app",
     "/how-to-promote-on-reddit",
+    "/how-to-write-a-show-hn-post",
     "/privacy",
     "/terms",
   ];

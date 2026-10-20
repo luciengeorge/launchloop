@@ -95,15 +95,10 @@ export default function ShowHnChecklistPage() {
         The rule is simple: submit a story whose title begins with &ldquo;Show HN&rdquo;. After that, the general <a href={SRC.guidelines}>HN guidelines</a> apply: no
         uppercase or exclamation marks to make it stand out, no saying how great it is, and nothing misleading or linkbait.
       </p>
-      <p>A format that works is <strong>Show HN: [Name], [what it does in plain words]</strong>, or just <strong>Show HN: [what it does]</strong> if the name adds nothing. Some made-up examples:</p>
-      <ul>
-        <li>Weak: &ldquo;Show HN: GRIDCAST, the future of dashboards!&rdquo; Stronger: &ldquo;Show HN: Gridcast, turn a CSV into a dashboard you can share by link&rdquo;</li>
-        <li>Weak: &ldquo;Show HN: The AI-powered productivity platform for modern teams&rdquo; Stronger: &ldquo;Show HN: A habit tracker that syncs through your own WebDAV server&rdquo;</li>
-        <li>Weak: &ldquo;Show HN: My new app (please check it out)&rdquo; Stronger: &ldquo;Show HN: I turned my bank&apos;s CSV export into a budgeting app&rdquo;</li>
-      </ul>
       <p>
-        Concrete details such as &ldquo;open source&rdquo;, &ldquo;self-hosted&rdquo;, &ldquo;runs in the browser&rdquo; or the language it is written in tell readers what
-        they are clicking on. Adjectives don&apos;t.
+        A format that works is <strong>Show HN: [Name], [what it does in plain words]</strong>, or just <strong>Show HN: [what it does]</strong> if the name adds nothing. For
+        real examples from HN, weak and stronger titles, and whether to make it a link or a text post, read{" "}
+        <Link href="/how-to-write-a-show-hn-post">how to write a Show HN post</Link>.
       </p>
 
       <h2 id="first-comment">Write the maker&apos;s first comment</h2>
@@ -119,15 +114,10 @@ export default function ShowHnChecklistPage() {
         <li><strong>Links to earlier HN threads</strong> that are relevant. Readers like those.</li>
         <li><strong>No marketing or sales language.</strong> The tips call it an instant turnoff on HN. Use factual, direct language.</li>
       </ul>
-      <p>An outline you can write from (an outline, not text to copy):</p>
-      <ol>
-        <li>One sentence on what it is and who it is for.</li>
-        <li>Why you built it: the problem you kept running into.</li>
-        <li>How it works: the stack, the one interesting technical decision, the current limits.</li>
-        <li>How it differs from the alternatives you tried.</li>
-        <li>What is free, what is paid, and how to try it without signing up.</li>
-        <li>The specific feedback you want.</li>
-      </ol>
+      <p>
+        <Link href="/how-to-write-a-show-hn-post#text">How to write a Show HN post</Link> turns those tips into an outline, with what HN moderators said in 2026 about the
+        details readers look for.
+      </p>
       <p>
         <strong>Write it by hand.</strong> In 2026 the tips gained a new first item: don&apos;t use an LLM to generate any of your text, not even to edit or polish it. The HN
         guidelines also ask people not to post generated or AI-edited text, and that covers your replies in the thread too. LaunchLoop drafts Product Hunt, X and LinkedIn copy;
@@ -173,6 +163,9 @@ export default function ShowHnChecklistPage() {
         <li><strong>Be upfront about limits and trade-offs.</strong> It is more convincing than any claim.</li>
         <li><strong>Don&apos;t comment on the voting on comments</strong> or hint that critics are astroturfing. Both are against the guidelines.</li>
       </ul>
+      <p>
+        Your replies have to be your own words too: see <Link href="/how-to-write-a-show-hn-post#replies">replying to comments</Link> in the Show HN writing guide.
+      </p>
 
       <h2 id="voting">Never ask for upvotes or comments</h2>
       <p>
