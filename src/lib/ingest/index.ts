@@ -40,10 +40,24 @@ export function normaliseInput(raw: string): string {
   return url.toString();
 }
 
+const GITHUB_HOSTS = new Set(["github.com", "www.github.com"]);
+
+/**
+ * normaliseInput for a kit: a github.com link must name a repo. Without this, github.com/owner falls
+ * through to the site path and builds a kit from the profile page.
+ */
+export function normaliseKitInput(raw: string): string {
+  const input = normaliseInput(raw);
+  if (input !== SAMPLE_INPUT && GITHUB_HOSTS.has(new URL(input).hostname) && !parseGitHubUrl(input)) {
+    throw new IngestError("GitHub URL without owner/repo", "invalid_url", "Paste a repo URL like github.com/owner/repo.");
+  }
+  return input;
+}
+
 export type IngestStep = "repo" | "site";
 
 export async function ingest(rawInput: string, onStep: (step: IngestStep) => void = () => {}): Promise<IngestResult> {
-  const input = normaliseInput(rawInput);
+  const input = normaliseKitInput(rawInput);
   const warnings: string[] = [];
 
   if (input === SAMPLE_INPUT) {
