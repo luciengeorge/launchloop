@@ -1,3 +1,4 @@
+import { LIMITS } from "./limits";
 import { LAUNCH_PROMO, PRODUCTS } from "./products";
 
 /** Marks a Launch Kit price mention in shared copy. Render with <PricedText>, or kitPriceText() for plain text (JSON-LD, llms.txt, slugs). */
@@ -59,6 +60,9 @@ export const KIT_CONTENTS = [
 
 const faqLimits = resolvedPreviewLimits();
 
+/** The FAQ entry the /faq page expands with sources; see <AdviceSources>. */
+export const ADVICE_SOURCES_Q = "Where does the advice come from?";
+
 export const FAQ = [
   {
     q: "What is LaunchLoop?",
@@ -86,7 +90,11 @@ export const FAQ = [
   },
   {
     q: "Which character limits do you enforce?",
-    a: "Product Hunt tagline 60 and description 260 characters, X posts 280 (weighted the way X counts them, with links as 23), LinkedIn 3,000, meta titles 60 and meta descriptions 155. Every limit is checked before you see the kit.",
+    a: "Product Hunt tagline 60 and description 260 characters, X posts 280 (weighted the way X counts them, with links that include http:// or https:// counted as 23) and LinkedIn 3,000. We also cap meta titles at 60 and meta descriptions at 155, but that's LaunchLoop's own choice, not a platform limit. Every limit is checked before you see the kit.",
+  },
+  {
+    q: ADVICE_SOURCES_Q,
+    a: `Two places. The limits and rules come from the platforms' own published pages: Product Hunt's ${LIMITS.phTagline}-character tagline, ${LIMITS.phDescription}-character description and three topics, X's ${LIMITS.xPost} characters with links that include http:// or https:// counted as 23, LinkedIn's ${LIMITS.linkedin.toLocaleString("en-GB")} characters, and the Product Hunt and Hacker News rules against asking for upvotes. LaunchLoop puts them in its prompts and checks every draft against them before you see your kit. The copy itself is drafted by AI from your repo and live page, so treat it as a first draft: check the facts and rewrite it in your own words before you post.`,
   },
   {
     q: "How are the images made?",
