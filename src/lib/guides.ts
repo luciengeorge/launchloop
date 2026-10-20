@@ -50,6 +50,14 @@ export const GUIDES: Guide[] = [
       "How to promote your app on Reddit without getting banned: Reddit's self-promotion rules, how subreddit rules differ, and how to write a post that stays up.",
     updated: "2026-10-19",
   },
+  {
+    slug: "how-to-write-a-show-hn-post",
+    title: "How to write a Show HN post",
+    metaTitle: "How to write a Show HN post: title and text",
+    description:
+      "How to write a Show HN post from Hacker News's own rules: the title format, link or text post, what to say in your text, the tone, and how to reply.",
+    updated: "2026-10-20",
+  },
 ];
 
 export const guidePath = (g: Pick<Guide, "slug">) => `/${g.slug}`;

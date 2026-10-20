@@ -1,10 +1,19 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Locator, test } from "@playwright/test";
 
 const NEW_GUIDES = [
   { path: "/show-hn-launch-checklist", h1: "The Show HN launch checklist", title: /^Show HN checklist: how to post on Show HN · LaunchLoop$/, updated: "2026-10-18" },
   { path: "/how-to-write-a-product-hunt-tagline", h1: "How to write a Product Hunt tagline", title: /^How to write a Product Hunt tagline: examples · LaunchLoop$/, updated: "2026-10-18" },
   { path: "/how-to-promote-on-reddit", h1: "How to promote your app on Reddit", title: /^How to promote on Reddit: self-promotion rules · LaunchLoop$/, updated: "2026-10-19" },
+  { path: "/how-to-write-a-show-hn-post", h1: "How to write a Show HN post", title: /^How to write a Show HN post: title and text · LaunchLoop$/, updated: "2026-10-20" },
 ] as const;
+
+/** The article's own copy, without verbatim quotes from sources (marked up as <q> or <blockquote>), which keep their original punctuation. */
+const proseText = (article: Locator) =>
+  article.evaluate((el) => {
+    const copy = el.cloneNode(true) as HTMLElement;
+    copy.querySelectorAll("q, blockquote").forEach((quote) => quote.remove());
+    return copy.textContent ?? "";
+  });
 
 for (const guide of NEW_GUIDES) {
   test(`${guide.path} has metadata, Article and FAQPage JSON-LD, an FAQ and a CTA`, async ({ page, request }) => {
@@ -44,7 +53,7 @@ for (const guide of NEW_GUIDES) {
     const article = page.locator("article");
     await expect(article.locator('a[href="/#start"]').first()).toBeVisible();
     await expect(article.locator('a[href="/pricing"]').first()).toBeVisible();
-    expect(await article.innerText()).not.toMatch(/[\u2013\u2014]/);
+    expect(await proseText(article)).not.toMatch(/[\u2013\u2014]/);
 
     const sitemap = await (await request.get("/sitemap.xml")).text();
     expect(sitemap).toMatch(new RegExp(`<loc>[^<]*${guide.path}</loc>\\s*<lastmod>${guide.updated}`));
@@ -112,3 +121,46 @@ test("Show HN checklist is linked from the tools and the Product Hunt checklist"
     await expect(page.locator('main a[href="/show-hn-launch-checklist"]').first()).toBeVisible();
   }
 });
+
+test("Show HN post guide quotes and links Hacker News's own rules and moderators, with a checked-as-of note", async ({ page }) => {
+  await page.goto("/how-to-write-a-show-hn-post");
+  const article = page.locator("article > div");
+  for (const href of [
+    "https://news.ycombinator.com/showhn.html",
+    "https://news.ycombinator.com/newsguidelines.html",
+    "https://news.ycombinator.com/newsfaq.html",
+    "https://news.ycombinator.com/item?id=22336638",
+    "https://news.ycombinator.com/item?id=22336296",
+    "https://news.ycombinator.com/item?id=23263421",
+    "https://news.ycombinator.com/item?id=27041703",
+    "https://news.ycombinator.com/item?id=20773107",
+    "https://news.ycombinator.com/item?id=27317842",
+    "https://news.ycombinator.com/item?id=46333434",
+    "https://news.ycombinator.com/item?id=46704026",
+    "https://news.ycombinator.com/item?id=46705186",
+    "https://news.ycombinator.com/item?id=47561124",
+    "https://news.ycombinator.com/item?id=49561867",
+    "https://news.ycombinator.com/item?id=49984080",
+    "/show-hn-launch-checklist",
+    "/how-to-write-a-product-hunt-tagline",
+  ]) {
+    await expect(article.locator(`a[href="${href}"]`).first(), href).toBeVisible();
+  }
+  await expect(page.locator("#sources")).toBeVisible();
+  await expect(article).toContainText("Checked as of October 2026");
+  await expect(article.locator("q", { hasText: 'To post, submit a story whose title begins with "Show HN".' })).toBeVisible();
+  await expect(article.locator("q", { hasText: "Show HN: Enkel \u2013 A clean and simple RSS Reader" })).toBeVisible();
+  await expect(article.locator("q", { hasText: "make the title say in a neutral and direct way what this product/project is." })).toBeVisible();
+  await expect(article.locator("q", { hasText: "Write your text by hand. Don't use an LLM to generate any of it" })).toBeVisible();
+  for (const id of ["title", "link-or-text", "text", "tone", "replies"]) await expect(page.locator(`h2#${id}`)).toBeVisible();
+
+  const dashes = await article.evaluate((el) =>
+    Array.from(el.querySelectorAll("*"))
+      .flatMap((node) => Array.from(node.childNodes))
+      .filter((n) => n.nodeType === Node.TEXT_NODE && /[\u2013\u2014]/.test(n.textContent ?? ""))
+      .map((n) => n.parentElement?.closest("q, blockquote") !== null),
+  );
+  expect(dashes.length).toBeGreaterThan(0);
+  expect(dashes.every(Boolean)).toBe(true);
+});
+
