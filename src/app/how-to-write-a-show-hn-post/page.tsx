@@ -60,7 +60,7 @@ export default function ShowHnPostGuidePage() {
         preparing your app, timing and what to do afterwards, use the <Link href="/show-hn-launch-checklist">Show HN launch checklist</Link>.
       </p>
 
-      <h2 id="what-hn-wants">Who you are writing for</h2>
+      <h2 id="who-you-are-writing-for">Who you are writing for</h2>
       <p>
         The <a href={SRC.showHn}>Show HN guidelines</a> open with: <q>Show HN is for something you&apos;ve made that other people can play with.</q> The guidelines expect readers
         to try it out, give feedback and ask questions in the thread. They are not there to be sold to. HN moderator tomhow put it bluntly in January 2026:{" "}
@@ -139,7 +139,7 @@ export default function ShowHnPostGuidePage() {
         <li>
           <strong>Avoid a text-only post.</strong> The <a href={SRC.faq}>HN FAQ</a> answers <q>How do I make a link in a text submission?</q> with <q>You can&apos;t. This is to
           prevent people from submitting a link with their comments in a privileged position at the top of the page.</q> A text-only Show HN leaves readers copying your
-          address by hand. In 2019 dang also <a href={SRC.textPosts}>told</a> a founder: <q>Make the submission link to your site, and add your text as a first comment to the
+          address by hand. In 2019 dang also <a href={SRC.textPosts}>told</a> a submitter: <q>Make the submission link to your site, and add your text as a first comment to the
           new thread. (Don&apos;t make it a text post; those are penalized compared to posts with URLs.)</q> That comment is from 2019, so treat it as dang&apos;s view at the
           time rather than a current published rule. The FAQ point alone is reason enough to lead with a link.
         </li>
@@ -173,8 +173,8 @@ export default function ShowHnPostGuidePage() {
       <p>
         The Show HN guidelines ask for non-trivial projects and end that rule with <q>Explain how and why.</q> Moderators have said this part of the text matters more now
         that code is cheap to generate. tomhow{" "}
-        <a href={SRC.obstacles}>wrote</a> in March that code generation <q>has basically eaten everything that used to be interesting about most Show HN posts. I.e.: What were
-        the obstacles to making it work? What approaches did you try that didn&apos;t work? What was the breakthrough that made it work? What do you learn?</q> In January he
+        <a href={SRC.obstacles}>wrote</a> in March 2026 that code generation <q>has basically eaten everything that used to be interesting about most Show HN posts. I.e.: What were
+        the obstacles to making it work? What approaches did you try that didn&apos;t work? What was the breakthrough that made it work? What do you learn?</q> In January 2026 he
         described the ideal as <q>a backstory, a real world problem that was causing real costs or difficulties for people</q> that led the developer to an &ldquo;a-ha&rdquo;
         moment. (<a href={SRC.substance}>source</a>)
       </p>
