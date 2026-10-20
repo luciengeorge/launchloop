@@ -32,7 +32,7 @@ export const GUIDES: Guide[] = [
     metaTitle: "Show HN checklist: how to post on Show HN",
     description:
       "A Show HN checklist: how to post on Show HN without breaking the rules, from what qualifies and the title format to your first comment, timing and replies.",
-    updated: "2026-10-18",
+    updated: "2026-10-20",
   },
   {
     slug: "how-to-write-a-product-hunt-tagline",
@@ -49,6 +49,14 @@ export const GUIDES: Guide[] = [
     description:
       "How to promote your app on Reddit without getting banned: Reddit's self-promotion rules, how subreddit rules differ, and how to write a post that stays up.",
     updated: "2026-10-19",
+  },
+  {
+    slug: "how-to-write-a-show-hn-post",
+    title: "How to write a Show HN post",
+    metaTitle: "How to write a Show HN post: title and text",
+    description:
+      "How to write a Show HN post from Hacker News's own rules: the title format, link or text post, what to say in your text, the tone, and how to reply.",
+    updated: "2026-10-20",
   },
 ];
 
