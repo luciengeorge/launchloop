@@ -65,8 +65,10 @@ export default function ProductHuntChecklistPage() {
         link is fine: the help center&apos;s <a href={SRC.share}>How do I share my post?</a> says{" "}
         <q>You’re welcome to share a direct link to your post with your community, friends, or users.</q> Product Hunt&apos;s{" "}
         <a href={SRC.launchDayQuestions}>launch day questions</a> page lists it as a myth that linking directly is penalised:{" "}
-        <q>There is no penalty for linking directly to your product, in actuality, we encourage it!</q> What it does remove is coordinated voting: its{" "}
-        <a href={SRC.fairVoting}>fair voting article</a> asks makers to <q>Avoid overtly coordinated campaigns that might appear artificial to detection systems.</q>
+        <q>There is no penalty for linking directly to your product, in actuality, we encourage it!</q> What it removes is votes that aren&apos;t genuine: when it detects
+        suspicious or invalid voting during a launch, its <a href={SRC.fairVoting}>fair voting article</a> says Product Hunt{" "}
+        <q>Removes any votes deemed non-genuine or contrary to community guidelines.</q> The same article asks makers to{" "}
+        <q>Avoid overtly coordinated campaigns that might appear artificial to detection systems.</q>
         Hacker News has the same rule and also bans asking for comments. Ask people to <em>check it out</em>, never to vote (or, on HN, to comment). Do not buy votes or join vote-swap groups.
         Launching on Hacker News too? Follow the <Link href="/show-hn-launch-checklist">Show HN launch checklist</Link>.
       </p>

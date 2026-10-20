@@ -26,7 +26,7 @@ export function GuideLayout({ guide, children }: { guide: Guide; children: React
               url,
               mainEntityOfPage: url,
               image: `${base}${page.image.url}`,
-              datePublished: guide.updated,
+              datePublished: guide.published,
               dateModified: guide.updated,
               inLanguage: "en-GB",
               author: { "@type": "Organization", name: SITE.name, url: `${base}/` },
