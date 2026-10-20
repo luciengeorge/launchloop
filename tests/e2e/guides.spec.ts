@@ -91,6 +91,8 @@ test("Product Hunt checklist quotes and links Product Hunt's own pages on upvote
   }
   await expect(rules.locator("q", { hasText: "You\u2019re welcome to share a direct link to your post with your community, friends, or users." })).toBeVisible();
   await expect(rules.locator("q", { hasText: "There is no penalty for linking directly to your product, in actuality, we encourage it!" })).toBeVisible();
+  await expect(rules.locator("q", { hasText: "Removes any votes deemed non-genuine or contrary to community guidelines." })).toBeVisible();
+  await expect(rules).not.toContainText("What it does remove is coordinated voting");
   await expect(rules).not.toContainText("direct link to vote");
   await expect(rules).not.toContainText("lots of new accounts");
   expect(await rules.innerText()).not.toMatch(/[\u2013\u2014]/);
