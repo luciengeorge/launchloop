@@ -1,4 +1,5 @@
 import { expect, type Locator, test } from "@playwright/test";
+import { GUIDES } from "../../src/lib/guides";
 
 const NEW_GUIDES = [
   { path: "/show-hn-launch-checklist", h1: "The Show HN launch checklist", title: /^Show HN checklist: how to post on Show HN · LaunchLoop$/, updated: "2026-10-20" },
@@ -90,12 +91,28 @@ test("Product Hunt checklist quotes and links Product Hunt's own pages on upvote
   }
   await expect(rules.locator("q", { hasText: "You\u2019re welcome to share a direct link to your post with your community, friends, or users." })).toBeVisible();
   await expect(rules.locator("q", { hasText: "There is no penalty for linking directly to your product, in actuality, we encourage it!" })).toBeVisible();
+  await expect(rules.locator("q", { hasText: "Removes any votes deemed non-genuine or contrary to community guidelines." })).toBeVisible();
+  await expect(rules).not.toContainText("What it does remove is coordinated voting");
   await expect(rules).not.toContainText("direct link to vote");
   await expect(rules).not.toContainText("lots of new accounts");
   expect(await rules.innerText()).not.toMatch(/[\u2013\u2014]/);
 
   const sitemap = await (await request.get("/sitemap.xml")).text();
   expect(sitemap).toMatch(/<loc>[^<]*\/product-hunt-launch-checklist<\/loc>\s*<lastmod>2026-10-20/);
+});
+
+test("every guide's Article JSON-LD dates publication from published and modification from updated", async ({ page }) => {
+  for (const g of GUIDES) {
+    await page.goto(`/${g.slug}`);
+    const blocks = await page.locator('script[type="application/ld+json"]').allTextContents();
+    const article = blocks
+      .flatMap((text) => {
+        const data = JSON.parse(text);
+        return (data["@graph"] ?? [data]) as { "@type": string; datePublished?: string; dateModified?: string }[];
+      })
+      .find((n) => n["@type"] === "Article");
+    expect(article, g.slug).toMatchObject({ datePublished: g.published, dateModified: g.updated });
+  }
 });
 
 test("tagline guide and checker link to each other", async ({ page }) => {

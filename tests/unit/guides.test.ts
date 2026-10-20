@@ -19,6 +19,24 @@ describe("guide registry", () => {
     expect(g.updated).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 
+  it("gives every guide a first-publication date that never comes after its last update", () => {
+    // From the commit that first added each guide's page (git log --diff-filter=A).
+    const firstPublished: Record<string, string> = {
+      "product-hunt-launch-checklist": "2026-10-15",
+      "how-to-launch-a-vibe-coded-app": "2026-10-15",
+      "show-hn-launch-checklist": "2026-10-18",
+      "how-to-write-a-product-hunt-tagline": "2026-10-18",
+      "how-to-promote-on-reddit": "2026-10-19",
+      "how-to-write-a-show-hn-post": "2026-10-20",
+    };
+    for (const g of GUIDES) {
+      expect(g.published, g.slug).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(g.published <= g.updated, g.slug).toBe(true);
+      if (firstPublished[g.slug]) expect(g.published, g.slug).toBe(firstPublished[g.slug]);
+    }
+    expect(guide("product-hunt-launch-checklist")).toMatchObject({ published: "2026-10-15", updated: "2026-10-20" });
+  });
+
   it("has unique slugs and meta titles", () => {
     expect(new Set(GUIDES.map((g) => g.slug)).size).toBe(GUIDES.length);
     expect(new Set(GUIDES.map((g) => g.metaTitle)).size).toBe(GUIDES.length);
