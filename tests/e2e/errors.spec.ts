@@ -122,6 +122,38 @@ test("rate limited previews say when to try again", async ({ page }) => {
   await expect(alert).toContainText("You've used your free previews for now.");
   await expect(alert).toContainText("Try again in 23 min");
   await expect(alert).not.toHaveClass(/text-destructive/);
+  // No preview to unlock: the way forward is the pricing page, and the retry waits for the reset.
+  await expect(alert.getByRole("link", { name: /^See the Launch Kit, .*£\d+$/ })).toHaveAttribute("href", "/pricing");
+  await expect(alert.getByRole("button", { name: "Try again in 23 min" })).toBeDisabled();
+});
+
+test("rate limited with a preview from this browser: 'Unlock my kit' opens it, and the retry comes back at the reset", async ({ page }) => {
+  const kitId = "kit_limitedPreview01";
+  let posts = 0;
+  await page.route("**/api/kits", (route) => {
+    posts += 1;
+    return route.fulfill({ status: 429, headers: { "Retry-After": "2" }, json: { ...rateLimitedBody(2), kitId } });
+  });
+  await page.setViewportSize({ width: 375, height: 800 });
+  await page.goto("/");
+  await page.getByLabel("GitHub repo or live site URL").fill("github.com/acme/app");
+  await page.getByRole("button", { name: "Get my free preview" }).first().click();
+  const alert = page.getByTestId("kit-error");
+  const unlock = alert.getByRole("link", { name: /^Unlock my kit, .*£\d+$/ });
+  await expect(unlock).toHaveAttribute("href", `/kit/${kitId}`);
+  // Both actions fit a 375px screen.
+  for (const action of [unlock, alert.getByTestId("rate-limit-retry")]) {
+    const box = (await action.boundingBox())!;
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(375);
+  }
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(375);
+
+  const retry = alert.getByRole("button", { name: /^Try again/ });
+  await expect(retry).toBeDisabled();
+  await expect(retry).toHaveText("Try again", { timeout: 5_000 });
+  await retry.click();
+  await expect.poll(() => posts).toBe(2);
 });
 
 test("busy (global cap or kill switch) shows the friendly notice, not an error", async ({ page }) => {

@@ -12,6 +12,7 @@ import { LAUNCH_PROMO } from "@/lib/products";
 import { hasSessionHint } from "@/lib/session-hint";
 import { START_EVENT, type StartPlan } from "@/lib/start-intent";
 import { KitPrice } from "./kit-price";
+import { RateLimitActions } from "./rate-limit-actions";
 
 const previewSource = (value: string): PreviewSource => (value === "sample" ? "sample" : /github\.com/i.test(value) ? "github" : "site");
 
@@ -32,7 +33,7 @@ export function KitForm({ promo }: { promo: boolean }) {
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(-1);
-  const [error, setError] = useState<{ message: string; fix?: string; code: string } | null>(null);
+  const [error, setError] = useState<{ message: string; fix?: string; code: string; limit?: { retryAt: number; kitId?: string } } | null>(null);
 
   const [plan, setPlan] = useState<StartPlan>("free");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -102,7 +103,8 @@ export function KitForm({ promo }: { promo: boolean }) {
         router.push(plan === "kit" ? `/kit/${kitId}?unlock=1` : `/kit/${kitId}`);
         return;
       }
-      setError(known ? { message: known.message, fix: known.fix, code: known.code } : { message: "Something went wrong.", fix: "Try again in a moment.", code: "unknown" });
+      const limit = known?.rateLimit && { retryAt: Date.now() + known.rateLimit.retryAfterSeconds * 1000, kitId: known.rateLimit.kitId };
+      setError(known ? { message: known.message, fix: known.fix, code: known.code, limit } : { message: "Something went wrong.", fix: "Try again in a moment.", code: "unknown" });
       setLoading(false);
       requestAnimationFrame(() => inputRef.current?.focus());
     }
@@ -199,6 +201,7 @@ export function KitForm({ promo }: { promo: boolean }) {
               </button>
             ) : null}
           </AlertDescription>
+          {error.limit ? <RateLimitActions kitId={error.limit.kitId} retryAt={error.limit.retryAt} promo={promo} onRetry={() => void submit(lastInput.current)} /> : null}
         </Alert>
       ) : null}
     </div>
