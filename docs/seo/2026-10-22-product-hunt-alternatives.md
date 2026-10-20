@@ -7,7 +7,7 @@ Blog post for `/blog`, requested on Tuesday 20 October 2026. Every source was re
 **URL:** `/blog/product-hunt-alternatives`
 **Title:** `Product Hunt alternatives: where to launch · LaunchLoop` (55 characters)
 **Description:** `Sites like Product Hunt, from their own pages: who BetaList, Uneed, Peerlist, DevHunt, Show HN and others are for, what a launch costs and the rules.` (149 characters)
-**H1:** Product Hunt alternatives for indie makers. **Published and updated:** 2026-10-22, as the brief asked (bump both in `src/lib/blog.ts` if it merges on another day). **Byline:** Lucien George. **Reading time:** 19 minutes (3,658 words in the rendered body at 200 words a minute; the e2e suite recounts it).
+**H1:** Product Hunt alternatives for indie makers. **Published and updated:** 2026-10-22, as the brief asked (bump both in `src/lib/blog.ts` if it merges on another day). **Byline:** Lucien George. **Reading time:** 19 minutes (3,663 words in the rendered body at 200 words a minute; the e2e suite recounts it).
 
 ## Target queries
 
@@ -37,7 +37,7 @@ Its page also leads with its own waitlist product. Ours differs by quoting each 
 - Fazier and Microlaunch show a crossed-out price next to a lower one. The page's computed styles were checked to see which is crossed out (`text-decoration: line-through`), and the post gives the lower, current price.
 - Reddit returned HTTP 403 to `curl` and to headless Chromium ("You've been blocked by network security"), and the fetch service timed out. The subreddit text comes from the Internet Archive's copies of the old.reddit rules pages (see Sources), which the page says.
 - Indie Hackers' About page was read through the fetch service (Cursor's WebFetch), as for the Indie Hackers post.
-- Cross-check: after the page was written, a script loaded the rendered post, took every `<q>`, and searched for it in the saved plain-text copies of the sources (whitespace normalised, Markdown link and bold syntax stripped). All 76 quotes were found word for word, with the same apostrophes. The same script confirmed the article has no en or em dashes. Quotes were cut short wherever the source continues with an em dash (BetaList's own-domain rule, Uneed's accept list, Tiny Startups' leaderboard sentence).
+- Cross-check: after the page was written, a script loaded the rendered post, took every `<q>`, and searched for it in the saved plain-text copies of the sources (whitespace normalised, Markdown link and bold syntax stripped). All 75 quotes were found word for word, with the same apostrophes. The same script confirmed the article has no en or em dashes. Quotes were cut short wherever the source continues with an em dash (BetaList's own-domain rule, Uneed's accept list, Tiny Startups' leaderboard sentence).
 
 ## Sites included, and why
 
@@ -69,7 +69,7 @@ No site in the brief had to be dropped for being unreadable. Reddit's live pages
 - **BetaList submission prices.** Shown only at the end of the signed-in submission form.
 - **Microlaunch's free route.** Its launch window, signed out, shows only Pro Launch, which "Skip the queue". Third-party directories (saascity.io, launchdirectories.com, launchto.win) say a free queue exists, but no Microlaunch page we could read says so, so the post doesn't claim it.
 - **Peerlist's identity verification fee.** The page says "a minimal fee" (and the identity page "a nominal one-time fee") without an amount.
-- **Tiny Startups' Skip the queue price.** £29 on the About page, £99 in the Terms of Service (effective May 2, 2026). The post gives both and says to check at checkout.
+- **Tiny Startups' Skip the queue price.** £29 on the About page, "Skip the queue £99" in the Terms of Service (effective May 2, 2026). The post quotes the £29 and says the terms list "a higher price", without the figure: `tests/e2e/pricing-consistency.spec.ts` fails any rendered page containing "£99", to keep LaunchLoop's retired £99 Ship Loop pre-order off the site, and that test was left as it is. The terms are linked, so readers can see the figure.
 - **BetaList's newsletter size.** "60k+ subscribers" on the plan cards and "70,000+" elsewhere on the Boost and Advertise pages. The post gives both.
 - **Microlaunch's Pro price.** $39 (crossed out at $49, code LAUNCH20, "This Week") on the cards; the FAQ on the same page says "Pro Launch ($49)". The post gives both.
 - **The r/SideProject rules list.** The archived rules page shows the sidebar but no numbered rules. The post says so and tells readers to check the live page.
@@ -171,31 +171,30 @@ No site in the brief had to be dropped for being unreadable. Reddit's live pages
 | 46 | "Launches compete on a weekly leaderboard" | https://www.tinystartups.com/about |
 | 47 | "Every listing is hand-approved." | https://www.tinystartups.com/about |
 | 48 | "Launching is free; Skip the queue (£29) puts you in the next Monday batch" | https://www.tinystartups.com/about |
-| 49 | "Skip the queue £99" | https://www.tinystartups.com/terms |
-| 50 | "All sales are final. We do not offer refunds." | https://www.tinystartups.com/terms |
-| 51 | "Free submissions enter a review queue and are not guaranteed to be approved or given a specific launch date." | https://www.tinystartups.com/terms |
-| 52 | "Rank is upvotes, nothing else: clicks and reviews never move a listing." | https://www.tinystartups.com/about |
-| 53 | "Artificial inflation of votes (bots, purchased votes, coordinated campaigns) is prohibited and will result in removal and account suspension." | https://www.tinystartups.com/terms |
-| 54 | "Microlaunch is where makers launch and grow their products." | https://microlaunch.net/premium (FAQ) |
-| 55 | "Your launch campaign runs for 30 days, during which your product is showcased to our community of Tech Makers from around the world." | https://microlaunch.net/premium (FAQ) |
-| 56 | "Skip the queue, go Live Now or Schedule" | https://microlaunch.net/ ("Pick your Launch" window) |
-| 57 | "OSS Projects & Students, get 50% OFF Now." | https://microlaunch.net/ ("Pick your Launch" window) |
-| 58 | "Products rank over 1 month" | https://microlaunch.net/ ("Microlaunch Rules" window) |
-| 59 | "Products are onboarded between the 1st-15th" | https://microlaunch.net/ ("Microlaunch Rules" window) |
-| 60 | "Only signed users can vote" | https://microlaunch.net/ ("Microlaunch Rules" window) |
-| 61 | "Makers can submit multiple products, with a maximum of two ranking per month." | https://microlaunch.net/ ("Microlaunch Rules" window) |
-| 62 | "No bots allowed on the platform" | https://microlaunch.net/ ("Microlaunch Rules" window) |
-| 63 | "Roasts tend to lower your product score while increasing your final rank" | https://microlaunch.net/ ("Microlaunch Rules" window) |
-| 64 | "Launch window opens on Monday every week!" | https://help.peerlist.io/individual/launchpad/introduction |
-| 65 | "Anyone with a Verified Peerlist profile can launch their products on Peerlist Launchpad." | https://help.peerlist.io/individual/launchpad/frequently-asked-questions-about-spotlight-by-peerlist |
-| 66 | "Only projects that are 100% complete are eligible for launching on Launchpad." | https://help.peerlist.io/individual/launchpad/how-to-launch-a-project-on-peerlist-launchpad |
-| 67 | "Workplace verification is free. Identity verification has a minimal fee associate with it." | https://help.peerlist.io/individual/peerlist-profile/verification |
-| 68 | "We have zero tolerance for spamming." | https://help.peerlist.io/individual/launchpad/guidelines-faqs |
-| 69 | "Only individual profiles are allowed to launch projects." | https://help.peerlist.io/individual/launchpad/guidelines-faqs |
-| 70 | "SEO marketing agencies are strictly prohibited from launching projects on behalf of their clients or customers." | https://help.peerlist.io/individual/launchpad/guidelines-faqs |
-| 71 | "For first 2 days (Monday and Tuesday), the projects are in random order to give equal exposure to all the projects launched." | https://help.peerlist.io/individual/launchpad/frequently-asked-questions-about-spotlight-by-peerlist |
-| 72 | "No, only the top 5 projects of the week are awarded a backlink." | https://help.peerlist.io/individual/launchpad/frequently-asked-questions-about-spotlight-by-peerlist |
-| 73 | "Indie Hackers is a place where the founders of profitable businesses and side projects can share their stories transparently, and where entrepreneurs can come to read and learn from those examples." | https://www.indiehackers.com/about |
-| 74 | "You're an indie hacker if you've set out to make money independently." | https://www.indiehackers.com/about |
-| 75 | "Welcome to r/SideProject, a subreddit for sharing and receiving constructive feedback on side projects." | https://web.archive.org/web/20260828184531/https://old.reddit.com/r/SideProject/about/rules |
-| 76 | "When submitting a link to a project or startup, please use this format: [Project name] - [Short description]." | https://web.archive.org/web/20260828184531/https://old.reddit.com/r/SideProject/about/rules |
+| 49 | "All sales are final. We do not offer refunds." | https://www.tinystartups.com/terms |
+| 50 | "Free submissions enter a review queue and are not guaranteed to be approved or given a specific launch date." | https://www.tinystartups.com/terms |
+| 51 | "Rank is upvotes, nothing else: clicks and reviews never move a listing." | https://www.tinystartups.com/about |
+| 52 | "Artificial inflation of votes (bots, purchased votes, coordinated campaigns) is prohibited and will result in removal and account suspension." | https://www.tinystartups.com/terms |
+| 53 | "Microlaunch is where makers launch and grow their products." | https://microlaunch.net/premium (FAQ) |
+| 54 | "Your launch campaign runs for 30 days, during which your product is showcased to our community of Tech Makers from around the world." | https://microlaunch.net/premium (FAQ) |
+| 55 | "Skip the queue, go Live Now or Schedule" | https://microlaunch.net/ ("Pick your Launch" window) |
+| 56 | "OSS Projects & Students, get 50% OFF Now." | https://microlaunch.net/ ("Pick your Launch" window) |
+| 57 | "Products rank over 1 month" | https://microlaunch.net/ ("Microlaunch Rules" window) |
+| 58 | "Products are onboarded between the 1st-15th" | https://microlaunch.net/ ("Microlaunch Rules" window) |
+| 59 | "Only signed users can vote" | https://microlaunch.net/ ("Microlaunch Rules" window) |
+| 60 | "Makers can submit multiple products, with a maximum of two ranking per month." | https://microlaunch.net/ ("Microlaunch Rules" window) |
+| 61 | "No bots allowed on the platform" | https://microlaunch.net/ ("Microlaunch Rules" window) |
+| 62 | "Roasts tend to lower your product score while increasing your final rank" | https://microlaunch.net/ ("Microlaunch Rules" window) |
+| 63 | "Launch window opens on Monday every week!" | https://help.peerlist.io/individual/launchpad/introduction |
+| 64 | "Anyone with a Verified Peerlist profile can launch their products on Peerlist Launchpad." | https://help.peerlist.io/individual/launchpad/frequently-asked-questions-about-spotlight-by-peerlist |
+| 65 | "Only projects that are 100% complete are eligible for launching on Launchpad." | https://help.peerlist.io/individual/launchpad/how-to-launch-a-project-on-peerlist-launchpad |
+| 66 | "Workplace verification is free. Identity verification has a minimal fee associate with it." | https://help.peerlist.io/individual/peerlist-profile/verification |
+| 67 | "We have zero tolerance for spamming." | https://help.peerlist.io/individual/launchpad/guidelines-faqs |
+| 68 | "Only individual profiles are allowed to launch projects." | https://help.peerlist.io/individual/launchpad/guidelines-faqs |
+| 69 | "SEO marketing agencies are strictly prohibited from launching projects on behalf of their clients or customers." | https://help.peerlist.io/individual/launchpad/guidelines-faqs |
+| 70 | "For first 2 days (Monday and Tuesday), the projects are in random order to give equal exposure to all the projects launched." | https://help.peerlist.io/individual/launchpad/frequently-asked-questions-about-spotlight-by-peerlist |
+| 71 | "No, only the top 5 projects of the week are awarded a backlink." | https://help.peerlist.io/individual/launchpad/frequently-asked-questions-about-spotlight-by-peerlist |
+| 72 | "Indie Hackers is a place where the founders of profitable businesses and side projects can share their stories transparently, and where entrepreneurs can come to read and learn from those examples." | https://www.indiehackers.com/about |
+| 73 | "You're an indie hacker if you've set out to make money independently." | https://www.indiehackers.com/about |
+| 74 | "Welcome to r/SideProject, a subreddit for sharing and receiving constructive feedback on side projects." | https://web.archive.org/web/20260828184531/https://old.reddit.com/r/SideProject/about/rules |
+| 75 | "When submitting a link to a project or startup, please use this format: [Project name] - [Short description]." | https://web.archive.org/web/20260828184531/https://old.reddit.com/r/SideProject/about/rules |

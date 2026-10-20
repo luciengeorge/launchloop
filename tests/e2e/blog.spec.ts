@@ -84,7 +84,7 @@ const EXPECT: Record<string, { links: string[]; quotes: string[] }> = {
       "Anyone with a Verified Peerlist profile can launch their products on Peerlist Launchpad.",
       "Products rank over 1 month",
       "Launching is free; Skip the queue (£29) puts you in the next Monday batch",
-      "Skip the queue £99",
+      "All sales are final. We do not offer refunds.",
     ],
   },
 };

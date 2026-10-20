@@ -121,7 +121,7 @@ export default function ProductHuntAlternativesPostPage() {
             <tr className="border-b border-border">
               <td className="py-2 pr-4 align-top">Tiny Startups</td>
               <td className="py-2 pr-4 align-top">Free launch, review queue</td>
-              <td className="py-2 align-top">Skip the queue: £29 on its About page, £99 in its terms</td>
+              <td className="py-2 align-top">Skip the queue: £29 on its About page, a higher price in its terms</td>
             </tr>
             <tr className="border-b border-border">
               <td className="py-2 pr-4 align-top">Microlaunch</td>
@@ -344,8 +344,8 @@ export default function ProductHuntAlternativesPostPage() {
       </p>
       <p>
         <strong>Free or paid.</strong> The About page says <q>Launching is free; Skip the queue (£29) puts you in the next Monday batch</q>. Its{" "}
-        <a href={SRC.tinyTerms}>terms of service</a> list <q>Skip the queue £99</q>, along with paid upgrades for backlinks, a newsletter feature and an SEO review. The two
-        pages disagree, so check the price at checkout. The terms are strict about refunds: <q>All sales are final. We do not offer refunds.</q> If a paid listing is rejected,
+        <a href={SRC.tinyTerms}>terms of service</a> list Skip the queue at a higher price, along with paid upgrades for backlinks, a newsletter feature and an SEO review.
+        The two pages disagree, so check the price at checkout. The terms are strict about refunds: <q>All sales are final. We do not offer refunds.</q> If a paid listing is rejected,
         you get a credit for a future submission instead.
       </p>
       <p>
