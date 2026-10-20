@@ -72,13 +72,16 @@ test("sitemap lists every indexable page once, with lastmod, and no redirecting 
     "/how-to-launch-a-vibe-coded-app",
     "/how-to-promote-on-reddit",
     "/how-to-write-a-show-hn-post",
+    "/blog",
+    "/blog/how-to-launch-on-product-hunt",
+    "/blog/how-to-launch-on-indie-hackers",
     "/privacy",
     "/terms",
   ];
   expect(paths).toEqual(expect.arrayContaining(expected));
   expect(new Set(paths).size).toBe(paths.length);
   expect(xml.match(/<lastmod>\d{4}-\d{2}-\d{2}/g)?.length).toBe(paths.length);
-  for (const path of ["/product-hunt-tagline-checker", "/og-preview", "/blog", "/login", "/account"]) expect(paths).not.toContain(path);
+  for (const path of ["/product-hunt-tagline-checker", "/og-preview", "/blog/rss.xml", "/login", "/account"]) expect(paths).not.toContain(path);
   for (const path of paths) expect((await request.get(path, { maxRedirects: 0 })).status(), path).toBe(200);
 });
 
@@ -117,13 +120,13 @@ test("every sitemap page has unique, well-sized metadata with a self canonical a
   expect(descriptions.size).toBe(paths.length);
 });
 
-test("trailing slashes, /blog and the old tool aliases redirect permanently", async ({ request }) => {
+test("trailing slashes and the old tool aliases redirect permanently", async ({ request }) => {
   const redirects: [string, string][] = [
     ["/pricing/", "/pricing"],
     ["/faq/?ref=x", "/faq?ref=x"],
     ["/tools/og-preview/", "/tools/og-preview"],
-    ["/blog", "/guides"],
-    ["/blog/anything", "/guides"],
+    ["/blog/", "/blog"],
+    ["/blog/how-to-launch-on-product-hunt/", "/blog/how-to-launch-on-product-hunt"],
     ["/product-hunt-tagline-checker", "/tools/product-hunt-tagline-checker"],
     ["/og-preview", "/tools/og-preview"],
   ];
