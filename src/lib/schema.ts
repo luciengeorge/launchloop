@@ -7,7 +7,7 @@ export const paletteSchema = z.object({
   accent: z.string(),
   accentForeground: z.string(),
   muted: z.string(),
-  source: z.enum(["site", "default"]),
+  source: z.enum(["site", "repo", "default"]),
 });
 export type Palette = z.infer<typeof paletteSchema>;
 

@@ -47,10 +47,10 @@ describe("global daily cap", () => {
   });
 
   it("requests refused by the per-IP limit don't use up the global cap", async () => {
-    vi.stubEnv("PREVIEW_GLOBAL_DAILY_CAP", "6");
+    vi.stubEnv("PREVIEW_GLOBAL_DAILY_CAP", "11");
     const statuses = [];
-    for (let i = 0; i < 10; i++) statuses.push((await gate(request("198.51.100.9"), REPO))?.status ?? 200);
-    expect(statuses).toEqual([200, 200, 200, 200, 200, 429, 429, 429, 429, 429]);
+    for (let i = 0; i < 15; i++) statuses.push((await gate(request("198.51.100.9"), REPO))?.status ?? 200);
+    expect(statuses).toEqual([...Array(10).fill(200), ...Array(5).fill(429)]);
     expect(await gate(request("198.51.100.10"), REPO)).toBeNull();
   });
 
@@ -93,7 +93,7 @@ describe("refunds and refused attempts", () => {
   };
 
   it("a refunded slot can be used again", async () => {
-    for (let i = 0; i < 4; i++) await take("192.0.2.20");
+    for (let i = 0; i < 9; i++) await take("192.0.2.20");
     const failed = await take("192.0.2.20");
     await failed.refund();
     await take("192.0.2.20");
@@ -101,7 +101,7 @@ describe("refunds and refused attempts", () => {
   });
 
   it("refunding the same slot twice gives back one slot", async () => {
-    for (let i = 0; i < 4; i++) await take("192.0.2.21");
+    for (let i = 0; i < 9; i++) await take("192.0.2.21");
     const failed = await take("192.0.2.21");
     await failed.refund();
     await failed.refund();
@@ -111,9 +111,9 @@ describe("refunds and refused attempts", () => {
 
   it("only the first 10 failures an hour are refunded, so missing repos can't hammer GitHub", async () => {
     for (let i = 0; i < 10; i++) await (await take("192.0.2.22")).refund();
-    // The 11th failure isn't refunded: it uses one of the 5.
+    // The 11th failure isn't refunded: it uses one of the 10.
     await (await take("192.0.2.22")).refund();
-    for (let i = 0; i < 4; i++) await take("192.0.2.22");
+    for (let i = 0; i < 9; i++) await take("192.0.2.22");
     expect((await gate(request("192.0.2.22"), REPO))?.status).toBe(429);
   });
 
@@ -124,29 +124,29 @@ describe("refunds and refused attempts", () => {
     }
     vi.setSystemTime(new Date("2026-10-19T16:10:00Z"));
     await (await take("192.0.2.23")).refund();
-    for (let i = 0; i < 4; i++) await take("192.0.2.23");
+    for (let i = 0; i < 9; i++) await take("192.0.2.23");
     expect((await gate(request("192.0.2.23"), REPO))?.status).toBe(429);
   });
 
   it("a refund after the window ended doesn't credit the next window", async () => {
     const slot = await take("192.0.2.24");
     vi.setSystemTime(new Date("2026-10-19T14:02:00Z"));
-    for (let i = 0; i < 5; i++) await take("192.0.2.24");
+    for (let i = 0; i < 10; i++) await take("192.0.2.24");
     await slot.refund();
     expect((await gate(request("192.0.2.24"), REPO))?.status).toBe(429);
   });
 
-  it("retrying while limited doesn't eat into the day's 20", async () => {
-    for (let i = 0; i < 5; i++) await take("192.0.2.25");
+  it("retrying while limited doesn't eat into the day's 40", async () => {
+    for (let i = 0; i < 10; i++) await take("192.0.2.25");
     for (let i = 0; i < 30; i++) expect((await gate(request("192.0.2.25"), REPO))?.status).toBe(429);
     for (let hour = 14; hour < 17; hour++) {
       vi.setSystemTime(new Date(Date.UTC(2026, 9, 19, hour, 10)));
-      for (let i = 0; i < 5; i++) await take("192.0.2.25");
+      for (let i = 0; i < 10; i++) await take("192.0.2.25");
     }
     vi.setSystemTime(new Date("2026-10-19T17:10:00Z"));
     const res = await gate(request("192.0.2.25"), REPO);
     expect(res?.status).toBe(429);
-    // The day's 20 are used, so it's the daily window: UTC midnight is 6h50m away.
+    // The day's 40 are used, so it's the daily window: UTC midnight is 6h50m away.
     expect((await res?.json()).retryAfterSeconds).toBe(6 * 3600 + 50 * 60);
   });
 
@@ -154,12 +154,12 @@ describe("refunds and refused attempts", () => {
     vi.stubEnv("PREVIEW_GLOBAL_DAILY_CAP", "0");
     for (let i = 0; i < 8; i++) expect((await gate(request("192.0.2.26"), REPO))?.status).toBe(503);
     vi.stubEnv("PREVIEW_GLOBAL_DAILY_CAP", "1000");
-    for (let i = 0; i < 5; i++) await take("192.0.2.26");
+    for (let i = 0; i < 10; i++) await take("192.0.2.26");
     expect((await gate(request("192.0.2.26"), REPO))?.status).toBe(429);
   });
 
   it("'Try again in' counts down to the end of the hour between attempts", async () => {
-    for (let i = 0; i < 5; i++) await take("192.0.2.27");
+    for (let i = 0; i < 10; i++) await take("192.0.2.27");
     vi.setSystemTime(new Date("2026-10-19T13:18:00Z"));
     const first = await gate(request("192.0.2.27"), REPO);
     vi.setSystemTime(new Date("2026-10-19T13:23:30Z"));
@@ -208,8 +208,8 @@ describe("IPv6 keys", () => {
 
   it("addresses in one /64 share a budget", async () => {
     const statuses = [];
-    for (let i = 1; i <= 6; i++) statuses.push((await gate(request(`2001:db8:5:6::${i.toString(16)}`), REPO))?.status ?? 200);
-    expect(statuses).toEqual([200, 200, 200, 200, 200, 429]);
+    for (let i = 1; i <= 11; i++) statuses.push((await gate(request(`2001:db8:5:6::${i.toString(16)}`), REPO))?.status ?? 200);
+    expect(statuses).toEqual([...Array(10).fill(200), 429]);
     expect(await gate(request("2001:db8:5:7::1"), REPO)).toBeNull();
   });
 });

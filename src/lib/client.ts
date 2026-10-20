@@ -61,6 +61,12 @@ export interface KitFailureDetails {
   kitId?: string;
 }
 
+/** On rate_limited: when the limit resets, and the visitor's newest unpaid preview if they have one. */
+export interface RateLimitInfo {
+  retryAfterSeconds: number;
+  kitId?: string;
+}
+
 /** An error the kit form can show with a title and a suggested fix. */
 export class KitRequestError extends Error {
   constructor(
@@ -68,6 +74,7 @@ export class KitRequestError extends Error {
     public readonly code: string = "unknown",
     public readonly fix?: string,
     public readonly details: KitFailureDetails = {},
+    public readonly rateLimit?: RateLimitInfo,
   ) {
     super(message);
     this.name = "KitRequestError";
@@ -122,8 +129,11 @@ async function readKitStream(input: string, onStep: (step: string) => void, isUn
     throw connectionError("request", error, isUnloading());
   }
   if (!res.headers.get("content-type")?.includes("application/x-ndjson") || !res.body) {
-    const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string; code?: string; fix?: string };
-    if (!res.ok || !data.url) throw new KitRequestError(data.error ?? "Something went wrong reading your app.", data.code, data.fix ?? "Try again in a moment.");
+    const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string; code?: string; fix?: string; retryAfterSeconds?: number; kitId?: string };
+    if (!res.ok || !data.url) {
+      const rateLimit = data.code === "rate_limited" ? { retryAfterSeconds: data.retryAfterSeconds ?? Number(res.headers.get("Retry-After") ?? 0), kitId: data.kitId } : undefined;
+      throw new KitRequestError(data.error ?? "Something went wrong reading your app.", data.code, data.fix ?? "Try again in a moment.", {}, rateLimit);
+    }
     return { url: data.url };
   }
   const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
