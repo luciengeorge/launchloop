@@ -28,7 +28,7 @@ export const BLOG_POSTS: BlogPost[] = [
       "Launching on Product Hunt, from its own help center: how it works, whether to launch there, who can post, the rules on upvotes, and what follows launch day.",
     published: "2026-10-21",
     updated: "2026-10-21",
-    readingMinutes: 14,
+    readingMinutes: 19,
   },
   {
     slug: "how-to-launch-on-indie-hackers",
@@ -38,7 +38,7 @@ export const BLOG_POSTS: BlogPost[] = [
       "How to launch on Indie Hackers from its founders' own advice: what the site is for, where to post, the self-promotion line and writing a post people answer.",
     published: "2026-10-21",
     updated: "2026-10-21",
-    readingMinutes: 9,
+    readingMinutes: 11,
   },
 ];
 
