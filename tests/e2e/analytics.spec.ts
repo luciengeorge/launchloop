@@ -214,8 +214,11 @@ test("a preview started before the PostHog SDK loads: its events wait for the SD
   await page.waitForURL(/\/kit\/[\w-]+$/);
   const kitId = new URL(page.url()).pathname.split("/").pop()!;
 
-  // Queued, not dropped: nothing for this visit has reached PostHog while the SDK is held.
-  expect((await phEvents(page)).filter((e) => e.properties.utm_campaign === campaign)).toEqual([]);
+  // The server's kit_created doesn't wait for the browser SDK, and it's on the id the page will use.
+  const created = await campaignEvent(page, campaign, "kit_created");
+  expect(created.properties).toMatchObject({ kitId, source: "sample", stream: true, utm_source: "hn", referring_domain: "news.ycombinator.com", is_test: true });
+  // Browser events are queued, not dropped: none for this visit has reached PostHog while the SDK is held.
+  expect((await phEvents(page)).filter((e) => e.properties.utm_campaign === campaign && e.event !== "kit_created")).toEqual([]);
   sdk.release();
 
   const started = await campaignEvent(page, campaign, "preview_started");
@@ -231,6 +234,7 @@ test("a preview started before the PostHog SDK loads: its events wait for the SD
     .toBeTruthy();
   expect(distinctId(started)).toBe(distinctId(landing!));
   expect(distinctId(completed)).toBe(distinctId(landing!));
+  expect(distinctId(created)).toBe(distinctId(landing!));
 
   // The server traces the preview whatever the browser SDKs are doing.
   await expect

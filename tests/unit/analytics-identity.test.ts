@@ -76,6 +76,22 @@ describe("the anonymous PostHog id lasts for the tab", () => {
     expect(ph.sdk.init.mock.calls.at(-1)?.[1]).toMatchObject({ bootstrap: { distinctID: previewId }, persistence: "memory" });
   });
 
+  it("the preview request sends the tab's id without loading the SDK, and checkout after a reload sends the same one", async () => {
+    const tab = tabStorage();
+    await landOn("https://launchloop.dev/", tab);
+    vi.stubGlobal("window", { location: new URL("https://launchloop.dev/"), addEventListener: vi.fn(), removeEventListener: vi.fn() });
+    const fetch = vi.fn(async () => Response.json({ id: "kit_1", url: "/kit/kit_1" }, { status: 201 }));
+    vi.stubGlobal("fetch", fetch);
+    const { createKitWithProgress } = await import("@/lib/client");
+    await createKitWithProgress("sample", () => {});
+    const previewBody = JSON.parse((fetch.mock.calls[0] as unknown as [string, RequestInit])[1].body as string) as { analyticsId?: string };
+    expect(previewBody.analyticsId).toMatch(/^[0-9a-f-]{36}$/);
+    expect(ph.sdk.init).not.toHaveBeenCalled();
+
+    await landOn("https://launchloop.dev/kit/kit_1", tab);
+    expect(await checkoutAnalyticsId()).toBe(previewBody.analyticsId);
+  });
+
   it("a new tab gets a new id", async () => {
     const first = (await landOn("https://launchloop.dev/", tabStorage())).pageAnalyticsId();
     const second = (await landOn("https://launchloop.dev/", tabStorage())).pageAnalyticsId();

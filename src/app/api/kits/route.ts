@@ -1,5 +1,6 @@
 import { after } from "next/server";
-import { parseAttribution } from "@/lib/attribution";
+import { captureServerEvent, eventUuid, resolveDistinctId } from "@/lib/analytics-server";
+import { attributionProperties, parseAttribution } from "@/lib/attribution";
 import { kitErrorBody } from "@/lib/errors";
 import { speculateDraft } from "@/lib/generation";
 import { IngestError } from "@/lib/ingest";
@@ -7,7 +8,7 @@ import { LlmError } from "@/lib/llm";
 import type { Kit } from "@/lib/schema";
 import { cookies } from "next/headers";
 import { ANON_KITS_COOKIE, getSession, readAnonKits, secureCookies } from "@/lib/auth";
-import { type KitRequestTrace, phase, previewSourceOf, safeInput, traceKitRequest } from "@/lib/kit-tracing";
+import { type KitRequestTrace, type PreviewSource, phase, previewSourceOf, safeInput, traceKitRequest } from "@/lib/kit-tracing";
 import { type KitOptions, type KitStep, createKit, markKitFailed, markKitPending, newId } from "@/lib/kits";
 import { captureException } from "@/lib/observability";
 import { type PreviewSlot, freePreviewGate } from "@/lib/rate-limit";
@@ -16,10 +17,12 @@ export const maxDuration = 300;
 
 export async function POST(req: Request) {
   return traceKitRequest({ maxDurationSeconds: maxDuration }, async (trace) => {
+    const startedAt = Date.now();
     let url: unknown;
     let attribution: unknown;
+    let analyticsId: unknown;
     try {
-      ({ url, attribution } = (await req.json()) as { url?: unknown; attribution?: unknown });
+      ({ url, attribution, analyticsId } = (await req.json()) as { url?: unknown; attribution?: unknown; analyticsId?: unknown });
     } catch {
       trace.end({ status: "error", code: "invalid_url" });
       return Response.json(kitErrorBody("invalid_url", "Send JSON like { \"url\": \"https://github.com/you/app\" }."), { status: 400 });
@@ -53,11 +56,14 @@ export async function POST(req: Request) {
       jar.set(ANON_KITS_COOKIE, ids.join(","), { httpOnly: true, secure: secureCookies(), sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 365 });
     }
 
-    if (stream) return streamKit(url, opts, trace, usage);
+    const created: OnCreated = (kit, details) =>
+      trackCreated(kit, { distinctId: resolveDistinctId(analyticsId), source: previewSourceOf(input), isLoggedIn: !!session, stream, startedAt, ...details });
+    if (stream) return streamKit(url, opts, trace, usage, created);
 
     try {
       const kit = await createKit(url, usage.onStep, opts);
       speculate(kit);
+      created(kit, {});
       trace.end({ status: "ok" });
       return Response.json({ id: kit.id, url: `/kit/${kit.id}` }, { status: 201 });
     } catch (error) {
@@ -86,7 +92,37 @@ function previewUsage(slot: PreviewSlot) {
   };
 }
 
-function streamKit(url: string, opts: KitOptions & { id: string }, trace: KitRequestTrace, usage: ReturnType<typeof previewUsage>): Response {
+type OnCreated = (kit: Kit, details: { clientDisconnected?: boolean }) => void;
+
+/**
+ * kit_created, on the browser's id when it sent one. preview_completed comes from the browser, so it's lost when
+ * the tab closes or the stream drops mid-generation; the server saves the kit anyway, and this records it.
+ * The uuid comes from the kit id, so a kit counts once.
+ */
+function trackCreated(
+  kit: Kit,
+  ctx: { distinctId: string; source: PreviewSource; isLoggedIn: boolean; stream: boolean; startedAt: number; clientDisconnected?: boolean },
+) {
+  const durationMs = Date.now() - ctx.startedAt;
+  after(() =>
+    captureServerEvent("kit_created", {
+      distinctId: ctx.distinctId,
+      uuid: eventUuid(`kit_created:${kit.id}`),
+      properties: {
+        kitId: kit.id,
+        source: ctx.source,
+        isLoggedIn: ctx.isLoggedIn,
+        stream: ctx.stream,
+        reused: !!kit.reusedFrom,
+        durationMs,
+        ...(ctx.clientDisconnected ? { client_disconnected: true } : {}),
+        ...attributionProperties(kit.attribution),
+      },
+    }),
+  );
+}
+
+function streamKit(url: string, opts: KitOptions & { id: string }, trace: KitRequestTrace, usage: ReturnType<typeof previewUsage>, created: OnCreated): Response {
   const encoder = new TextEncoder();
   const body = new ReadableStream<Uint8Array>({
     async start(controller) {
@@ -115,6 +151,7 @@ function streamKit(url: string, opts: KitOptions & { id: string }, trace: KitReq
           opts,
         );
         speculate(kit);
+        created(kit, { clientDisconnected: disconnected });
         send({ type: "done", id: kit.id, url: `/kit/${kit.id}` });
         trace.end({ status: "ok" });
       } catch (error) {

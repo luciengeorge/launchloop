@@ -1,4 +1,4 @@
-import { analyticsId, firstTouch, isTestVisit } from "./analytics";
+import { analyticsId, firstTouch, isTestVisit, pageAnalyticsId } from "./analytics";
 import type { ExperimentKey, Served } from "./experiments";
 
 export async function postJson<T>(url: string, body: unknown): Promise<T> {
@@ -115,7 +115,8 @@ async function readKitStream(input: string, onStep: (step: string) => void, isUn
     res = await fetch("/api/kits", {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/x-ndjson, application/json" },
-      body: JSON.stringify({ url: input, attribution: firstTouch() }),
+      // pageAnalyticsId, not analyticsId(): the preview mustn't wait for the PostHog SDK to load.
+      body: JSON.stringify({ url: input, attribution: firstTouch(), analyticsId: pageAnalyticsId() }),
     });
   } catch (error) {
     throw connectionError("request", error, isUnloading());
