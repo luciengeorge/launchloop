@@ -13,7 +13,7 @@ export default function BlogPage() {
       page={PAGES.blog}
       crumb="Blog"
       heading="Blog"
-      intro="How-tos for launching an app, built on each platform's own help pages and rules. Every rule is quoted from the source and linked, so you can check it before you post."
+      intro="How-tos for launching an app, built on each platform's own help pages, rules and guidance. Every rule or piece of guidance is quoted from its source and linked, so you can check it before you post."
       items={blogPosts().map((p) => ({ path: postPath(p), title: p.title, description: p.description, published: p.published, readingMinutes: p.readingMinutes }))}
       related={{
         heading: "Guides",

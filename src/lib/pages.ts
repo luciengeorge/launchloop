@@ -72,11 +72,11 @@ export const PAGES = {
   }),
   blog: core({
     path: "/blog",
-    title: "Blog: launch how-tos from the platforms' rules",
+    title: "Blog: sourced launch how-tos for indie makers",
     description:
-      "Launch how-tos for indie makers, built on each platform's own rules and quoted with links, starting with Product Hunt and Indie Hackers. With an RSS feed.",
+      "Launch how-tos for indie makers, built on each platform's own rules and guidance and quoted with links, starting with Product Hunt and Indie Hackers.",
     updated: blogUpdated(),
-    card: { eyebrow: "Blog", headline: "Launch how-tos from the platforms' own rules" },
+    card: { eyebrow: "Blog", headline: "Launch how-tos from each platform's own pages" },
   }),
   tools: core({
     path: "/tools",
