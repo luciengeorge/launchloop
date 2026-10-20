@@ -3,7 +3,7 @@ import { KitPrice } from "@/components/kit-price";
 import { isLaunchPromoOn } from "@/lib/launch-promo-server";
 import { PAGES } from "@/lib/pages";
 import { pageMetadata } from "@/lib/seo";
-import { PREVIEW_LIMITS, SITE } from "@/lib/site";
+import { SITE, resolvedPreviewLimits } from "@/lib/site";
 
 export const metadata: Metadata = pageMetadata(PAGES.terms);
 
@@ -11,6 +11,7 @@ const mail = <a href={`mailto:${SITE.email}`}>{SITE.email}</a>;
 
 export default async function TermsPage() {
   const promo = await isLaunchPromoOn();
+  const limits = resolvedPreviewLimits();
   return (
     <article className="mx-auto max-w-3xl space-y-6 px-4 py-16 leading-relaxed sm:px-6 [&_a]:font-medium [&_a]:text-foreground [&_a]:underline [&_a]:underline-offset-4 [&_h2]:mt-8 [&_h2]:text-xl [&_h2]:font-semibold [&_li]:text-muted-foreground [&_p]:text-muted-foreground [&_strong]:text-foreground">
       <h1 className="text-4xl font-semibold tracking-tight">Terms of service</h1>
@@ -30,7 +31,7 @@ export default async function TermsPage() {
       <p>
         The free preview shows a product brief, a Product Hunt tagline, the first post of your X thread and three watermarked images. It&apos;s for trying LaunchLoop before you
         buy. The full copy and the images without a watermark come with the Launch Kit. The preview works with public repos and live sites only, and is limited to{" "}
-        {PREVIEW_LIMITS.perHour} previews an hour and {PREVIEW_LIMITS.perDay} a day.
+        {limits.perHour} previews an hour and {limits.perDay} a day.
       </p>
 
       <h2>Launch Kit</h2>

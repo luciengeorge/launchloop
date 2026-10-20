@@ -24,8 +24,29 @@ export const SITE = {
 /** What an unpaid kit page actually shows. Keep every free-tier mention in sync with this. */
 export const FREE_PREVIEW = ["Product brief from your repo", "Product Hunt tagline", "First post of your X thread", "3 watermarked images"] as const;
 
-/** Free preview allowance per IP, as stated in the copy, terms and privacy page. */
+/** Default free preview allowance per IP. Copy states resolvedPreviewLimits(), which is this unless an env override is set. */
 export const PREVIEW_LIMITS = { perHour: 10, perDay: 40 } as const;
+
+export interface PreviewLimits {
+  perHour: number;
+  perDay: number;
+}
+
+/** A missing, malformed or non-positive override falls back to the default rather than refusing every preview. */
+function previewLimitOverride(raw: string | undefined, fallback: number): number {
+  const value = raw?.trim() ? Number(raw) : NaN;
+  return Number.isSafeInteger(value) && value > 0 ? value : fallback;
+}
+
+/**
+ * The free preview allowance the rate limiter enforces: PREVIEW_LIMITS unless PREVIEW_RATE_LIMIT_PER_HOUR or
+ * PREVIEW_RATE_LIMIT_PER_DAY overrides it. Those env vars only exist on the server; in the browser this gives the
+ * defaults, so client components take the numbers from the server (the `limits` on a rate_limited response).
+ */
+export const resolvedPreviewLimits = (): PreviewLimits => ({
+  perHour: previewLimitOverride(process.env.PREVIEW_RATE_LIMIT_PER_HOUR, PREVIEW_LIMITS.perHour),
+  perDay: previewLimitOverride(process.env.PREVIEW_RATE_LIMIT_PER_DAY, PREVIEW_LIMITS.perDay),
+});
 
 export const KIT_CONTENTS = [
   { title: "Landing page copy", body: "Hero headline, subheadline, CTA, 3 to 6 feature blocks, plus meta title and description sized for Google." },
@@ -35,6 +56,8 @@ export const KIT_CONTENTS = [
   { title: "3 on-brand images", body: "1200×630 Open Graph, 1600×900 post image and a 1270×760 Product Hunt gallery shot, in your site's colours." },
   { title: "Launch-day checklist", body: "What to post where and when, in order, so launch day is copy, paste, reply." },
 ] as const;
+
+const faqLimits = resolvedPreviewLimits();
 
 export const FAQ = [
   {
@@ -47,7 +70,7 @@ export const FAQ = [
   },
   {
     q: "What's free?",
-    a: `The product brief, your Product Hunt tagline, the first post of your X thread and three watermarked images. No account or card needed. Free previews work with public repos and live sites, up to ${PREVIEW_LIMITS.perHour} an hour and ${PREVIEW_LIMITS.perDay} a day.`,
+    a: `The product brief, your Product Hunt tagline, the first post of your X thread and three watermarked images. No account or card needed. Free previews work with public repos and live sites, up to ${faqLimits.perHour} an hour and ${faqLimits.perDay} a day.`,
   },
   {
     q: "Do you need access to my code?",
