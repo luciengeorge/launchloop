@@ -69,6 +69,15 @@ const routes = {
     <meta property="og:image" content="${origin}/og/img-1200x1200.png" />`),
   "/og/broken-image": ogPage(`<meta property="og:title" content="Brokenpic" /><meta property="og:image" content="${origin}/og/missing.png" />`),
   "/og/none": ogPage(""),
+  // A product page with a landscape share image (the kit images' screenshot) and an apple-touch-icon (their logo).
+  "/visual": (_req, res) => {
+    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+    res.end(`<!doctype html><html><head><title>Framewise</title>
+      <meta name="description" content="Framewise turns screen recordings into step-by-step product docs your team can edit.">
+      <meta property="og:image" content="${origin}/og/img-1600x1000.png">
+      <link rel="apple-touch-icon" sizes="180x180" href="/og/img-180x180.png">
+      </head><body><h1>Framewise</h1><p>Framewise turns screen recordings into step-by-step product docs your team can edit.</p></body></html>`);
+  },
   "/slow": (_req, res) => setTimeout(() => res.end("<title>Too late</title>"), 5000),
   // Slow but inside SITE_FETCH_TIMEOUT_MS, so a preview is still being written for a moment after it's accepted.
   "/slowish": (_req, res) =>

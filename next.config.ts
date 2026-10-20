@@ -8,6 +8,8 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: ["127.0.0.1", "localhost"],
   cacheComponents: true,
   partialPrefetching: true,
+  // Kit images are rendered from API routes, server actions and pages (via the ZIP); all need the fonts.
+  outputFileTracingIncludes: { "/*": ["./assets/fonts/*.ttf"] },
   redirects() {
     return [
       { source: "/product-hunt-tagline-checker", destination: "/tools/product-hunt-tagline-checker", permanent: true },
