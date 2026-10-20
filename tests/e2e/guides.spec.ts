@@ -1,7 +1,7 @@
 import { expect, type Locator, test } from "@playwright/test";
 
 const NEW_GUIDES = [
-  { path: "/show-hn-launch-checklist", h1: "The Show HN launch checklist", title: /^Show HN checklist: how to post on Show HN · LaunchLoop$/, updated: "2026-10-18" },
+  { path: "/show-hn-launch-checklist", h1: "The Show HN launch checklist", title: /^Show HN checklist: how to post on Show HN · LaunchLoop$/, updated: "2026-10-20" },
   { path: "/how-to-write-a-product-hunt-tagline", h1: "How to write a Product Hunt tagline", title: /^How to write a Product Hunt tagline: examples · LaunchLoop$/, updated: "2026-10-18" },
   { path: "/how-to-promote-on-reddit", h1: "How to promote your app on Reddit", title: /^How to promote on Reddit: self-promotion rules · LaunchLoop$/, updated: "2026-10-19" },
   { path: "/how-to-write-a-show-hn-post", h1: "How to write a Show HN post", title: /^How to write a Show HN post: title and text · LaunchLoop$/, updated: "2026-10-20" },
@@ -164,3 +164,16 @@ test("Show HN post guide quotes and links Hacker News's own rules and moderators
   expect(dashes.every(Boolean)).toBe(true);
 });
 
+test("Show HN checklist and Show HN post guide link both ways, and the checklist hands the writing detail to the guide", async ({ page }) => {
+  await page.goto("/show-hn-launch-checklist");
+  const checklist = page.locator("article > div");
+  await expect(checklist.locator('a[href="/how-to-write-a-show-hn-post"]').first()).toBeVisible();
+  await expect(checklist.locator('a[href="/how-to-write-a-show-hn-post#text"]')).toBeVisible();
+  await expect(checklist.locator('a[href="/how-to-write-a-show-hn-post#replies"]')).toBeVisible();
+  await expect(checklist).not.toContainText("GRIDCAST, the future of dashboards");
+  await expect(checklist.locator("h2#timing")).toBeVisible();
+
+  await page.goto("/how-to-write-a-show-hn-post");
+  await expect(page.locator('article > div a[href="/show-hn-launch-checklist#replies"]')).toBeVisible();
+  await expect(page.locator("article > div")).toContainText("GRIDCAST, the future of dashboards");
+});

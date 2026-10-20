@@ -32,7 +32,7 @@ export const GUIDES: Guide[] = [
     metaTitle: "Show HN checklist: how to post on Show HN",
     description:
       "A Show HN checklist: how to post on Show HN without breaking the rules, from what qualifies and the title format to your first comment, timing and replies.",
-    updated: "2026-10-18",
+    updated: "2026-10-20",
   },
   {
     slug: "how-to-write-a-product-hunt-tagline",

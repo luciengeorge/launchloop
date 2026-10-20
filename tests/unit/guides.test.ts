@@ -42,10 +42,11 @@ describe("Show HN post guide", () => {
     expect(cardPages()).toContainEqual({ slug: "how-to-write-a-show-hn-post", card: { eyebrow: "Guide", headline: "How to write a Show HN post" } });
   });
 
-  it("is in the sitemap and llms.txt", () => {
+  it("is in the sitemap and llms.txt, alongside the Show HN checklist", () => {
     expect(indexablePages().filter((p) => p.path === guidePath(g))).toHaveLength(1);
     const entries = sitemap();
     expect(entries.find((e) => e.url.endsWith("/how-to-write-a-show-hn-post"))?.lastModified).toBe("2026-10-20");
+    expect(entries.find((e) => e.url.endsWith("/show-hn-launch-checklist"))?.lastModified).toBe("2026-10-20");
     for (const promo of [true, false]) {
       const text = llmsText(BASE, false, promo);
       expect(text).toContain(`[How to write a Show HN post](${BASE}/how-to-write-a-show-hn-post)`);
