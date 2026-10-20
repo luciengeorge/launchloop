@@ -1,3 +1,4 @@
+import { LIMITS } from "./limits";
 import { LAUNCH_PROMO, PRODUCTS } from "./products";
 
 /** Marks a Launch Kit price mention in shared copy. Render with <PricedText>, or kitPriceText() for plain text (JSON-LD, llms.txt, slugs). */
@@ -24,8 +25,29 @@ export const SITE = {
 /** What an unpaid kit page actually shows. Keep every free-tier mention in sync with this. */
 export const FREE_PREVIEW = ["Product brief from your repo", "Product Hunt tagline", "First post of your X thread", "3 watermarked images"] as const;
 
-/** Free preview allowance per IP, as stated in the copy, terms and privacy page. */
+/** Default free preview allowance per IP. Copy states resolvedPreviewLimits(), which is this unless an env override is set. */
 export const PREVIEW_LIMITS = { perHour: 10, perDay: 40 } as const;
+
+export interface PreviewLimits {
+  perHour: number;
+  perDay: number;
+}
+
+/** A missing, malformed or non-positive override falls back to the default rather than refusing every preview. */
+function previewLimitOverride(raw: string | undefined, fallback: number): number {
+  const value = raw?.trim() ? Number(raw) : NaN;
+  return Number.isSafeInteger(value) && value > 0 ? value : fallback;
+}
+
+/**
+ * The free preview allowance the rate limiter enforces: PREVIEW_LIMITS unless PREVIEW_RATE_LIMIT_PER_HOUR or
+ * PREVIEW_RATE_LIMIT_PER_DAY overrides it. Those env vars only exist on the server; in the browser this gives the
+ * defaults, so client components take the numbers from the server (the `limits` on a rate_limited response).
+ */
+export const resolvedPreviewLimits = (): PreviewLimits => ({
+  perHour: previewLimitOverride(process.env.PREVIEW_RATE_LIMIT_PER_HOUR, PREVIEW_LIMITS.perHour),
+  perDay: previewLimitOverride(process.env.PREVIEW_RATE_LIMIT_PER_DAY, PREVIEW_LIMITS.perDay),
+});
 
 export const KIT_CONTENTS = [
   { title: "Landing page copy", body: "Hero headline, subheadline, CTA, 3 to 6 feature blocks, plus meta title and description sized for Google." },
@@ -35,6 +57,11 @@ export const KIT_CONTENTS = [
   { title: "3 on-brand images", body: "1200×630 Open Graph, 1600×900 post image and a 1270×760 Product Hunt gallery shot, in your site's colours." },
   { title: "Launch-day checklist", body: "What to post where and when, in order, so launch day is copy, paste, reply." },
 ] as const;
+
+const faqLimits = resolvedPreviewLimits();
+
+/** The FAQ entry the /faq page expands with sources; see <AdviceSources>. */
+export const ADVICE_SOURCES_Q = "Where does the advice come from?";
 
 export const FAQ = [
   {
@@ -47,7 +74,7 @@ export const FAQ = [
   },
   {
     q: "What's free?",
-    a: `The product brief, your Product Hunt tagline, the first post of your X thread and three watermarked images. No account or card needed. Free previews work with public repos and live sites, up to ${PREVIEW_LIMITS.perHour} an hour and ${PREVIEW_LIMITS.perDay} a day.`,
+    a: `The product brief, your Product Hunt tagline, the first post of your X thread and three watermarked images. No account or card needed. Free previews work with public repos and live sites, up to ${faqLimits.perHour} an hour and ${faqLimits.perDay} a day.`,
   },
   {
     q: "Do you need access to my code?",
@@ -63,7 +90,11 @@ export const FAQ = [
   },
   {
     q: "Which character limits do you enforce?",
-    a: "Product Hunt tagline 60 and description 260 characters, X posts 280 (weighted the way X counts them, with links as 23), LinkedIn 3,000, meta titles 60 and meta descriptions 155. Every limit is checked before you see the kit.",
+    a: "Product Hunt tagline 60 and description 260 characters, X posts 280 (weighted the way X counts them, with links that include http:// or https:// counted as 23) and LinkedIn 3,000. We also cap meta titles at 60 and meta descriptions at 155, but that's LaunchLoop's own choice, not a platform limit. Every limit is checked before you see the kit.",
+  },
+  {
+    q: ADVICE_SOURCES_Q,
+    a: `Two places. The limits and rules come from the platforms' own published pages: Product Hunt's ${LIMITS.phTagline}-character tagline, ${LIMITS.phDescription}-character description and three topics, X's ${LIMITS.xPost} characters with links that include http:// or https:// counted as 23, LinkedIn's ${LIMITS.linkedin.toLocaleString("en-GB")} characters, and the Product Hunt and Hacker News rules against asking for upvotes. LaunchLoop puts them in its prompts and checks every draft against them before you see your kit. The copy itself is drafted by AI from your repo and live page, so treat it as a first draft: check the facts and rewrite it in your own words before you post.`,
   },
   {
     q: "How are the images made?",

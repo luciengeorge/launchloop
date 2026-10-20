@@ -58,8 +58,8 @@ export const PAGES = {
   faq: core({
     path: "/faq",
     title: "FAQ: launch kits, character limits and refunds",
-    description: "How LaunchLoop reads your repo, what you get in the Launch Kit, which character limits it enforces, refunds, and the free Ship Loop waitlist.",
-    updated: "2026-10-19",
+    description: "How LaunchLoop reads your repo, where its launch advice comes from, what you get in the Launch Kit, the limits it enforces, refunds and Ship Loop.",
+    updated: "2026-10-20",
     card: { eyebrow: "FAQ", headline: "Launch kits, character limits and refunds" },
   }),
   guides: core({

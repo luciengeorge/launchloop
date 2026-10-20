@@ -16,7 +16,7 @@ export const GUIDES: Guide[] = [
     metaTitle: "Product Hunt launch checklist (2026 guide)",
     description:
       "A step-by-step Product Hunt launch checklist: what to prepare a week out, tagline and description limits, gallery image sizes and launch-day timing.",
-    updated: "2026-10-15",
+    updated: "2026-10-20",
   },
   {
     slug: "how-to-launch-a-vibe-coded-app",

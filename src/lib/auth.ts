@@ -5,11 +5,11 @@ import { connection } from "next/server";
 import { env, forceMock } from "./env";
 import { isAnalyticsId } from "./experiments";
 import { normaliseEmail } from "./kits";
+import { SESSION_COOKIE } from "./session-cookie";
 import { store } from "./store";
 
 export { SESSION_HINT_COOKIE } from "./session-hint";
-
-export const SESSION_COOKIE = "ll_session";
+export { SESSION_COOKIE };
 /** Kit ids created anonymously in this browser, claimed on login. */
 export const ANON_KITS_COOKIE = "ll_kits";
 

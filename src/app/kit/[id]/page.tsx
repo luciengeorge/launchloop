@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 
 export default function KitPage({ params, searchParams }: PageProps<"/kit/[id]">) {
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+    <div className="mx-auto min-h-[calc(100svh-3.5rem)] max-w-6xl px-4 py-10 sm:px-6">
       <Suspense fallback={<KitSkeleton />}>
         <KitView params={params} searchParams={searchParams} />
       </Suspense>
