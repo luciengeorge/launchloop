@@ -7,13 +7,18 @@ const NEW_GUIDES = [
   { path: "/how-to-write-a-show-hn-post", h1: "How to write a Show HN post", title: /^How to write a Show HN post: title and text · LaunchLoop$/, updated: "2026-10-20" },
 ] as const;
 
-/** The article's own copy, without verbatim quotes from sources (marked up as <q> or <blockquote>), which keep their original punctuation. */
+/** Verbatim quotes from sources (marked up as <q> or <blockquote>) that keep their original dash. Any other quote is still dash-checked. */
+const VERBATIM_DASH_QUOTES = new Set(["Show HN: Enkel \u2013 A clean and simple RSS Reader"]);
+
+/** The article's own copy, without the allowlisted verbatim quotes. */
 const proseText = (article: Locator) =>
-  article.evaluate((el) => {
+  article.evaluate((el, allowed) => {
     const copy = el.cloneNode(true) as HTMLElement;
-    copy.querySelectorAll("q, blockquote").forEach((quote) => quote.remove());
+    copy.querySelectorAll("q, blockquote").forEach((quote) => {
+      if (allowed.includes((quote.textContent ?? "").trim())) quote.remove();
+    });
     return copy.textContent ?? "";
-  });
+  }, [...VERBATIM_DASH_QUOTES]);
 
 for (const guide of NEW_GUIDES) {
   test(`${guide.path} has metadata, Article and FAQPage JSON-LD, an FAQ and a CTA`, async ({ page, request }) => {
@@ -152,7 +157,7 @@ test("Show HN post guide quotes and links Hacker News's own rules and moderators
   await expect(article.locator("q", { hasText: "Show HN: Enkel \u2013 A clean and simple RSS Reader" })).toBeVisible();
   await expect(article.locator("q", { hasText: "make the title say in a neutral and direct way what this product/project is." })).toBeVisible();
   await expect(article.locator("q", { hasText: "Write your text by hand. Don't use an LLM to generate any of it" })).toBeVisible();
-  for (const id of ["title", "link-or-text", "text", "tone", "replies"]) await expect(page.locator(`h2#${id}`)).toBeVisible();
+  for (const id of ["who-you-are-writing-for", "title", "link-or-text", "text", "tone", "replies"]) await expect(page.locator(`h2#${id}`)).toBeVisible();
 
   const dashes = await article.evaluate((el) =>
     Array.from(el.querySelectorAll("*"))
