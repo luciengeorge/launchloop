@@ -265,8 +265,10 @@ test("a guest checkout started before the PostHog SDK loads waits for it and joi
   expect(analyticsId).toBeTruthy();
   await page.waitForURL(/\/checkout\/mock\?product=kit/);
   expect((await serverEvent(page, analyticsId!, "checkout_started")).properties).toMatchObject({ product_type: "kit", amount: 1900 });
-  const pageview = await serverEvent(page, analyticsId!, "$pageview");
-  expect(pageview.properties.$pathname).toBe("/kit/[id]");
+  // The tab made the kit on / first, so the id has that pageview too.
+  await expect
+    .poll(async () => (await phEvents(page)).filter((e) => e.event === "$pageview" && distinctId(e) === analyticsId).map((e) => e.properties.$pathname))
+    .toContain("/kit/[id]");
 });
 
 test("QA traffic: every browser and server event carries is_test, through client navigations, a reload and checkout", async ({ page }) => {
