@@ -11,7 +11,7 @@ export const metadata: Metadata = { title: "Your launch kit", robots: { index: f
 
 export default function AccountKitPage({ params, searchParams }: PageProps<"/account/kits/[id]">) {
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+    <div className="mx-auto min-h-[calc(100svh-3.5rem)] max-w-6xl px-4 py-10 sm:px-6">
       <Suspense fallback={<KitSkeleton />}>
         <AccountKit params={params} searchParams={searchParams} />
       </Suspense>
