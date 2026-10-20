@@ -11,6 +11,8 @@ const m = vi.hoisted(() => {
     fulfilKit: vi.fn<(id: string) => Promise<void>>(async () => {}),
     captureServerEvent: vi.fn<(event: string, params: unknown) => Promise<void>>(async () => {}),
     captureException: vi.fn(),
+    captureExceptionThrottled: vi.fn(),
+    sessionPromoCode: vi.fn<() => Promise<string | undefined>>(async () => undefined),
   };
 });
 
@@ -21,7 +23,7 @@ vi.mock("@/lib/payments", async (importOriginal) => ({
   ...(await importOriginal<object>()),
   // Signature checks are Stripe's job; the test body is the event itself.
   stripe: () => ({ webhooks: { constructEvent: (body: string) => JSON.parse(body) } }),
-  sessionPromoCode: async () => undefined,
+  sessionPromoCode: m.sessionPromoCode,
 }));
 vi.mock("@/lib/fulfil", () => ({ recordPayment: m.recordPayment, fulfilKit: m.fulfilKit }));
 vi.mock("@/lib/analytics-server", () => ({
@@ -29,7 +31,11 @@ vi.mock("@/lib/analytics-server", () => ({
   eventUuid: (seed: string) => `uuid:${seed}`,
   resolveDistinctId: (id: unknown) => (typeof id === "string" ? id : "server_x"),
 }));
-vi.mock("@/lib/observability", async (importOriginal) => ({ ...(await importOriginal<object>()), captureException: m.captureException }));
+vi.mock("@/lib/observability", async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  captureException: m.captureException,
+  captureExceptionThrottled: m.captureExceptionThrottled,
+}));
 vi.mock("@/lib/store", () => ({
   store: () => ({
     get: async (key: string) => m.kv.get(key) ?? null,
@@ -154,6 +160,24 @@ describe("Stripe webhook", () => {
 
     expect(m.captureException).toHaveBeenCalledWith(expect.any(TypeError), expect.objectContaining({ stage: "stripe.webhook.fulfil", kitId: "kit_abc" }));
     expect(eventsNamed("checkout_fulfilment_failed")[0].properties).toMatchObject({ stage: "fulfil", errorName: "TypeError" });
+  });
+
+  it("still captures checkout_completed, without a promo code, when the promo lookup throws", async () => {
+    const boom = new Error("Stripe API unavailable");
+    m.sessionPromoCode.mockRejectedValueOnce(boom);
+    const event = checkoutEvent({});
+    expect((await deliver(event)).status).toBe(200);
+
+    const [completed] = eventsNamed("checkout_completed");
+    expect(completed).toMatchObject({ uuid: `uuid:checkout_completed:${event.data.object.id}`, properties: { plan: "kit", amount: 1900, stripeSessionId: event.data.object.id } });
+    expect(completed.properties).not.toHaveProperty("promo_code");
+    expect(m.captureExceptionThrottled).toHaveBeenCalledWith("stripe.webhook.promo", boom, { stage: "stripe.webhook.promo", sessionId: event.data.object.id });
+  });
+
+  it("puts the session's promo code on checkout_completed", async () => {
+    m.sessionPromoCode.mockResolvedValueOnce("LAUNCH14");
+    await deliver(checkoutEvent({}));
+    expect(eventsNamed("checkout_completed")[0].properties).toMatchObject({ promo_code: "LAUNCH14" });
   });
 
   it("logs and ignores other event types and other environments' sessions", async () => {
