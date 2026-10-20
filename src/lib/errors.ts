@@ -1,7 +1,10 @@
-import { PREVIEW_LIMITS } from "./site";
+import { type PreviewLimits, resolvedPreviewLimits } from "./site";
 
 /** The free-preview allowance in a sentence. The form shows it alone next to its live "Try again in N min" countdown. */
-export const PREVIEW_ALLOWANCE = `You can run ${PREVIEW_LIMITS.perHour} an hour and ${PREVIEW_LIMITS.perDay} a day.`;
+export const previewAllowance = ({ perHour, perDay }: PreviewLimits) => `You can run ${perHour} an hour and ${perDay} a day.`;
+
+/** The allowance the server's limiter enforces. Only right on the server: the form uses the `limits` sent with a rate_limited response. */
+export const PREVIEW_ALLOWANCE = previewAllowance(resolvedPreviewLimits());
 
 /** User-facing error catalogue, shared by the API and the form. Every entry says what happened and what to do. */
 export type KitErrorCode =
@@ -60,6 +63,8 @@ export interface KitErrorBody {
   fix: string;
   /** Only on rate_limited: when the visitor's limit resets, also sent as the Retry-After header. */
   retryAfterSeconds?: number;
+  /** Only on rate_limited: the allowance the limiter enforces, so the form can state it without the wait in `fix`. */
+  limits?: PreviewLimits;
   /** Only on rate_limited: the visitor's newest unpaid preview, for the "Unlock my kit" button. */
   kitId?: string;
 }
@@ -72,8 +77,9 @@ export function waitLabel(seconds: number): string {
   return minutes <= 90 ? `${minutes} min` : `${Math.round(minutes / 60)} hours`;
 }
 
-export const rateLimitedBody = (retryAfterSeconds: number): KitErrorBody => ({
+export const rateLimitedBody = (retryAfterSeconds: number, limits: PreviewLimits = resolvedPreviewLimits()): KitErrorBody => ({
   ...kitErrorBody("rate_limited"),
-  fix: `${PREVIEW_ALLOWANCE} Try again in ${waitLabel(retryAfterSeconds)}, or unlock the full kit for an app you've already previewed.`,
+  fix: `${previewAllowance(limits)} Try again in ${waitLabel(retryAfterSeconds)}, or unlock the full kit for an app you've already previewed.`,
   retryAfterSeconds,
+  limits,
 });

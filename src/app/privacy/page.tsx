@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
 import { PAGES } from "@/lib/pages";
 import { pageMetadata } from "@/lib/seo";
-import { PREVIEW_LIMITS, SITE } from "@/lib/site";
+import { SITE, resolvedPreviewLimits } from "@/lib/site";
 
 export const metadata: Metadata = pageMetadata(PAGES.privacy);
 
 const mail = <a href={`mailto:${SITE.email}`}>{SITE.email}</a>;
 
 export default function PrivacyPage() {
+  const limits = resolvedPreviewLimits();
   return (
     <article className="mx-auto max-w-3xl space-y-6 px-4 py-16 leading-relaxed sm:px-6 [&_a]:font-medium [&_a]:text-foreground [&_a]:underline [&_a]:underline-offset-4 [&_h2]:mt-8 [&_h2]:text-xl [&_h2]:font-semibold [&_li]:text-muted-foreground [&_p]:text-muted-foreground [&_strong]:text-foreground">
       <h1 className="text-4xl font-semibold tracking-tight">Privacy policy</h1>
@@ -32,7 +33,7 @@ export default function PrivacyPage() {
           delete the preview 30 days after you made it.
         </li>
         <li>
-          <strong>Your IP address,</strong> to enforce the free preview limits ({PREVIEW_LIMITS.perHour} an hour, {PREVIEW_LIMITS.perDay} a day) and the limits on our free
+          <strong>Your IP address,</strong> to enforce the free preview limits ({limits.perHour} an hour, {limits.perDay} a day) and the limits on our free
           tools. Kept for up to 24 hours.
         </li>
         <li>

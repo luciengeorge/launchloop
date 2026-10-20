@@ -82,6 +82,20 @@ test("login CTA locks with a loading state while the link is sent", async ({ pag
   expect(posts).toBe(1);
 });
 
+test("logged-out /account pages are an HTTP 307 to /login, not a streamed redirect", async ({ request }) => {
+  for (const [path, next] of [
+    ["/account", "/account"],
+    ["/account?billing=error", "/account?billing=error"],
+    ["/account/kits/AKWq8__P15_kweHmfXX_Uw", "/account/kits/AKWq8__P15_kweHmfXX_Uw"],
+  ]) {
+    const res = await request.get(path, { maxRedirects: 0 });
+    expect(res.status(), path).toBe(307);
+    const location = new URL(res.headers()["location"], "http://localhost");
+    expect(location.pathname, path).toBe("/login");
+    expect(location.searchParams.get("next"), path).toBe(next);
+  }
+});
+
 test("tampered tokens and forged session cookies are rejected", async ({ page, context, baseURL }) => {
   await page.goto("/login/verify?token=abc.def");
   await page.waitForURL(/\/login\?error=expired/);
