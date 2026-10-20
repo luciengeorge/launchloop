@@ -25,7 +25,7 @@ export const SITE = {
 export const FREE_PREVIEW = ["Product brief from your repo", "Product Hunt tagline", "First post of your X thread", "3 watermarked images"] as const;
 
 /** Free preview allowance per IP, as stated in the copy, terms and privacy page. */
-export const PREVIEW_LIMITS = { perHour: 5, perDay: 20 } as const;
+export const PREVIEW_LIMITS = { perHour: 10, perDay: 40 } as const;
 
 export const KIT_CONTENTS = [
   { title: "Landing page copy", body: "Hero headline, subheadline, CTA, 3 to 6 feature blocks, plus meta title and description sized for Google." },
@@ -47,7 +47,7 @@ export const FAQ = [
   },
   {
     q: "What's free?",
-    a: "The product brief, your Product Hunt tagline, the first post of your X thread and three watermarked images. No account or card needed. Free previews work with public repos and live sites, up to 5 an hour and 20 a day.",
+    a: `The product brief, your Product Hunt tagline, the first post of your X thread and three watermarked images. No account or card needed. Free previews work with public repos and live sites, up to ${PREVIEW_LIMITS.perHour} an hour and ${PREVIEW_LIMITS.perDay} a day.`,
   },
   {
     q: "Do you need access to my code?",
