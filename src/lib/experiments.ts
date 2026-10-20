@@ -29,8 +29,8 @@ export const fallbackServed = (reason: FallbackReason): Served => ({ variant: "c
 
 /**
  * The id the kit paywall's experiments are bucketed on. PostHog hashes the flag on this rather
- * than the page's anonymous id (new on every load), so a kit shows the same price on every reload
- * and device, with nothing stored in the browser.
+ * than the visitor's anonymous id (new in every tab), so a kit shows the same price in every tab
+ * and on every device, with nothing stored in the browser for it.
  */
 export const kitBucketingId = (kitId: string) => `kit:${kitId}`;
 
@@ -65,7 +65,8 @@ export function featureProperties(experiments: Experiments, fallbacks: Experimen
 /**
  * Query param that carries the page's anonymous PostHog id across a full page load we
  * control (magic link, Stripe Checkout and its return). The next page bootstraps PostHog
- * with it, so flag variants and funnel events stay on one id without cookies or storage.
+ * with it, so flag variants and funnel events stay on one id without cookies, even in a
+ * new tab, where the tab's own copy of the id (see pageAnalyticsId) isn't there.
  */
 export const ANALYTICS_ID_PARAM = "aid";
 

@@ -158,7 +158,7 @@ test.describe("promo bucketing", () => {
     skipIfPromoEnded();
     const kitId = await makeSampleKit(page);
     await setKitPromo(page.request, kitId, "treatment");
-    // What posthog-js would bucket each page's fresh anonymous id into must not matter.
+    // What posthog-js would bucket the visitor's anonymous id into must not matter.
     await forceFlags(page, { exp_launch14_promo: "control" });
     const before = (await exposures(page.request)).length;
 
@@ -183,7 +183,8 @@ test.describe("promo bucketing", () => {
     const sent = (await exposures(page.request)).slice(before);
     expect(sent).toHaveLength(views + 1);
     for (const e of sent) expect(e.properties).toMatchObject({ $feature_flag_response: "treatment", "$feature/exp_launch14_promo": "treatment" });
-    expect(new Set(sent.map((e) => e.distinct_id ?? e.properties.distinct_id)).size).toBe(views + 1);
+    // Reloads keep the tab's anonymous id; the other browser has its own.
+    expect(new Set(sent.map((e) => e.distinct_id ?? e.properties.distinct_id)).size).toBe(2);
   });
 
   test("PostHog too slow for the kit: £19 served as a fallback, logged as flag_fallback (not an exposure), and checkout logs the same", async ({ page }) => {

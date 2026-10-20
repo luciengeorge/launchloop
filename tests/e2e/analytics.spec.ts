@@ -281,7 +281,7 @@ test("QA traffic: every browser and server event carries is_test, through client
   const served = await serverEvent(page, firstView, "flag_fallback");
   expect(served.properties).toMatchObject({ flag: "exp_launch14_promo", is_test: true });
 
-  // A full reload drops the tag from the URL and gets a new anonymous id; the tab still remembers it's QA.
+  // A full reload drops the tag from the URL; the tab still remembers it's QA, and keeps its anonymous id.
   await page.reload();
   const unlock = page.getByRole("button", { name: "Unlock the full kit, £19" });
   await expect(unlock).toBeEnabled();
@@ -289,9 +289,15 @@ test("QA traffic: every browser and server event carries is_test, through client
   await unlock.click();
   const body = (await checkout).postDataJSON() as { analyticsId: string; isTest?: boolean };
   expect(body.isTest).toBe(true);
-  expect(body.analyticsId).not.toBe(firstView);
-  const reloaded = await serverEvent(page, body.analyticsId, "$pageview");
-  expect(reloaded.properties).toMatchObject({ $pathname: "/kit/[id]", is_test: true });
+  expect(body.analyticsId).toBe(firstView);
+  let reloaded: PhEvent | undefined;
+  await expect
+    .poll(async () => {
+      reloaded = (await phEvents(page)).find((e) => e.event === "$pageview" && distinctId(e) === body.analyticsId && e.properties.$pathname === "/kit/[id]");
+      return reloaded;
+    })
+    .toBeTruthy();
+  expect(reloaded!.properties).toMatchObject({ is_test: true });
   expect((await serverEvent(page, body.analyticsId, "checkout_started")).properties).toMatchObject({ plan: "kit", utm_source: "qa", is_test: true });
 
   await page.waitForURL(/\/checkout\/mock\?product=kit/);
@@ -301,4 +307,30 @@ test("QA traffic: every browser and server event carries is_test, through client
   expect((await serverEvent(page, body.analyticsId, "checkout_completed")).properties).toMatchObject({ mock: true, is_test: true });
   const events = (await phEvents(page)).filter((e) => [firstView, body.analyticsId].includes(distinctId(e)!));
   expect(events.filter((e) => e.properties.is_test !== true).map((e) => e.event)).toEqual([]);
+});
+
+test("a full reload between the preview and checkout keeps one id: preview, checkout and purchase join", async ({ page }) => {
+  const campaign = `reload-${Date.now()}`;
+  await page.goto(`/?utm_source=hn&utm_campaign=${campaign}`);
+  await page.getByRole("button", { name: "Try a sample app" }).click();
+  await page.waitForURL(/\/kit\/[\w-]+$/);
+  const previewId = distinctId(await campaignEvent(page, campaign, "preview_completed"))!;
+  expect(previewId).toBeTruthy();
+  expect(await page.evaluate(() => sessionStorage.getItem("launchloop:aid"))).toBe(previewId);
+
+  await page.reload();
+  const unlock = page.getByRole("button", { name: "Unlock the full kit, £19" });
+  await expect(unlock).toBeEnabled();
+  const checkout = page.waitForRequest(isCheckout);
+  await unlock.click();
+  // This is the id /api/checkout writes into the Checkout session metadata as ph_distinct_id.
+  expect(((await checkout).postDataJSON() as { analyticsId?: string }).analyticsId).toBe(previewId);
+  expect((await serverEvent(page, previewId, "checkout_started")).properties).toMatchObject({ plan: "kit", utm_campaign: campaign });
+
+  await page.waitForURL(/\/checkout\/mock\?product=kit/);
+  await page.getByLabel("Email for your receipt and kit").fill(uniqueEmail("reload-purchase"));
+  await page.getByRole("button", { name: "Pay £19 (test mode)" }).click();
+  await page.waitForURL(/\/checkout\/success\?/);
+  expect((await serverEvent(page, previewId, "checkout_completed")).properties).toMatchObject({ mock: true, utm_campaign: campaign });
+  expect(await page.context().cookies()).not.toContainEqual(expect.objectContaining({ value: previewId }));
 });
