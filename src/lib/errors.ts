@@ -1,5 +1,8 @@
 import { PREVIEW_LIMITS } from "./site";
 
+/** The free-preview allowance in a sentence. The form shows it alone next to its live "Try again in N min" countdown. */
+export const PREVIEW_ALLOWANCE = `You can run ${PREVIEW_LIMITS.perHour} an hour and ${PREVIEW_LIMITS.perDay} a day.`;
+
 /** User-facing error catalogue, shared by the API and the form. Every entry says what happened and what to do. */
 export type KitErrorCode =
   | "invalid_url"
@@ -42,7 +45,7 @@ export const KIT_ERRORS: Record<KitErrorCode, { title: string; fix: string }> = 
   ai_busy: { title: "Our AI is busy, try again in a minute.", fix: "Nothing is wrong with your link, and nothing was saved. Retry in a minute and we'll write it from scratch." },
   rate_limited: {
     title: "You've used your free previews for now.",
-    fix: `You can run ${PREVIEW_LIMITS.perHour} an hour and ${PREVIEW_LIMITS.perDay} a day. Try again later, or unlock the full kit for an app you've already previewed.`,
+    fix: `${PREVIEW_ALLOWANCE} Try again later, or unlock the full kit for an app you've already previewed.`,
   },
   busy: {
     title: "LaunchLoop is very busy right now, try again in a bit.",
@@ -57,6 +60,8 @@ export interface KitErrorBody {
   fix: string;
   /** Only on rate_limited: when the visitor's limit resets, also sent as the Retry-After header. */
   retryAfterSeconds?: number;
+  /** Only on rate_limited: the visitor's newest unpaid preview, for the "Unlock my kit" button. */
+  kitId?: string;
 }
 
 export const kitErrorBody = (code: KitErrorCode, title?: string): KitErrorBody => ({ error: title ?? KIT_ERRORS[code].title, code, fix: KIT_ERRORS[code].fix });
@@ -69,6 +74,6 @@ export function waitLabel(seconds: number): string {
 
 export const rateLimitedBody = (retryAfterSeconds: number): KitErrorBody => ({
   ...kitErrorBody("rate_limited"),
-  fix: `You can run ${PREVIEW_LIMITS.perHour} an hour and ${PREVIEW_LIMITS.perDay} a day. Try again in ${waitLabel(retryAfterSeconds)}, or unlock the full kit for an app you've already previewed.`,
+  fix: `${PREVIEW_ALLOWANCE} Try again in ${waitLabel(retryAfterSeconds)}, or unlock the full kit for an app you've already previewed.`,
   retryAfterSeconds,
 });

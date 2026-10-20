@@ -8,10 +8,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { type PreviewSource, track } from "@/lib/analytics";
 import { type KitFailureDetails, KitRequestError, createKitWithProgress } from "@/lib/client";
+import { PREVIEW_ALLOWANCE } from "@/lib/errors";
 import { LAUNCH_PROMO } from "@/lib/products";
 import { hasSessionHint } from "@/lib/session-hint";
 import { START_EVENT, type StartPlan } from "@/lib/start-intent";
 import { KitPrice } from "./kit-price";
+import { RateLimitActions } from "./rate-limit-actions";
 
 const previewSource = (value: string): PreviewSource => (value === "sample" ? "sample" : /github\.com/i.test(value) ? "github" : "site");
 
@@ -32,7 +34,7 @@ export function KitForm({ promo }: { promo: boolean }) {
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(-1);
-  const [error, setError] = useState<{ message: string; fix?: string; code: string } | null>(null);
+  const [error, setError] = useState<{ message: string; fix?: string; code: string; limit?: { retryAt: number; kitId?: string } } | null>(null);
 
   const [plan, setPlan] = useState<StartPlan>("free");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -102,7 +104,8 @@ export function KitForm({ promo }: { promo: boolean }) {
         router.push(plan === "kit" ? `/kit/${kitId}?unlock=1` : `/kit/${kitId}`);
         return;
       }
-      setError(known ? { message: known.message, fix: known.fix, code: known.code } : { message: "Something went wrong.", fix: "Try again in a moment.", code: "unknown" });
+      const limit = known?.rateLimit && { retryAt: Date.now() + known.rateLimit.retryAfterSeconds * 1000, kitId: known.rateLimit.kitId };
+      setError(known ? { message: known.message, fix: known.fix, code: known.code, limit } : { message: "Something went wrong.", fix: "Try again in a moment.", code: "unknown" });
       setLoading(false);
       requestAnimationFrame(() => inputRef.current?.focus());
     }
@@ -192,7 +195,8 @@ export function KitForm({ promo }: { promo: boolean }) {
         <Alert variant={CAPACITY_CODES.has(error.code) || error.code === "rate_limited" ? "default" : "destructive"} role="alert" id="kit-form-error" data-testid="kit-error" data-code={error.code} className="text-left">
           <AlertDescription>
             <p className="font-medium text-foreground">{error.message}</p>
-            {error.fix ? <p className="mt-1">{error.fix}</p> : null}
+            {/* With a limit, the wait is the countdown button's alone, so this copy never shows a stale "Try again in N min". */}
+            {error.limit ? <p className="mt-1">{PREVIEW_ALLOWANCE}</p> : error.fix ? <p className="mt-1">{error.fix}</p> : null}
             {CAPACITY_CODES.has(error.code) || error.code === "site_timeout" || error.code === "network" || error.code === "aborted" ? (
               <button type="button" className="mt-2 font-medium underline underline-offset-4" onClick={() => void submit(lastInput.current)}>
                 {CAPACITY_CODES.has(error.code) ? "Retry" : "Try again"}
@@ -201,6 +205,8 @@ export function KitForm({ promo }: { promo: boolean }) {
           </AlertDescription>
         </Alert>
       ) : null}
+      {/* Outside the alert: inside role="alert" the countdown would be re-announced every minute. */}
+      {error?.limit ? <RateLimitActions kitId={error.limit.kitId} retryAt={error.limit.retryAt} promo={promo} onRetry={() => void submit(lastInput.current)} /> : null}
     </div>
   );
 }

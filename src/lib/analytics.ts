@@ -97,6 +97,20 @@ export function loadAnalytics(): Promise<PostHog | undefined> {
   return client;
 }
 
+let pageId: string | undefined;
+
+/**
+ * This page's anonymous id, settled before the SDK loads so the preview request (which mustn't wait for
+ * the SDK) carries the id the page's events will use. Page memory only, like the rest of the identity:
+ * `?aid=` when we caused the page load, else a new id for this page load. Undefined when analytics is off.
+ */
+export function pageAnalyticsId(): string | undefined {
+  if (!key || !pageStart) return undefined;
+  const handoff = new URL(pageStart.url).searchParams.get(ANALYTICS_ID_PARAM);
+  pageId ??= isAnalyticsId(handoff) ? handoff : globalThis.crypto?.randomUUID?.();
+  return pageId;
+}
+
 /**
  * Cookieless: identity lives in page memory only, so nothing is written to cookies or
  * storage and no consent banner is needed. The trade-off is a new anonymous id per full
@@ -107,9 +121,9 @@ export function loadAnalytics(): Promise<PostHog | undefined> {
 function initAnalytics(posthog: PostHog, token: string, start: { url: string; at: Date }) {
   if (posthog.__loaded) return;
   const params = new URL(start.url).searchParams;
-  const handoff = params.get(ANALYTICS_ID_PARAM);
+  const id = pageAnalyticsId();
   posthog.init(token, {
-    ...(isAnalyticsId(handoff) ? { bootstrap: { distinctID: handoff } } : {}),
+    ...(id ? { bootstrap: { distinctID: id } } : {}),
     api_host: POSTHOG_PROXY_PATH,
     ui_host: posthogUiHost(),
     defaults: "2026-08-30",

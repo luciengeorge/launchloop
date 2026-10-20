@@ -6,7 +6,7 @@ import type { Attribution } from "./attribution";
 import type { KitErrorBody } from "./errors";
 import { ingest } from "./ingest";
 import { phase } from "./kit-tracing";
-import type { Brief, Kit } from "./schema";
+import type { Brief, Kit, Palette } from "./schema";
 import { copyDraft } from "./generation";
 import { store } from "./store";
 
@@ -86,7 +86,7 @@ export async function createKit(
 ): Promise<Kit> {
   const source = await ingest(input, onStep);
   const fingerprint = source.source.fingerprint;
-  const reused = fingerprint ? await reuseKit(fingerprint, opts) : null;
+  const reused = fingerprint ? await reuseKit(fingerprint, source.palette, opts) : null;
   if (reused) {
     onStep("brief");
     onStep("copy");
@@ -136,8 +136,9 @@ export async function briefFor(input: string): Promise<Brief> {
 /**
  * Same repo at the same commit within 24 hours: reuse the brief, preview and
  * any full-kit draft, but as a fresh kit so ownership and payment stay separate.
+ * A cached default palette is never reused: the fresh ingest may have found real colours.
  */
-async function reuseKit(fingerprint: string, opts: KitOptions): Promise<Kit | null> {
+async function reuseKit(fingerprint: string, freshPalette: Palette, opts: KitOptions): Promise<Kit | null> {
   const sourceId = await store().get<string>(dedupeKey(fingerprint));
   const source = sourceId ? await getKit(sourceId) : null;
   if (!source) return null;
@@ -147,7 +148,7 @@ async function reuseKit(fingerprint: string, opts: KitOptions): Promise<Kit | nu
     status: "preview",
     source: source.source,
     brief: source.brief,
-    palette: source.palette,
+    palette: source.palette.source === "default" ? freshPalette : source.palette,
     preview: source.preview,
     digest: source.digest,
     llm: source.llm,
@@ -191,6 +192,23 @@ export async function listUserKits(email: string): Promise<Kit[]> {
   const ids = await listUserKitIds(email);
   const kits = await Promise.all(ids.map((id) => getKit(id)));
   return kits.filter((k): k is Kit => !!k).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+const RECENT_PREVIEW_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * The newest unpaid preview from the last day that this visitor made: from the anonymous-kits cookie
+ * (newest last) or, signed in, their account. For the free-preview limit's "Unlock my kit" button.
+ * A cookie id another account has claimed never comes back: signed out, only unowned kits qualify.
+ */
+export async function latestUnpaidKitId(anonIds: string[], email?: string): Promise<string | null> {
+  const [anon, owned] = await Promise.all([Promise.all(anonIds.slice(-5).map(getKit)), email ? listUserKits(email) : []]);
+  const since = Date.now() - RECENT_PREVIEW_MS;
+  const owner = email ? normaliseEmail(email) : undefined;
+  const recent = [...anon, ...owned].filter(
+    (k): k is Kit => !!k && !k.paid && Date.parse(k.createdAt) >= since && (!k.ownerEmail || k.ownerEmail === owner),
+  );
+  return recent.sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0]?.id ?? null;
 }
 
 /** Claims anonymous kits made in this browser. Kits already owned by another account are skipped. */

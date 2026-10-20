@@ -6,6 +6,7 @@ import { DEFAULT_PALETTE, extractPalette } from "./colors";
 import { fetchRepo, parseGitHubUrl, type RepoData } from "./github";
 import { liveHomepage } from "./homepage";
 import { IngestError } from "./safe-fetch";
+import { fetchRepoPalette } from "./repo-palette";
 import { SAMPLE_INPUT, sampleRepo, sampleSite } from "./sample";
 import { fetchSite, type SiteData } from "./site";
 
@@ -40,10 +41,24 @@ export function normaliseInput(raw: string): string {
   return url.toString();
 }
 
+const GITHUB_HOSTS = new Set(["github.com", "www.github.com"]);
+
+/**
+ * normaliseInput for a kit: a github.com link must name a repo. Without this, github.com/owner falls
+ * through to the site path and builds a kit from the profile page.
+ */
+export function normaliseKitInput(raw: string): string {
+  const input = normaliseInput(raw);
+  if (input !== SAMPLE_INPUT && GITHUB_HOSTS.has(new URL(input).hostname) && !parseGitHubUrl(input)) {
+    throw new IngestError("GitHub URL without owner/repo", "invalid_url", "Paste a repo URL like github.com/owner/repo.");
+  }
+  return input;
+}
+
 export type IngestStep = "repo" | "site";
 
 export async function ingest(rawInput: string, onStep: (step: IngestStep) => void = () => {}): Promise<IngestResult> {
-  const input = normaliseInput(rawInput);
+  const input = normaliseKitInput(rawInput);
   const warnings: string[] = [];
 
   if (input === SAMPLE_INPUT) {
@@ -89,9 +104,13 @@ export async function ingest(rawInput: string, onStep: (step: IngestStep) => voi
     }
   }
 
-  const palette = site ? extractPalette({ css: site.css, themeColor: site.themeColor }) : DEFAULT_PALETTE;
+  let palette = site ? extractPalette({ css: site.css, themeColor: site.themeColor }) : DEFAULT_PALETTE;
+  if (palette.source === "default" && repo) palette = await tracedRepoPalette(repo.owner, repo.name);
   return { primary: gh ? "repo" : "site", repo, site, palette, source: summarise(input, repo, site, warnings) };
 }
+
+const tracedRepoPalette = (owner: string, name: string) =>
+  phase("ingest.repo_palette", "http.client.github", { "kit.repo": `${owner}/${name}` }, () => fetchRepoPalette(owner, name));
 
 /** Repo URLs are public, so the span names the repo; a site is recorded by host only. */
 const tracedRepo = (owner: string, name: string, warnings: string[]) =>

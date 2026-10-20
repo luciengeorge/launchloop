@@ -4,8 +4,11 @@ const FIXTURE = "http://127.0.0.1:3419";
 
 interface PhEvent {
   event: string;
+  distinct_id?: string;
   properties: Record<string, unknown>;
 }
+
+const distinctId = (e: PhEvent) => e.distinct_id ?? (e.properties.distinct_id as string | undefined);
 
 test.use({
   // posthog-js drops every event from a likely bot (HeadlessChrome UA or brand, navigator.webdriver).
@@ -98,6 +101,12 @@ test("a stream cut after the accepted line opens the kit page, which waits for t
 
   const failed = await campaignEvent(page, campaign, "preview_failed");
   expect(failed.properties).toMatchObject({ code: "network", phase: "stream", errorName: "TypeError", recovered: true, online: true, visibility: "visible", qa: true, is_webdriver: false });
+  // The browser never saw the stream finish, so no preview_completed; the server still records the kit, on the same visitor.
+  const kitId = new URL(page.url()).pathname.split("/").pop();
+  const created = await campaignEvent(page, campaign, "kit_created");
+  expect(created.properties).toMatchObject({ kitId, source: "site", stream: true, is_test: true });
+  expect(distinctId(created)).toBeTruthy();
+  expect(distinctId(created)).toBe(distinctId(failed));
 });
 
 test("a stream that ends after accepted without done still opens the kit", async ({ page }) => {
