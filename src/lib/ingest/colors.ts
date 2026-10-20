@@ -2,12 +2,13 @@ import type { Palette } from "../schema";
 
 type RGB = [number, number, number];
 
+/** Neutral on purpose: when we find no brand colours, the images shouldn't look like someone else's brand. */
 export const DEFAULT_PALETTE: Palette = {
-  background: "#0b0b12",
-  foreground: "#f5f5f7",
-  accent: "#7c5cff",
+  background: "#f5f5f4",
+  foreground: "#1c1917",
+  accent: "#57534e",
   accentForeground: "#ffffff",
-  muted: "#a1a1b5",
+  muted: "#625d57",
   source: "default",
 };
 
@@ -115,7 +116,7 @@ export interface ColorHints {
  * (--primary, --brand, --accent) and the theme-color meta tag weigh most;
  * otherwise the most frequent saturated colour wins.
  */
-export function extractPalette({ css, themeColor }: ColorHints): Palette {
+export function extractPalette({ css, themeColor }: ColorHints, source: "site" | "repo" = "site"): Palette {
   const scores = new Map<string, { rgb: RGB; score: number }>();
   const bump = (rgb: RGB | null, weight: number) => {
     if (!rgb) return;
@@ -161,6 +162,6 @@ export function extractPalette({ css, themeColor }: ColorHints): Palette {
     accent: toHex(accent),
     accentForeground: toHex(accentForeground),
     muted: toHex(muted),
-    source: "site",
+    source,
   };
 }

@@ -5,8 +5,14 @@ const kv = vi.hoisted(() => ({ store: undefined as unknown }));
 vi.mock("@/lib/store", () => ({ store: () => kv.store }));
 vi.mock("@/lib/observability", () => ({ captureException: vi.fn(), captureExceptionThrottled: vi.fn(), captureMessage: vi.fn() }));
 vi.mock("next/server", () => ({ after: vi.fn() }));
-vi.mock("next/headers", () => ({ cookies: async () => ({ get: () => undefined, set: vi.fn() }) }));
-vi.mock("@/lib/auth", () => ({ ANON_KITS_COOKIE: "ll_anon_kits", getSession: async () => null, readAnonKits: () => [], secureCookies: () => false }));
+const jar = vi.hoisted(() => ({ anonKits: undefined as string | undefined }));
+vi.mock("next/headers", () => ({ cookies: async () => ({ get: () => (jar.anonKits ? { value: jar.anonKits } : undefined), set: vi.fn() }) }));
+vi.mock("@/lib/auth", () => ({
+  ANON_KITS_COOKIE: "ll_anon_kits",
+  getSession: async () => null,
+  readAnonKits: (v?: string) => (v ? v.split(",") : []),
+  secureCookies: () => false,
+}));
 vi.mock("@/lib/generation", () => ({ speculateDraft: vi.fn(async () => "capped") }));
 const okKit = async (_url: string, _onStep: unknown, opts: { id: string }) => ({ id: opts.id });
 vi.mock("@/lib/kits", () => ({
@@ -14,10 +20,11 @@ vi.mock("@/lib/kits", () => ({
   createKit: vi.fn(okKit),
   markKitPending: vi.fn(async () => {}),
   markKitFailed: vi.fn(async () => {}),
+  latestUnpaidKitId: vi.fn(async () => null),
 }));
 
 const { captureExceptionThrottled } = await import("@/lib/observability");
-const { createKit } = await import("@/lib/kits");
+const { createKit, latestUnpaidKitId } = await import("@/lib/kits");
 const { IngestError } = await import("@/lib/ingest");
 const { LlmError } = await import("@/lib/llm");
 const { POST } = await import("@/app/api/kits/route");
@@ -51,11 +58,18 @@ const failingKit = async (url: string, onStep: (step: string) => void = () => {}
   return { id: opts.id };
 };
 
+/** Like createKit on a dedupe hit: the same steps as a fresh preview, then a kit `reusedFrom` the original, with no model call. */
+const cachedKit = async (url: string, onStep: (step: string) => void = () => {}, opts: { id: string }) => {
+  for (const step of ["repo", "brief", "copy"]) onStep(step);
+  return url.includes("cached") ? { id: opts.id, reusedFrom: "kit_original_000000" } : { id: opts.id };
+};
+
 let mem: MemoryStore;
 
 beforeEach(() => {
   mem = new MemoryStore();
   kv.store = mem;
+  jar.anonKits = undefined;
   vi.useFakeTimers({ toFake: ["Date"] });
   // 10 minutes into a UTC day, so the hourly and daily windows line up predictably.
   vi.setSystemTime(new Date("2026-10-18T00:10:00Z"));
@@ -66,8 +80,8 @@ afterEach(() => {
 });
 
 describe("POST /api/kits rate limit", () => {
-  it("the 6th valid request from one IP within the hour gets 429 rate_limited with Retry-After", async () => {
-    for (let i = 0; i < 5; i++) expect((await post("203.0.113.10")).status).toBe(201);
+  it("the 11th valid request from one IP within the hour gets 429 rate_limited with Retry-After", async () => {
+    for (let i = 0; i < 10; i++) expect((await post("203.0.113.10")).status).toBe(201);
 
     const res = await post("203.0.113.10");
     expect(res.status).toBe(429);
@@ -76,15 +90,15 @@ describe("POST /api/kits rate limit", () => {
     expect(body).toMatchObject({ code: "rate_limited", error: "You've used your free previews for now.", retryAfterSeconds: 50 * 60 });
     expect(body.fix).toContain("Try again in 50 min");
     expect(res.headers.get("Retry-After")).toBe("3000");
-    expect(createKit).toHaveBeenCalledTimes(5);
+    expect(createKit).toHaveBeenCalledTimes(10);
 
     expect((await post("203.0.113.11")).status).toBe(201);
   });
 
-  it("the 21st valid request in a UTC day is limited even when the hour has room", async () => {
+  it("the 41st valid request in a UTC day is limited even when the hour has room", async () => {
     for (let hour = 0; hour < 4; hour++) {
       vi.setSystemTime(new Date(Date.UTC(2026, 9, 18, hour, 10)));
-      for (let i = 0; i < 5; i++) expect((await post("203.0.113.20")).status).toBe(201);
+      for (let i = 0; i < 10; i++) expect((await post("203.0.113.20")).status).toBe(201);
     }
     vi.setSystemTime(new Date("2026-10-18T04:10:00Z"));
     const res = await post("203.0.113.20");
@@ -102,7 +116,7 @@ describe("POST /api/kits rate limit", () => {
   it("invalid URLs and the sample don't use up the budget", async () => {
     for (let i = 0; i < 10; i++) expect((await post("203.0.113.30", "not a url")).status).toBe(422);
     for (let i = 0; i < 10; i++) expect((await post("203.0.113.30", "sample")).status).toBe(201);
-    for (let i = 0; i < 5; i++) expect((await post("203.0.113.30")).status).toBe(201);
+    for (let i = 0; i < 10; i++) expect((await post("203.0.113.30")).status).toBe(201);
     expect((await post("203.0.113.30")).status).toBe(429);
   });
 
@@ -112,7 +126,7 @@ describe("POST /api/kits rate limit", () => {
     const failed = await post("203.0.113.50", "https://github.com/acme/private-app");
     expect(failed.status).toBe(422);
     expect((await failed.json()).code).toBe("repo_not_found");
-    for (let i = 0; i < 4; i++) expect((await post("203.0.113.50")).status).toBe(201);
+    for (let i = 0; i < 9; i++) expect((await post("203.0.113.50")).status).toBe(201);
     expect((await post("203.0.113.50")).status).toBe(429);
   });
 
@@ -122,21 +136,70 @@ describe("POST /api/kits rate limit", () => {
       const res = await post("203.0.113.51", "https://github.com/acme/private-app", "application/x-ndjson");
       expect(await res.text()).toContain('"code":"repo_not_found"');
     }
-    for (let i = 0; i < 5; i++) expect((await post("203.0.113.51")).status).toBe(201);
+    for (let i = 0; i < 10; i++) expect((await post("203.0.113.51")).status).toBe(201);
     expect((await post("203.0.113.51")).status).toBe(429);
   });
 
   it("an AI outage before the brief is written is refunded", async () => {
     vi.mocked(createKit).mockImplementation(failingKit as typeof createKit);
     for (let i = 0; i < 3; i++) expect((await post("203.0.113.52", "https://github.com/acme/ai-down")).status).toBe(503);
-    for (let i = 0; i < 5; i++) expect((await post("203.0.113.52")).status).toBe(201);
+    for (let i = 0; i < 10; i++) expect((await post("203.0.113.52")).status).toBe(201);
     expect((await post("203.0.113.52")).status).toBe(429);
   });
 
   it("a run that fails after a model call completed still counts", async () => {
     vi.mocked(createKit).mockImplementation(failingKit as typeof createKit);
-    for (let i = 0; i < 5; i++) expect((await post("203.0.113.53", "https://github.com/acme/after-brief")).status).toBe(503);
+    for (let i = 0; i < 10; i++) expect((await post("203.0.113.53", "https://github.com/acme/after-brief")).status).toBe(503);
     expect((await post("203.0.113.53")).status).toBe(429);
+  });
+
+  it("previewing the same repo at the same commit again (a dedupe cache hit, no model call) doesn't count", async () => {
+    vi.mocked(createKit).mockImplementation(cachedKit as typeof createKit);
+    for (let i = 0; i < 4; i++) {
+      expect((await post("203.0.113.54", "https://github.com/acme/cached")).status).toBe(201);
+      const streamed = await post("203.0.113.54", "https://github.com/acme/cached", "application/x-ndjson");
+      expect(await streamed.text()).toContain('"type":"done"');
+    }
+    for (let i = 0; i < 10; i++) expect((await post("203.0.113.54")).status).toBe(201);
+    expect((await post("203.0.113.54")).status).toBe(429);
+  });
+
+  it("past the refund allowance (10 an hour), cache hits count like previews, so one IP can't hammer GitHub", async () => {
+    vi.mocked(createKit).mockImplementation(cachedKit as typeof createKit);
+    for (let i = 0; i < 20; i++) expect((await post("203.0.113.55", "https://github.com/acme/cached")).status).toBe(201);
+    expect((await post("203.0.113.55")).status).toBe(429);
+  });
+
+  it("the day caps cache-hit refunds at 30: past that, even a fresh hour's cache hits count", async () => {
+    vi.mocked(createKit).mockImplementation(cachedKit as typeof createKit);
+    for (let hour = 0; hour < 3; hour++) {
+      vi.setSystemTime(new Date(Date.UTC(2026, 9, 18, hour, 10)));
+      for (let i = 0; i < 10; i++) expect((await post("203.0.113.58", "https://github.com/acme/cached")).status).toBe(201);
+    }
+    // All 30 were refunded, so the day's refunds are gone: from here each cache hit uses one of the hour's 10.
+    vi.setSystemTime(new Date("2026-10-18T03:10:00Z"));
+    for (let i = 0; i < 10; i++) expect((await post("203.0.113.58", "https://github.com/acme/cached")).status).toBe(201);
+    expect((await post("203.0.113.58", "https://github.com/acme/cached")).status).toBe(429);
+  });
+
+  it("the 429 carries the visitor's newest unpaid preview, found from the anonymous-kits cookie", async () => {
+    jar.anonKits = "kit_older_0000000000,kit_newest_000000000";
+    vi.mocked(latestUnpaidKitId).mockResolvedValueOnce("kit_newest_000000000");
+    for (let i = 0; i < 10; i++) expect((await post("203.0.113.56")).status).toBe(201);
+    const res = await post("203.0.113.56");
+    expect(res.status).toBe(429);
+    expect(await res.json()).toMatchObject({ code: "rate_limited", retryAfterSeconds: 50 * 60, kitId: "kit_newest_000000000" });
+    expect(res.headers.get("Retry-After")).toBe("3000");
+    expect(latestUnpaidKitId).toHaveBeenCalledWith(["kit_older_0000000000", "kit_newest_000000000"], undefined);
+  });
+
+  it("without a recent unpaid preview the 429 has no kitId, and a failed lookup still sends the 429", async () => {
+    for (let i = 0; i < 10; i++) expect((await post("203.0.113.57")).status).toBe(201);
+    expect(await (await post("203.0.113.57")).json()).not.toHaveProperty("kitId");
+    vi.mocked(latestUnpaidKitId).mockRejectedValueOnce(new Error("store down"));
+    const res = await post("203.0.113.57");
+    expect(res.status).toBe(429);
+    expect(await res.json()).not.toHaveProperty("kitId");
   });
 
   it("doesn't fail open when Upstash errors: 503 busy, no generation, reported to Sentry", async () => {

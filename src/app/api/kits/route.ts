@@ -1,6 +1,6 @@
 import { after } from "next/server";
 import { parseAttribution } from "@/lib/attribution";
-import { kitErrorBody } from "@/lib/errors";
+import { type KitErrorBody, kitErrorBody } from "@/lib/errors";
 import { speculateDraft } from "@/lib/generation";
 import { IngestError } from "@/lib/ingest";
 import { LlmError } from "@/lib/llm";
@@ -8,7 +8,7 @@ import type { Kit } from "@/lib/schema";
 import { cookies } from "next/headers";
 import { ANON_KITS_COOKIE, getSession, readAnonKits, secureCookies } from "@/lib/auth";
 import { type KitRequestTrace, phase, previewSourceOf, safeInput, traceKitRequest } from "@/lib/kit-tracing";
-import { type KitOptions, type KitStep, createKit, markKitFailed, markKitPending, newId } from "@/lib/kits";
+import { type KitOptions, type KitStep, createKit, latestUnpaidKitId, markKitFailed, markKitPending, newId } from "@/lib/kits";
 import { captureException } from "@/lib/observability";
 import { type PreviewSlot, freePreviewGate } from "@/lib/rate-limit";
 
@@ -33,9 +33,9 @@ export async function POST(req: Request) {
     const gate = await phase("kits.rate_limit", "rate_limit", {}, () => freePreviewGate(req, input));
     if (gate.refused) {
       const { refused } = gate;
-      const { code } = (await refused.clone().json().catch(() => ({}))) as { code?: string };
-      trace.end({ status: "error", code: code ?? `http_${refused.status}` });
-      return refused;
+      const body = (await refused.clone().json().catch(() => ({}))) as Partial<KitErrorBody>;
+      trace.end({ status: "error", code: body.code ?? `http_${refused.status}` });
+      return body.code === "rate_limited" ? withLatestKit(refused, body as KitErrorBody) : refused;
     }
     const usage = previewUsage(gate.slot);
 
@@ -57,6 +57,7 @@ export async function POST(req: Request) {
 
     try {
       const kit = await createKit(url, usage.onStep, opts);
+      await usage.succeeded(kit);
       speculate(kit);
       trace.end({ status: "ok" });
       return Response.json({ id: kit.id, url: `/kit/${kit.id}` }, { status: 201 });
@@ -71,7 +72,9 @@ export async function POST(req: Request) {
 
 /**
  * A preview counts once its first model call (the brief) has completed: createKit reports "copy" right after.
- * A run that fails before then (private or missing repo, unreachable site, AI down) gives its slot back.
+ * A run that fails before then (private or missing repo, unreachable site, AI down) gives its slot back, and so
+ * does a cache hit (same repo at the same commit within 24 hours, `reusedFrom`), which reports "copy" without
+ * any model call. Both within the refund allowance.
  * A client that disconnects doesn't stop the run, so an abandoned preview that finishes still counts.
  */
 function previewUsage(slot: PreviewSlot) {
@@ -80,10 +83,25 @@ function previewUsage(slot: PreviewSlot) {
     onStep(step: KitStep) {
       if (step === "copy") modelCallDone = true;
     },
+    async succeeded(kit: Kit) {
+      if (kit.reusedFrom) await slot.refund();
+    },
     async failed() {
       if (!modelCallDone) await slot.refund();
     },
   };
+}
+
+/** The 429 with the visitor's newest unpaid preview attached, so the form can offer to unlock it. Never throws. */
+async function withLatestKit(refused: Response, body: KitErrorBody): Promise<Response> {
+  try {
+    const [session, jar] = await Promise.all([getSession(), cookies()]);
+    const kitId = await latestUnpaidKitId(readAnonKits(jar.get(ANON_KITS_COOKIE)?.value), session?.email);
+    return kitId ? Response.json({ ...body, kitId }, { status: refused.status, headers: refused.headers }) : refused;
+  } catch (error) {
+    captureException(error, { stage: "api.kits.latestKit" });
+    return refused;
+  }
 }
 
 function streamKit(url: string, opts: KitOptions & { id: string }, trace: KitRequestTrace, usage: ReturnType<typeof previewUsage>): Response {
@@ -114,6 +132,7 @@ function streamKit(url: string, opts: KitOptions & { id: string }, trace: KitReq
           },
           opts,
         );
+        await usage.succeeded(kit);
         speculate(kit);
         send({ type: "done", id: kit.id, url: `/kit/${kit.id}` });
         trace.end({ status: "ok" });

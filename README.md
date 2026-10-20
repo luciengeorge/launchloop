@@ -55,7 +55,7 @@ All are optional locally. See [`.env.example`](.env.example) for the full annota
 | `KV_REST_API_URL`, `KV_REST_API_TOKEN` | **Production storage** (Upstash Redis / Vercel KV) |
 | `NEXT_PUBLIC_SITE_URL` | Canonical URLs, sitemap, email links |
 | `MOCK_MODE` | Force everything into mock mode |
-| `PREVIEW_RATE_LIMIT_PER_HOUR`, `PREVIEW_RATE_LIMIT_PER_DAY` | Free previews (and free tool generations) per IP: default 5 an hour and 20 a day, from `PREVIEW_LIMITS` in `src/lib/site.ts`, which the terms, privacy page and pricing quote. Override only for testing. See "Free preview limits" |
+| `PREVIEW_RATE_LIMIT_PER_HOUR`, `PREVIEW_RATE_LIMIT_PER_DAY` | Free previews (and free tool generations) per IP: default 10 an hour and 40 a day, from `PREVIEW_LIMITS` in `src/lib/site.ts`, which the terms, privacy page and pricing quote. Override only for testing. See "Free preview limits" |
 | `OG_PREVIEW_RATE_LIMIT_PER_HOUR` | OG preview tool checks per IP per hour (default 60) |
 | `NEWSLETTER_RATE_LIMIT_PER_HOUR` | Newsletter signups per IP per hour, shared across instances (default 10) |
 | `NEWSLETTER_WELCOME_DAILY_CAP` | Newsletter welcome emails per day across everyone (default 200). Past it, signups still subscribe without the email |
@@ -76,7 +76,9 @@ All are optional locally. See [`.env.example`](.env.example) for the full annota
 4. Per IP, fixed hourly and UTC-daily windows in the store. IPv6 addresses are keyed by their /64. A refusal is a 429 with a `Retry-After` header and `retryAfterSeconds` in the body (time to the end of the window that's full), and the form says "Try again in N min". A refused request gives its slot straight back, so retrying while limited doesn't use up the day.
 5. The global daily cap (`cap:previews:<UTC day>`, `PREVIEW_GLOBAL_DAILY_CAP`) returns 503 `busy` (and gives the per-IP slot back). It's checked after the per-IP limit so one noisy IP can't use it up. It counts every attempt that gets this far and is never refunded.
 
-**A preview counts once a model call has completed.** A run that fails before the brief is written (a private or missing repo, an unreachable or empty site, the AI Gateway down) calls `slot.refund()` and gets its slot back. Each of those still cost a GitHub or site fetch, so an IP gets at most 10 refunds an hour and 30 a day (`PREVIEW_REFUNDS_PER_HOUR`, `PREVIEW_REFUNDS_PER_DAY`, testing only); past that a failure counts like a preview. A visitor who closes the tab doesn't stop the run: the preview is still written and saved (and reachable from the kit link or after login), so it counts.
+**A preview counts once a model call has completed.** A run that fails before the brief is written (a private or missing repo, an unreachable or empty site, the AI Gateway down) calls `slot.refund()` and gets its slot back. Each of those still cost a GitHub or site fetch, so an IP gets at most 10 refunds an hour and 30 a day (`PREVIEW_REFUNDS_PER_HOUR`, `PREVIEW_REFUNDS_PER_DAY`, testing only); past that a failure counts like a preview. A visitor who closes the tab doesn't stop the run: the preview is still written and saved (and reachable from the kit link or after login), so it counts. A dedupe cache hit (the same repo at the same commit within 24 hours, `kit.reusedFrom`) makes no model call, so it's refunded the same way, within the same allowance.
+
+**The limit box is never a dead end.** The 429 carries `kitId`, the visitor's newest unpaid preview from the last day (from the `ll_kits` cookie, or their account when signed in; nothing new is stored), and the form shows "Unlock my kit, <price>" linking to it, or "See the Launch Kit, <price>" to `/pricing` without one. Next to it, "Try again in N min" counts down to the reset and becomes a retry at 0.
 
 **Store errors fail closed.** If Upstash errors, the gate returns 503 `busy` and reports the error to Sentry (`stage: rate-limit.store`) rather than letting the request through. Kits and briefs live in the same store, so failing open would spend model calls on previews that can't be saved, and would drop abuse protection exactly when nobody's watching.
 
@@ -258,7 +260,7 @@ Playwright builds the app into `.next-test` and runs it on port 3418 in forced m
 - Ship Loop waitlist
 - the SEO endpoints
 
-Unit tests in `tests/unit` run without a browser or server. `npm test` runs both sets: the Playwright `*.spec.ts` files (`playwright.unit.config.ts`) and the Vitest `*.test.ts` files (`vitest.config.mts`, against an in-memory store): the free-preview gate, the `/api/kits` rate limit (6th request in an hour and 21st in a day get a 429 with `Retry-After`; Upstash errors fail closed), the no-template `ai_busy` path, paid kit retries and `refund_needed`, the LLM output budgets and `disallowPromptTraining`.
+Unit tests in `tests/unit` run without a browser or server. `npm test` runs both sets: the Playwright `*.spec.ts` files (`playwright.unit.config.ts`) and the Vitest `*.test.ts` files (`vitest.config.mts`, against an in-memory store): the free-preview gate, the `/api/kits` rate limit (11th request in an hour and 41st in a day get a 429 with `Retry-After`; Upstash errors fail closed), the no-template `ai_busy` path, paid kit retries and `refund_needed`, the LLM output budgets and `disallowPromptTraining`.
 
 Also: `npm run lint`, `npm run typecheck`, `npm run build`. `.github/workflows/ci.yml` runs all of them plus the e2e suite.
 

@@ -11,7 +11,7 @@ export const KIT_REQUEST_SPAN = "kits.request";
 const DEFAULT_TRACES_SAMPLE_RATE = 0.1;
 
 /**
- * POST /api/kits is traced at 100% by default. It's capped at 5 previews an hour and 20 a day per IP, each preview
+ * POST /api/kits is traced at 100% by default. It's capped per IP by PREVIEW_LIMITS (src/lib/site.ts), each preview
  * already costs two or more LLM calls, and a trace is about ten spans, so preview volume (and span volume) stays small
  * while every slow or failed preview gets a full trace. SENTRY_KITS_TRACES_SAMPLE_RATE dials it down if traffic grows.
  */

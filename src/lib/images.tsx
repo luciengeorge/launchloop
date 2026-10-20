@@ -1,9 +1,11 @@
 import "server-only";
 import { ImageResponse } from "@vercel/og";
+import type { CSSProperties } from "react";
+import type { FittedText } from "./image-fit";
+import { MAX_FEATURES, planKitImage, type KitImageContent, type PillPlan } from "./image-layout";
 import { IMAGE_VARIANTS, type ImageVariant } from "./image-variants";
 import { hexToRgb } from "./ingest/colors";
 import type { Kit } from "./schema";
-
 
 const alpha = (hex: string, a: number) => {
   const [r, g, b] = hexToRgb(hex);
@@ -50,15 +52,63 @@ function Watermark({ color }: { color: string }) {
   );
 }
 
+function Lines({ text, align = "flex-start", style }: { text: FittedText; align?: "flex-start" | "center"; style?: CSSProperties }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: align,
+        flexShrink: 0,
+        fontSize: text.fontSize,
+        lineHeight: text.lineHeight,
+        letterSpacing: text.letterSpacing,
+        ...style,
+      }}
+    >
+      {text.lines.map((line, i) => (
+        <div key={i} style={{ display: "flex", whiteSpace: "nowrap" }}>
+          {line}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Pill({ plan, style, dotColor }: { plan: PillPlan; style: CSSProperties; dotColor?: string }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        flexShrink: 0,
+        gap: plan.gap,
+        padding: `${plan.padY}px ${plan.padX}px`,
+        borderRadius: 999,
+        ...style,
+      }}
+    >
+      {plan.dot && dotColor ? <div style={{ display: "flex", flexShrink: 0, width: plan.dot, height: plan.dot, borderRadius: 999, backgroundColor: dotColor }} /> : null}
+      <Lines text={plan.text} align="center" />
+    </div>
+  );
+}
+
+export function kitImageContent(kit: Kit): KitImageContent {
+  return {
+    name: plain(kit.content?.productHunt.name ?? kit.brief.name),
+    tagline: plain(kit.content?.productHunt.tagline ?? kit.preview.tagline),
+    headline: plain(kit.content?.landing.headline ?? kit.brief.oneLiner),
+    features: (kit.content?.landing.features.map((f) => f.title) ?? kit.brief.features).slice(0, MAX_FEATURES).map(plain),
+    domain: domainOf(kit),
+  };
+}
+
 export function renderKitImage(kit: Kit, variant: ImageVariant, options: { watermark: boolean }): ImageResponse {
   const { width, height } = IMAGE_VARIANTS[variant];
   const p = kit.palette;
-  const name = plain(kit.content?.productHunt.name ?? kit.brief.name);
-  const tagline = plain(kit.content?.productHunt.tagline ?? kit.preview.tagline);
-  const headline = plain(kit.content?.landing.headline ?? kit.brief.oneLiner);
-  const features = (kit.content?.landing.features.map((f) => f.title) ?? kit.brief.features).slice(0, 3).map(plain);
-  const domain = domainOf(kit);
-  const scale = width / 1200;
+  const plan = planKitImage(variant, kitImageContent(kit));
+  const scale = plan.scale;
 
   const frame = {
     width: "100%",
@@ -70,89 +120,84 @@ export function renderKitImage(kit: Kit, variant: ImageVariant, options: { water
     backgroundImage: `radial-gradient(circle at 85% 15%, ${alpha(p.accent, 0.45)} 0%, ${alpha(p.accent, 0)} 55%), radial-gradient(circle at 0% 100%, ${alpha(p.accent, 0.22)} 0%, ${alpha(p.accent, 0)} 45%)`,
     color: p.foreground,
     fontFamily: "sans-serif",
-    padding: 72 * scale,
+    padding: plan.padding,
   };
 
-  const pill = (text: string) => (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 12 * scale,
-        padding: `${10 * scale}px ${22 * scale}px`,
-        borderRadius: 999,
-        backgroundColor: alpha(p.foreground, 0.08),
-        border: `1px solid ${alpha(p.foreground, 0.16)}`,
-        fontSize: 24 * scale,
-        color: p.muted,
-      }}
-    >
-      <div style={{ display: "flex", width: 12 * scale, height: 12 * scale, borderRadius: 999, backgroundColor: p.accent }} />
-      {text}
-    </div>
+  const outlinePill = (pill: PillPlan) => (
+    <Pill
+      plan={pill}
+      dotColor={p.accent}
+      style={{ backgroundColor: alpha(p.foreground, 0.08), border: `${pill.border}px solid ${alpha(p.foreground, 0.16)}`, color: p.muted }}
+    />
   );
 
   let body: React.ReactNode;
-  if (variant === "og") {
-    body = (
-      <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", flex: 1 }}>
-        <div style={{ display: "flex" }}>{pill(domain || "Now live")}</div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-          <div style={{ display: "flex", fontSize: 96, fontWeight: 700, letterSpacing: -2, lineHeight: 1 }}>{name}</div>
-          <div style={{ display: "flex", fontSize: 44, lineHeight: 1.25, color: alpha(p.foreground, 0.85), maxWidth: 980 }}>{tagline}</div>
+  switch (plan.variant) {
+    case "og":
+      body = (
+        <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", flex: 1 }}>
+          <div style={{ display: "flex", flexShrink: 0 }}>{outlinePill(plan.domain)}</div>
+          <div style={{ display: "flex", flexDirection: "column", flexShrink: 0, gap: 20 }}>
+            <Lines text={plan.name} style={{ fontWeight: 700 }} />
+            <Lines text={plan.tagline} style={{ color: alpha(p.foreground, 0.85) }} />
+          </div>
+          <div style={{ display: "flex", flexShrink: 0, height: 10, width: 220, borderRadius: 999, backgroundColor: p.accent }} />
         </div>
-        <div style={{ display: "flex", height: 10, width: 220, borderRadius: 999, backgroundColor: p.accent }} />
-      </div>
-    );
-  } else if (variant === "x") {
-    body = (
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", flex: 1, gap: 40 }}>
-        {pill(name)}
-        <div style={{ display: "flex", fontSize: 92, fontWeight: 700, letterSpacing: -2, lineHeight: 1.08, maxWidth: 1300, justifyContent: "center" }}>
-          {headline}
-        </div>
-        <div style={{ display: "flex", gap: 20, flexWrap: "wrap", justifyContent: "center" }}>
-          {features.map((f) => (
-            <div
-              key={f}
-              style={{ display: "flex", padding: "14px 28px", borderRadius: 999, backgroundColor: p.accent, color: p.accentForeground, fontSize: 32, fontWeight: 600 }}
-            >
-              {f}
+      );
+      break;
+    case "x":
+      body = (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", flex: 1, gap: 40 }}>
+          {outlinePill(plan.name)}
+          <Lines text={plan.headline} align="center" style={{ fontWeight: 700 }} />
+          {plan.pills.length ? (
+            <div style={{ display: "flex", flexShrink: 0, gap: 20, flexWrap: "wrap", justifyContent: "center", alignItems: "center" }}>
+              {plan.pills.map((pill, i) => (
+                <Pill key={i} plan={pill} style={{ backgroundColor: p.accent, color: p.accentForeground, fontWeight: 600 }} />
+              ))}
             </div>
-          ))}
+          ) : null}
+          {plan.domain ? <Lines text={plan.domain} align="center" style={{ color: p.muted }} /> : null}
         </div>
-        {domain ? <div style={{ display: "flex", fontSize: 30, color: p.muted }}>{domain}</div> : null}
-      </div>
-    );
-  } else {
-    body = (
-      <div style={{ display: "flex", flexDirection: "column", flex: 1, gap: 48 }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <div style={{ display: "flex", fontSize: 84, fontWeight: 700, letterSpacing: -2, lineHeight: 1 }}>{name}</div>
-          <div style={{ display: "flex", fontSize: 42, color: alpha(p.foreground, 0.85), lineHeight: 1.25 }}>{tagline}</div>
-        </div>
-        <div style={{ display: "flex", gap: 28, flex: 1 }}>
-          {features.map((f, i) => (
-            <div
-              key={f}
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between",
-                flex: 1,
-                padding: 36,
-                borderRadius: 28,
-                backgroundColor: alpha(p.foreground, 0.06),
-                border: `2px solid ${alpha(p.accent, 0.55)}`,
-              }}
-            >
-              <div style={{ display: "flex", fontSize: 30, fontWeight: 700, color: p.accent }}>{`0${i + 1}`}</div>
-              <div style={{ display: "flex", fontSize: 38, fontWeight: 600, lineHeight: 1.2 }}>{f}</div>
+      );
+      break;
+    case "ph":
+      body = (
+        <div style={{ display: "flex", flexDirection: "column", flex: 1, gap: 48 }}>
+          <div style={{ display: "flex", flexDirection: "column", flexShrink: 0, gap: 16 }}>
+            <Lines text={plan.name} style={{ fontWeight: 700 }} />
+            <Lines text={plan.tagline} style={{ color: alpha(p.foreground, 0.85) }} />
+          </div>
+          {plan.cards.length ? (
+            <div style={{ display: "flex", gap: 28, flex: 1 }}>
+              {plan.cards.map((card, i) => (
+                <div
+                  key={i}
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "space-between",
+                    flex: 1,
+                    overflow: "hidden",
+                    padding: 36,
+                    borderRadius: 28,
+                    backgroundColor: alpha(p.foreground, 0.06),
+                    border: `2px solid ${alpha(p.accent, 0.55)}`,
+                  }}
+                >
+                  <Lines text={card.number} style={{ fontWeight: 700, color: p.accent }} />
+                  <Lines text={card.text} style={{ fontWeight: 600 }} />
+                </div>
+              ))}
             </div>
-          ))}
+          ) : null}
         </div>
-      </div>
-    );
+      );
+      break;
+    default: {
+      const unreachable: never = plan;
+      throw new Error(`Unknown image plan: ${String(unreachable)}`);
+    }
   }
 
   return new ImageResponse(
