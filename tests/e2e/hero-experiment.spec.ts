@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { EXAMPLE_KIT } from "@/lib/example-kit";
 import { EXAMPLE_KIT_PATH } from "@/lib/site";
 
 const FIXTURE = "http://127.0.0.1:3419";
@@ -56,6 +57,8 @@ async function waitForEvent(page: Page, campaign: string, match: (e: PhEvent) =>
 const exposure = (e: PhEvent) => e.event === "$feature_flag_called" && e.properties.$feature_flag === FLAG;
 const fallback = (e: PhEvent) => e.event === "flag_fallback" && e.properties.flag === FLAG;
 const sampleCta = (page: Page) => page.getByRole("button", { name: "Try a sample app" });
+const exampleLink = (page: Page) => page.locator("#start").getByRole("link", { name: "See an example kit" });
+const height = async (page: Page, testId: string) => (await page.getByTestId(testId).boundingBox())!.height;
 
 async function startSample(page: Page, campaign: string): Promise<PhEvent> {
   await sampleCta(page).click();
@@ -63,17 +66,15 @@ async function startSample(page: Page, campaign: string): Promise<PhEvent> {
   return waitForEvent(page, campaign, (e) => e.event === "preview_started");
 }
 
-test("test: the sample app is a visible button and the hero links to the example kit; the exposure and preview_started say test", async ({ page }) => {
+test("test: the sample app is a 44px button and the hero links to the example kit; the exposure and preview_started say test", async ({ page }) => {
   await forceHeroVariant(page, "test");
   const campaign = await openHome(page);
 
   await expect(sampleCta(page)).toHaveAttribute("data-variant", "test");
-  await expect(sampleCta(page)).toBeVisible();
-  // A real button, not a line of underlined text.
-  expect((await sampleCta(page).boundingBox())!.height).toBeGreaterThanOrEqual(32);
-  const example = page.locator("#start").getByRole("link", { name: "See an example kit" });
-  await expect(example).toBeVisible();
-  await expect(example).toHaveAttribute("href", EXAMPLE_KIT_PATH);
+  expect((await sampleCta(page).boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  await expect(exampleLink(page)).toBeVisible();
+  await expect(exampleLink(page)).toHaveAttribute("href", EXAMPLE_KIT_PATH);
+  expect((await exampleLink(page).boundingBox())!.height).toBeGreaterThanOrEqual(44);
 
   expect((await waitForEvent(page, campaign, exposure)).properties).toMatchObject({ $feature_flag_response: "test", [`$feature/${FLAG}`]: "test" });
   const started = await startSample(page, campaign);
@@ -83,13 +84,15 @@ test("test: the sample app is a visible button and the hero links to the example
   expect((await waitForEvent(page, campaign, (e) => e.event === "preview_completed")).properties[`$feature/${FLAG}`]).toBe("test");
 });
 
-test("control assignment: the quiet sample link and no example kit; the exposure and preview_started say control", async ({ page }) => {
+test("control assignment: the quiet sample link, an empty example line; the exposure and preview_started say control", async ({ page }) => {
   await forceHeroVariant(page, "control");
   const campaign = await openHome(page);
 
   expect((await waitForEvent(page, campaign, exposure)).properties).toMatchObject({ $feature_flag_response: "control" });
   await expect(sampleCta(page)).toHaveAttribute("data-variant", "control");
+  expect((await sampleCta(page).boundingBox())!.height).toBeGreaterThanOrEqual(44);
   await expect(page.getByTestId("example-kit-link")).toHaveCount(0);
+  expect(await height(page, "example-kit-slot")).toBeGreaterThanOrEqual(44);
   expect((await startSample(page, campaign)).properties).toMatchObject({ [`$feature/${FLAG}`]: "control" });
 });
 
@@ -124,15 +127,190 @@ test("flags too slow or failing: control, and the hero never flips when test arr
   await expect(page.getByTestId("example-kit-link")).toHaveCount(0);
 });
 
-test("test: the example kit link opens the kit page, and the click is recorded with the variant and no kit id", async ({ page }) => {
+test.describe("used before the flag resolves", () => {
+  test("a click on Try a sample app freezes control: flag_fallback 'interacted', no test exposure, and nothing changes mid-request", async ({ page }) => {
+    // Test arrives 1s after the SDK asks: before our timeout, after the click.
+    await forceHeroVariant(page, "test", 1000);
+    // Keep the visitor on the page while the preview runs, so a late variant would have time to show.
+    let release!: () => void;
+    const released = new Promise<void>((resolve) => (release = resolve));
+    await page.route("**/api/kits", async (route) => {
+      await released;
+      await route.continue().catch(() => undefined);
+    });
+    const campaign = await openHome(page);
+    await expect(sampleCta(page)).toHaveAttribute("data-variant", "control");
+    await sampleCta(page).click();
+    await expect(page.getByTestId("kit-progress")).toBeVisible();
+
+    expect((await waitForEvent(page, campaign, fallback)).properties).toMatchObject({ variant: "control", reason: "interacted", fallback: true });
+    // The flags (test) land while the preview is still running: the hero stays as it was.
+    await page.waitForTimeout(2000);
+    await expect(page.getByTestId("kit-progress")).toBeVisible();
+    await expect(page.getByTestId("example-kit-slot")).toHaveCount(1);
+    await expect(page.getByTestId("example-kit-link")).toHaveCount(0);
+
+    release();
+    await page.waitForURL(/\/kit\/[\w-]+$/);
+    const events = await eventsFor(page, campaign);
+    expect(events.filter(exposure)).toEqual([]);
+    for (const name of ["hero_clicked", "preview_started"]) {
+      const event = events.find((e) => e.event === name)!;
+      expect(event.properties, name).toMatchObject({ [`fallback/${FLAG}`]: "control" });
+      expect(event.properties, name).not.toHaveProperty(`$feature/${FLAG}`);
+    }
+  });
+
+  test("typing in the URL field freezes control too, and the field's text is never sent", async ({ page }) => {
+    await forceHeroVariant(page, "test", 1000);
+    const campaign = await openHome(page);
+    const typed = `early-typist-${Date.now()}`;
+    await page.getByLabel("GitHub repo or live site URL").focus();
+    await page.keyboard.type(typed);
+
+    expect((await waitForEvent(page, campaign, fallback)).properties).toMatchObject({ variant: "control", reason: "interacted" });
+    await page.waitForTimeout(2500);
+    await expect(sampleCta(page)).toHaveAttribute("data-variant", "control");
+    await expect(page.getByTestId("example-kit-link")).toHaveCount(0);
+    expect((await eventsFor(page, campaign)).filter(exposure)).toEqual([]);
+    expect(JSON.stringify(await eventsFor(page, campaign))).not.toContain(typed);
+  });
+});
+
+test.describe("layout", () => {
+  for (const [device, viewport] of [
+    ["desktop", { width: 1280, height: 900 }],
+    ["375px phone", { width: 375, height: 812 }],
+  ] as const) {
+    test(`${device}: the variant appearing shifts nothing, and control and test take the same space`, async ({ page }) => {
+      await page.setViewportSize(viewport);
+      const below = page.locator("#start").getByText("Free preview, no account needed.");
+      const layout = async () => ({ below: (await below.boundingBox())!.y, hero: (await page.locator("#start").boundingBox())!.height });
+
+      await forceHeroVariant(page, "control");
+      await openHome(page);
+      await expect(sampleCta(page)).toHaveAttribute("data-variant", "control");
+      const control = await layout();
+
+      await page.unrouteAll({ behavior: "ignoreErrors" });
+      // Late enough that the page has painted control first.
+      await forceHeroVariant(page, "test", 800);
+      await openHome(page);
+      await page.evaluate(() => {
+        const w = window as unknown as { shifts: number };
+        w.shifts = 0;
+        new PerformanceObserver((list) => {
+          for (const entry of list.getEntries() as unknown as { value: number; hadRecentInput: boolean }[]) if (!entry.hadRecentInput) w.shifts += entry.value;
+        }).observe({ type: "layout-shift" });
+      });
+      const before = await layout();
+      await expect(sampleCta(page)).toHaveAttribute("data-variant", "test");
+      await expect(exampleLink(page)).toBeVisible();
+      await page.waitForTimeout(300);
+      expect(await layout()).toEqual(before);
+      expect(before).toEqual(control);
+      expect(await page.evaluate(() => (window as unknown as { shifts: number }).shifts)).toBe(0);
+    });
+  }
+
+  test("375px phone: the sample button and the example link are both centred and at least 44px tall", async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 });
+    await forceHeroVariant(page, "test");
+    await openHome(page);
+    await expect(exampleLink(page)).toBeVisible();
+    const centre = async (box: { x: number; width: number; height: number } | null) => {
+      expect(box!.height).toBeGreaterThanOrEqual(44);
+      return box!.x + box!.width / 2;
+    };
+    const button = await centre(await sampleCta(page).boundingBox());
+    const link = await centre(await exampleLink(page).boundingBox());
+    const form = await centre({ ...(await page.getByRole("form", { name: "Generate a launch kit" }).boundingBox())!, height: 44 });
+    expect(Math.abs(button - link)).toBeLessThanOrEqual(1);
+    expect(Math.abs(button - form)).toBeLessThanOrEqual(1);
+  });
+
+  test("test: the sample button's text has at least 4.5:1 contrast (WCAG AA), hovered too", async ({ page }) => {
+    await forceHeroVariant(page, "test");
+    await openHome(page);
+    await expect(sampleCta(page)).toHaveAttribute("data-variant", "test");
+    const ratio = () =>
+      sampleCta(page).evaluate((el) => {
+        // Let the browser resolve oklch/color-mix: paint each colour and read the sRGB pixel back.
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
+        const rgb = (color: string) => {
+          ctx.clearRect(0, 0, 1, 1);
+          ctx.fillStyle = "#fff";
+          ctx.fillRect(0, 0, 1, 1);
+          ctx.fillStyle = color;
+          ctx.fillRect(0, 0, 1, 1);
+          return [...ctx.getImageData(0, 0, 1, 1).data.slice(0, 3)];
+        };
+        const luminance = (c: number[]) => {
+          const [r, g, b] = c.map((v) => (v / 255 <= 0.04045 ? v / 255 / 12.92 : ((v / 255 + 0.055) / 1.055) ** 2.4));
+          return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        };
+        const style = getComputedStyle(el);
+        const fg = luminance(rgb(style.color));
+        // The button's background may be translucent: paint it over the page's.
+        ctx.fillStyle = getComputedStyle(document.body).backgroundColor;
+        ctx.fillRect(0, 0, 1, 1);
+        ctx.fillStyle = style.backgroundColor;
+        ctx.fillRect(0, 0, 1, 1);
+        const bg = luminance([...ctx.getImageData(0, 0, 1, 1).data.slice(0, 3)]);
+        return (Math.max(fg, bg) + 0.05) / (Math.min(fg, bg) + 0.05);
+      });
+    expect(await ratio()).toBeGreaterThanOrEqual(4.5);
+    await sampleCta(page).hover();
+    await page.waitForTimeout(300);
+    expect(await ratio()).toBeGreaterThanOrEqual(4.5);
+  });
+});
+
+test("test: the example kit link opens the example kit, and the click is recorded with the variant", async ({ page }) => {
   await forceHeroVariant(page, "test");
   const campaign = await openHome(page);
   await waitForEvent(page, campaign, exposure);
-  const example = page.getByTestId("example-kit-link");
-  const navigation = page.waitForURL((u) => u.pathname === EXAMPLE_KIT_PATH);
-  await example.click();
-  await navigation;
+  await exampleLink(page).click();
+  await page.waitForURL((u) => u.pathname === EXAMPLE_KIT_PATH);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Snapshelf");
   const click = await waitForEvent(page, campaign, (e) => e.event === "hero_clicked" && e.properties.label === "See an example kit");
   expect(click.properties).toMatchObject({ element: "a", [`$feature/${FLAG}`]: "test" });
-  expect(String(click.properties.link_url)).toMatch(/\/kit\/\[id\]$/);
+  expect(String(click.properties.link_url)).toMatch(/\/example-kit$/);
+});
+
+test("/example-kit: the sample app's full kit from a fixed record, with nothing to unlock, buy or download, and not indexed", async ({ page }) => {
+  const res = await page.goto(EXAMPLE_KIT_PATH);
+  expect(res!.status()).toBe(200);
+  const kit = page.getByTestId("example-kit");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Snapshelf");
+  await expect(page.locator("#brief-heading")).toHaveText(EXAMPLE_KIT.brief.oneLiner);
+  for (const feature of EXAMPLE_KIT.brief.features.slice(0, 3)) await expect(kit.getByText(feature, { exact: true }).first()).toBeVisible();
+
+  // Every section is the real text, unlocked.
+  await page.getByTestId("stage-tab-Product Hunt").click();
+  const tagline = page.locator('[data-task-id="ph.tagline"]');
+  await expect(tagline).toHaveAttribute("data-locked", "false");
+  await expect(tagline).toContainText(EXAMPLE_KIT.content!.productHunt.tagline);
+  await expect(page.locator('[data-locked="true"]')).toHaveCount(0);
+
+  // Its share images render from the same record.
+  await page.getByTestId("stage-tab-Images").click();
+  const src = await page.locator('[data-task-id^="img."] img').first().getAttribute("src");
+  expect(src).toMatch(new RegExp(`^/api/og/${EXAMPLE_KIT.id}/`));
+  const image = await page.request.get(src!);
+  expect(image.status()).toBe(200);
+  expect(image.headers()["content-type"]).toContain("image/png");
+
+  await expect(page.getByRole("button", { name: /Unlock/ })).toHaveCount(0);
+  await expect(page.getByText(/Download ZIP/)).toHaveCount(0);
+  await expect(page.getByTestId("preview-paywall")).toHaveCount(0);
+  expect(await page.locator(`a[href*="/api/kits/"], a[href*="checkout"]`).count()).toBe(0);
+  // No buyer's address (the footer's contact address is outside the kit).
+  expect(await kit.innerHTML()).not.toMatch(/[\w.+-]+@[\w-]+\.[\w.]+/);
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", "noindex, follow");
+
+  // It isn't a stored kit: no kit route serves it.
+  expect((await page.request.get(`/api/kits/${EXAMPLE_KIT.id}/zip`)).status()).toBeGreaterThanOrEqual(400);
+  expect((await page.request.get(`/api/kits/${EXAMPLE_KIT.id}/status`)).status()).toBeGreaterThanOrEqual(400);
 });
