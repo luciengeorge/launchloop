@@ -11,7 +11,7 @@ import { type KitFailureDetails, KitRequestError, createKitWithProgress } from "
 import { previewAllowance } from "@/lib/errors";
 import type { PreviewLimits } from "@/lib/site";
 import { LAUNCH_PROMO } from "@/lib/products";
-import { replacesPrefix, repoPrefill, sameInput } from "@/lib/repo-cta";
+import { looksLikeGitHubUrl, replacesPrefix, repoPrefill, sameInput } from "@/lib/repo-cta";
 import { hasSessionHint } from "@/lib/session-hint";
 import { START_EVENT, type StartPlan } from "@/lib/start-intent";
 import { sampleCtaLayout, useHeroSampleCta } from "./home-hero";
@@ -171,6 +171,7 @@ export function KitForm({ promo }: { promo: boolean }) {
             setUrl(e.target.value);
             // An error is about the input that was sent; once it changes (repo to site, say) it no longer applies.
             setError(null);
+            if (!looksLikeGitHubUrl(e.target.value)) setRepoMode(false);
           }}
           onPaste={(e) => {
             const pasted = e.clipboardData.getData("text");
@@ -178,6 +179,7 @@ export function KitForm({ promo }: { promo: boolean }) {
             e.preventDefault();
             setUrl(pasted.trim());
             setError(null);
+            if (!looksLikeGitHubUrl(pasted)) setRepoMode(false);
           }}
           placeholder={repoMode ? "github.com/you/your-app" : "github.com/you/your-app or your-app.com"}
           autoComplete="url"
@@ -266,7 +268,14 @@ export function KitForm({ promo }: { promo: boolean }) {
                     Sending this link again will fail the same way. Change it, or use your repo:
                   </p>
                 ) : null}
-                <Button ref={repoCtaRef} type="button" onClick={switchToRepo} className="h-10 px-4 text-sm" data-testid="kit-repo-cta">
+                <Button
+                  ref={repoCtaRef}
+                  type="button"
+                  onClick={switchToRepo}
+                  aria-describedby={blockedBy ? "kit-form-resubmit-hint" : undefined}
+                  className="h-11 px-4 text-sm sm:h-10"
+                  data-testid="kit-repo-cta"
+                >
                   Use my GitHub repo instead
                   <ArrowRight />
                 </Button>

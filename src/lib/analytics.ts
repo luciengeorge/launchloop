@@ -1,7 +1,6 @@
 import type { CaptureResult, PostHog, PostHogInterface } from "posthog-js";
 import { type Attribution, QA_PARAM, readLandingAttribution } from "./attribution";
 import { ANALYTICS_ID_PARAM, EXPERIMENTS, featureProperties, isAnalyticsId, type ExperimentKey, type FallbackReason, type Served, type Variant } from "./experiments";
-import type { NewsletterPlacement, WelcomeOutcome } from "./newsletter";
 import { POSTHOG_PROXY_PATH, posthogUiHost } from "./posthog-config";
 import type { RepoPrefill } from "./repo-cta";
 import { scrubProperties } from "./scrub-url";
@@ -9,7 +8,10 @@ import type { StartPlan } from "./start-intent";
 
 export type PreviewSource = "github" | "site" | "sample";
 
-/** Browser events. Checkout events are captured server-side (see analytics-server.ts) so they carry the Stripe price. */
+/**
+ * Browser events. Checkout events are captured server-side (see analytics-server.ts) so they carry the Stripe price,
+ * and newsletter_subscribed so automated browsers and no-JS posts count.
+ */
 export interface ClientEvents {
   preview_started: { source: PreviewSource; plan: StartPlan; isLoggedIn: boolean };
   preview_completed: { kitId: string; source: PreviewSource; plan: StartPlan; isLoggedIn: boolean; durationMs: number };
@@ -32,7 +34,6 @@ export interface ClientEvents {
   repo_cta_clicked: { code: "site_no_content"; plan: StartPlan; isLoggedIn: boolean; prefill: RepoPrefill };
   /** The visitor tried to send the link that just failed with site_no_content again; the form pointed them at the button. */
   preview_resubmit_blocked: { code: "site_no_content"; plan: StartPlan; isLoggedIn: boolean };
-  newsletter_subscribed: { placement: NewsletterPlacement; welcome: WelcomeOutcome };
   /**
    * A click on a link, a button or the URL field in the home hero (HomeHero). `label` is the visible text, or the
    * field's label: never what was typed. `link_url` is scrubbed like every URL.
