@@ -5,9 +5,10 @@
  *   npm run indexnow -- urls "<url or path> ..." [--dry-run]
  *   npm run indexnow -- all [--dry-run]
  *
- * Only URLs listed in the live sitemap.xml that answer 200 are sent, plus deleted or renamed pages that now answer
- * 404 or 410. Network and IndexNow errors are logged as
- * warnings and never fail the run; a broken script or git error still does, so it shows up in the Actions tab.
+ * Only URLs listed in the live sitemap.xml that answer 200 are sent, plus deleted or renamed pages that now
+ * answer 404 or 410. Network and IndexNow errors are logged as warnings and the script still exits 0.
+ * A script or git error exits non-zero: the workflow's ping step is continue-on-error, so that failure shows
+ * only inside the run.
  */
 import { execFileSync } from "node:child_process";
 import { parseArgs } from "node:util";
@@ -106,7 +107,7 @@ async function liveSitemap(): Promise<string[]> {
 /** The status without following redirects, or 0 on a network error. Only exactly 200 counts as live. */
 async function statusOf(path: string): Promise<number> {
   try {
-    const res = await fetch(absoluteUrl(path), { redirect: "manual" });
+    const res = await fetch(absoluteUrl(path), { redirect: "manual", signal: AbortSignal.timeout(10_000) });
     await res.body?.cancel();
     return res.status;
   } catch {

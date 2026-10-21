@@ -23,17 +23,18 @@ permissions:
   contents: read
   deployments: read
 
-concurrency:
-  group: indexnow
-  cancel-in-progress: false
-
 jobs:
   ping:
     name: Ping IndexNow
     # startsWith ignores case, so this matches "Production" (this repo's name) and suffixed monorepo names alike.
     if: github.event_name == 'workflow_dispatch' || (github.event.deployment_status.state == 'success' && startsWith(github.event.deployment.environment, 'production'))
     runs-on: ubuntu-latest
-    # IndexNow is best effort: a failure here must never leave a red X on main.
+    # On the job, keyed by environment: a skipped Preview event never joins, so it can't cancel a waiting production run.
+    concurrency:
+      group: indexnow-${{ github.event.deployment.environment || 'manual' }}
+      cancel-in-progress: false
+    # Best effort. A failed ping step shows only inside the run. A failed checkout or setup-node still fails this job,
+    # though the workflow run itself is not marked failed.
     continue-on-error: true
     timeout-minutes: 10
     steps:

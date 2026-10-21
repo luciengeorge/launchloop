@@ -151,8 +151,28 @@ describe("diffPaths", () => {
     expect(diff("D\tsrc/app/blog/a/page.tsx", "D\tsrc/app/blog/a/b/page.tsx")).toEqual({ changed: ["/blog"], removed: ["/blog/a", "/blog/a/b"] });
   });
 
-  it("ignores deleted files outside blog, guides and tools, and blank lines", () => {
-    expect(diff("D\tsrc/app/faq/page.tsx", "D\tsrc/lib/rss.ts", "", "R090\tdocs/a.md\tdocs/b.md")).toEqual({ changed: [], removed: [] });
+  it("lists a renamed guide's old slug as removed when its folder and its GUIDES slug both changed", () => {
+    // At the new commit GUIDES has "how-to-write-a-show-hn-post" but no longer "how-to-post-on-show-hn".
+    expect(diff("R097\tsrc/app/how-to-post-on-show-hn/page.tsx\tsrc/app/how-to-write-a-show-hn-post/page.tsx", "M\tsrc/lib/guides.ts")).toEqual({
+      changed: ["/guides", ...GUIDES.map(guidePath)].sort(),
+      removed: ["/how-to-post-on-show-hn"],
+    });
+  });
+
+  it("treats any deleted top-level page as a removal candidate, but not nested, dynamic or non-page files", () => {
+    expect(diff("D\tsrc/app/faq/page.tsx", "D\tsrc/app/(marketing)/old-guide/page.mdx")).toEqual({ changed: [], removed: ["/faq", "/old-guide"] });
+    expect(diff("D\tsrc/app/page.tsx", "D\tsrc/app/og/[slug]/page.tsx", "D\tsrc/app/account/kits/page.tsx", "D\tsrc/app/old-guide/layout.tsx", "D\tsrc/app/llms.txt/route.ts")).toEqual({
+      changed: [],
+      removed: [],
+    });
+  });
+
+  it("doesn't call a top-level page removed when it still exists", () => {
+    expect(diff("D\tsrc/app/faq/page.tsx", "A\tsrc/app/faq/page.mdx")).toEqual({ changed: [], removed: [] });
+  });
+
+  it("ignores other deleted files outside blog, guides and tools, and blank lines", () => {
+    expect(diff("D\tsrc/lib/rss.ts", "D\tsrc/components/guide-layout.tsx", "", "R090\tdocs/a.md\tdocs/b.md")).toEqual({ changed: [], removed: [] });
   });
 
   it("sends only 404 and 410 as removals", () => {

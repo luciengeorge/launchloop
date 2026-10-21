@@ -57,6 +57,17 @@ function pageOf(file: string, guideSlugs: readonly string[]): string | null {
 }
 
 /**
+ * The path of a top-level page file (src/app/<top>/page.tsx, route groups aside), or null. A renamed guide's old slug
+ * is gone from GUIDES, so a deleted top-level page is matched by its folder instead.
+ */
+function topLevelPage(file: string): string | null {
+  if (!/\/page\.(tsx?|jsx?|mdx)$/.test(file)) return null;
+  const folders = file.slice("src/app/".length).split("/").slice(0, -1).filter((s) => !(s.startsWith("(") && s.endsWith(")")));
+  const route = routeOf(file);
+  return folders.length === 1 && route === `/${folders[0]}` ? route : null;
+}
+
+/**
  * Paths to ping for a list of changed repo files: blog posts, guides and tools, each with the hub that lists it
  * (/blog, /guides, /tools). Everything else is ignored. The result still has to be matched against the live sitemap.
  */
@@ -79,7 +90,8 @@ export function changedPaths(files: readonly string[], guideSlugs: readonly stri
 /**
  * Splits `git diff --name-status` output into paths that changed and pages that may have been removed. A deleted or
  * renamed-away file's own page goes in `removed`, unless a file that still exists maps to it too; its parents and hub
- * go in `changed`, since they list it.
+ * go in `changed`, since they list it. Any deleted top-level page is a removal candidate too, which covers a guide
+ * whose folder and slug both changed. The caller only sends a removal once prod answers 404 or 410.
  */
 export function diffPaths(nameStatus: string, guideSlugs: readonly string[]): { changed: string[]; removed: string[] } {
   const current: string[] = [];
@@ -102,6 +114,8 @@ export function diffPaths(nameStatus: string, guideSlugs: readonly string[]): { 
       if (path === page && !live.has(path)) removed.add(path);
       else changed.add(path);
     }
+    const orphan = page ? null : topLevelPage(file);
+    if (orphan && !live.has(orphan) && !current.some((f) => topLevelPage(f) === orphan)) removed.add(orphan);
   }
   // The caller checks removed pages both ways (live, or 404 / 410), so they never wait to go live.
   for (const path of removed) changed.delete(path);
