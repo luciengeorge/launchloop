@@ -13,6 +13,7 @@ import type { PreviewLimits } from "@/lib/site";
 import { LAUNCH_PROMO } from "@/lib/products";
 import { hasSessionHint } from "@/lib/session-hint";
 import { START_EVENT, type StartPlan } from "@/lib/start-intent";
+import { sampleCtaClassName, useHeroSampleCta } from "./hero-sample-cta";
 import { KitPrice } from "./kit-price";
 import { RateLimitActions } from "./rate-limit-actions";
 
@@ -41,6 +42,7 @@ export function KitForm({ promo }: { promo: boolean }) {
   const inputRef = useRef<HTMLInputElement>(null);
   // What the last run actually sent: "Try a sample app" leaves the input empty, so retry can't use `url`.
   const lastInput = useRef("");
+  const sampleCta = useHeroSampleCta();
 
   // Arriving via /#start or ?plan=kit (or a StartLink on this page): scroll to the form, focus it, preselect the plan.
   // ?url= prefills the input, e.g. when a free tool hands over the repo it just read.
@@ -184,7 +186,7 @@ export function KitForm({ promo }: { promo: boolean }) {
               )}
             </span>
             <span aria-hidden="true" className="hidden sm:inline">·</span>
-            <button type="button" className="font-medium text-foreground underline underline-offset-4 hover:text-primary" onClick={() => void submit("sample")}>
+            <button type="button" className={sampleCtaClassName(sampleCta)} data-variant={sampleCta} onClick={() => void submit("sample")}>
               Try a sample app
             </button>
           </>

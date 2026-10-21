@@ -1,6 +1,6 @@
 import type { CaptureResult, PostHog, PostHogInterface } from "posthog-js";
 import { type Attribution, QA_PARAM, readLandingAttribution } from "./attribution";
-import { ANALYTICS_ID_PARAM, EXPERIMENTS, isAnalyticsId, type ExperimentKey, type FallbackReason, type Served, type Variant } from "./experiments";
+import { ANALYTICS_ID_PARAM, EXPERIMENTS, featureProperties, isAnalyticsId, type ExperimentKey, type FallbackReason, type Served, type Variant } from "./experiments";
 import type { NewsletterPlacement, WelcomeOutcome } from "./newsletter";
 import { POSTHOG_PROXY_PATH, posthogUiHost } from "./posthog-config";
 import { scrubProperties } from "./scrub-url";
@@ -74,6 +74,17 @@ export const firstTouch = (): Attribution | undefined => landing;
 export const isTestVisit = (): boolean => landing?.is_test === true;
 
 let client: Promise<PostHog | undefined> | undefined;
+let pageLoad: Promise<void> | undefined;
+
+/** Resolves once the window has loaded and the browser has had an idle moment: when the SDKs load unless something needs them sooner. */
+export function afterPageLoad(): Promise<void> {
+  pageLoad ??= new Promise((resolve) => {
+    const idle = () => ("requestIdleCallback" in window ? requestIdleCallback(() => resolve(), { timeout: 2000 }) : setTimeout(resolve, 1));
+    if (document.readyState === "complete") idle();
+    else window.addEventListener("load", idle, { once: true });
+  });
+  return pageLoad;
+}
 
 /**
  * The SDK is ~100 KB gzipped, so it isn't in the page's initial scripts: instrumentation-client loads it once the
@@ -91,6 +102,13 @@ export function loadAnalytics(): Promise<PostHog | undefined> {
   );
   return client;
 }
+
+/**
+ * Clicks are autocaptured only on links, buttons and the URL field inside an element with this attribute: the home hero's
+ * form and CTAs. Nothing else on any page is autocaptured, and there's no session replay.
+ */
+export const CAPTURE_CLICKS_ATTR = "data-capture-clicks";
+export const captureClicks = { [CAPTURE_CLICKS_ATTR]: "" } as const;
 
 let pageId: string | undefined;
 
@@ -125,8 +143,15 @@ function initAnalytics(posthog: PostHog, token: string, start: { url: string; at
     persistence: "memory",
     person_profiles: "identified_only",
     capture_pageview: "history_change",
-    capture_pageleave: false,
-    autocapture: false,
+    capture_pageleave: true,
+    autocapture: {
+      dom_event_allowlist: ["click"],
+      css_selector_allowlist: [`[${CAPTURE_CLICKS_ATTR}]`],
+      element_allowlist: ["a", "button", "input"],
+      // posthog-js never sends an input's value; React mirrors it into the attribute, so drop that too.
+      element_attribute_ignorelist: ["value"],
+      capture_copied_text: false,
+    },
     capture_exceptions: false,
     capture_heatmaps: false,
     capture_dead_clicks: false,
@@ -159,23 +184,34 @@ function recordLanding(posthog: PostHogInterface, start: { url: string; at: Date
   posthog.capture("$pageview", { $current_url: start.url, $pathname: url.pathname, $host: url.host }, { timestamp: start.at });
 }
 
+/** What useExperiment served on this page load, for experiments posthog-js buckets on this page's own id. */
+const servedOnPage = new Map<ExperimentKey, Served>();
+
+export function rememberServed(key: ExperimentKey, served: Served) {
+  servedOnPage.set(key, served);
+}
+
 /**
  * posthog-js tags every event with `$feature/<key>` from its own flag evaluation for this page's id,
  * which needn't be what the page served (the promo is bucketed on the kit; a timeout serves control).
- * Experiment variants travel only on exposures and the server's checkout events, which set them explicitly.
+ * So those are replaced with what this page did serve through useExperiment (`fallback/<key>` for a
+ * fallback, as on the server's checkout events): preview_started can be split by the hero variant shown.
+ * Experiments the page didn't serve travel only on exposures and the server's events, which set them explicitly.
  */
-function withoutAutoExperimentProperties(event: CaptureResult): CaptureResult["properties"] {
+function withServedExperiments(event: CaptureResult): CaptureResult["properties"] {
   if (event.event === "$feature_flag_called") return event.properties;
   const properties = { ...event.properties };
   for (const key of Object.values(EXPERIMENTS)) delete properties[`$feature/${key}`];
-  return properties;
+  const served = [...servedOnPage];
+  const variants = Object.fromEntries(served.map(([key, s]) => [key, s.variant]));
+  return { ...properties, ...featureProperties(variants, served.filter(([, s]) => s.fallback).map(([key]) => key)) };
 }
 
 function scrubEvent(event: CaptureResult | null): CaptureResult | null {
   if (!event) return event;
   return {
     ...event,
-    properties: scrubProperties(withoutAutoExperimentProperties(event)),
+    properties: scrubProperties(withServedExperiments(event)),
     ...(event.$set ? { $set: scrubProperties(event.$set) } : {}),
     ...(event.$set_once ? { $set_once: scrubProperties(event.$set_once) } : {}),
   };

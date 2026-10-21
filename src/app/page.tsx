@@ -1,6 +1,7 @@
 import { Check, FileText, GitBranch, Globe, Image as ImageIcon, ListChecks, Megaphone, MessageSquareText, ShieldCheck } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ExampleKitLink, HeroSampleCtaExperiment } from "@/components/hero-sample-cta";
 import { JsonLd } from "@/components/json-ld";
 import { KitForm } from "@/components/kit-form";
 import { KitPrice, KitPromoNote, PricedText } from "@/components/kit-price";
@@ -9,6 +10,7 @@ import { StartLink } from "@/components/start-link";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
+import { captureClicks } from "@/lib/analytics";
 import { siteUrl } from "@/lib/env";
 import { isLaunchPromoOn } from "@/lib/launch-promo-server";
 import { PAGES } from "@/lib/pages";
@@ -41,43 +43,46 @@ export default async function Home() {
     <>
       <JsonLd data={siteGraph(url, promo)} />
 
-      <section id="start" className="relative scroll-mt-20 overflow-hidden border-b border-border/60">
+      <section id="start" className="relative scroll-mt-20 overflow-hidden border-b border-border/60" {...captureClicks}>
         <div className="bg-grid absolute inset-0 [mask-image:radial-gradient(ellipse_at_top,black_30%,transparent_75%)]" aria-hidden="true" />
-        <div className="relative mx-auto flex max-w-6xl flex-col items-center px-4 pb-20 pt-16 text-center sm:px-6 sm:pt-24">
-          <Badge variant="outline" className="mb-6 bg-background/80 px-3 py-1 text-xs">
-            For apps built with Cursor, Lovable, Bolt and v0
-          </Badge>
-          <h1 className="max-w-3xl text-balance text-4xl font-semibold tracking-tight sm:text-6xl">
-            Paste your repo. <span className="text-primary">Get your whole launch.</span>
-          </h1>
-          <p className="mt-5 max-w-2xl text-pretty text-lg text-muted-foreground">
-            LaunchLoop reads your repo&apos;s README, package.json and recent commits, plus your live site, then writes your landing page copy, Product Hunt
-            post, X thread and LinkedIn post, plus three images in your brand colours.
-          </p>
-          <div className="mt-10 flex w-full justify-center">
-            <KitForm promo={promo} />
-          </div>
-          <p className="mt-8 flex items-center gap-1.5 text-sm text-muted-foreground">
-            <Check className="size-4 shrink-0 text-primary" aria-hidden="true" />
-            <span>
-              Free preview, no account needed. Full kit is <KitPrice promo={promo} />, paid once, for one app.
-            </span>
-          </p>
-          <KitPromoNote promo={promo} className="mt-2" />
-          <Link href="/pricing" className="mt-2 text-sm font-medium text-foreground underline underline-offset-4 hover:text-primary">
-            See what&apos;s in the <KitPrice promo={promo} /> kit
-          </Link>
-          <p className="mt-6 text-sm text-muted-foreground">
-            Only need one piece?{" "}
-            <Link href={TAGLINE_CHECKER.path} className="font-medium text-foreground underline underline-offset-4 hover:text-primary">
-              Try the free tagline checker
-            </Link>{" "}
-            or{" "}
-            <Link href={OG_PREVIEW.path} className="font-medium text-foreground underline underline-offset-4 hover:text-primary">
-              preview your link card
+        <HeroSampleCtaExperiment>
+          <div className="relative mx-auto flex max-w-6xl flex-col items-center px-4 pb-20 pt-16 text-center sm:px-6 sm:pt-24">
+            <Badge variant="outline" className="mb-6 bg-background/80 px-3 py-1 text-xs">
+              For apps built with Cursor, Lovable, Bolt and v0
+            </Badge>
+            <h1 className="max-w-3xl text-balance text-4xl font-semibold tracking-tight sm:text-6xl">
+              Paste your repo. <span className="text-primary">Get your whole launch.</span>
+            </h1>
+            <p className="mt-5 max-w-2xl text-pretty text-lg text-muted-foreground">
+              LaunchLoop reads your repo&apos;s README, package.json and recent commits, plus your live site, then writes your landing page copy, Product Hunt
+              post, X thread and LinkedIn post, plus three images in your brand colours.
+            </p>
+            <div className="mt-10 flex w-full flex-col items-center">
+              <KitForm promo={promo} />
+              <ExampleKitLink className="mt-3 text-sm font-medium text-foreground underline underline-offset-4 hover:text-primary" />
+            </div>
+            <p className="mt-8 flex items-center gap-1.5 text-sm text-muted-foreground">
+              <Check className="size-4 shrink-0 text-primary" aria-hidden="true" />
+              <span>
+                Free preview, no account needed. Full kit is <KitPrice promo={promo} />, paid once, for one app.
+              </span>
+            </p>
+            <KitPromoNote promo={promo} className="mt-2" />
+            <Link href="/pricing" className="mt-2 text-sm font-medium text-foreground underline underline-offset-4 hover:text-primary">
+              See what&apos;s in the <KitPrice promo={promo} /> kit
             </Link>
-          </p>
-        </div>
+            <p className="mt-6 text-sm text-muted-foreground">
+              Only need one piece?{" "}
+              <Link href={TAGLINE_CHECKER.path} className="font-medium text-foreground underline underline-offset-4 hover:text-primary">
+                Try the free tagline checker
+              </Link>{" "}
+              or{" "}
+              <Link href={OG_PREVIEW.path} className="font-medium text-foreground underline underline-offset-4 hover:text-primary">
+                preview your link card
+              </Link>
+            </p>
+          </div>
+        </HeroSampleCtaExperiment>
       </section>
 
       <section id="kit" className="mx-auto max-w-6xl px-4 py-20 sm:px-6" aria-labelledby="kit-heading">
