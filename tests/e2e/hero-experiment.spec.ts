@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import { EXAMPLE_KIT } from "@/lib/example-kit";
 import { EXAMPLE_KIT_PATH } from "@/lib/site";
 
@@ -59,6 +59,26 @@ const fallback = (e: PhEvent) => e.event === "flag_fallback" && e.properties.fla
 const sampleCta = (page: Page) => page.getByRole("button", { name: "Try a sample app" });
 const exampleLink = (page: Page) => page.locator("#start").getByRole("link", { name: "See an example kit" });
 const height = async (page: Page, testId: string) => (await page.getByTestId(testId).boundingBox())!.height;
+
+/** WCAG contrast of an element's text against its background (composited over the page's), as the browser renders them. */
+const contrast = (target: Locator) =>
+  target.evaluate((el) => {
+    // Let the browser resolve oklch/color-mix: paint each colour and read the sRGB pixel back.
+    const ctx = document.createElement("canvas").getContext("2d", { willReadFrequently: true })!;
+    const paint = (...colors: string[]) => {
+      for (const color of ["#fff", ...colors]) {
+        ctx.fillStyle = color;
+        ctx.fillRect(0, 0, 1, 1);
+      }
+      const [r, g, b] = [...ctx.getImageData(0, 0, 1, 1).data].map((v) => (v / 255 <= 0.04045 ? v / 255 / 12.92 : ((v / 255 + 0.055) / 1.055) ** 2.4));
+      return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    };
+    const style = getComputedStyle(el);
+    const page = getComputedStyle(document.body).backgroundColor;
+    const fg = paint(page, style.backgroundColor, style.color);
+    const bg = paint(page, style.backgroundColor);
+    return (Math.max(fg, bg) + 0.05) / (Math.min(fg, bg) + 0.05);
+  });
 
 async function startSample(page: Page, campaign: string): Promise<PhEvent> {
   await sampleCta(page).click();
@@ -175,6 +195,28 @@ test.describe("used before the flag resolves", () => {
     expect((await eventsFor(page, campaign)).filter(exposure)).toEqual([]);
     expect(JSON.stringify(await eventsFor(page, campaign))).not.toContain(typed);
   });
+
+  test("typing before the page has hydrated (nothing listening yet) freezes control as well", async ({ page }) => {
+    await forceHeroVariant(page, "test");
+    // Hold the page's scripts so the visitor types into the server-rendered field before React takes over.
+    let release!: () => void;
+    const released = new Promise<void>((resolve) => (release = resolve));
+    await page.route(/\/_next\/static\/.*\.js$/, async (route) => {
+      await released;
+      await route.continue().catch(() => undefined);
+    });
+    const campaign = `hero-prehydration-${Date.now()}`;
+    await page.goto(`/?utm_campaign=${campaign}`, { waitUntil: "domcontentloaded" });
+    await page.getByLabel("GitHub repo or live site URL").click();
+    await page.keyboard.type("github.com/early/bird");
+    release();
+
+    expect((await waitForEvent(page, campaign, fallback)).properties).toMatchObject({ variant: "control", reason: "interacted" });
+    await page.waitForTimeout(1500);
+    await expect(sampleCta(page)).toHaveAttribute("data-variant", "control");
+    await expect(page.getByTestId("example-kit-link")).toHaveCount(0);
+    expect((await eventsFor(page, campaign)).filter(exposure)).toEqual([]);
+  });
 });
 
 test.describe("layout", () => {
@@ -229,41 +271,25 @@ test.describe("layout", () => {
     expect(Math.abs(button - form)).toBeLessThanOrEqual(1);
   });
 
-  test("test: the sample button's text has at least 4.5:1 contrast (WCAG AA), hovered too", async ({ page }) => {
+  test("text contrast is at least 4.5:1 (WCAG AA), normal and hovered: test's button and example link, control's link", async ({ page }) => {
     await forceHeroVariant(page, "test");
     await openHome(page);
     await expect(sampleCta(page)).toHaveAttribute("data-variant", "test");
-    const ratio = () =>
-      sampleCta(page).evaluate((el) => {
-        // Let the browser resolve oklch/color-mix: paint each colour and read the sRGB pixel back.
-        const canvas = document.createElement("canvas");
-        const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
-        const rgb = (color: string) => {
-          ctx.clearRect(0, 0, 1, 1);
-          ctx.fillStyle = "#fff";
-          ctx.fillRect(0, 0, 1, 1);
-          ctx.fillStyle = color;
-          ctx.fillRect(0, 0, 1, 1);
-          return [...ctx.getImageData(0, 0, 1, 1).data.slice(0, 3)];
-        };
-        const luminance = (c: number[]) => {
-          const [r, g, b] = c.map((v) => (v / 255 <= 0.04045 ? v / 255 / 12.92 : ((v / 255 + 0.055) / 1.055) ** 2.4));
-          return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-        };
-        const style = getComputedStyle(el);
-        const fg = luminance(rgb(style.color));
-        // The button's background may be translucent: paint it over the page's.
-        ctx.fillStyle = getComputedStyle(document.body).backgroundColor;
-        ctx.fillRect(0, 0, 1, 1);
-        ctx.fillStyle = style.backgroundColor;
-        ctx.fillRect(0, 0, 1, 1);
-        const bg = luminance([...ctx.getImageData(0, 0, 1, 1).data.slice(0, 3)]);
-        return (Math.max(fg, bg) + 0.05) / (Math.min(fg, bg) + 0.05);
-      });
-    expect(await ratio()).toBeGreaterThanOrEqual(4.5);
+    for (const target of [sampleCta(page), exampleLink(page)]) {
+      expect(await contrast(target), await target.innerText()).toBeGreaterThanOrEqual(4.5);
+      await target.hover();
+      await page.waitForTimeout(300);
+      expect(await contrast(target), `${await target.innerText()} (hovered)`).toBeGreaterThanOrEqual(4.5);
+      await page.mouse.move(0, 0);
+    }
+
+    await page.unrouteAll({ behavior: "ignoreErrors" });
+    await forceHeroVariant(page, "control");
+    const campaign = await openHome(page);
+    await waitForEvent(page, campaign, exposure);
     await sampleCta(page).hover();
     await page.waitForTimeout(300);
-    expect(await ratio()).toBeGreaterThanOrEqual(4.5);
+    expect(await contrast(sampleCta(page)), "control link (hovered)").toBeGreaterThanOrEqual(4.5);
   });
 });
 
@@ -310,7 +336,10 @@ test("/example-kit: the sample app's full kit from a fixed record, with nothing 
   expect(await kit.innerHTML()).not.toMatch(/[\w.+-]+@[\w-]+\.[\w.]+/);
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", "noindex, follow");
 
-  // It isn't a stored kit: no kit route serves it.
+  // It isn't a stored kit: no kit route serves it, and its id under /kit/ goes to this page instead of a 200 not-found.
+  const viaKitRoute = await page.request.get(`/kit/${EXAMPLE_KIT.id}`, { maxRedirects: 0 });
+  expect(viaKitRoute.status()).toBe(308);
+  expect(viaKitRoute.headers().location).toBe(EXAMPLE_KIT_PATH);
   expect((await page.request.get(`/api/kits/${EXAMPLE_KIT.id}/zip`)).status()).toBeGreaterThanOrEqual(400);
   expect((await page.request.get(`/api/kits/${EXAMPLE_KIT.id}/status`)).status()).toBeGreaterThanOrEqual(400);
 });

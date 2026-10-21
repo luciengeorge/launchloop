@@ -47,8 +47,9 @@ export function HomeHero(props: ComponentProps<"section">) {
 
 export const useHeroSampleCta = () => useContext(HeroSampleCta);
 
-/** Primary orange darkened toward the text colour: 4.5:1 or better on the page background (WCAG AA), hovered too. */
+/** Primary orange darkened toward the text colour: 4.5:1 or better on the page background (WCAG AA). The plain primary is 3.5:1. */
 const PRIMARY_TEXT = "text-[color-mix(in_oklch,var(--primary),var(--foreground)_25%)] hover:text-[color-mix(in_oklch,var(--primary),var(--foreground)_25%)]";
+const PRIMARY_HOVER = "hover:text-[color-mix(in_oklch,var(--primary),var(--foreground)_25%)]";
 
 /** Centred on phones, so both arms need the same width there too, or the CTA's own edge would move. */
 const PHONE_BOX = "max-sm:w-40 max-sm:justify-center";
@@ -66,7 +67,7 @@ export function sampleCtaLayout(variant: HeroVariant | null): { row: string; sep
   const hero = { row: `${row} max-sm:justify-center`, separator: "h-0 basis-full overflow-hidden sm:h-auto sm:basis-auto" };
   switch (variant) {
     case "control":
-      return { ...hero, button: `inline-flex h-11 items-center ${PHONE_BOX} font-medium text-foreground underline underline-offset-4 hover:text-primary` };
+      return { ...hero, button: `inline-flex h-11 items-center ${PHONE_BOX} font-medium text-foreground underline underline-offset-4 ${PRIMARY_HOVER}` };
     case "test":
       return {
         ...hero,
@@ -85,7 +86,8 @@ export function ExampleKitSlot() {
   return (
     <div className="mt-1 flex h-11 w-full max-w-2xl items-center justify-center sm:justify-start" data-testid="example-kit-slot">
       {variant === "test" ? (
-        <Link href={EXAMPLE_KIT_PATH} className="inline-flex h-11 items-center text-sm font-medium text-foreground underline underline-offset-4 hover:text-primary" data-testid="example-kit-link">
+        <Link href={EXAMPLE_KIT_PATH} className={`inline-flex h-11 items-center text-sm font-medium text-foreground underline underline-offset-4 ${PRIMARY_HOVER}`}
+          data-testid="example-kit-link">
           See an example kit
         </Link>
       ) : null}
