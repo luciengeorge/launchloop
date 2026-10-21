@@ -325,9 +325,10 @@ export function UnlockPanelPlaceholder({ email, autoCheckout, cancelled, saved }
         <span className="ml-1.5 text-sm text-muted-foreground">once, no subscription</span>
       </p>
       <UnlockSteps signedIn={email} />
-      <UnlockNotes cancelled={cancelled} saved={saved && !!email} />
+      <UnlockNotes cancelled={cancelled} saved={saved && !!email} placeholder />
       {autoCheckout ? (
-        <Redirecting />
+        // The height of the "Taking you to secure checkout" line, which the panel shows at once.
+        <div className="mt-6 h-5" />
       ) : (
         <Button type="button" className="mt-6 h-11 w-full text-base" disabled>
           <Lock aria-hidden="true" />
@@ -370,16 +371,22 @@ function UnlockSteps({ signedIn }: { signedIn?: string }) {
   );
 }
 
-function UnlockNotes({ cancelled, saved }: { cancelled: boolean; saved: boolean }) {
+/** In the placeholder, without the status role and test id: the panel's own copy is the one to announce and find. */
+function UnlockNotes({ cancelled, saved, placeholder = false }: { cancelled: boolean; saved: boolean; placeholder?: boolean }) {
+  const role = placeholder ? undefined : "status";
   return (
     <>
       {cancelled ? (
-        <p className="mt-4 rounded-md bg-muted px-3 py-2 text-xs" role="status">
+        <p className="mt-4 rounded-md bg-muted px-3 py-2 text-xs" role={role}>
           Checkout was cancelled. Your kit is saved here whenever you&apos;re ready.
         </p>
       ) : null}
       {saved ? (
-        <p className="mt-4 flex items-center gap-2 rounded-md bg-emerald-500/10 px-3 py-2 text-xs font-medium text-emerald-800" role="status" data-testid="preview-saved">
+        <p
+          className="mt-4 flex items-center gap-2 rounded-md bg-emerald-500/10 px-3 py-2 text-xs font-medium text-emerald-800"
+          role={role}
+          data-testid={placeholder ? undefined : "preview-saved"}
+        >
           <BookmarkCheck className="size-3.5" aria-hidden="true" /> Saved. This preview is in your account now.
         </p>
       ) : null}
