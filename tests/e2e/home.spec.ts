@@ -1,6 +1,9 @@
 import { expect, test } from "@playwright/test";
 import { h1Tags, logIn, MAIN_H1_HEIGHTS, makeSampleKit, setHeroHeadline, uniqueEmail } from "./helpers";
 
+/** The header CTA's name is its visible label: "Get my kit, £19" on phones and from md to lg, "Get my launch kit, £19" otherwise. */
+const HEADER_CTA = /^Get my (launch )?kit, /;
+
 test("home page explains the product and offers the input", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 1 })).toContainText("Paste your repo");
@@ -37,17 +40,17 @@ test("home header when signed out: Log in and Get my launch kit", async ({ page 
   await page.goto("/");
   const banner = page.getByRole("banner");
   await expect(banner.getByRole("link", { name: "Log in" })).toHaveAttribute("href", "/login");
-  await expect(banner.getByRole("link", { name: "Get my launch kit" })).toBeVisible();
+  await expect(banner.getByRole("link", { name: HEADER_CTA })).toBeVisible();
   await expect(banner.getByRole("link", { name: "My kits" })).toHaveCount(0);
   await expect(banner.getByRole("button", { name: "Log out" })).toHaveCount(0);
 });
 
 test("phones: the home page doesn't scroll sideways, the header CTA fits and Log in stays on one line", async ({ page }) => {
-  // The test build has the launch promo flag off, so this is the plain "Get my launch kit, £19" CTA.
+  // The test build has the launch promo flag off, so this is the plain CTA, "Get my kit, £19" on phones.
   for (const width of [360, 375, 390, 400]) {
     await page.setViewportSize({ width, height: 844 });
     await page.goto("/");
-    const cta = page.getByRole("banner").getByRole("link", { name: "Get my launch kit, £19" });
+    const cta = page.getByRole("banner").getByRole("link", { name: "Get my kit, £19", exact: true });
     await expect(cta).toBeVisible();
     const layout = await page.evaluate(() => {
       const login = document.querySelector("[data-testid=nav-login]")!;
@@ -70,7 +73,7 @@ test("home header when signed in: My kits and Log out, then back after logging o
   await expect(banner.getByRole("link", { name: "My kits" })).toHaveAttribute("href", "/account");
   await expect(banner.getByRole("button", { name: "Log out" })).toBeVisible();
   await expect(banner.getByRole("link", { name: "Log in" })).toHaveCount(0);
-  await expect(banner.getByRole("link", { name: "Get my launch kit" })).toHaveCount(0);
+  await expect(banner.getByRole("link", { name: HEADER_CTA })).toHaveCount(0);
 
   await banner.getByRole("link", { name: "My kits" }).click();
   await page.waitForURL(/\/account$/);
@@ -80,7 +83,7 @@ test("home header when signed in: My kits and Log out, then back after logging o
   await page.getByRole("banner").getByRole("button", { name: "Log out" }).click();
   await page.waitForURL((u) => u.pathname === "/");
   await expect(page.getByRole("banner").getByRole("link", { name: "Log in" })).toBeVisible();
-  await expect(page.getByRole("banner").getByRole("link", { name: "Get my launch kit" })).toBeVisible();
+  await expect(page.getByRole("banner").getByRole("link", { name: HEADER_CTA })).toBeVisible();
 });
 
 test("the home page HTML is the same for everyone, so a CDN-cached copy can't show the wrong header", async ({ page }) => {
@@ -96,7 +99,7 @@ test("the home page HTML is the same for everyone, so a CDN-cached copy can't sh
 test("header CTA is on every marketing page and Pricing links agree", async ({ page }) => {
   for (const path of ["/pricing", "/faq", "/login", "/privacy", "/terms", "/product-hunt-launch-checklist"]) {
     await page.goto(path);
-    await expect(page.getByRole("banner").getByRole("link", { name: "Get my launch kit" })).toBeVisible();
+    await expect(page.getByRole("banner").getByRole("link", { name: HEADER_CTA })).toBeVisible();
   }
   await expect(page.getByRole("contentinfo").getByRole("link", { name: "Pricing" })).toHaveAttribute("href", "/pricing");
 });
@@ -116,7 +119,7 @@ test("Ship Loop links carry a Soon badge instead of '(soon)' text", async ({ pag
 test("Get my launch kit always opens the start form, even after making a kit", async ({ page }) => {
   await makeSampleKit(page);
   await page.goto("/faq");
-  await page.getByRole("banner").getByRole("link", { name: "Get my launch kit" }).click();
+  await page.getByRole("banner").getByRole("link", { name: HEADER_CTA }).click();
   await page.waitForURL((u) => u.pathname === "/" && u.search === "?plan=kit" && u.hash === "#start");
   await expect(page.getByLabel("GitHub repo or live site URL")).toBeFocused();
   await expect(page.locator("#start [data-plan]")).toHaveAttribute("data-plan", "kit");
