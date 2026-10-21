@@ -305,6 +305,25 @@ test("test: the example kit link opens the example kit, and the click is recorde
   expect(String(click.properties.link_url)).toMatch(/\/example-kit$/);
 });
 
+test("/example-kit: the brief step ends in a CTA to start your own preview, not the 'regenerate a preview' hint", async ({ page }) => {
+  await page.goto(EXAMPLE_KIT_PATH);
+  await page.getByTestId("stage-tab-Brief").click();
+  const brief = page.locator('[data-task-id="brief.review"]');
+  await expect(brief).toBeVisible();
+  await expect(page.getByText(/regenerate a preview|Skim the brief above/)).toHaveCount(0);
+  const cta = brief.getByTestId("task-cta");
+  await expect(cta).toContainText("This is a sample kit. Want one for your product?");
+  const start = cta.getByRole("link", { name: "Start my free preview" });
+  await expect(start).toHaveAttribute("href", "/#start");
+  expect(await contrast(start), "Start my free preview").toBeGreaterThanOrEqual(4.5);
+  await start.hover();
+  await page.waitForTimeout(300);
+  expect(await contrast(start), "Start my free preview (hovered)").toBeGreaterThanOrEqual(4.5);
+  await start.click();
+  await page.waitForURL((u) => u.pathname === "/" && u.hash === "#start");
+  await expect(page.locator("#start")).toBeVisible();
+});
+
 test("/example-kit: the sample app's full kit from a fixed record, with nothing to unlock, buy or download, and not indexed", async ({ page }) => {
   const res = await page.goto(EXAMPLE_KIT_PATH);
   expect(res!.status()).toBe(200);

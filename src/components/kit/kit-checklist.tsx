@@ -4,7 +4,8 @@ import { Check, ChevronDown, ChevronRight, Clock, Lock, PartyPopper } from "luci
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { CopyButton } from "@/components/copy-button";
-import { Button } from "@/components/ui/button";
+import { StartLink } from "@/components/start-link";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { IMAGE_VARIANTS, kitImageUrl } from "@/lib/image-variants";
 import { charLength, xLength } from "@/lib/limits";
@@ -402,6 +403,12 @@ function TaskRow({ kitId, task, done, pop, onToggle, kitLocked }: { kitId: strin
             <img src={src} alt={`${image.label}${task.locked ? " (watermarked preview)" : ""}`} width={image.width} height={image.height} loading="lazy" className="mt-3 h-auto w-full max-w-md rounded-lg border border-border" />
           ) : null}
           {task.hint && !task.locked ? <p className="mt-2 text-xs text-muted-foreground">{task.hint}</p> : null}
+          {task.cta && !task.locked ? (
+            <div className="mt-3 flex flex-col gap-2 rounded-lg border border-border bg-muted/40 p-3 sm:flex-row sm:items-center sm:justify-between" data-testid="task-cta">
+              <p className="text-sm">{task.cta.text}</p>
+              <StartLink className={buttonVariants({ className: "h-10 shrink-0 px-4" })}>{task.cta.label}</StartLink>
+            </div>
+          ) : null}
         </div>
       </div>
     </li>
