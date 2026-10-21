@@ -47,33 +47,72 @@ function parents(path: string): string[] {
   return segments.slice(1).map((_, i) => `/${segments.slice(0, segments.length - 1 - i).join("/")}`);
 }
 
+/** The blog, guide or tool page a file belongs to, or null for files outside those sections. */
+function pageOf(file: string, guideSlugs: readonly string[]): string | null {
+  const route = routeOf(file);
+  if (!route) return null;
+  const top = route.split("/")[1];
+  if (top === "blog" || top === "tools" || top === "guides") return route;
+  return guideSlugs.includes(top) ? `/${top}` : null;
+}
+
 /**
  * Paths to ping for a list of changed repo files: blog posts, guides and tools, each with the hub that lists it
  * (/blog, /guides, /tools). Everything else is ignored. The result still has to be matched against the live sitemap.
  */
 export function changedPaths(files: readonly string[], guideSlugs: readonly string[]): string[] {
   const paths = new Set<string>();
-  const guides = () => {
-    paths.add("/guides");
-    for (const slug of guideSlugs) paths.add(`/${slug}`);
-  };
   for (const file of files) {
     const registry = REGISTRIES[file];
-    if (registry === "guides") guides();
+    if (registry === "guides") for (const path of ["/guides", ...guideSlugs.map((slug) => `/${slug}`)]) paths.add(path);
     else if (registry) paths.add(`/${registry}`).add(SECTION_ALL[registry]);
 
-    const route = routeOf(file);
-    if (!route) continue;
-    const top = route.split("/")[1];
-    if (top === "blog" || top === "tools" || top === "guides") {
-      paths.add(route);
-      for (const parent of parents(route)) paths.add(parent);
-    } else if (guideSlugs.includes(top)) {
-      paths.add(`/${top}`).add("/guides");
-    }
+    const page = pageOf(file, guideSlugs);
+    if (!page) continue;
+    paths.add(page);
+    for (const parent of parents(page)) paths.add(parent);
+    if (guideSlugs.includes(page.slice(1))) paths.add("/guides");
   }
   return [...paths].sort();
 }
+
+/**
+ * Splits `git diff --name-status` output into paths that changed and pages that may have been removed. A deleted or
+ * renamed-away file's own page goes in `removed`, unless a file that still exists maps to it too; its parents and hub
+ * go in `changed`, since they list it.
+ */
+export function diffPaths(nameStatus: string, guideSlugs: readonly string[]): { changed: string[]; removed: string[] } {
+  const current: string[] = [];
+  const gone: string[] = [];
+  for (const line of nameStatus.split("\n")) {
+    const [status, ...files] = line.trim().split("\t");
+    if (!files.length) continue;
+    if (status.startsWith("D")) gone.push(files[0]);
+    else if (status.startsWith("R")) {
+      gone.push(files[0]);
+      current.push(files[1]);
+    } else current.push(files[files.length - 1]);
+  }
+  const live = new Set(changedPaths(current, guideSlugs));
+  const changed = new Set(live);
+  const removed = new Set<string>();
+  for (const file of gone) {
+    const page = pageOf(file, guideSlugs);
+    for (const path of changedPaths([file], guideSlugs)) {
+      if (path === page && !live.has(path)) removed.add(path);
+      else changed.add(path);
+    }
+  }
+  // The caller checks removed pages both ways (live, or 404 / 410), so they never wait to go live.
+  for (const path of removed) changed.delete(path);
+  return { changed: [...changed].sort(), removed: [...removed].sort() };
+}
+
+/** IndexNow wants removed pages too, once they answer 404 or 410. */
+export const isGone = (status: number) => status === 404 || status === 410;
+
+/** "/blog/" and "/blog" are one page: the proxy redirects the slash form, and the sitemap uses the bare one. */
+const normalisePath = (path: string) => path.replace(/\/+$/, "") || "/";
 
 /** Same-host paths listed in a sitemap.xml, in sitemap order. */
 export function sitemapPaths(xml: string): string[] {
@@ -103,12 +142,12 @@ export function parseUrlList(input: string): { paths: string[]; rejected: string
   const rejected: string[] = [];
   for (const item of input.split(/[\s,]+/).filter(Boolean)) {
     if (item.startsWith("/")) {
-      paths.push(item.length > 1 ? item.replace(/\/+$/, "") : item);
+      paths.push(normalisePath(item));
       continue;
     }
     try {
       const url = new URL(item);
-      if (url.origin === INDEXNOW_ORIGIN) paths.push(url.pathname);
+      if (url.origin === INDEXNOW_ORIGIN) paths.push(normalisePath(url.pathname));
       else rejected.push(item);
     } catch {
       rejected.push(item);
