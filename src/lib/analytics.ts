@@ -190,6 +190,8 @@ export function rememberServed(key: ExperimentKey, served: Served) {
   servedOnPage.set(key, served);
 }
 
+export const servedEarlier = (key: ExperimentKey): Served | undefined => servedOnPage.get(key);
+
 /**
  * posthog-js tags every event with `$feature/<key>` from its own flag evaluation for this page's id,
  * which needn't be what the page served (the promo is bucketed on the kit; a timeout serves control).

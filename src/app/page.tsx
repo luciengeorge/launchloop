@@ -1,7 +1,7 @@
 import { Check, FileText, GitBranch, Globe, Image as ImageIcon, ListChecks, Megaphone, MessageSquareText, ShieldCheck } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ExampleKitLink, HomeHero } from "@/components/home-hero";
+import { ExampleKitSlot, HomeHero } from "@/components/home-hero";
 import { JsonLd } from "@/components/json-ld";
 import { KitForm } from "@/components/kit-form";
 import { KitPrice, KitPromoNote, PricedText } from "@/components/kit-price";
@@ -57,7 +57,7 @@ export default async function Home() {
           </p>
           <div className="mt-10 flex w-full flex-col items-center">
             <KitForm promo={promo} />
-            <ExampleKitLink className="mt-3 text-sm font-medium text-foreground underline underline-offset-4 hover:text-primary" />
+            <ExampleKitSlot />
           </div>
           <p className="mt-8 flex items-center gap-1.5 text-sm text-muted-foreground">
             <Check className="size-4 shrink-0 text-primary" aria-hidden="true" />

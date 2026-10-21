@@ -7,26 +7,25 @@ export const EXPERIMENTS = {
 
 export type ExperimentKey = (typeof EXPERIMENTS)[keyof typeof EXPERIMENTS];
 
-/** Each flag's variant keys as set up in PostHog. Anything else PostHog returns is treated as unassigned. */
-export const VARIANTS = {
+/** Each flag's variant keys, as set up in PostHog. Control is what every fallback serves; anything else PostHog returns is unassigned. */
+const VARIANTS = {
   exp_launch14_promo: ["control", "treatment"],
   exp_shiploop_success_upsell: ["control", "treatment"],
   exp_hero_sample_cta: ["control", "test"],
 } as const satisfies Record<ExperimentKey, readonly ["control", ...string[]]>;
 
-export type VariantOf<K extends ExperimentKey> = (typeof VARIANTS)[K][number];
-export type Variant = VariantOf<ExperimentKey>;
+export type Variant<K extends ExperimentKey = ExperimentKey> = (typeof VARIANTS)[K][number];
+
+export const isVariant = <K extends ExperimentKey>(key: K, value: unknown): value is Variant<K> => (VARIANTS[key] as readonly unknown[]).includes(value);
 /** The variant each experiment showed on the page that made the request. */
 export type Experiments = Partial<Record<ExperimentKey, Variant>>;
 
-export const isVariantOf = <K extends ExperimentKey>(key: K, value: unknown): value is VariantOf<K> =>
-  (VARIANTS[key] as readonly unknown[]).includes(value);
-
 /**
  * Why a page served control without a PostHog assignment: flags didn't arrive in time, the flags
- * request failed, or the flag is off (or not a variant) for this id.
+ * request failed, the flag is off (or not a variant) for this id, or the visitor used the experiment's
+ * area before the flag resolved (so what they saw can't change under them).
  */
-export type FallbackReason = "timeout" | "error" | "unassigned";
+export type FallbackReason = "timeout" | "error" | "unassigned" | "interacted";
 
 /**
  * What a page served for one experiment. A fallback is always control and is kept out of the
@@ -54,7 +53,7 @@ export function parseExperiments(value: unknown): Experiments {
   if (!value || typeof value !== "object") return {};
   const out: Experiments = {};
   for (const [key, variant] of Object.entries(value)) {
-    if (isExperimentKey(key) && isVariantOf(key, variant)) out[key] = variant;
+    if (isExperimentKey(key) && isVariant(key, variant)) out[key] = variant;
   }
   return out;
 }

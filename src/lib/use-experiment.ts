@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { afterPageLoad, analyticsEnabled, loadAnalytics, rememberServed, trackServed } from "./analytics";
-import { fallbackServed, isVariantOf, type ExperimentKey, type Served, type VariantOf } from "./experiments";
+import { useEffect, useRef, useState, type RefObject } from "react";
+import { afterPageLoad, analyticsEnabled, loadAnalytics, rememberServed, servedEarlier, trackServed } from "./analytics";
+import { fallbackServed, isVariant, type ExperimentKey, type Served, type Variant } from "./experiments";
 
 /** Past this, show control rather than hold the page for a slow or blocked flags request. */
 const FLAGS_TIMEOUT_MS = 1500;
@@ -35,16 +35,28 @@ interface ExperimentOptions {
    * or sooner if something else needs it. For above-the-fold experiments, where loading it early would slow the page.
    */
   afterPageLoad?: boolean;
+  /**
+   * A press or key inside this element before the flag resolves serves control for the rest of the page load
+   * (flag_fallback, reason "interacted"), so a visitor already using what control shows never sees it change,
+   * and their clicks and preview aren't counted for a variant they didn't see.
+   */
+  freezeOnInteraction?: RefObject<HTMLElement | null>;
 }
 
 /**
  * The variant to show, evaluated by posthog-js on this page's id, or undefined until it's known
  * (render control or a neutral placeholder). A timeout, a flags error or a flag that's off serves control as
  * a fallback. Without NEXT_PUBLIC_POSTHOG_KEY there are no flags and nothing is recorded.
- * Every event the page sends afterwards carries what it served (see rememberServed).
+ * What this page load served first is served again on a later mount (a client-side return to the page), and every
+ * event the page sends afterwards carries it (see rememberServed).
  */
-export function useExperiment<K extends ExperimentKey>(key: K, options: ExperimentOptions = {}): Served<VariantOf<K>> | undefined {
-  return useServed<Served<VariantOf<K>>>(key, (settle) => {
+export function useExperiment<K extends ExperimentKey>(key: K, options: ExperimentOptions = {}): Served<Variant<K>> | undefined {
+  return useServed<Served<Variant<K>>>(key, (settle) => {
+    const earlier = servedEarlier(key) as Served<Variant<K>> | undefined;
+    if (earlier) {
+      settle(earlier);
+      return () => {};
+    }
     if (!analyticsEnabled) {
       settle(fallbackServed("unassigned"));
       return () => {};
@@ -52,6 +64,10 @@ export function useExperiment<K extends ExperimentKey>(key: K, options: Experime
     let stopped = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let off: (() => void) | undefined;
+    const area = options.freezeOnInteraction?.current;
+    const interacted = () => settle(fallbackServed("interacted"));
+    area?.addEventListener("pointerdown", interacted, { capture: true });
+    area?.addEventListener("keydown", interacted, { capture: true });
     // The SDK may still be loading; the flags request starts when it initialises, so time it from there.
     void (options.afterPageLoad ? afterPageLoad().then(loadAnalytics) : loadAnalytics()).then((posthog) => {
       if (stopped) return;
@@ -61,13 +77,15 @@ export function useExperiment<K extends ExperimentKey>(key: K, options: Experime
         if (context?.errorsLoading) return settle(fallbackServed("error"));
         // send_event: false, so the only exposure is trackServed's, with the variant actually shown.
         const value = posthog.getFeatureFlag(key, { send_event: false });
-        settle(isVariantOf(key, value) ? { variant: value } : fallbackServed("unassigned"));
+        settle(isVariant(key, value) ? { variant: value } : fallbackServed("unassigned"));
       });
     });
     return () => {
       stopped = true;
       clearTimeout(timer);
       off?.();
+      area?.removeEventListener("pointerdown", interacted, { capture: true });
+      area?.removeEventListener("keydown", interacted, { capture: true });
     };
   });
 }
