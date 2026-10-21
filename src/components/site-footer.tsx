@@ -9,7 +9,7 @@ import { SHIP_LOOP_LINK_LABEL, SoonBadge } from "./soon-badge";
 
 export function SiteFooter() {
   return (
-    <footer className="border-t border-border/60 bg-muted/40">
+    <footer className="border-t border-border/60 bg-muted/40" data-site-footer>
       <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:px-6 sm:grid-cols-2 md:grid-cols-[1.4fr_1fr_1.2fr_1fr]">
         <div className="space-y-4">
           <Logo />
