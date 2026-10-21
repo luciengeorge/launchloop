@@ -79,7 +79,10 @@ describe("Product Hunt alternatives post", () => {
     expect(fullTitle(p.metaTitle)).toBe("Product Hunt alternatives: where to launch · LaunchLoop");
     expect(p.description).toMatch(/^Sites like Product Hunt/);
     expect(p).toMatchObject({ published: "2026-10-22", updated: "2026-10-22" });
-    expect(blogPosts()[0].slug).toBe(p.slug);
+    const listed = blogPosts();
+    expect(listed.map((x) => x.slug)).toContain(p.slug);
+    const dates = listed.map((x) => x.published);
+    expect(dates).toEqual([...dates].sort().reverse());
     const howTo = post("how-to-launch-on-product-hunt");
     expect(p.metaTitle).not.toBe(howTo.metaTitle);
     expect(p.description).not.toBe(howTo.description);
