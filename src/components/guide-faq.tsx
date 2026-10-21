@@ -5,9 +5,9 @@ import { faqPage } from "@/lib/structured-data";
 
 export type FaqItem = { q: string; a: string };
 
-/** A guide's FAQ section with matching FAQPage JSON-LD. Answers are plain text so the markup and the schema say exactly the same thing. */
-export function GuideFaq({ guide, title, items }: { guide: Guide; title: string; items: readonly FaqItem[] }) {
-  const url = `${siteUrl()}${guidePath(guide)}`;
+/** An FAQ section with matching FAQPage JSON-LD for the page at `path`. Answers are plain text so the markup and the schema say exactly the same thing. */
+export function Faq({ path, title, items }: { path: string; title: string; items: readonly FaqItem[] }) {
+  const url = `${siteUrl()}${path}`;
   return (
     <section aria-labelledby="faq">
       <JsonLd data={{ "@context": "https://schema.org", ...faqPage(`${url}#faq`, items), url }} />
@@ -22,4 +22,8 @@ export function GuideFaq({ guide, title, items }: { guide: Guide; title: string;
       </div>
     </section>
   );
+}
+
+export function GuideFaq({ guide, title, items }: { guide: Guide; title: string; items: readonly FaqItem[] }) {
+  return <Faq path={guidePath(guide)} title={title} items={items} />;
 }
