@@ -46,7 +46,7 @@ interface BuildInput {
   brief?: Brief;
 }
 
-export const EXAMPLE_KIT_CTA = { text: "This is a sample kit. Want one for your product?", label: "Start my free preview" };
+export const EXAMPLE_KIT_CTA = { text: "This is a sample kit. Want one for your product?", label: "Get my free preview" };
 
 export function buildTasks({ content: c, checklist, locked, free, brief, example = false }: BuildInput): KitTask[] {
   const tasks: KitTask[] = [];

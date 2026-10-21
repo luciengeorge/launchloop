@@ -10,7 +10,7 @@ describe("the example kit's brief step", () => {
   it("ends in a CTA to start your own preview, never the 'regenerate a preview' hint", () => {
     const step = briefStep(true);
     expect(step.hint).toBeUndefined();
-    expect(step.cta).toEqual({ text: "This is a sample kit. Want one for your product?", label: "Start my free preview" });
+    expect(step.cta).toEqual({ text: "This is a sample kit. Want one for your product?", label: "Get my free preview" });
     expect(JSON.stringify(step)).not.toMatch(/regenerate|Skim the brief/);
   });
 

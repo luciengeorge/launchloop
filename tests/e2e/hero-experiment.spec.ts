@@ -313,12 +313,14 @@ test("/example-kit: the brief step ends in a CTA to start your own preview, not 
   await expect(page.getByText(/regenerate a preview|Skim the brief above/)).toHaveCount(0);
   const cta = brief.getByTestId("task-cta");
   await expect(cta).toContainText("This is a sample kit. Want one for your product?");
-  const start = cta.getByRole("link", { name: "Start my free preview" });
+  // The site's own wording for this button (as in the page header), on a 44px target.
+  const start = cta.getByRole("link", { name: "Get my free preview" });
   await expect(start).toHaveAttribute("href", "/#start");
-  expect(await contrast(start), "Start my free preview").toBeGreaterThanOrEqual(4.5);
+  expect((await start.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  expect(await contrast(start), "Get my free preview").toBeGreaterThanOrEqual(4.5);
   await start.hover();
   await page.waitForTimeout(300);
-  expect(await contrast(start), "Start my free preview (hovered)").toBeGreaterThanOrEqual(4.5);
+  expect(await contrast(start), "Get my free preview (hovered)").toBeGreaterThanOrEqual(4.5);
   await start.click();
   await page.waitForURL((u) => u.pathname === "/" && u.hash === "#start");
   await expect(page.locator("#start")).toBeVisible();

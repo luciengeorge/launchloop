@@ -410,7 +410,7 @@ function TaskRow({ kitId, task, done, pop, onToggle, kitLocked }: { kitId: strin
           {task.cta && !task.locked ? (
             <div className="mt-3 flex flex-col gap-2 rounded-lg border border-border bg-muted/40 p-3 sm:flex-row sm:items-center sm:justify-between" data-testid="task-cta">
               <p className="text-sm">{task.cta.text}</p>
-              <StartLink className={cn(buttonVariants(), "h-10 shrink-0 px-4", PRIMARY_FILL)}>{task.cta.label}</StartLink>
+              <StartLink className={cn(buttonVariants(), "h-11 shrink-0 px-4", PRIMARY_FILL)}>{task.cta.label}</StartLink>
             </div>
           ) : null}
         </div>
