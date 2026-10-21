@@ -116,7 +116,7 @@ for (const p of BLOG_POSTS) {
     await block.getByLabel(COPY.label).fill(email);
     // form.submit() skips React's onSubmit, exactly like a submit that lands before hydration (or without JavaScript).
     await block.getByRole("form", { name: "Newsletter signup" }).evaluate((form: HTMLFormElement) => form.submit());
-    await page.waitForURL((u) => u.pathname === path);
+    await page.waitForURL((u) => u.pathname === path && u.searchParams.get("subscribed") === "1");
     const url = new URL(page.url());
     expect(`${url.pathname}${url.search}${url.hash}`).toBe(`${path}?subscribed=1&from=blog#newsletter`);
 
