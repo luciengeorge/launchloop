@@ -68,6 +68,21 @@ describe("checkOg", () => {
     expect(tags.detail).not.toContain("LinkedIn");
   });
 
+  it("cites X's archived 70-character title limit, with no unsourced 60 or LinkedIn and Slack claim", () => {
+    const title = checkOg({ ...TAGS, ogTitle: "x".repeat(85) }, IMAGE).checks.find((c) => c.id === "title")!;
+    expect(title.status).toBe("warn");
+    expect(title.detail).toBe('og:title is 85 characters. X\'s archived card docs give a card title a maximum of 70 characters ("max 70 characters"), so lead with the words that matter.');
+    expect(title.detail).not.toMatch(/\b60\b|LinkedIn|Slack/);
+    expect(checkOg({ ...TAGS, ogTitle: "x".repeat(70) }, IMAGE).checks.find((c) => c.id === "title")!.status).toBe("pass");
+  });
+
+  it("fails a page with no og:image without claiming anything about clicks", () => {
+    const image = checkOg(TAGS).checks.find((c) => c.id === "image")!;
+    expect(image.status).toBe("fail");
+    expect(image.detail).toBe("No og:image, so there's no share image for apps to show. Add a 1200×630 PNG or JPG.");
+    expect(image.detail).not.toMatch(/clicks/);
+  });
+
   it("names no platform it has no source for", () => {
     const twitterOnly = checkOg(TAGS, { ...IMAGE, source: "twitter:image" }).checks.find((c) => c.id === "image")!;
     expect(twitterOnly.detail).not.toContain("iMessage");

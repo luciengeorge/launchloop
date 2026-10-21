@@ -105,7 +105,7 @@ function titleCheck(tags: OgTags): OgCheck {
     return { id: "title", status: "warn", label, detail: "No og:title, so apps fall back to your <title>. Add og:title so you control exactly what the card says." };
   }
   if (title.length > OG_TITLE_MAX) {
-    return { id: "title", status: "warn", label, detail: `og:title is ${title.length} characters. X, LinkedIn and Slack cut titles off around 60 to 70 characters, so lead with the words that matter.` };
+    return { id: "title", status: "warn", label, detail: `og:title is ${title.length} characters. X's archived card docs give a card title a maximum of ${OG_TITLE_MAX} characters ("max 70 characters"), so lead with the words that matter.` };
   }
   return { id: "title", status: "pass", label, detail: `og:title is set (${title.length} characters).` };
 }
@@ -131,7 +131,7 @@ function descriptionCheck(tags: OgTags): OgCheck {
 
 function imageCheck(image: OgImageInfo | undefined): OgCheck {
   const label = "Share image";
-  if (!image) return { id: "image", status: "fail", label, detail: "No og:image. Links share as a plain text card with no picture, which gets far fewer clicks." };
+  if (!image) return { id: "image", status: "fail", label, detail: `No og:image, so there's no share image for apps to show. Add a ${OG_IMAGE.width}×${OG_IMAGE.height} PNG or JPG.` };
   if (!image.loaded) return { id: "image", status: "fail", label, detail: `The ${image.source} URL didn't load: ${image.error ?? "unknown error"}.` };
   const notes: string[] = [];
   if (image.source === "twitter:image") notes.push("Only twitter:image is set. Add og:image too: it is the tag Facebook's and LinkedIn's sharing docs ask for.");

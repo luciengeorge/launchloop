@@ -111,6 +111,19 @@ test("the SVG and robots.txt pitfalls quote their sources, and the missing-image
   expect(faq.mainEntity.find((e) => e.name === q)!.acceptedAnswer.text).toBe(visible);
 });
 
+test("the intro's iMessage mention quotes Apple's TN3156, and the intro claims a generic card, not each app's exact one", async ({ page }) => {
+  await page.goto(PATH);
+  const intro = page.getByTestId("og-intro");
+  await expect(intro).toContainText("preview a generic link card built from the Open Graph tags that X, LinkedIn, Slack and iMessage read");
+  await expect(intro).not.toContainText("the card people get");
+  const apple = page.getByTestId("og-imessage-source");
+  await expect(apple.locator('a[href="https://developer.apple.com/documentation/technotes/tn3156-create-rich-previews-for-messages"]')).toHaveText("TN3156: Create rich previews for Messages");
+  await expect(apple.locator("q", { hasText: "Use the og:image property to include an image in your link preview." })).toBeVisible();
+  await expect(apple.locator("q", { hasText: "Use the og:title property to specify the title of your link preview." })).toBeVisible();
+  await expect(intro).not.toContainText(/\u2013|\u2014/);
+  await expect(apple).not.toContainText(/\u2013|\u2014/);
+});
+
 test("short alias redirects to the tools URL", async ({ request }) => {
   const res = await request.get("/og-preview", { maxRedirects: 0 });
   expect(res.status()).toBe(308);
@@ -197,6 +210,7 @@ test("wrong aspect ratio, broken image and no tags at all", async ({ page }) => 
   await go.click();
   await expect(page.locator('[data-check="title"]')).toHaveAttribute("data-status", "fail");
   await expect(page.locator('[data-check="image"]')).toContainText("No og:image");
+  await expect(page.locator('[data-check="image"]')).not.toContainText("clicks");
 });
 
 test("friendly errors for bad input and unreachable pages", async ({ page }) => {

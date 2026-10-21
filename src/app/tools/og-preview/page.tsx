@@ -35,6 +35,7 @@ const SRC = {
   slackRobots: "https://api.slack.com/robots",
   discordLinkPreviews: "https://docs.discord.com/developers/link-previews/overview",
   ogp: "https://ogp.me/",
+  appleRichPreviews: "https://developer.apple.com/documentation/technotes/tn3156-create-rich-previews-for-messages",
 } as const;
 
 const LINK = "font-medium text-foreground underline underline-offset-4";
@@ -167,9 +168,13 @@ export default async function OgPreviewPage() {
       <header className="mt-4 max-w-3xl space-y-4">
         <Badge variant="outline" className="bg-background px-3 py-1 text-xs">Free · No sign-up</Badge>
         <h1 className="text-balance text-4xl font-semibold tracking-tight sm:text-5xl">{tool.title}</h1>
-        <p className="text-pretty text-lg text-muted-foreground">
-          Paste a live URL to see the card people get when you share it on X, LinkedIn, Slack or iMessage. We read your Open Graph tags, measure the real share image against{" "}
+        <p className="text-pretty text-lg text-muted-foreground" data-testid="og-intro">
+          Paste a live URL to preview a generic link card built from the Open Graph tags that X, LinkedIn, Slack and iMessage read. We measure the real share image against{" "}
           {SIZE} and tell you exactly what to fix before launch day.
+        </p>
+        <p className="text-pretty text-sm text-muted-foreground" data-testid="og-imessage-source">
+          For iMessage, Apple&apos;s <a href={SRC.appleRichPreviews} className={LINK}>TN3156: Create rich previews for Messages</a> says{" "}
+          <q>Use the og:image property to include an image in your link preview.</q> and <q>Use the og:title property to specify the title of your link preview.</q>
         </p>
       </header>
 
