@@ -27,6 +27,11 @@ export interface ClientEvents {
     recovered?: boolean;
   };
   newsletter_subscribed: { placement: NewsletterPlacement; welcome: WelcomeOutcome };
+  /**
+   * A click on a link, a button or the URL field in the home hero (HeroClicks). `label` is the visible text, or the
+   * field's label: never what was typed. `link_url` is scrubbed like every URL.
+   */
+  hero_clicked: { element: "a" | "button" | "input"; label: string; link_url?: string };
   /** Control served without a PostHog assignment (see Served). Not an exposure, so it stays out of the experiment. */
   flag_fallback: { flag: ExperimentKey; variant: Variant; reason: FallbackReason; fallback: true };
 }
@@ -103,13 +108,6 @@ export function loadAnalytics(): Promise<PostHog | undefined> {
   return client;
 }
 
-/**
- * Clicks are autocaptured only on links, buttons and the URL field inside an element with this attribute: the home hero's
- * form and CTAs. Nothing else on any page is autocaptured, and there's no session replay.
- */
-export const CAPTURE_CLICKS_ATTR = "data-capture-clicks";
-export const captureClicks = { [CAPTURE_CLICKS_ATTR]: "" } as const;
-
 let pageId: string | undefined;
 
 /**
@@ -144,14 +142,9 @@ function initAnalytics(posthog: PostHog, token: string, start: { url: string; at
     person_profiles: "identified_only",
     capture_pageview: "history_change",
     capture_pageleave: true,
-    autocapture: {
-      dom_event_allowlist: ["click"],
-      css_selector_allowlist: [`[${CAPTURE_CLICKS_ATTR}]`],
-      element_allowlist: ["a", "button", "input"],
-      // posthog-js never sends an input's value; React mirrors it into the attribute, so drop that too.
-      element_attribute_ignorelist: ["value"],
-      capture_copied_text: false,
-    },
+    // Clicks are captured explicitly, in the home hero only (hero_clicked): autocapture would depend on the project's
+    // remote config, and anywhere else on the site would be out of scope.
+    autocapture: false,
     capture_exceptions: false,
     capture_heatmaps: false,
     capture_dead_clicks: false,

@@ -13,7 +13,7 @@ import type { PreviewLimits } from "@/lib/site";
 import { LAUNCH_PROMO } from "@/lib/products";
 import { hasSessionHint } from "@/lib/session-hint";
 import { START_EVENT, type StartPlan } from "@/lib/start-intent";
-import { sampleCtaClassName, useHeroSampleCta } from "./hero-sample-cta";
+import { sampleCtaClassName, useHeroSampleCta } from "./home-hero";
 import { KitPrice } from "./kit-price";
 import { RateLimitActions } from "./rate-limit-actions";
 
