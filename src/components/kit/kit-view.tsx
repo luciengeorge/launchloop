@@ -87,7 +87,7 @@ async function PaidKit({ kit, session, query }: Props) {
   return (
     <div className="space-y-6">
       {ready ? (
-        <div className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-5 sm:min-h-24 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-lg font-semibold">Your launch kit is ready</h2>
             <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
