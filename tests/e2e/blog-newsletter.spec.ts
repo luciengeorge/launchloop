@@ -24,13 +24,14 @@ const expectOneWelcomeEmail = (request: APIRequestContext, email: string) => exp
 const blogSignup = (page: Page) => page.getByTestId("blog-newsletter");
 const footer = (page: Page) => page.getByRole("contentinfo");
 
-/** The form drops its no-JS error anchors once React has hydrated it. */
-const hydrated = (page: Page) => expect(blogSignup(page).locator('[id^="newsletter-blog-"]')).toHaveCount(0);
+/** Every newsletter form drops its no-JS error anchors once React has hydrated it. */
+const hydrated = (page: Page) => expect(page.locator('p[id^="newsletter-"]')).toHaveCount(0);
 
-/** The footer form hasn't reacted: still a form, no message. */
+/** The footer form hasn't reacted: still a form, its (always mounted) status region empty, no error. */
 async function expectFooterIdle(page: Page) {
   await expect(footer(page).getByRole("button", { name: "Subscribe" })).toBeVisible();
-  await expect(footer(page).getByRole("status")).toHaveCount(0);
+  await expect(footer(page).getByRole("status")).toBeEmpty();
+  await expect(footer(page).locator('[data-testid^="newsletter-done-"]')).toHaveCount(0);
   await expect(footer(page).getByRole("alert")).toHaveCount(0);
 }
 
@@ -115,7 +116,7 @@ for (const p of BLOG_POSTS) {
     const email = uniqueEmail("blog-prehydration");
     await block.getByLabel(COPY.label).fill(email);
     // form.submit() skips React's onSubmit, exactly like a submit that lands before hydration (or without JavaScript).
-    await block.getByRole("form", { name: "Newsletter signup" }).evaluate((form: HTMLFormElement) => form.submit());
+    await block.getByRole("form", { name: COPY.heading }).evaluate((form: HTMLFormElement) => form.submit());
     await page.waitForURL((u) => u.pathname === path && u.searchParams.get("subscribed") === "1");
     const url = new URL(page.url());
     expect(`${url.pathname}${url.search}${url.hash}`).toBe(`${path}?subscribed=1&from=blog#newsletter`);
@@ -147,8 +148,50 @@ test("a redirected result only shows in the form it came from", async ({ page })
   await page.goto(`${path}?subscribed=1&welcome=skipped`);
   await expect(footer(page).getByRole("status")).toHaveAttribute("data-welcome", "skipped");
   await expect(blogSignup(page).getByRole("button", { name: COPY.button })).toBeVisible();
-  await expect(blogSignup(page).getByRole("status")).toHaveCount(0);
+  await expect(blogSignup(page).getByRole("status")).toBeEmpty();
 });
+
+test("the blog form and the footer form have different accessible names", async ({ page }) => {
+  await page.goto(postPath(BLOG_POSTS[0]));
+  await expect(page.getByRole("form", { name: "Newsletter signup" })).toHaveCount(1);
+  await expect(footer(page).getByRole("form", { name: "Newsletter signup" })).toBeVisible();
+  await expect(page.getByRole("form", { name: COPY.heading })).toHaveCount(1);
+  await expect(blogSignup(page).getByRole("form", { name: COPY.heading })).toBeVisible();
+  const names = await page.locator("form").evaluateAll((forms) =>
+    forms.map((f) => f.getAttribute("aria-label") ?? document.getElementById(f.getAttribute("aria-labelledby") ?? "")?.textContent ?? ""),
+  );
+  expect(new Set(names).size).toBe(names.length);
+});
+
+for (const [name, path, scope, label, button] of [
+  ["blog block", postPath(BLOG_POSTS[0]), blogSignup, COPY.label, COPY.button],
+  ["footer", "/", footer, "Weekly launch teardowns", "Subscribe"],
+] as const) {
+  test(`${name}: success is announced from a live region that was mounted before the submit, and focus moves to the checklist link`, async ({ page }) => {
+    await page.goto(path);
+    await hydrated(page);
+    const region = scope(page).getByRole("status");
+    await expect(region).toBeAttached();
+    await expect(region).toBeEmpty();
+    await region.evaluate((el) => ((window as unknown as { liveRegion: Element }).liveRegion = el));
+
+    // Keyboard only: type, then Enter from the field.
+    const field = scope(page).getByLabel(label);
+    await field.focus();
+    await page.keyboard.type(uniqueEmail("a11y-news"));
+    await page.keyboard.press("Enter");
+    await expect(region).toContainText("You're subscribed. One useful launch teardown a week, no spam.");
+    // Same element: the message landed in the region that already existed, not a newly mounted one.
+    expect(await page.evaluate(() => {
+      const el = (window as unknown as { liveRegion: Element }).liveRegion;
+      return el.isConnected && el.getAttribute("role") === "status" && el.textContent!.includes("You're subscribed");
+    })).toBe(true);
+    await expect(scope(page).getByRole("button", { name: button })).toHaveCount(0);
+    const link = region.getByRole("link", { name: "Open your launch-day checklist" });
+    await expect(link).toBeFocused();
+    expect(await page.evaluate(() => document.activeElement === document.body)).toBe(false);
+  });
+}
 
 test("/api/newsletter accepts placement 'blog' as JSON and as a form post", async ({ request }) => {
   const path = postPath(BLOG_POSTS[0]);

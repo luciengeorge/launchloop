@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { newsletterErrorAnchor, newsletterReturnPath, parsePlacement, PREVIEW_NEWSLETTER_ANCHOR } from "@/lib/newsletter";
+import { isQaReferer } from "@/lib/attribution";
+import { isResendTestAddress, newsletterErrorAnchor, newsletterReturnPath, parsePlacement, PREVIEW_NEWSLETTER_ANCHOR } from "@/lib/newsletter";
 
 describe("parsePlacement", () => {
   it.each(["footer", "preview", "blog"] as const)("keeps %s", (placement) => {
@@ -36,5 +37,38 @@ describe("newsletterReturnPath for the blog signup", () => {
   it("leaves the footer and post-preview paths as they were", () => {
     expect(newsletterReturnPath("/pricing", "footer", { ok: true, welcome: "sent" })).toBe("/pricing?subscribed=1");
     expect(newsletterReturnPath("/kit/abc", "preview", { ok: true, welcome: "sent" })).toBe("/kit/abc?subscribed=1&from=preview#newsletter");
+  });
+});
+
+describe("QA signals a signup carries without JavaScript", () => {
+  const post = (referer: string | undefined, headers: Record<string, string> = {}, url = "https://launchloop.dev/api/newsletter") =>
+    new Request(url, { method: "POST", headers: { ...(referer ? { referer } : {}), ...headers } });
+
+  it("a same-origin Referer tagged ?qa=1 or utm_source=qa is QA, like a QA landing", () => {
+    expect(isQaReferer(post("https://launchloop.dev/blog/how-to-launch-on-product-hunt?qa=1"))).toBe(true);
+    expect(isQaReferer(post("https://launchloop.dev/?utm_source=QA&utm_medium=x"))).toBe(true);
+    expect(isQaReferer(post("https://launchloop.dev/kit/abc?subscribed=0&qa=1#newsletter"))).toBe(true);
+  });
+
+  it("anything else is not: no Referer, an untagged page, qa=0, or another site's page", () => {
+    expect(isQaReferer(post(undefined))).toBe(false);
+    expect(isQaReferer(post("https://launchloop.dev/blog/how-to-launch-on-product-hunt"))).toBe(false);
+    expect(isQaReferer(post("https://launchloop.dev/?qa=0"))).toBe(false);
+    expect(isQaReferer(post("https://launchloop.dev/?utm_source=quality"))).toBe(false);
+    expect(isQaReferer(post("https://evil.example/?qa=1"))).toBe(false);
+    expect(isQaReferer(post("https://launchloop.dev.evil.example/?qa=1"))).toBe(false);
+    expect(isQaReferer(post("not a url ?qa=1"))).toBe(false);
+  });
+
+  it("matches the host the platform reports, when the request URL carries an internal one", () => {
+    const internal = "http://localhost:3000/api/newsletter";
+    expect(isQaReferer(post("https://launchloop-git-x.vercel.app/?qa=1", { host: "launchloop-git-x.vercel.app" }, internal))).toBe(true);
+    expect(isQaReferer(post("https://launchloop.dev/?qa=1", { "x-forwarded-host": "launchloop.dev, proxy.internal" }, internal))).toBe(true);
+    expect(isQaReferer(post("https://launchloop.dev/?qa=1", { host: "other.dev" }, internal))).toBe(false);
+  });
+
+  it("Resend's test sink is QA, in any case, and nothing else is", () => {
+    for (const email of ["delivered@resend.dev", "bounced+run-7@resend.dev", "Delivered@Resend.DEV", "x@eu.resend.dev"]) expect(isResendTestAddress(email), email).toBe(true);
+    for (const email of ["maker@launchloop.dev", "resend.dev@gmail.com", "x@resend.dev.example.com", "x@notresend.dev"]) expect(isResendTestAddress(email), email).toBe(false);
   });
 });
