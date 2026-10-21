@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BlogNewsletter } from "@/components/blog-newsletter";
 import { JsonLd } from "@/components/json-ld";
 import { PreviewCta } from "@/components/preview-cta";
 import { BLOG_AUTHOR, blogPosts, longDate, postPath, type BlogPost } from "@/lib/blog";
@@ -61,6 +62,7 @@ export function BlogPostLayout({ post, children }: { post: BlogPost; children: R
         {children}
       </div>
       <PreviewCta />
+      <BlogNewsletter post={post} />
       <nav aria-label="More from LaunchLoop" className="mt-10 text-sm">
         <h2 className="font-medium">More from the blog</h2>
         <ul className="mt-2 space-y-1">

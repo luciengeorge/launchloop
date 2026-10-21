@@ -168,7 +168,7 @@ Vercel Web Analytics and Speed Insights count page views and performance. PostHo
 | `preview_completed` | Browser, preview stream done | the above plus `kitId`, `durationMs` |
 | `preview_failed` | Browser, preview error | the above plus `code` |
 | `kit_created` | Server, `/api/kits` once the preview kit is saved (streamed or not) | `kitId`, `source` (github / site / sample), `isLoggedIn`, `stream`, `reused` (same repo state within 24 h), `durationMs`, `client_disconnected` when the browser had gone, plus the kit's first-touch `utm_*`, `referring_domain` and `is_test` |
-| `newsletter_subscribed` | Browser, newsletter form success (no-JS posts aren't counted) | `placement` (footer / preview), `welcome` (sent / existing / skipped: whether this signup sent the welcome email) |
+| `newsletter_subscribed` | Browser, newsletter form success (no-JS posts aren't counted) | `placement` (footer / preview / blog), `welcome` (sent / existing / skipped: whether this signup sent the welcome email) |
 | `checkout_started` | Server, `/api/checkout` once a session URL exists | `plan` (kit), `product_type` (kit / shiploop), `kitId`, `price_id`, `amount` in pence (after any discount), `currency`, `isLoggedIn`, `mock`, `promo_code` / `promo` when LAUNCH14 was due, `$feature/<flag>` for the variants the page showed (`fallback/<flag>` when it served a fallback) |
 | `checkout_completed` | Server, Stripe webhook (`checkout.session.completed` / `async_payment_succeeded` with `payment_status: paid`), or `/api/checkout/mock` in test mode | the above plus `stripeSessionId`. `amount` is Stripe's `amount_total`; `promo_code` is LAUNCH14 (kit only; Checkout has no promotion code field) |
 
@@ -220,7 +220,7 @@ Two PostHog multivariate flags (50/50, variants `control` and `treatment`). Unti
 
 ## Newsletter
 
-"Weekly launch teardowns" has two signups: the footer, and a card under the free preview paywall (`src/components/kit/preview-newsletter.tsx`, hidden when the visitor arrives with `?unlock=1` on the way to checkout). Both post to `/api/newsletter`, which stores the contact with its `placement` (`footer` or `preview`; a repeat signup updates it) and adds it to the Resend segment. The lead magnet is the `/product-hunt-launch-checklist` guide: the success state links to it, and a new address gets one welcome email with the link (`src/emails/newsletter-welcome.tsx`).
+"Weekly launch teardowns" has three signups: the footer, a card under the free preview paywall (`src/components/kit/preview-newsletter.tsx`, hidden when the visitor arrives with `?unlock=1` on the way to checkout), and a block at the end of every blog post, between the free-preview CTA and the related links (`src/components/blog-newsletter.tsx`, rendered by `BlogPostLayout`, outline button). All post to `/api/newsletter`, which stores the contact with its `placement` (`footer`, `preview` or `blog`; a repeat signup updates it) and adds it to the Resend segment. The lead magnet is the `/product-hunt-launch-checklist` guide: the success state links to it, and a new address gets one welcome email with the link (`src/emails/newsletter-welcome.tsx`).
 
 - **One welcome email per address.** The send is claimed with an atomic `store().incr("newsletter:welcome:<email>")` before the response, so repeat or concurrent signups don't resend it. The response says what happened (`welcome`: `sent`, `existing` or `skipped`), and the success message only mentions an email when one was sent.
 - **Limits.** Signups are limited per IP through the shared store (`NEWSLETTER_RATE_LIMIT_PER_HOUR`), and welcome emails have a global daily cap (`NEWSLETTER_WELCOME_DAILY_CAP`). Past the cap the contact is still added; the skip is logged.
@@ -256,7 +256,7 @@ npm run test:e2e
 Playwright builds the app into `.next-test` and runs it on port 3418 in forced mock mode, alongside a fixture site on port 3419. The smoke tests cover:
 
 - the home page, validation and newsletter signup (desktop and mobile)
-- the newsletter signups in the footer and under the free preview (desktop and mobile): the checklist link on success, one welcome email per address, no-JS posts, safe redirects, and hidden on the way to checkout
+- the newsletter signups in the footer, under the free preview (desktop and mobile) and at the end of every blog post: the checklist link on success, one welcome email per address, no-JS posts, safe redirects, and hidden on the way to checkout
 - the free preview with no account: a fresh visitor previews a live site, and the kit link opens for anyone
 - analytics: UTMs on `$pageview` and later events, and one anonymous id from a landing page through to the server-side `checkout_completed` (the fixture server records what the fake PostHog receives at `/ph/_events`)
 - the full sample flow: preview → mock checkout → full kit, with every character counter within its limit, no "upvote" anywhere, ZIP download, all three images and the email in the outbox
