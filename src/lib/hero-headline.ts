@@ -2,8 +2,11 @@
 import { EXPERIMENTS, fallbackServed, isVariant, type Served } from "./experiments";
 
 export const HERO_HEADLINE_CONTROL = "Paste your repo. Get your whole launch.";
-/** The owner's wording. It wraps like control at every width, so neither arm reserves blank lines. */
-export const HERO_HEADLINE_TEST = "Your repo in. All your launch posts out.";
+/**
+ * The owner's wording. It wraps like control at every width, so neither arm reserves blank lines. The no-break space
+ * keeps "launch posts" together, so it never wraps as "All your / launch posts out".
+ */
+export const HERO_HEADLINE_TEST = "Your repo in. All your launch\u00a0posts out.";
 
 /** The h1 waits on this lookup, so past this it's aborted and the page shows control rather than hold the headline back. */
 export const HERO_FLAG_TIMEOUT_MS = 500;

@@ -23,9 +23,11 @@ test.describe("HeroHeadline", () => {
   });
 
   test("test shows HERO_HEADLINE_TEST in the same h1, styled the same way", () => {
-    expect(HERO_HEADLINE_TEST).toBe("Your repo in. All your launch posts out.");
+    expect(HERO_HEADLINE_TEST).toBe("Your repo in. All your launch\u00a0posts out.");
+    expect(HERO_HEADLINE_TEST.replace("\u00a0", " ")).toBe("Your repo in. All your launch posts out.");
     const [lead, rest] = splitHeadline(HERO_HEADLINE_TEST);
     expect(lead).toBe("Your repo in.");
+    expect(rest).toBe("All your launch\u00a0posts out.");
     expect(text(<HeroHeadline served={{ variant: "test" }} />)).toBe(HERO_HEADLINE_TEST);
     expect(h1(<HeroHeadline served={{ variant: "test" }} />)).toContain(`${lead} <span class="text-primary">${rest}</span>`);
   });
