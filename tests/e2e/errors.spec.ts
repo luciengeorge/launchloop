@@ -64,7 +64,7 @@ test("site with no readable text: one click switches to the GitHub repo, and the
   // click nor Enter sends anything; both move focus to the button instead.
   await expect(submit).toHaveAttribute("aria-disabled", "true");
   await expect(submit).toHaveAttribute("aria-describedby", "kit-form-resubmit-hint");
-  await expect(alert.getByTestId("kit-resubmit-hint")).toHaveText("Trying this link again won't help: change it, or use your GitHub repo.");
+  await expect(alert.getByTestId("kit-resubmit-hint")).toHaveText("Sending this link again will fail the same way. Change it, or use your repo:");
   await submit.click({ force: true });
   await expect(cta).toBeFocused();
   await input.press("Enter");

@@ -260,10 +260,10 @@ export function KitForm({ promo }: { promo: boolean }) {
               <>
                 {blockedBy ? (
                   <p id="kit-form-resubmit-hint" data-testid="kit-resubmit-hint" className="mt-1">
-                    Trying this link again won&apos;t help: change it, or use your GitHub repo.
+                    Sending this link again will fail the same way. Change it, or use your repo:
                   </p>
                 ) : null}
-                <Button ref={repoCtaRef} type="button" onClick={switchToRepo} className="mt-3 h-10 px-4 text-sm" data-testid="kit-repo-cta">
+                <Button ref={repoCtaRef} type="button" onClick={switchToRepo} className="h-10 px-4 text-sm" data-testid="kit-repo-cta">
                   Use my GitHub repo instead
                   <ArrowRight />
                 </Button>
