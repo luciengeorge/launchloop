@@ -158,6 +158,45 @@ test("success copy only mentions an email when one was sent", async ({ page }) =
   expect(html).not.toMatch(/[\u2013\u2014]/);
 });
 
+type PhEvent = { event: string; distinct_id?: string; properties: Record<string, unknown> };
+const phEvents = async (request: APIRequestContext) => (await (await request.get("http://127.0.0.1:3419/ph/_events")).json()) as PhEvent[];
+const signupEvents = async (request: APIRequestContext) => (await phEvents(request)).filter((e) => e.event === "newsletter_subscribed");
+
+// This spec runs in a stock automated browser (navigator.webdriver, HeadlessChrome), like a QA agent's.
+test("a signup from an automated browser is still counted: the server records newsletter_subscribed, though posthog-js drops the page's own events", async ({ page }) => {
+  await page.goto("/");
+  await page.waitForLoadState("networkidle");
+  const request = page.waitForRequest((r) => r.url().endsWith("/api/newsletter") && r.method() === "POST");
+  await page.getByRole("contentinfo").getByLabel("Weekly launch teardowns").fill(uniqueEmail("bot-news"));
+  await page.getByRole("contentinfo").getByRole("button", { name: "Subscribe" }).click();
+  await expect(page.getByRole("contentinfo").getByRole("status")).toContainText("You're subscribed");
+  const { analyticsId } = (await request).postDataJSON() as { analyticsId: string };
+
+  let event: PhEvent | undefined;
+  await expect.poll(async () => (event = (await signupEvents(page.request)).find((e) => e.distinct_id === analyticsId))).toBeTruthy();
+  expect(event!.properties).toMatchObject({ placement: "footer", welcome: "sent", submitted: "js", is_webdriver: true, $lib: "posthog-node" });
+  expect(JSON.stringify(event)).not.toContain("@example.com");
+  // The browser SDK sent nothing for this page at all, which is why the event had to move to the server.
+  await page.goto("/pricing");
+  expect((await phEvents(page.request)).filter((e) => e.distinct_id === analyticsId && e.properties.$lib === "web")).toEqual([]);
+});
+
+test("a plain form post (no JavaScript) is counted once, as submitted: form", async ({ request }) => {
+  const formSignups = async () => (await signupEvents(request)).filter((e) => e.properties.submitted === "form").length;
+  const before = await formSignups();
+  const res = await postForm(request, { email: uniqueEmail("nojs-count"), placement: "blog", next: "/blog/how-to-launch-on-product-hunt" });
+  expect(res.status()).toBe(303);
+  await expect.poll(formSignups).toBe(before + 1);
+  const event = (await signupEvents(request)).filter((e) => e.properties.submitted === "form").at(-1)!;
+  expect(event.properties).toMatchObject({ placement: "blog", welcome: "sent" });
+  expect(event.properties).not.toHaveProperty("is_webdriver");
+  expect(event.distinct_id).toMatch(/^server_/);
+  // A failed post records nothing.
+  await postForm(request, { email: "not-an-email", placement: "blog" });
+  await new Promise((r) => setTimeout(r, 500));
+  expect(await formSignups()).toBe(before + 1);
+});
+
 test("concurrent signups for one new address send one welcome email", async ({ request }) => {
   const email = uniqueEmail("race");
   const responses = await Promise.all([1, 2, 3, 4].map((n) => postJson(request, { email, placement: n % 2 ? "footer" : "preview" })));

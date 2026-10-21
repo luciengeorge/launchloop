@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useId, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { track } from "@/lib/analytics";
+import { isTestVisit, pageAnalyticsId } from "@/lib/analytics";
 import { postJson } from "@/lib/client";
 import {
   LEAD_MAGNET,
@@ -67,10 +67,15 @@ export function NewsletterForm({
     setState("loading");
     setError(null);
     try {
-      const res = await postJson<{ welcome?: WelcomeOutcome }>("/api/newsletter", { email, placement });
-      const result = parseWelcome(res.welcome);
-      track("newsletter_subscribed", { placement, welcome: result });
-      setWelcome(result);
+      // The server records newsletter_subscribed on this page's id; the email never goes to analytics.
+      const res = await postJson<{ welcome?: WelcomeOutcome }>("/api/newsletter", {
+        email,
+        placement,
+        analyticsId: pageAnalyticsId(),
+        isWebdriver: navigator.webdriver === true,
+        ...(isTestVisit() ? { isTest: true } : {}),
+      });
+      setWelcome(parseWelcome(res.welcome));
     } catch (err) {
       setError((err as Error).message);
     }
