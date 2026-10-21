@@ -31,6 +31,7 @@ const SRC = {
   xCard: "https://web.archive.org/web/20260112050218/https://developer.x.com/en/docs/x-for-websites/cards/overview/summary-card-with-large-image",
   xTroubleshooting: "https://web.archive.org/web/20260104011518/https://developer.x.com/en/docs/x-for-websites/cards/guides/troubleshooting-cards",
   facebookImages: "https://developers.facebook.com/documentation/sharing/webmasters/images",
+  linkedinShareable: "https://www.linkedin.com/help/linkedin/answer/a521928",
   linkedinPostInspector: "https://www.linkedin.com/help/linkedin/answer/a6233775",
   slackRobots: "https://api.slack.com/robots",
   discordLinkPreviews: "https://docs.discord.com/developers/link-previews/overview",
@@ -47,7 +48,8 @@ const PITFALLS: { title: string; body: React.ReactNode }[] = [
       <>
         If your app sets its title and og:image in the browser, check that they&apos;re also in the HTML the server sends.{" "}
         <a href={SRC.discordLinkPreviews} className={LINK}>Discord&apos;s doc</a> says <q>No code is executed, so tags added by a client-side script after load are never
-        seen.</q>
+        seen.</q>, and Apple&apos;s <a href={SRC.appleRichPreviews} className={LINK}>TN3156</a> says{" "}
+        <q>Link previews do not follow meta redirects, nor run JavaScript; metadata must be available directly on the linked page.</q>
       </>
     ),
   },
@@ -55,9 +57,9 @@ const PITFALLS: { title: string; body: React.ReactNode }[] = [
     title: "A relative image URL",
     body: (
       <>
-        Use the full https:// address in og:image, not a path like /og.png. Every example in the <a href={SRC.ogp} className={LINK}>Open Graph protocol</a> is a full URL,
-        and of the platform docs we checked only <a href={SRC.discordLinkPreviews} className={LINK}>Discord&apos;s</a> mentions relative URLs:{" "}
-        <q>Relative URLs must start with /.</q>
+        Check that og:image is a full https:// address, not a path like /og.png. The <a href={SRC.ogp} className={LINK}>Open Graph protocol</a> defines it as an image
+        URL, and every example it gives is a full URL. Facebook&apos;s, LinkedIn&apos;s, Slack&apos;s and X&apos;s archived docs don&apos;t say they resolve a relative path,
+        so a full URL is the safe form.
       </>
     ),
   },
@@ -196,14 +198,17 @@ export default async function OgPreviewPage() {
             describe a 2:1 image and Slack publishes no size, so it&apos;s the safest single size rather than an exact match everywhere.
           </li>
           <li>
-            <strong>PNG or JPG, under 5 MB.</strong> X&apos;s archived docs say images must be less than 5MB, and LinkedIn&apos;s limit for shared images is 5 MB. Smaller
-            is better, so aim for under 1 MB if you can.
+            <strong>PNG or JPG, under 5 MB.</strong> X&apos;s <a href={SRC.xCard}>archived docs</a> say images must be less than 5MB, and{" "}
+            <a href={SRC.linkedinShareable}>LinkedIn&apos;s limit</a> for shared images is 5 MB. Smaller is better, so aim for under 1 MB if you can.
           </li>
           <li>
-            <strong>Never below {OG_MIN.width}×{OG_MIN.height}.</strong> Facebook says smaller images still display in the post, but much smaller.
+            <strong>Never below {OG_MIN.width}×{OG_MIN.height}.</strong> <a href={SRC.facebookImages}>Facebook says</a> smaller images still display in the post, but
+            much smaller.
           </li>
           <li>
-            <strong>One idea, big type.</strong> Your product name and a short headline, large enough to read on a phone. Keep it away from the edges.
+            <strong>One idea, big type.</strong> Your product name and a short headline, large enough to read on a phone. Keep it away from the edges. iMessage is the
+            exception: Apple&apos;s <a href={SRC.appleRichPreviews}>TN3156</a> says <q>Avoid text in preview images.</q> and suggests using the other metadata tags for
+            text instead.
           </li>
           <li>
             <strong>A full https:// URL.</strong> Use the full address rather than a relative path: every example in the Open Graph protocol is a full URL.

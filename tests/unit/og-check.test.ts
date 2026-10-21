@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkOg, type OgImageInfo, type OgTags } from "@/lib/og-check";
+import { checkOg, OG_IMAGE_MAX_BYTES, type OgImageInfo, type OgTags } from "@/lib/og-check";
 
 const TAGS: OgTags = {
   ogTitle: "Pagebird: turn customer calls into product specs",
@@ -81,6 +81,58 @@ describe("checkOg", () => {
     expect(image.status).toBe("fail");
     expect(image.detail).toBe("No og:image, so there's no share image for apps to show. Add a 1200×630 PNG or JPG.");
     expect(image.detail).not.toMatch(/clicks/);
+  });
+
+  it("accepts 1.91:1 through X's 2:1, so 1200×600 doesn't warn 'too wide'", () => {
+    const twoToOne = sizeCheck({ ...IMAGE, width: 1200, height: 600 });
+    expect(twoToOne.status).toBe("pass");
+    expect(twoToOne.detail).toBe("1200×600: between 1.91:1 and 2:1, and at least 1200 wide.");
+    expect(twoToOne.detail).not.toContain("too wide");
+    expect(sizeCheck({ ...IMAGE, width: 1600, height: 840 }).status).toBe("pass");
+
+    const wide = sizeCheck({ ...IMAGE, width: 1400, height: 630 });
+    expect(wide.status).toBe("warn");
+    expect(wide.detail).toContain("too wide, so the sides may be cropped");
+    expect(wide.detail).toContain("Facebook and LinkedIn ask for 1.91:1 and X's archived docs describe 2:1");
+
+    const tall = sizeCheck({ ...IMAGE, width: 1200, height: 1200 });
+    expect(tall.status).toBe("warn");
+    expect(tall.detail).toContain("too tall, so the top and bottom may be cropped");
+    expect(tall.detail).not.toContain("Cards are 1.91:1");
+  });
+
+  it("flags files of 5,000,000 bytes or more, since X's archived docs say less than 5MB", () => {
+    expect(OG_IMAGE_MAX_BYTES).toBe(5_000_000);
+    expect(sizeCheck({ ...IMAGE, bytes: 4_999_999 })).toMatchObject({ status: "pass", detail: "Exactly 1200×630." });
+    for (const bytes of [5_000_000, 5_100_000, 5_240_000]) {
+      const check = sizeCheck({ ...IMAGE, bytes });
+      expect(check.status, String(bytes)).toBe("warn");
+      expect(check.detail).toContain(`The file is ${(bytes / 1_000_000).toFixed(1)} MB. X's archived docs say images must be less than 5MB`);
+    }
+  });
+
+  it("cites X's archived 200-character description limit, and its large card for summary_large_image", () => {
+    const long = checkOg({ ...TAGS, ogDescription: "x".repeat(201) }, IMAGE).checks.find((c) => c.id === "description")!;
+    expect(long.status).toBe("warn");
+    expect(long.detail).toBe('og:description is 201 characters. X\'s archived card docs give a card description a maximum of 200 characters ("maximum 200 characters"), so put the point first.');
+    expect(checkOg(TAGS, IMAGE).checks.find((c) => c.id === "twitter-card")!.detail).toContain('"a large, full-width prominent image"');
+  });
+
+  it("has no unsourced platform claims in any note", () => {
+    const scenarios: [OgTags, OgImageInfo | undefined][] = [
+      [TAGS, IMAGE],
+      [{}, undefined],
+      [{ title: "Pagebird", description: "Specs from calls." }, { ...IMAGE, relative: true, insecure: true, source: "twitter:image" }],
+      [{ ...TAGS, ogDescription: undefined, description: "Specs from calls." }, { ...IMAGE, width: 1000, height: 500, bytes: 6_000_000 }],
+      [{ ...TAGS, ogImageAlt: undefined, twitterCard: "summary", ogUrl: undefined, canonical: "https://pagebird.test/" }, { ...IMAGE, width: 800, height: 800 }],
+      [{ ...TAGS, twitterCard: undefined, ogUrl: undefined, ogImageWidth: "1000", ogImageHeight: "500" }, { ...IMAGE, width: 1400, height: 630 }],
+    ];
+    const details = scenarios.flatMap(([tags, image]) => checkOg(tags, image).checks.map((c) => c.detail));
+    expect(details.length).toBeGreaterThan(30);
+    for (const detail of details) {
+      expect(detail).not.toMatch(/nobody clicks|fewer clicks|Some apps|others show nothing|Most cards|about 155|every app|square thumbnail|count as one link|looks soft|sharp enough|screen readers|Cards are 1\.91|iMessage|many crawlers|most apps/);
+      expect(detail).not.toMatch(/[\u2013\u2014]/);
+    }
   });
 
   it("names no platform it has no source for", () => {

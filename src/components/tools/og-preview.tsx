@@ -61,11 +61,11 @@ function StatusIcon({ status }: { status: CheckStatus }) {
 function verdictText(status: CheckStatus, warnings: number): string {
   switch (status) {
     case "pass":
-      return "This link will preview properly when you share it.";
+      return "Every check passes.";
     case "warn":
-      return `It previews, with ${warnings} thing${warnings === 1 ? "" : "s"} worth fixing.`;
+      return `No failures, with ${warnings} thing${warnings === 1 ? "" : "s"} worth fixing.`;
     case "fail":
-      return "This link won't preview well yet. Fix the items marked in red.";
+      return "Some checks fail. Fix the items marked in red.";
     default: {
       const unreachable: never = status;
       return unreachable;

@@ -82,9 +82,13 @@ test("the SVG and robots.txt pitfalls quote their sources, and the missing-image
   const js = item("Tags added by JavaScript");
   await expect(js.locator("q", { hasText: "No code is executed, so tags added by a client-side script after load are never seen." })).toBeVisible();
   await expect(js).not.toContainText("Link previewers don't run JavaScript");
+  await expect(js.locator("q", { hasText: "Link previews do not follow meta redirects, nor run JavaScript; metadata must be available directly on the linked page." })).toBeVisible();
+  await expect(js.locator('a[href="https://developer.apple.com/documentation/technotes/tn3156-create-rich-previews-for-messages"]')).toBeVisible();
   const relative = item("A relative image URL");
-  await expect(relative.locator("q", { hasText: "Relative URLs must start with /." })).toBeVisible();
+  await expect(relative).toContainText("so a full URL is the safe form");
   await expect(relative.locator('a[href="https://ogp.me/"]')).toBeVisible();
+  await expect(relative).not.toContainText("Relative URLs must start with /.");
+  await expect(relative.locator('a[href*="discord"]')).toHaveCount(0);
   await expect(relative).not.toContainText("fails in most crawlers");
   const edges = item("Text too close to the edges");
   await expect(edges.locator("q", { hasText: "to display the full image in Feed without any cropping." })).toBeVisible();
@@ -101,6 +105,16 @@ test("the SVG and robots.txt pitfalls quote their sources, and the missing-image
   await expect(main).not.toContainText("Facebook and LinkedIn can show the image");
   await expect(main).toContainText("with the size declared, Facebook can show the image on the very first share");
   await expect(main).not.toContainText(/500px|fail in more apps|little thumbnail/);
+
+  const size = page.locator("h2#size + ul");
+  const bigType = size.getByRole("listitem").filter({ hasText: "One idea, big type." });
+  await expect(bigType.locator("q", { hasText: "Avoid text in preview images." })).toBeVisible();
+  await expect(bigType.locator('a[href="https://developer.apple.com/documentation/technotes/tn3156-create-rich-previews-for-messages"]')).toBeVisible();
+  const fileSize = size.getByRole("listitem").filter({ hasText: "PNG or JPG, under 5 MB." });
+  await expect(fileSize.getByRole("link", { name: "LinkedIn's limit" })).toHaveAttribute("href", "https://www.linkedin.com/help/linkedin/answer/a521928");
+  await expect(fileSize.getByRole("link", { name: "archived docs" })).toHaveAttribute("href", /^https:\/\/web\.archive\.org\/web\/20260112050218\//);
+  const minimum = size.getByRole("listitem").filter({ hasText: "Never below 600×315." });
+  await expect(minimum.getByRole("link", { name: "Facebook says" })).toHaveAttribute("href", "https://developers.facebook.com/documentation/sharing/webmasters/images");
 
   const q = "Why isn't my link showing a preview image?";
   const visible = ((await page.locator("section", { has: page.getByRole("heading", { level: 3, name: q }) }).locator("p").textContent()) ?? "").trim();
@@ -148,6 +162,7 @@ test("well-tagged page: card at 1200×630, every check passes, deep link to the 
   await page.getByRole("button", { name: "Preview card" }).click();
 
   await expect(page.getByTestId("og-verdict")).toHaveAttribute("data-verdict", "pass");
+  await expect(page.getByTestId("og-verdict")).toHaveText("Every check passes.");
   await expect(page.getByTestId("og-card-title")).toHaveText("Pagebird: turn customer calls into product specs");
   await expect(page.getByTestId("og-card-description")).toContainText("ranked specs");
   await expect(page.getByTestId("og-image-size")).toHaveText("1200×630");
