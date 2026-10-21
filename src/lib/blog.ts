@@ -21,6 +21,16 @@ export const BLOG_FEED_PATH = "/blog/rss.xml";
 /** Newest first, so add new posts at the top. */
 export const BLOG_POSTS: BlogPost[] = [
   {
+    slug: "og-image-size",
+    title: "OG image size for X, LinkedIn, Facebook and Slack",
+    metaTitle: "OG image size: X, LinkedIn, Facebook and Slack",
+    description:
+      "Open Graph image size from each platform's own docs: a safe 1200×630 default, what Facebook, LinkedIn, X and Slack say, the tags to set and how to test it.",
+    published: "2026-10-26",
+    updated: "2026-10-26",
+    readingMinutes: 10,
+  },
+  {
     slug: "how-to-launch-on-product-hunt",
     title: "How to launch on Product Hunt",
     metaTitle: "How to launch on Product Hunt: how it works",
