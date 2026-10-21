@@ -1,4 +1,4 @@
-import { fitText, type FittedText, type FontWeight } from "./image-fit";
+import { fitText, textWidth, type FittedText, type FontWeight } from "./image-fit";
 import { IMAGE_VARIANTS, type ImageVariant } from "./image-variants";
 
 /**
@@ -50,6 +50,39 @@ export type OgPlan = Common & { variant: "og"; tagline: TextBlock | null; domain
 export type XPlan = Common & { variant: "x"; headline: TextBlock | null; pills: PillBlock[]; domain: TextBlock | null };
 export type PhPlan = Common & { variant: "ph"; tagline: TextBlock | null; domain: TextBlock | PillBlock | null; features: FeatureItem[]; cards: CardPlan[] };
 export type KitImagePlan = OgPlan | XPlan | PhPlan;
+
+/**
+ * The logo-less tile's letters. Two of them, because a lone narrow glyph (is-odd's "I") reads as a
+ * bar: the first letters of the first two words, else a single word's capitals ("PostHog" → "PH"),
+ * else its first two characters with the first uppercased ("trigger.dev" → "Tr"). Counted in graphemes of the
+ * NFC form, so "é" typed as e plus an accent stays one letter, and a capital that is two letters ("ß" is "SS",
+ * "ﬁ" is "FI") takes its title case ("Ss", "Fi") rather than making three.
+ */
+export function monogram(name: string): string {
+  const words = name
+    .normalize("NFC")
+    .split(/[\s_-]+/)
+    .map((w) => graphemes(w.replace(/[^\p{L}\p{N}\p{M}]/gu, "")).filter((g) => /[\p{L}\p{N}]/u.test(g)))
+    .filter((w) => w.length);
+  if (!words.length) return "•";
+  if (words.length > 1) return capital(words[0][0])[0] + capital(words[1][0])[0];
+  const [word] = words;
+  const hump = word.findIndex((c, i) => i > 0 && /\p{Lu}/u.test(c) && /\p{Ll}/u.test(word[i - 1]));
+  const first = capital(word[0]);
+  if (first.length > 1) return first[0] + first[1].toLowerCase();
+  return first[0] + (hump > 0 ? word[hump] : (word[1] ?? ""));
+}
+
+const segmenter = new Intl.Segmenter(undefined, { granularity: "grapheme" });
+const graphemes = (text: string): string[] => Array.from(segmenter.segment(text), (s) => s.segment);
+/** A grapheme's capital, as graphemes: one, or two where the capital is two letters. */
+const capital = (g: string): string[] => graphemes(g.toUpperCase().normalize("NFC"));
+
+/** Bold monogram size: as large as one letter allows, and never wider than 64% of the tile. */
+export function monogramFontSize(text: string, box: Box): number {
+  const cap = box.height * (graphemes(text).length > 1 ? 0.46 : 0.54);
+  return Math.min(cap, (box.width * 0.64 * 100) / textWidth(text, 100, 0, 700));
+}
 
 export const MAX_FEATURES = 3;
 export const MAX_PILL_LINES = 2;

@@ -1,6 +1,6 @@
 import "server-only";
 import { phase } from "../kit-tracing";
-import { captureException } from "../observability";
+import { captureException, captureExceptionThrottled, normaliseErrorMessage } from "../observability";
 import type { KitVisuals, Palette, SourceSummary } from "../schema";
 import { DEFAULT_PALETTE, extractPalette } from "./colors";
 import { fetchRepo, findRepoByName, parseGitHubUrl, type RepoData } from "./github";
@@ -139,7 +139,9 @@ async function tracedVisuals(repo: RepoData | undefined, site: SiteData | undefi
   try {
     return await phase("ingest.visuals", "http.client", { "kit.repo": repo ? `${repo.owner}/${repo.name}` : "[none]" }, () => discoverVisuals(repo, site));
   } catch (error) {
-    captureException(error, { stage: "ingest.visuals" });
+    // A bug here would otherwise report on every ingest: one event per distinct error per minute is enough.
+    const name = error instanceof Error ? error.name : "unknown";
+    captureExceptionThrottled(`ingest.visuals:${name}:${normaliseErrorMessage(error)}`, error, { stage: "ingest.visuals" });
     return {};
   }
 }

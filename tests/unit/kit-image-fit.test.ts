@@ -4,6 +4,8 @@ import {
   MAX_NAME_LINES,
   MAX_PILL_LINES,
   MAX_TAGLINE_LINES,
+  monogram,
+  monogramFontSize,
   planKitImage,
   X_NAME_SIZES,
   type Box,
@@ -125,10 +127,83 @@ describe("fitText", () => {
     for (const line of fit.lines) expect(textWidth(line, 50, 0, 600)).toBeLessThanOrEqual(900);
   });
 
+  it("prefers a smaller size that keeps every word whole to a larger one that splits a word", () => {
+    const opts = { sizes: [124, 112, 100, 88, 76, 64], maxWidth: 640, maxLines: 2, lineHeight: 1.02, weight: 700, letterSpacing: -3 } as const;
+    expect(textWidth("Tool4Boxology", 124, -3, 700)).toBeGreaterThan(640);
+    expect(wrapText("Tool4Boxology", 124, 640, -3, 700)).toHaveLength(2);
+    const fit = fitText("Tool4Boxology", opts);
+    expect(fit.lines).toEqual(["Tool4Boxology"]);
+    expect(fit.truncated).toBe(false);
+    const largestWhole = opts.sizes.find((s) => textWidth("Tool4Boxology", s, -3, 700) <= 640);
+    expect(fit.fontSize).toBe(largestWhole);
+  });
+
+  it("splits a word only when even the smallest size can't fit it whole, at the largest size that then fits", () => {
+    const word = "Pneumonoultramicroscopicsilicovolcanoconiosis";
+    const opts = { sizes: [124, 100, 76, 64], maxWidth: 640, maxLines: 3, lineHeight: 1.02, weight: 700, letterSpacing: -3 } as const;
+    expect(textWidth(word, 64, -3, 700)).toBeGreaterThan(640);
+    const fit = fitText(word, opts);
+    expect(fit.lines.length).toBeGreaterThan(1);
+    expect(fit.lines.join("")).toBe(word);
+    expect(fit.truncated).toBe(false);
+    for (const line of fit.lines) expect(textWidth(line, fit.fontSize, -3, 700)).toBeLessThanOrEqual(640);
+    expect(fit.fontSize).toBe(opts.sizes.find((s) => wrapText(word, s, 640, -3, 700).length <= 3));
+  });
+
+  it("keeps a long one-word name whole in every variant and layout (prod kit 9okQ31: 'Tool4Boxol / ogy')", () => {
+    for (const variant of VARIANTS) {
+      for (const [label, media] of MEDIA) {
+        const plan = planKitImage(variant, { ...SHORT, name: "Tool4Boxology" }, media);
+        expect(plan.name.text.lines, `${variant} ${label}`).toEqual(["Tool4Boxology"]);
+      }
+    }
+  });
+
   it("respects maxHeight as a line cap", () => {
     const fit = fitText(LONG.headline, { sizes: [40], maxWidth: 400, maxLines: 10, lineHeight: 1.25, maxHeight: 100 });
     expect(fit.lines).toHaveLength(2);
     expect(fit.height).toBeLessThanOrEqual(100);
+  });
+});
+
+describe("monogram", () => {
+  it.each([
+    ["Is Odd", "IO"],
+    ["is-odd", "IO"],
+    ["Rocket Skates Studio", "RS"],
+    ["PostHog", "PH"],
+    ["LaunchLoop", "LL"],
+    ["trigger.dev", "Tr"],
+    ["Cal.com", "Ca"],
+    ["API", "AP"],
+    ["Écrire", "Éc"],
+    // Decomposed (e + combining acute): normalised to NFC, the accent stays on its letter.
+    ["e\u0301crire", "Éc"],
+    ["e\u0301crire de\u0301mo", "ÉD"],
+    // Capitals that are two letters take their title case instead of making three ("SSe", "FIl").
+    ["ßeta", "Ss"],
+    ["ﬁle", "Fi"],
+    ["ß Labs", "SL"],
+    // Two graphemes: "हि" and the conjunct "न्दी".
+    ["हिन्दी", "हिन्दी"],
+    ["X", "X"],
+    ["!!!", "•"],
+  ])("%s → %s", (name, letters) => {
+    expect(monogram(name)).toBe(letters);
+    expect(Array.from(new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(letters)).length).toBeLessThanOrEqual(2);
+  });
+
+  it("two letters are never a lone narrow glyph, and the widest pair still fits the tile", () => {
+    expect([...monogram("Is Odd")].length).toBe(2);
+    for (const variant of VARIANTS) {
+      const { mark } = planKitImage(variant, { ...LONG, name: "Is Odd" });
+      for (const letters of ["IO", "WM", "MW"]) {
+        const size = monogramFontSize(letters, mark.box);
+        expect(textWidth(letters, size, 0, 700), `${variant} ${letters}`).toBeLessThanOrEqual(mark.box.width * 0.64 + 0.01);
+        expect(size).toBeLessThanOrEqual(mark.box.height * 0.46);
+      }
+      expect(monogramFontSize("I", mark.box)).toBeCloseTo(mark.box.height * 0.54);
+    }
   });
 });
 
@@ -139,6 +214,8 @@ describe("kit image layout", () => {
         ["long", LONG],
         ["short", SHORT],
         ["empty", EMPTY],
+        ["one-word name", { ...SHORT, name: "Tool4Boxology" }],
+        ["unbreakable name", { ...LONG, name: "Pneumonoultramicroscopicsilicovolcanoconiosis" }],
       ] as const) {
         it(`${variant}, ${label}, ${copy} copy: nothing overlaps or leaves the frame`, () => {
           const plan = planKitImage(variant, content, media);

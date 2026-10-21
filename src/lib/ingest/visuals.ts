@@ -21,10 +21,14 @@ type Candidate = { url: string; source: KitImageRef["source"] };
 const RASTER: KitImageFormat[] = ["png", "jpeg"];
 
 /**
- * Only formats Satori draws. Offering WebP or GIF lets CDNs like Framer's negotiate them, and Satori
- * renders those as blank boxes.
+ * Prefers the formats Satori draws. Naming WebP or GIF lets CDNs like Framer's negotiate them, and
+ * Satori renders those as blank boxes. The low-q `*` fallback keeps strict servers from answering 406;
+ * whatever they send instead is dropped by kitImageFormat.
  */
-export const IMAGE_ACCEPT: Record<Kind, string> = { screenshot: "image/png,image/jpeg", logo: "image/svg+xml,image/png,image/jpeg" };
+export const IMAGE_ACCEPT: Record<Kind, string> = {
+  screenshot: "image/png,image/jpeg;q=0.9,*/*;q=0.1",
+  logo: "image/svg+xml,image/png,image/jpeg;q=0.9,*/*;q=0.1",
+};
 
 /**
  * The response's format if the kit images can use it: the bytes must be PNG or JPEG (or SVG for a

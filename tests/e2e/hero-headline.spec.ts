@@ -230,10 +230,15 @@ test.describe("layout", () => {
     await page.goto("/");
     await expect(headline(page)).toHaveText(expected);
     await page.waitForLoadState("load");
-    const box = async (locator: ReturnType<Page["locator"]>) => (await locator.boundingBox())!;
     const main = page.getByRole("main");
+    // The h1 tag itself: the role also matches the placeholder React swaps out, whose box goes null once detached.
+    await expect(main.locator("h1:visible")).toBeVisible();
+    const box = async (locator: ReturnType<Page["locator"]>) => {
+      await expect(locator).toBeVisible();
+      return (await locator.boundingBox())!;
+    };
     const [h1, sub, form, cta] = await Promise.all([
-      box(headline(page)),
+      box(main.locator("h1:visible")),
       box(main.getByText(SUBHEADLINE)),
       box(main.getByRole("form", { name: "Generate a launch kit" })),
       box(main.getByRole("button", { name: "Get my free preview" }).first()),
@@ -255,8 +260,11 @@ test.describe("layout", () => {
   /** The h1's height, and the height of the headline text in it (the reserved other arm's headline isn't text). */
   async function heights(page: Page, variant: "control" | "test", expected: string) {
     await positions(page, variant, expected);
-    const h1 = headline(page);
-    return { h1: (await h1.boundingBox())!.height, text: (await h1.locator(":scope > span").boundingBox())!.height };
+    const h1 = page.getByRole("main").locator("h1:visible");
+    const text = h1.locator(":scope > span");
+    await expect(h1).toBeVisible();
+    await expect(text).toBeVisible();
+    return { h1: (await h1.boundingBox())!.height, text: (await text.boundingBox())!.height };
   }
 
   for (const { width, height, mobile } of MAIN_H1_HEIGHTS) {

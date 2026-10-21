@@ -4,6 +4,7 @@ import { ANALYTICS_ID_PARAM, EXPERIMENTS, featureProperties, isAnalyticsId, type
 import { POSTHOG_PROXY_PATH, posthogUiHost } from "./posthog-config";
 import type { RepoPrefill } from "./repo-cta";
 import { scrubProperties } from "./scrub-url";
+import { pendingMarkers, readServedMarker } from "./served-marker";
 import type { StartPlan } from "./start-intent";
 
 export type PreviewSource = "github" | "site" | "sample";
@@ -199,17 +200,51 @@ export function rememberServed(key: ExperimentKey, served: Served) {
 export const servedEarlier = (key: ExperimentKey): Served | undefined => servedOnPage.get(key);
 
 /**
+ * What the page shows for `key`: what it recorded, else the server-rendered marker (see servedMarker), which is in the
+ * HTML before the element hydrates and records it. null: not running; undefined: not known yet.
+ */
+const servedInPage = (key: ExperimentKey): Served | null | undefined => servedOnPage.get(key) ?? readServedMarker(key);
+
+/** Longest an exposure waits for another experiment the page is still rendering, before it goes with what's known. */
+export const EXPOSURE_WAIT_MS = 1500;
+const EXPOSURE_POLL_MS = 50;
+
+/** Resolves once no Suspense fallback is waiting on an experiment other than `own` (see pendingMarkers), or after `timeoutMs`. */
+function untilRendered(own: ExperimentKey, timeoutMs = EXPOSURE_WAIT_MS): Promise<void> {
+  const waiting = () => pendingMarkers().some((key) => key !== own && servedInPage(key) === undefined);
+  if (!waiting()) return Promise.resolve();
+  const deadline = Date.now() + timeoutMs;
+  return new Promise((resolve) => {
+    const check = () => (!waiting() || Date.now() >= deadline ? resolve() : setTimeout(check, EXPOSURE_POLL_MS));
+    setTimeout(check, EXPOSURE_POLL_MS);
+  });
+}
+
+/**
  * posthog-js tags every event with `$feature/<key>` from its own flag evaluation for this page's id,
  * which needn't be what the page served (the promo is bucketed on the kit; a timeout serves control).
  * So those are replaced with what this page did serve through useExperiment (`fallback/<key>` for a
  * fallback, as on the server's checkout events): preview_started can be split by the hero variant shown.
  * Experiments the page didn't serve travel only on exposures and the server's events, which set them explicitly.
+ * An exposure keeps its own flag as sent; the other experiments on it are what this page served too (the
+ * headline is assigned on the server, so posthog-js's guess for this page's id can say test while control
+ * showed), and only those the page didn't serve keep posthog-js's value. What the page served includes a
+ * server-rendered experiment whose element hasn't hydrated yet (servedInPage).
  */
 function withServedExperiments(event: CaptureResult): CaptureResult["properties"] {
-  if (event.event === "$feature_flag_called") return event.properties;
   const properties = { ...event.properties };
-  for (const key of Object.values(EXPERIMENTS)) delete properties[`$feature/${key}`];
-  const served = [...servedOnPage];
+  const exposure = event.event === "$feature_flag_called";
+  const own = exposure ? properties.$feature_flag : undefined;
+  const served = Object.values(EXPERIMENTS)
+    .filter((key) => key !== own)
+    .flatMap((key): [ExperimentKey, Served][] => {
+      const s = servedInPage(key);
+      return s ? [[key, s]] : [];
+    });
+  const servedKeys = new Set(served.map(([key]) => key));
+  for (const key of Object.values(EXPERIMENTS)) {
+    if (key !== own && (!exposure || servedKeys.has(key))) delete properties[`$feature/${key}`];
+  }
   const variants = Object.fromEntries(served.map(([key, s]) => [key, s.variant]));
   return { ...properties, ...featureProperties(variants, served.filter(([, s]) => s.fallback).map(([key]) => key)) };
 }
@@ -232,12 +267,13 @@ export function track<E extends keyof ClientEvents>(event: E, properties: Client
  * Records what an experiment served on this page, once per view, always with the variant shown:
  * PostHog's $feature_flag_called exposure for an assignment, or flag_fallback for control served
  * without one, which keeps the view out of the experiment. `whenLoaded` waits for the SDK to load as it
- * normally would (after the load event, or sooner for an event) instead of loading it now.
+ * normally would (after the load event, or sooner for an event) instead of loading it now. An exposure also
+ * waits, up to EXPOSURE_WAIT_MS, for another experiment the page is still rendering, so it carries what that shows.
  */
 export function trackServed(key: ExperimentKey, served: Served, { whenLoaded = false }: { whenLoaded?: boolean } = {}) {
   const send = () => {
     if (served.fallback) return track("flag_fallback", { flag: key, variant: served.variant, reason: served.fallback, fallback: true });
-    void loadAnalytics().then((posthog) =>
+    void Promise.all([loadAnalytics(), untilRendered(key)]).then(([posthog]) =>
       posthog?.capture("$feature_flag_called", { $feature_flag: key, $feature_flag_response: served.variant, [`$feature/${key}`]: served.variant }),
     );
   };

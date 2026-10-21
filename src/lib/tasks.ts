@@ -12,6 +12,8 @@ export interface KitTask {
   limit?: number;
   measure?: "chars" | "x";
   hint?: string;
+  /** A line and a button into the kit form (/#start), in place of a hint that would be a dead end. */
+  cta?: { text: string; label: string };
   image?: ImageVariant;
   /** Locked tasks render blurred placeholders with no copy button. */
   locked: boolean;
@@ -38,11 +40,15 @@ interface BuildInput {
   locked: boolean;
   /** Real free pieces, readable even when locked. */
   free?: { tagline: string; xPost: string };
+  /** The static example kit (/example-kit): nothing to regenerate or unlock, so its steps point to a preview of your own. */
+  example?: boolean;
   /** Product brief — always shown as the first stage (readable even when locked). */
   brief?: Brief;
 }
 
-export function buildTasks({ content: c, checklist, locked, free, brief }: BuildInput): KitTask[] {
+export const EXAMPLE_KIT_CTA = { text: "This is a sample kit. Want one for your product?", label: "Get my free preview" };
+
+export function buildTasks({ content: c, checklist, locked, free, brief, example = false }: BuildInput): KitTask[] {
   const tasks: KitTask[] = [];
   const add = (t: Omit<KitTask, "locked"> & { locked?: boolean }) => tasks.push({ locked, ...t });
   const pending = (group: TaskGroup, id: string, title: string) => add({ id, group, title, pending: true });
@@ -55,7 +61,7 @@ export function buildTasks({ content: c, checklist, locked, free, brief }: Build
       text: [brief.name, brief.oneLiner, `Audience: ${brief.audience}`, `Problem: ${brief.problem}`, brief.features.length ? `Features:\n${brief.features.map((f) => `• ${f}`).join("\n")}` : ""]
         .filter(Boolean)
         .join("\n\n"),
-      hint: "Skim the brief above. If anything looks wrong, regenerate a preview before you unlock.",
+      ...(example ? { cta: EXAMPLE_KIT_CTA } : { hint: "Skim the brief above. If anything looks wrong, regenerate a preview before you unlock." }),
       locked: false,
     });
   } else {

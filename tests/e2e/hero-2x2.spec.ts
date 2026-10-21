@@ -47,6 +47,30 @@ async function waitForEvent(page: Page, campaign: string, match: (e: PhEvent) =>
 
 const exposureOf = (flag: string) => (e: PhEvent) => e.event === "$feature_flag_called" && e.properties.$feature_flag === flag;
 
+test("server/client mismatch with instant flags: the sample CTA exposure carries the headline shown, on every load", async ({ page }) => {
+  // The server renders control; posthog-js, evaluating the headline flag for the page's own id, says test, with no latency.
+  await setHeroHeadline(page.request, "control");
+  await page.route(/\/lp-relay\/flags/, (route) =>
+    route.fulfill({
+      json: {
+        flags: {
+          [SAMPLE_CTA]: { key: SAMPLE_CTA, enabled: true, variant: "test", reason: null, metadata: {} },
+          [HEADLINE]: { key: HEADLINE, enabled: true, variant: "test", reason: null, metadata: {} },
+        },
+        errorsWhileComputingFlags: false,
+      },
+    }),
+  );
+  for (let run = 0; run < 6; run++) {
+    const campaign = `mismatch-${run}-${Date.now()}`;
+    await page.goto(`/?utm_campaign=${campaign}`);
+    await expect(page.getByRole("main").getByRole("heading", { level: 1 })).toHaveText(HERO_HEADLINE_CONTROL);
+    const exposure = await waitForEvent(page, campaign, exposureOf(SAMPLE_CTA));
+    expect(exposure.properties, `run ${run}`).toMatchObject({ $feature_flag_response: "test", [`$feature/${SAMPLE_CTA}`]: "test", [`$feature/${HEADLINE}`]: "control" });
+    expect((await waitForEvent(page, campaign, exposureOf(HEADLINE))).properties.$feature_flag_response).toBe("control");
+  }
+});
+
 for (const headline of ["control", "test"] as const) {
   for (const sampleCta of ["control", "test"] as const) {
     test(`2×2 arm: headline ${headline}, sample CTA ${sampleCta}: both shown, both exposed, and preview_started carries both`, async ({ page }) => {

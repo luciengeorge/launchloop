@@ -2,13 +2,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { RepoData } from "@/lib/ingest/github";
 import type { SiteData } from "@/lib/ingest/site";
 
-const m = vi.hoisted(() => ({ fetchSite: vi.fn(), fetchRepo: vi.fn(), findRepoByName: vi.fn(), discoverVisuals: vi.fn(), captureException: vi.fn() }));
+const m = vi.hoisted(() => ({ fetchSite: vi.fn(), fetchRepo: vi.fn(), findRepoByName: vi.fn(), discoverVisuals: vi.fn(), sentryCapture: vi.fn() }));
 vi.mock("@/lib/ingest/site", () => ({ fetchSite: m.fetchSite }));
 vi.mock("@/lib/ingest/visuals", () => ({ discoverVisuals: m.discoverVisuals }));
 vi.mock("@/lib/ingest/github", async (orig) => ({ ...(await orig<typeof import("@/lib/ingest/github")>()), fetchRepo: m.fetchRepo, findRepoByName: m.findRepoByName }));
 vi.mock("@/lib/ingest/repo-palette", () => ({ fetchRepoPalette: vi.fn(async () => ({ source: "default" })) }));
 vi.mock("@/lib/kit-tracing", () => ({ phase: (_n: string, _o: string, _a: unknown, fn: () => unknown) => fn() }));
-vi.mock("@/lib/observability", () => ({ captureException: m.captureException }));
+// The real observability module, so the throttle is exercised; only the SDK underneath is faked.
+vi.mock("@sentry/nextjs", () => ({ captureException: m.sentryCapture }));
+vi.mock("next/server", () => ({ after: vi.fn() }));
 
 const { ingest } = await import("@/lib/ingest");
 
@@ -56,19 +58,56 @@ describe("ingest: a site URL whose page has no readable text", () => {
 });
 
 describe("ingest: kit visuals are best effort", () => {
-  it.each([
-    ["rejects", () => Promise.reject(new URIError("URI malformed"))],
-    ["throws", () => {
-      throw new URIError("URI malformed");
-    }],
-  ])("a visuals lookup that %s still ingests, with no visuals", async (_, impl) => {
+  it("a visuals lookup that rejects or throws still ingests, with no visuals, and reaches Sentry once a minute per error type", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
     m.fetchSite.mockResolvedValue(emptySpa("https://tool4boxology.service.tib.eu/"));
     m.findRepoByName.mockResolvedValue({ owner: "SDM-TIB", name: "Tool4Boxology" });
     m.fetchRepo.mockResolvedValue(repo("SDM-TIB", "Tool4Boxology"));
-    m.discoverVisuals.mockImplementation(impl);
-    const result = await ingest("https://tool4boxology.service.tib.eu");
-    expect(result.repo?.name).toBe("Tool4Boxology");
-    expect(result.visuals).toEqual({});
-    expect(m.captureException).toHaveBeenCalledWith(expect.any(URIError), { stage: "ingest.visuals" });
+    const failures = [
+      () => Promise.reject(new URIError("URI malformed")),
+      () => {
+        throw new URIError("URI malformed");
+      },
+      () => Promise.reject(new URIError("URI malformed")),
+    ];
+    for (const impl of failures) {
+      m.discoverVisuals.mockImplementation(impl);
+      const result = await ingest("https://tool4boxology.service.tib.eu");
+      expect(result.repo?.name).toBe("Tool4Boxology");
+      expect(result.visuals).toEqual({});
+    }
+    expect(m.sentryCapture).toHaveBeenCalledTimes(1);
+    expect(m.sentryCapture).toHaveBeenCalledWith(
+      expect.any(URIError),
+      expect.objectContaining({ extra: expect.objectContaining({ stage: "ingest.visuals", throttleKey: "ingest.visuals:URIError:URI malformed" }) }),
+    );
+
+    m.discoverVisuals.mockRejectedValue(new TypeError("boom"));
+    await ingest("https://tool4boxology.service.tib.eu");
+    expect(m.sentryCapture).toHaveBeenCalledTimes(2);
+    expect(m.sentryCapture).toHaveBeenLastCalledWith(expect.any(TypeError), expect.objectContaining({ extra: expect.objectContaining({ throttleKey: "ingest.visuals:TypeError:boom" }) }));
+  });
+
+  it("two different errors of the same type in one window both reach Sentry; the same one with another URL or count doesn't", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    m.sentryCapture.mockClear();
+    m.fetchSite.mockResolvedValue(emptySpa("https://tool4boxology.service.tib.eu/"));
+    m.findRepoByName.mockResolvedValue({ owner: "SDM-TIB", name: "Tool4Boxology" });
+    m.fetchRepo.mockResolvedValue(repo("SDM-TIB", "Tool4Boxology"));
+    const errors = [
+      new TypeError("Cannot read properties of undefined (reading 'width')"),
+      new TypeError("fetch failed for https://cdn.example.com/a.png after 3 tries"),
+      new TypeError("Cannot read properties of undefined (reading 'width')"),
+      new TypeError("fetch failed for https://other.example.org/b.png?v=9 after 12 tries"),
+    ];
+    for (const error of errors) {
+      m.discoverVisuals.mockRejectedValue(error);
+      await ingest("https://tool4boxology.service.tib.eu");
+    }
+    expect(m.sentryCapture.mock.calls.map(([error]) => (error as Error).message)).toEqual([errors[0].message, errors[1].message]);
+    expect(m.sentryCapture.mock.calls.map(([, hint]) => (hint as { extra: { throttleKey: string } }).extra.throttleKey)).toEqual([
+      "ingest.visuals:TypeError:Cannot read properties of undefined (reading 'width')",
+      "ingest.visuals:TypeError:fetch failed for <url> after # tries",
+    ]);
   });
 });

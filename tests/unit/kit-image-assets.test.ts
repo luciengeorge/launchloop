@@ -41,7 +41,7 @@ describe("loadKitImageAssets", () => {
       logo: { url: "https://cal.dev/logo.png", width: 180, height: 180, format: "png", source: "site" },
     });
     expect(assets).toEqual({ degraded: true });
-    for (const [, options] of fetchMock.safeFetchBytes.mock.calls) expect(options.accept).not.toMatch(/webp|gif|\*\/\*/);
+    expect(fetchMock.safeFetchBytes.mock.calls.map(([, o]) => o.accept)).toEqual(["image/png,image/jpeg;q=0.9,*/*;q=0.1", "image/svg+xml,image/png,image/jpeg;q=0.9,*/*;q=0.1"]);
 
     const content = { name: "Cadence", tagline: "Book meetings across every calendar", headline: "Scheduling without the back and forth", features: ["Syncs every calendar"], domain: "cal.dev" };
     for (const variant of ["og", "x", "ph"] as const) {

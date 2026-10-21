@@ -16,7 +16,7 @@ export const metadata: Metadata = {
 /** The sample app's full kit, from a fixed record (EXAMPLE_KIT): nothing to unlock, buy or download as a ZIP. */
 export default function ExampleKitPage() {
   const kit = EXAMPLE_KIT;
-  const tasks = buildTasks({ content: kit.content!, checklist: kit.checklist!, locked: false, brief: kit.brief });
+  const tasks = buildTasks({ content: kit.content!, checklist: kit.checklist!, locked: false, brief: kit.brief, example: true });
   return (
     <div className="mx-auto min-h-[calc(100svh-3.5rem)] max-w-6xl space-y-8 px-4 py-10 sm:px-6" data-testid="example-kit">
       <header className="space-y-2">

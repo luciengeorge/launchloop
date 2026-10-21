@@ -3,6 +3,7 @@
 import { useState, type HTMLAttributes } from "react";
 import { EXPERIMENTS, fallbackServed, type Served } from "@/lib/experiments";
 import { HERO_FAILSAFE_MS, HERO_HEADLINE_CONTROL, heroHeadline, otherHeroHeadline, splitHeadline } from "@/lib/hero-headline";
+import { servedMarker } from "@/lib/served-marker";
 import { useRenderedExperiment, useShownExperiment } from "@/lib/use-experiment";
 import { cn } from "@/lib/utils";
 
@@ -50,7 +51,7 @@ const PENDING_CSS = `[data-hero-pending]{visibility:hidden;animation:hero-failsa
  * identical but for its tag, there. If the failsafe already showed control, control stays: the streamed h1 is rewritten to it and
  * marked, and HeroHeadline records the view as a timeout fallback. Inert on the client (inserted scripts don't run).
  */
-const SHOW_NOW = `(function(){var p=document.querySelector("[data-hero-pending]"),r=document.querySelectorAll("[data-hero-ready]");r=r[r.length-1];if(!p||!r)return;if(getComputedStyle(p).visibility==="visible"){r.innerHTML=p.innerHTML;r.setAttribute("data-reserve",p.getAttribute("data-reserve"));r.setAttribute("data-hero-failsafe","")}else{p.innerHTML=r.innerHTML;p.setAttribute("data-reserve",r.getAttribute("data-reserve"));p.removeAttribute("data-hero-pending")}})()`;
+const SHOW_NOW = `(function(){var p=document.querySelector("[data-hero-pending]"),r=document.querySelectorAll("[data-hero-ready]");r=r[r.length-1];if(!p||!r)return;if(getComputedStyle(p).visibility==="visible"){r.innerHTML=p.innerHTML;r.setAttribute("data-reserve",p.getAttribute("data-reserve"));r.setAttribute("data-hero-failsafe","");if(r.hasAttribute("data-variant")){r.setAttribute("data-variant","control");r.setAttribute("data-fallback","timeout")}}else{p.innerHTML=r.innerHTML;p.setAttribute("data-reserve",r.getAttribute("data-reserve"));p.removeAttribute("data-hero-pending")}})()`;
 
 /** Whether the failsafe showed control before this view's headline arrived: on a full load SHOW_NOW marks it, on a client-side one the placeholder is still up and showing. */
 function failsafeShown(): boolean {
@@ -66,7 +67,7 @@ export function HeroHeadline({ served }: { served: Served | null }) {
   const shown = useRenderedExperiment(EXPERIMENTS.heroHeadline, rescued ? fallbackServed("timeout") : served);
   return (
     <>
-      <Headline text={heroHeadline(shown)} data-hero-ready="" suppressHydrationWarning />
+      <Headline text={heroHeadline(shown)} data-hero-ready="" {...servedMarker(EXPERIMENTS.heroHeadline, shown)} suppressHydrationWarning />
       <script type={typeof window === "undefined" ? "text/javascript" : "text/plain"} suppressHydrationWarning dangerouslySetInnerHTML={{ __html: SHOW_NOW }} />
     </>
   );
@@ -82,7 +83,7 @@ export function HeroHeadlinePending() {
   return (
     <>
       <style>{PENDING_CSS}</style>
-      <Headline text={HERO_HEADLINE_CONTROL} placeholder data-hero-pending="" />
+      <Headline text={HERO_HEADLINE_CONTROL} placeholder data-hero-pending="" data-experiment-pending={EXPERIMENTS.heroHeadline} />
       <noscript>
         <style>{"[data-hero-pending]{visibility:visible;animation:none}"}</style>
       </noscript>

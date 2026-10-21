@@ -48,9 +48,14 @@ export function textWidth(text: string, fontSize: number, letterSpacing = 0, wei
 
 /** Greedy word wrap; a single word wider than the box is broken between characters. */
 export function wrapText(text: string, fontSize: number, maxWidth: number, letterSpacing = 0, weight: FontWeight = 400): string[] {
+  return wrap(text, fontSize, maxWidth, letterSpacing, weight).lines;
+}
+
+function wrap(text: string, fontSize: number, maxWidth: number, letterSpacing: number, weight: FontWeight): { lines: string[]; splitWord: boolean } {
   const fits = (s: string) => textWidth(s, fontSize, letterSpacing, weight) <= maxWidth;
   const lines: string[] = [];
   let line = "";
+  let splitWord = false;
   for (const word of text.split(/\s+/).filter(Boolean)) {
     const candidate = line ? `${line} ${word}` : word;
     if (fits(candidate)) {
@@ -61,6 +66,7 @@ export function wrapText(text: string, fontSize: number, maxWidth: number, lette
     line = "";
     let rest = word;
     while (!fits(rest)) {
+      splitWord = true;
       const chars = [...rest];
       let n = 1;
       while (n < chars.length && fits(chars.slice(0, n + 1).join(""))) n++;
@@ -70,7 +76,7 @@ export function wrapText(text: string, fontSize: number, maxWidth: number, lette
     line = rest;
   }
   if (line) lines.push(line);
-  return lines;
+  return { lines, splitWord };
 }
 
 /** Keeps the first `maxLines` lines, ending the last one at a word boundary with an ellipsis. */
@@ -112,8 +118,10 @@ export type FitOptions = {
 };
 
 /**
- * Picks the largest size at which the text wraps within `maxLines` (and `maxHeight`). If none
- * does, uses the smallest size and truncates at a word boundary with an ellipsis.
+ * Picks the largest size at which the text wraps within `maxLines` (and `maxHeight`) with every
+ * word whole. Only if no size manages that does a word wider than the box get split, at the
+ * largest size that then fits ("Tool4Boxology" shrinks to one line rather than "Tool4Boxol / ogy").
+ * If none fits either way, uses the smallest size and truncates at a word boundary with an ellipsis.
  */
 export function fitText(text: string, opts: FitOptions): FittedText {
   const { sizes, maxWidth, maxLines, lineHeight, maxHeight, letterSpacing = 0, weight = 400 } = opts;
@@ -131,10 +139,10 @@ export function fitText(text: string, opts: FitOptions): FittedText {
     truncated,
   });
 
-  for (const size of sizes) {
-    const lines = wrapText(text, size, maxWidth, letterSpacing, weight);
-    if (lines.length <= allowedLines(size)) return result(size, lines, false);
-  }
+  const wrapped = sizes.map((size) => ({ size, ...wrap(text, size, maxWidth, letterSpacing, weight) }));
+  const fitting = wrapped.filter(({ size, lines }) => lines.length <= allowedLines(size));
+  const best = fitting.find((w) => !w.splitWord) ?? fitting[0];
+  if (best) return result(best.size, best.lines, false);
   const size = sizes[sizes.length - 1];
   const lines = wrapText(text, size, maxWidth, letterSpacing, weight);
   return result(size, clampLines(lines, allowedLines(size), size, maxWidth, letterSpacing, weight), true);
