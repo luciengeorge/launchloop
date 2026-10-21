@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { GITHUB_PREFIX, replacesPrefix, repoPrefill, sameInput } from "@/lib/repo-cta";
+import { GITHUB_PREFIX, looksLikeGitHubUrl, replacesPrefix, repoPrefill, sameInput } from "@/lib/repo-cta";
 
 describe("repoPrefill", () => {
   it("starts from github.com/ when the host says nothing about the repo", () => {
@@ -12,17 +12,45 @@ describe("repoPrefill", () => {
     expect(repoPrefill("https://acme.github.io/rocket/docs/")).toEqual({ value: "https://github.com/acme/rocket", prefill: "github_pages" });
     expect(repoPrefill("Acme.GitHub.io")).toEqual({ value: "https://github.com/acme/acme.github.io", prefill: "github_pages" });
   });
+
+  it("a file at the root of a GitHub Pages site is the user/org site repo, not a repo named after the file", () => {
+    for (const input of ["https://acme.github.io/index.html", "acme.github.io/about.htm", "https://acme.github.io/Index.HTML?x=1"]) {
+      expect(repoPrefill(input)).toEqual({ value: "https://github.com/acme/acme.github.io", prefill: "github_pages" });
+    }
+    // A file inside a project site still names the project.
+    expect(repoPrefill("https://acme.github.io/rocket/index.html")).toEqual({ value: "https://github.com/acme/rocket", prefill: "github_pages" });
+  });
 });
 
 describe("sameInput", () => {
-  it("treats case, the scheme, whitespace and trailing slashes as the same link", () => {
+  it("treats the scheme, the host's case, whitespace and trailing slashes as the same link", () => {
     expect(sameInput("https://tool4boxology.service.tib.eu", " tool4boxology.service.tib.eu/ ")).toBe(true);
     expect(sameInput("HTTP://Example.com//", "example.com")).toBe(true);
+    expect(sameInput("https://A.com/App", "a.com/App/")).toBe(true);
+  });
+
+  it("keeps the path's case: a.com/App and a.com/app can be different pages", () => {
+    expect(sameInput("a.com/App", "a.com/app")).toBe(false);
+    expect(sameInput("https://A.COM/Docs?Tab=1", "a.com/Docs?tab=1")).toBe(false);
   });
 
   it("any other change is a new link", () => {
     expect(sameInput("example.com", "example.com/pricing")).toBe(false);
     expect(sameInput("example.com", "github.com/acme/example")).toBe(false);
+  });
+});
+
+describe("looksLikeGitHubUrl", () => {
+  it("GitHub links, and the prefill on the way there, keep repo mode", () => {
+    for (const input of ["https://github.com/", "github.com/acme/app", "https://www.github.com/acme", "https://github.co", "github"]) {
+      expect(looksLikeGitHubUrl(input)).toBe(true);
+    }
+  });
+
+  it("an empty input or any other site ends it", () => {
+    for (const input of ["", "  ", "https://acme.io", "acme.github.io", "notgithub.com/acme/app", "https://github.com.evil.io/x"]) {
+      expect(looksLikeGitHubUrl(input)).toBe(false);
+    }
   });
 });
 

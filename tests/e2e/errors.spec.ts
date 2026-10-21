@@ -111,6 +111,36 @@ test("a GitHub Pages site with no readable text prefills its repo", async ({ pag
   await expect(repoInput).toHaveValue("https://github.com/acme/rocket");
 });
 
+test("repo mode ends once the input isn't a GitHub link; on mobile the repo button is 44px tall and described by the hint", async ({ page }) => {
+  await page.route("**/api/kits", (route) => route.fulfill({ status: 422, json: kitErrorBody("site_no_content") }));
+  await page.setViewportSize({ width: 375, height: 800 });
+  await page.goto("/");
+  const siteInput = page.getByLabel("GitHub repo or live site URL");
+  const repoInput = page.getByLabel("GitHub repo URL", { exact: true });
+  const cta = page.getByRole("button", { name: "Use my GitHub repo instead" });
+  await siteInput.fill("https://acme.io");
+  await page.getByRole("button", { name: "Get my free preview" }).first().click();
+  await expect(cta).toHaveAttribute("aria-describedby", "kit-form-resubmit-hint");
+  expect((await cta.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+
+  // Clearing the input ends repo mode: the label and placeholder are the general ones again.
+  await cta.click();
+  await expect(repoInput).toHaveValue("https://github.com/");
+  await repoInput.fill("");
+  await expect(siteInput).toHaveAttribute("placeholder", "github.com/you/your-app or your-app.com");
+  await expect(repoInput).toHaveCount(0);
+
+  // So does pasting another site's link over the prefill. Backspacing through the prefill doesn't.
+  await siteInput.fill("https://acme.io");
+  await cta.click();
+  await repoInput.press("Backspace");
+  await expect(repoInput).toHaveValue("https://github.com");
+  await repoInput.fill("https://github.com/");
+  await paste(repoInput, "https://other-site.io");
+  await expect(siteInput).toHaveValue("https://other-site.io");
+  await expect(siteInput).toHaveAttribute("placeholder", "github.com/you/your-app or your-app.com");
+});
+
 test("only site_no_content blocks a resend: a dropped connection, a busy AI or a limit can be retried with the same link", async ({ page }) => {
   const responses = [
     (route: Route) => route.abort("connectionreset"),
