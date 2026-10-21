@@ -20,6 +20,18 @@ describe("repoPrefill", () => {
     // A file inside a project site still names the project.
     expect(repoPrefill("https://acme.github.io/rocket/index.html")).toEqual({ value: "https://github.com/acme/rocket", prefill: "github_pages" });
   });
+
+  it("project repos named like files are projects, not root pages", () => {
+    const cases = [
+      ["https://necolas.github.io/normalize.css/", "https://github.com/necolas/normalize.css"],
+      ["https://user.github.io/reveal.js/", "https://github.com/user/reveal.js"],
+      ["user.github.io/chart.js", "https://github.com/user/chart.js"],
+      // Only a lone .html/.htm segment without a trailing slash is a root page.
+      ["https://user.github.io/index.html", "https://github.com/user/user.github.io"],
+      ["https://user.github.io/index.html/", "https://github.com/user/index.html"],
+    ];
+    for (const [input, value] of cases) expect(repoPrefill(input)).toEqual({ value, prefill: "github_pages" });
+  });
 });
 
 describe("sameInput", () => {
@@ -44,6 +56,12 @@ describe("looksLikeGitHubUrl", () => {
   it("GitHub links, and the prefill on the way there, keep repo mode", () => {
     for (const input of ["https://github.com/", "github.com/acme/app", "https://www.github.com/acme", "https://github.co", "github"]) {
       expect(looksLikeGitHubUrl(input)).toBe(true);
+    }
+  });
+
+  it("typing www.github.com/... or http://github.com/... keeps repo mode at every step", () => {
+    for (const target of ["www.github.com/acme", "http://github.com/acme", "http://www.github.com/acme", "https://www.github.com/acme"]) {
+      for (let i = 1; i <= target.length; i++) expect(looksLikeGitHubUrl(target.slice(0, i)), target.slice(0, i)).toBe(true);
     }
   });
 
