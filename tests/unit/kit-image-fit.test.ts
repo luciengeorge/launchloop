@@ -4,6 +4,8 @@ import {
   MAX_NAME_LINES,
   MAX_PILL_LINES,
   MAX_TAGLINE_LINES,
+  monogram,
+  monogramFontSize,
   planKitImage,
   X_NAME_SIZES,
   type Box,
@@ -129,6 +131,37 @@ describe("fitText", () => {
     const fit = fitText(LONG.headline, { sizes: [40], maxWidth: 400, maxLines: 10, lineHeight: 1.25, maxHeight: 100 });
     expect(fit.lines).toHaveLength(2);
     expect(fit.height).toBeLessThanOrEqual(100);
+  });
+});
+
+describe("monogram", () => {
+  it.each([
+    ["Is Odd", "IO"],
+    ["is-odd", "IO"],
+    ["Rocket Skates Studio", "RS"],
+    ["PostHog", "PH"],
+    ["LaunchLoop", "LL"],
+    ["trigger.dev", "Tr"],
+    ["Cal.com", "Ca"],
+    ["API", "AP"],
+    ["Écrire", "Éc"],
+    ["X", "X"],
+    ["!!!", "•"],
+  ])("%s → %s", (name, letters) => {
+    expect(monogram(name)).toBe(letters);
+  });
+
+  it("two letters are never a lone narrow glyph, and the widest pair still fits the tile", () => {
+    expect([...monogram("Is Odd")].length).toBe(2);
+    for (const variant of VARIANTS) {
+      const { mark } = planKitImage(variant, { ...LONG, name: "Is Odd" });
+      for (const letters of ["IO", "WM", "MW"]) {
+        const size = monogramFontSize(letters, mark.box);
+        expect(textWidth(letters, size, 0, 700), `${variant} ${letters}`).toBeLessThanOrEqual(mark.box.width * 0.64 + 0.01);
+        expect(size).toBeLessThanOrEqual(mark.box.height * 0.46);
+      }
+      expect(monogramFontSize("I", mark.box)).toBeCloseTo(mark.box.height * 0.54);
+    }
   });
 });
 

@@ -1,4 +1,4 @@
-import { fitText, type FittedText, type FontWeight } from "./image-fit";
+import { fitText, textWidth, type FittedText, type FontWeight } from "./image-fit";
 import { IMAGE_VARIANTS, type ImageVariant } from "./image-variants";
 
 /**
@@ -50,6 +50,29 @@ export type OgPlan = Common & { variant: "og"; tagline: TextBlock | null; domain
 export type XPlan = Common & { variant: "x"; headline: TextBlock | null; pills: PillBlock[]; domain: TextBlock | null };
 export type PhPlan = Common & { variant: "ph"; tagline: TextBlock | null; domain: TextBlock | PillBlock | null; features: FeatureItem[]; cards: CardPlan[] };
 export type KitImagePlan = OgPlan | XPlan | PhPlan;
+
+/**
+ * The logo-less tile's letters. Two of them, because a lone narrow glyph (is-odd's "I") reads as a
+ * bar: the first letters of the first two words, else a single word's capitals ("PostHog" → "PH"),
+ * else its first two characters with the first uppercased ("trigger.dev" → "Tr").
+ */
+export function monogram(name: string): string {
+  const words = name
+    .split(/[\s_-]+/)
+    .map((w) => [...w.replace(/[^\p{L}\p{N}]/gu, "")])
+    .filter((w) => w.length);
+  if (!words.length) return "•";
+  if (words.length > 1) return (words[0][0] + words[1][0]).toUpperCase();
+  const [word] = words;
+  const hump = word.findIndex((c, i) => i > 0 && /\p{Lu}/u.test(c) && /\p{Ll}/u.test(word[i - 1]));
+  return word[0].toUpperCase() + (hump > 0 ? word[hump] : (word[1] ?? ""));
+}
+
+/** Bold monogram size: as large as one letter allows, and never wider than 64% of the tile. */
+export function monogramFontSize(text: string, box: Box): number {
+  const cap = box.height * ([...text].length > 1 ? 0.46 : 0.54);
+  return Math.min(cap, (box.width * 0.64 * 100) / textWidth(text, 100, 0, 700));
+}
 
 export const MAX_FEATURES = 3;
 export const MAX_PILL_LINES = 2;

@@ -5,7 +5,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { loadKitImageAssets, type KitImageAssets, type LoadedImage } from "./image-assets";
 import { kitImageFonts } from "./image-fonts";
 import type { FittedText } from "./image-fit";
-import { MAX_FEATURES, planKitImage, type Box, type KitImageContent, type KitImagePlan, type MarkPlan, type PillBlock, type ShotPlan, type TextBlock } from "./image-layout";
+import { MAX_FEATURES, monogram, monogramFontSize, planKitImage, type Box, type KitImageContent, type KitImagePlan, type MarkPlan, type PillBlock, type ShotPlan, type TextBlock } from "./image-layout";
 import { IMAGE_VARIANTS, type ImageVariant } from "./image-variants";
 import { hexToRgb, luminance, toHex } from "./ingest/colors";
 import type { Kit, Palette } from "./schema";
@@ -110,10 +110,11 @@ function Mark({ plan, logo, name, t, glow }: { plan: MarkPlan; logo?: LoadedImag
   const { box, radius } = plan;
   const shadow: CSSProperties = glow ? { boxShadow: `0 24px 70px ${alpha(t.accent, t.dark ? 0.45 : 0.32)}` } : {};
   if (!logo) {
-    const letter = [...name.replace(/[^\p{L}\p{N}]/gu, "")][0]?.toUpperCase() ?? "•";
+    const letters = monogram(name);
+    const size = monogramFontSize(letters, box);
     return (
-      <div style={{ ...abs(box), alignItems: "center", justifyContent: "center", borderRadius: radius, backgroundColor: t.accent, color: t.accentFg, fontSize: box.height * 0.54, fontWeight: 700, ...shadow }}>
-        {letter}
+      <div style={{ ...abs(box), alignItems: "center", justifyContent: "center", borderRadius: radius, backgroundColor: t.accent, color: t.accentFg, fontSize: size, fontWeight: 700, letterSpacing: -0.02 * size, ...shadow }}>
+        {letters}
       </div>
     );
   }
