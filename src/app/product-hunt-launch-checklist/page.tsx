@@ -9,6 +9,13 @@ const g = guide("product-hunt-launch-checklist");
 
 export const metadata: Metadata = pageMetadata(guidePage(g));
 
+const SRC = {
+  launchGuide: "https://help.producthunt.com/en/articles/17350772-launch-guide",
+  share: "https://help.producthunt.com/en/articles/2690626-how-do-i-share-my-post",
+  fairVoting: "https://help.producthunt.com/en/articles/11869098-how-does-product-hunt-ensure-fair-voting-and-prevent-spam-or-vote-manipulation",
+  launchDayQuestions: "https://www.producthunt.com/launch/launch-day-questions",
+} as const;
+
 export default function ProductHuntChecklistPage() {
   return (
     <GuideLayout guide={g}>
@@ -53,7 +60,15 @@ export default function ProductHuntChecklistPage() {
 
       <h2 id="rules">The rules that get launches penalised</h2>
       <p>
-        Product Hunt explicitly bans asking for upvotes, and its systems discount votes that look coordinated: lots of new accounts, or people arriving from a direct link to vote.
+        Product Hunt explicitly bans asking for upvotes. Its <a href={SRC.launchGuide}>Launch Guide</a> says{" "}
+        <q>never ask outright for upvotes or run anything that requires them. It breaks Product Hunt&apos;s rules and can get your launch disqualified.</q> Sharing a direct
+        link is fine: the help center&apos;s <a href={SRC.share}>How do I share my post?</a> says{" "}
+        <q>You’re welcome to share a direct link to your post with your community, friends, or users.</q> Product Hunt&apos;s{" "}
+        <a href={SRC.launchDayQuestions}>launch day questions</a> page lists it as a myth that linking directly is penalised:{" "}
+        <q>There is no penalty for linking directly to your product, in actuality, we encourage it!</q> What it removes is votes that aren&apos;t genuine: when it detects
+        suspicious or invalid voting during a launch, its <a href={SRC.fairVoting}>fair voting article</a> says Product Hunt{" "}
+        <q>Removes any votes deemed non-genuine or contrary to community guidelines.</q> The same article asks makers to{" "}
+        <q>Avoid overtly coordinated campaigns that might appear artificial to detection systems.</q>
         Hacker News has the same rule and also bans asking for comments. Ask people to <em>check it out</em>, never to vote (or, on HN, to comment). Do not buy votes or join vote-swap groups.
         Launching on Hacker News too? Follow the <Link href="/show-hn-launch-checklist">Show HN launch checklist</Link>.
       </p>

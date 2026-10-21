@@ -57,6 +57,34 @@ test("FAQ page ships FAQPage JSON-LD", async ({ page }) => {
   expect(faq.mainEntity.length).toBeGreaterThan(5);
 });
 
+test("FAQ explains where the advice comes from, with sources, and the JSON-LD answer matches the page", async ({ page }) => {
+  await page.goto("/faq");
+  await page.getByRole("navigation", { name: "Questions" }).getByRole("link", { name: "Where does the advice come from?" }).click();
+  await expect(page).toHaveURL(/#where-does-the-advice-come-from$/);
+  const section = page.locator("#where-does-the-advice-come-from");
+  await expect(section.getByRole("heading", { level: 2 })).toHaveText("Where does the advice come from?");
+  for (const href of [
+    "https://help.producthunt.com/en/articles/17350772-launch-guide",
+    "https://help.producthunt.com/en/articles/479557-how-to-post-a-product",
+    "https://news.ycombinator.com/newsguidelines.html",
+    "https://news.ycombinator.com/showhn.html",
+    "https://docs.x.com/fundamentals/counting-characters",
+    "https://www.linkedin.com/help/linkedin/answer/a528176",
+    "/how-to-write-a-product-hunt-tagline",
+    "/show-hn-launch-checklist",
+    "/how-to-promote-on-reddit",
+  ]) {
+    await expect(section.locator(`a[href="${href}"]`).first(), href).toBeVisible();
+  }
+  const text = (await section.textContent()) ?? "";
+  expect(text).toContain("drafted by AI");
+  expect(text).not.toMatch(/[\u2013\u2014]/);
+
+  const answer = (await section.locator("h2 + p").textContent())?.trim();
+  const faq = findNode<{ mainEntity: { name: string; acceptedAnswer: { text: string } }[] }>(await jsonLdNodes(page), "FAQPage");
+  expect(faq.mainEntity.find((q) => q.name === "Where does the advice come from?")?.acceptedAnswer.text).toBe(answer);
+});
+
 test("sitemap lists every indexable page once, with lastmod, and no redirecting URLs", async ({ request }) => {
   const { xml, paths } = await sitemapPaths(request);
   const expected = [

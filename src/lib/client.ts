@@ -1,5 +1,6 @@
 import { analyticsId, firstTouch, isTestVisit, pageAnalyticsId } from "./analytics";
 import type { ExperimentKey, Served } from "./experiments";
+import type { PreviewLimits } from "./site";
 
 export async function postJson<T>(url: string, body: unknown): Promise<T> {
   const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -61,9 +62,10 @@ export interface KitFailureDetails {
   kitId?: string;
 }
 
-/** On rate_limited: when the limit resets, and the visitor's newest unpaid preview if they have one. */
+/** On rate_limited: when the limit resets, the allowance the server enforces, and the visitor's newest unpaid preview if they have one. */
 export interface RateLimitInfo {
   retryAfterSeconds: number;
+  limits?: PreviewLimits;
   kitId?: string;
 }
 
@@ -129,9 +131,10 @@ async function readKitStream(input: string, onStep: (step: string) => void, isUn
     throw connectionError("request", error, isUnloading());
   }
   if (!res.headers.get("content-type")?.includes("application/x-ndjson") || !res.body) {
-    const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string; code?: string; fix?: string; retryAfterSeconds?: number; kitId?: string };
+    const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string; code?: string; fix?: string; retryAfterSeconds?: number; limits?: PreviewLimits; kitId?: string };
     if (!res.ok || !data.url) {
-      const rateLimit = data.code === "rate_limited" ? { retryAfterSeconds: data.retryAfterSeconds ?? Number(res.headers.get("Retry-After") ?? 0), kitId: data.kitId } : undefined;
+      const rateLimit =
+        data.code === "rate_limited" ? { retryAfterSeconds: data.retryAfterSeconds ?? Number(res.headers.get("Retry-After") ?? 0), limits: data.limits, kitId: data.kitId } : undefined;
       throw new KitRequestError(data.error ?? "Something went wrong reading your app.", data.code, data.fix ?? "Try again in a moment.", {}, rateLimit);
     }
     return { url: data.url };

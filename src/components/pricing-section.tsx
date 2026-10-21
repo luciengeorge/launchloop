@@ -3,7 +3,7 @@ import Link from "next/link";
 import { StartLink } from "@/components/start-link";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
-import { FREE_PREVIEW, PREVIEW_LIMITS } from "@/lib/site";
+import { FREE_PREVIEW, resolvedPreviewLimits } from "@/lib/site";
 import { KitPrice, KitPromoNote } from "./kit-price";
 
 const KIT_ITEMS = [
@@ -116,6 +116,7 @@ function HomeStrip({ promo }: { promo: boolean }) {
 }
 
 function PricingPage({ promo }: { promo: boolean }) {
+  const limits = resolvedPreviewLimits();
   return (
     <>
       <h1 id="pricing-heading" className="text-3xl font-semibold tracking-tight sm:text-4xl">
@@ -132,7 +133,7 @@ function PricingPage({ promo }: { promo: boolean }) {
           name="Free preview"
           price="£0"
           body="See a taste of your launch before you pay."
-          items={[...FREE_PREVIEW, `Public repos only. ${PREVIEW_LIMITS.perHour} per hour, ${PREVIEW_LIMITS.perDay} per day.`]}
+          items={[...FREE_PREVIEW, `Public repos only. ${limits.perHour} per hour, ${limits.perDay} per day.`]}
           cta={freeCta}
         />
         <PriceCard
