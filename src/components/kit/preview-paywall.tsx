@@ -1,12 +1,11 @@
 import { BriefcaseBusiness, Check, FileArchive, Image as ImageIcon, ListChecks, Lock, MessageSquareText, PanelsTopLeft, Rocket } from "lucide-react";
 import { type ComponentProps, Suspense } from "react";
-import { Button } from "@/components/ui/button";
 import { CopyButton } from "@/components/copy-button";
 import type { Served } from "@/lib/experiments";
 import { IMAGE_VARIANTS } from "@/lib/image-variants";
 import { LIMITS } from "@/lib/limits";
 import { PRODUCTS } from "@/lib/products";
-import { UnlockPanel } from "./unlock-panel";
+import { UnlockPanel, UnlockPanelPlaceholder } from "./unlock-panel";
 
 interface Props {
   kitId: string;
@@ -26,6 +25,7 @@ const fmt = (n: number) => n.toLocaleString("en-GB");
 /** Shown on an unpaid kit once the free preview is done: what £19 unlocks, the free X post, and the single unlock CTA. */
 export function PreviewPaywall({ kitId, productName, counts, free, launchPromo, email, query }: Props) {
   const imageCount = Object.keys(IMAGE_VARIANTS).length;
+  const panel = { email, autoCheckout: query.unlock === "1", cancelled: query.checkout === "cancelled", saved: query.saved === "1" };
   const samples = free.xPost ? [{ title: "Post 1 of your X thread", text: free.xPost }] : [];
   const sections = [
     { icon: PanelsTopLeft, title: "Landing page copy", detail: `Headline, subheadline, button text, ${counts.features} feature blocks, meta title and description.` },
@@ -94,16 +94,8 @@ export function PreviewPaywall({ kitId, productName, counts, free, launchPromo, 
       </div>
 
       <div className="border-t border-border bg-muted/40 p-6 sm:p-8 lg:border-l lg:border-t-0">
-        <Suspense fallback={<UnlockPanelLoading />}>
-          <ResolvedUnlockPanel
-            kitId={kitId}
-            priceLabel={PRODUCTS.kit.priceLabel}
-            launchPromo={launchPromo}
-            email={email}
-            autoCheckout={query.unlock === "1"}
-            cancelled={query.checkout === "cancelled"}
-            saved={query.saved === "1"}
-          />
+        <Suspense fallback={<UnlockPanelPlaceholder {...panel} />}>
+          <ResolvedUnlockPanel kitId={kitId} priceLabel={PRODUCTS.kit.priceLabel} launchPromo={launchPromo} {...panel} />
         </Suspense>
       </div>
     </section>
@@ -113,20 +105,4 @@ export function PreviewPaywall({ kitId, productName, counts, free, launchPromo, 
 /** Waits for the kit's promo on the server, so the panel's first HTML already has the price Checkout will charge. */
 async function ResolvedUnlockPanel({ launchPromo, ...props }: Omit<ComponentProps<typeof UnlockPanel>, "launchPromo"> & { launchPromo: Promise<Served> }) {
   return <UnlockPanel {...props} launchPromo={await launchPromo} />;
-}
-
-/** Until the promo resolves (at most the 1.5s flags timeout): no price at all, rather than one that might change. */
-function UnlockPanelLoading() {
-  return (
-    <section aria-label="The full kit" data-testid="unlock-panel-loading">
-      <h3 className="text-sm font-medium text-muted-foreground">The full kit</h3>
-      <p className="mt-1">
-        <span className="inline-block h-10 w-16 animate-pulse rounded-md bg-muted align-bottom" aria-label="Loading price" />
-      </p>
-      <Button type="button" className="mt-6 h-11 w-full text-base" disabled>
-        <Lock aria-hidden="true" />
-        Unlock the full kit
-      </Button>
-    </section>
-  );
 }
