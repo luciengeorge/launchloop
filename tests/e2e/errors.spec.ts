@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Locator, type Route } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { kitErrorBody, rateLimitedBody } from "../../src/lib/errors";
@@ -36,6 +36,102 @@ for (const c of CASES) {
     expect(new URL(page.url()).pathname).toBe("/");
   });
 }
+
+/** Clipboard events dispatched in the page reach React's onPaste without clipboard permissions. */
+const paste = (input: Locator, text: string) =>
+  input.evaluate((el, value) => {
+    const clipboardData = new DataTransfer();
+    clipboardData.setData("text/plain", value);
+    el.dispatchEvent(new ClipboardEvent("paste", { clipboardData, bubbles: true, cancelable: true }));
+  }, text);
+
+test("site with no readable text: one click switches to the GitHub repo, and the same link can't be sent again", async ({ page }) => {
+  const sent: string[] = [];
+  page.on("request", (r) => {
+    if (r.method() === "POST" && new URL(r.url()).pathname === "/api/kits") sent.push((r.postDataJSON() as { url: string }).url);
+  });
+  await page.goto("/");
+  const input = page.getByLabel("GitHub repo or live site URL");
+  const submit = page.getByRole("button", { name: "Get my free preview" }).first();
+  await input.fill(`${FIXTURE}/spa-no-repo`);
+  await submit.click();
+  const alert = page.getByTestId("kit-error");
+  await expect(alert).toHaveAttribute("data-code", "site_no_content", { timeout: 15_000 });
+  const cta = alert.getByRole("button", { name: "Use my GitHub repo instead" });
+  await expect(cta).toBeVisible();
+
+  // The same link again: the submit is aria-disabled (still focusable), the hint points at the button, and neither a
+  // click nor Enter sends anything; both move focus to the button instead.
+  await expect(submit).toHaveAttribute("aria-disabled", "true");
+  await expect(submit).toHaveAttribute("aria-describedby", "kit-form-resubmit-hint");
+  await expect(alert.getByTestId("kit-resubmit-hint")).toHaveText("Sending this link again will fail the same way. Change it, or use your repo:");
+  await submit.click({ force: true });
+  await expect(cta).toBeFocused();
+  await input.press("Enter");
+  await expect(cta).toBeFocused();
+  expect(sent).toEqual([`${FIXTURE}/spa-no-repo`]);
+
+  // A different link lifts the block; typing the failed one back (a trailing slash is the same page) brings it back.
+  await input.fill(`${FIXTURE}/other`);
+  await expect(alert).toHaveCount(0);
+  await expect(submit).not.toHaveAttribute("aria-disabled");
+  await input.fill(`${FIXTURE}/spa-no-repo/`);
+  await expect(alert).toHaveAttribute("data-code", "site_no_content");
+  await expect(alert.getByTestId("kit-resubmit-hint")).toBeVisible();
+  await expect(submit).toHaveAttribute("aria-disabled", "true");
+
+  // Keyboard only: Enter in the input lands on the button, Enter on the button switches to the repo.
+  await input.press("Enter");
+  await expect(cta).toBeFocused();
+  await page.keyboard.press("Enter");
+  const repoInput = page.getByLabel("GitHub repo URL", { exact: true });
+  await expect(repoInput).toBeFocused();
+  await expect(repoInput).toHaveValue("https://github.com/");
+  await expect(repoInput).toHaveAttribute("placeholder", "github.com/you/your-app");
+  expect(await repoInput.evaluate((el: HTMLInputElement) => [el.selectionStart, el.selectionEnd])).toEqual([19, 19]);
+  await expect(alert).toHaveCount(0);
+  await expect(submit).not.toHaveAttribute("aria-disabled");
+
+  // Pasting the whole repo link replaces the prefix rather than appending to it.
+  await paste(repoInput, "https://github.com/fixture-labs/pulse");
+  await expect(repoInput).toHaveValue("https://github.com/fixture-labs/pulse");
+  await submit.click();
+  await page.waitForURL(/\/kit\/[\w-]+$/);
+  expect(sent).toEqual([`${FIXTURE}/spa-no-repo`, "https://github.com/fixture-labs/pulse"]);
+});
+
+test("a GitHub Pages site with no readable text prefills its repo", async ({ page }) => {
+  await page.route("**/api/kits", (route) => route.fulfill({ status: 422, json: kitErrorBody("site_no_content") }));
+  await page.goto("/");
+  await page.getByLabel("GitHub repo or live site URL").fill("https://acme.github.io/rocket/");
+  await page.getByRole("button", { name: "Get my free preview" }).first().click();
+  await page.getByRole("button", { name: "Use my GitHub repo instead" }).click();
+  const repoInput = page.getByLabel("GitHub repo URL", { exact: true });
+  await expect(repoInput).toBeFocused();
+  await expect(repoInput).toHaveValue("https://github.com/acme/rocket");
+});
+
+test("only site_no_content blocks a resend: a dropped connection, a busy AI or a limit can be retried with the same link", async ({ page }) => {
+  const responses = [
+    (route: Route) => route.abort("connectionreset"),
+    (route: Route) => route.fulfill({ status: 503, json: kitErrorBody("ai_busy") }),
+    (route: Route) => route.fulfill({ status: 429, headers: { "Retry-After": "600" }, json: rateLimitedBody(600) }),
+  ];
+  let posts = 0;
+  await page.route("**/api/kits", (route) => responses[Math.min(posts++, responses.length - 1)](route));
+  await page.goto("/");
+  await page.getByLabel("GitHub repo or live site URL").fill("github.com/acme/app");
+  const submit = page.getByRole("button", { name: "Get my free preview" }).first();
+  const alert = page.getByTestId("kit-error");
+  for (const [i, code] of ["network", "ai_busy", "rate_limited"].entries()) {
+    await submit.click();
+    await expect(alert).toHaveAttribute("data-code", code);
+    expect(posts).toBe(i + 1);
+    await expect(submit).not.toHaveAttribute("aria-disabled");
+    await expect(page.getByTestId("kit-repo-cta")).toHaveCount(0);
+    await expect(page.getByTestId("kit-resubmit-hint")).toHaveCount(0);
+  }
+});
 
 test("API returns structured errors with a code and a fix", async ({ request }) => {
   const res = await request.post("/api/kits", { data: { url: "github.com/real-owner/secret-repo" } });
