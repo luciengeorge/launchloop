@@ -1,4 +1,4 @@
-import { loadAnalytics, rememberFirstTouch } from "./lib/analytics";
+import { afterPageLoad, loadAnalytics, rememberFirstTouch } from "./lib/analytics";
 import { reportClientError } from "./lib/client";
 import { captureClientException, loadSentry, loadedSentry } from "./lib/sentry-client";
 
@@ -13,10 +13,7 @@ function loadSdks() {
   void loadAnalytics().then(() => loadSentry());
 }
 
-const idle = (fn: () => void) => ("requestIdleCallback" in window ? requestIdleCallback(fn, { timeout: 2000 }) : setTimeout(fn, 1));
-
-if (document.readyState === "complete") idle(loadSdks);
-else window.addEventListener("load", () => idle(loadSdks), { once: true });
+void afterPageLoad().then(loadSdks);
 
 /** Once the SDK has loaded, its own global handlers report uncaught errors. Before that, hand them over. */
 function report(error: Error) {

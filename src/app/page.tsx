@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { HeroHeadline, HeroHeadlinePending } from "@/components/hero-headline";
+import { ExampleKitSlot, HomeHero } from "@/components/home-hero";
 import { JsonLd } from "@/components/json-ld";
 import { KitForm } from "@/components/kit-form";
 import { KitPrice, KitPromoNote, PricedText } from "@/components/kit-price";
@@ -44,7 +45,7 @@ export default async function Home() {
     <>
       <JsonLd data={siteGraph(url, promo)} />
 
-      <section id="start" className="relative scroll-mt-20 overflow-hidden border-b border-border/60">
+      <HomeHero id="start" className="relative scroll-mt-20 overflow-hidden border-b border-border/60">
         <div className="bg-grid absolute inset-0 [mask-image:radial-gradient(ellipse_at_top,black_30%,transparent_75%)]" aria-hidden="true" />
         <div className="relative mx-auto flex max-w-6xl flex-col items-center px-4 pb-20 pt-16 text-center sm:px-6 sm:pt-24">
           <Badge variant="outline" className="mb-6 bg-background/80 px-3 py-1 text-xs">
@@ -63,8 +64,9 @@ export default async function Home() {
             LaunchLoop reads your repo&apos;s README, package.json and recent commits, plus your live site, then writes your landing page copy, Product Hunt
             post, X thread and LinkedIn post, plus three images in your brand colours.
           </p>
-          <div className="mt-10 flex w-full justify-center">
+          <div className="mt-10 flex w-full flex-col items-center">
             <KitForm promo={promo} />
+            <ExampleKitSlot />
           </div>
           <p className="mt-8 flex items-center gap-1.5 text-sm text-muted-foreground">
             <Check className="size-4 shrink-0 text-primary" aria-hidden="true" />
@@ -87,7 +89,7 @@ export default async function Home() {
             </Link>
           </p>
         </div>
-      </section>
+      </HomeHero>
 
       <section id="kit" className="mx-auto max-w-6xl px-4 py-20 sm:px-6" aria-labelledby="kit-heading">
         <div className="max-w-2xl">
