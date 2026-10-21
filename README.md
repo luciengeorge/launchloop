@@ -166,6 +166,9 @@ Vercel Web Analytics and Speed Insights count page views and performance. PostHo
 | `preview_started` | Browser, kit form submit | `source` (github / site / sample), `plan` (free / kit intent), `isLoggedIn` |
 | `preview_completed` | Browser, preview stream done | the above plus `kitId`, `durationMs` |
 | `preview_failed` | Browser, preview error | the above plus `code` |
+| `repo_cta_shown` | Browser, a `site_no_content` error with its "Use my GitHub repo instead" button | `code` (site_no_content), `plan`, `isLoggedIn` |
+| `repo_cta_clicked` | Browser, that button: the form switches to a GitHub repo input | the above plus `prefill` (github: `https://github.com/`; github_pages: the repo named by a `*.github.io` address) |
+| `preview_resubmit_blocked` | Browser, submitting the link that just failed with `site_no_content` again (nothing is sent; focus moves to the repo button) | `code` (site_no_content), `plan`, `isLoggedIn` |
 | `kit_created` | Server, `/api/kits` once the preview kit is saved (streamed or not) | `kitId`, `source` (github / site / sample), `isLoggedIn`, `stream`, `reused` (same repo state within 24 h), `durationMs`, `client_disconnected` when the browser had gone, plus the kit's first-touch `utm_*`, `referring_domain` and `is_test` |
 | `newsletter_subscribed` | Browser, newsletter form success (no-JS posts aren't counted) | `placement` (footer / preview), `welcome` (sent / existing / skipped: whether this signup sent the welcome email) |
 | `checkout_started` | Server, `/api/checkout` once a session URL exists | `plan` (kit), `product_type` (kit / shiploop), `kitId`, `price_id`, `amount` in pence (after any discount), `currency`, `isLoggedIn`, `mock`, `promo_code` / `promo` when LAUNCH14 was due, `$feature/<flag>` for the variants the page showed (`fallback/<flag>` when it served a fallback) |

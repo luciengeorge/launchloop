@@ -3,6 +3,7 @@ import { type Attribution, QA_PARAM, readLandingAttribution } from "./attributio
 import { ANALYTICS_ID_PARAM, EXPERIMENTS, isAnalyticsId, type ExperimentKey, type FallbackReason, type Served, type Variant } from "./experiments";
 import type { NewsletterPlacement, WelcomeOutcome } from "./newsletter";
 import { POSTHOG_PROXY_PATH, posthogUiHost } from "./posthog-config";
+import type { RepoPrefill } from "./repo-cta";
 import { scrubProperties } from "./scrub-url";
 import type { StartPlan } from "./start-intent";
 
@@ -26,6 +27,11 @@ export interface ClientEvents {
     /** The server had accepted the preview, so the form sent the visitor to /kit/[id] instead of showing an error. */
     recovered?: boolean;
   };
+  /** site_no_content's "Use my GitHub repo instead" button, shown with the error. Never carries the link. */
+  repo_cta_shown: { code: "site_no_content"; plan: StartPlan; isLoggedIn: boolean };
+  repo_cta_clicked: { code: "site_no_content"; plan: StartPlan; isLoggedIn: boolean; prefill: RepoPrefill };
+  /** The visitor tried to send the link that just failed with site_no_content again; the form pointed them at the button. */
+  preview_resubmit_blocked: { code: "site_no_content"; plan: StartPlan; isLoggedIn: boolean };
   newsletter_subscribed: { placement: NewsletterPlacement; welcome: WelcomeOutcome };
   /** Control served without a PostHog assignment (see Served). Not an exposure, so it stays out of the experiment. */
   flag_fallback: { flag: ExperimentKey; variant: Variant; reason: FallbackReason; fallback: true };
