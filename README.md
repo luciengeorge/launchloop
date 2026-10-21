@@ -121,12 +121,12 @@ Stripe paid ─▶ recordPayment ─▶ fulfilKit: full copy (LLM + rubric + ret
 
 | Path | What it does |
 | --- | --- |
-| `src/lib/ingest/` | GitHub reader, live-page scraper, brand-colour extraction (hex/rgb/hsl/oklch), SSRF-safe fetch |
+| `src/lib/ingest/` | GitHub reader, live-page scraper, brand-colour extraction (hex/rgb/hsl/oklch), SSRF-safe fetch, screenshot and logo discovery (`visuals.ts`; PNG and JPEG, plus SVG logos, because Satori draws WebP and GIF as blank boxes) |
 | `src/lib/brief.ts` | Deterministic facts and the LLM product brief |
 | `src/lib/llm.ts` | **The only LLM module.** AI SDK `generateText` + `Output.object` through the AI Gateway provider, fallback models, rubric-driven retries |
 | `src/lib/copy.ts` | Prompts, mock writer, rubric (limits, vote-begging, hype words), final enforcement |
 | `src/lib/limits.ts` | Platform limits, X weighted length, vote-request stripping |
-| `src/lib/images.tsx` | The three OG images via `@vercel/og`, watermarked until paid |
+| `src/lib/images.tsx` | The three kit images via `@vercel/og`: laid out by `image-layout.ts` (one layout per size with the product screenshot, one without), Geist from `assets/fonts`, screenshot and logo re-fetched through safe-fetch by `image-assets.ts`, a corner-badge watermark until paid. `scripts/render-kit-images.tsx` renders them for real repos |
 | `src/lib/fulfil.ts` | Idempotent post-payment generation and email |
 | `src/lib/payments.ts` | Stripe Checkout (or the mock checkout URL) |
 | `src/lib/accounts.ts` | Accounts (emails that have logged in), and guest purchases waiting for their email's first login |

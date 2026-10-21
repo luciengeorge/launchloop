@@ -1,15 +1,15 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { analyticsEnabled, loadAnalytics, trackServed } from "./analytics";
-import { fallbackServed, type ExperimentKey, type Served } from "./experiments";
+import { useEffect, useRef, useState, useSyncExternalStore, type RefObject } from "react";
+import { afterPageLoad, analyticsEnabled, loadAnalytics, rememberServed, servedEarlier, trackServed } from "./analytics";
+import { fallbackServed, isVariant, type ExperimentKey, type Served, type Variant } from "./experiments";
 
 /** Past this, show control rather than hold the page for a slow or blocked flags request. */
 const FLAGS_TIMEOUT_MS = 1500;
 
-/** Settles once per mount, so the page never flips, and records what it served (see trackServed). */
-function useServed(key: ExperimentKey, start: (settle: (served: Served) => void) => () => void): Served | undefined {
-  const [served, setServed] = useState<Served>();
+/** Settles once per mount, so the page never flips, and records what it served (see trackServed and rememberServed). */
+function useServed<S extends Served>(key: ExperimentKey, start: (settle: (served: S) => void) => () => void): S | undefined {
+  const [served, setServed] = useState<S>();
   const settled = useRef(false);
   useEffect(() => {
     let live = true;
@@ -17,6 +17,7 @@ function useServed(key: ExperimentKey, start: (settle: (served: Served) => void)
       if (!live || settled.current) return;
       settled.current = true;
       setServed(s);
+      rememberServed(key, s);
       trackServed(key, s);
     });
     return () => {
@@ -28,13 +29,34 @@ function useServed(key: ExperimentKey, start: (settle: (served: Served) => void)
   return served;
 }
 
+interface ExperimentOptions {
+  /**
+   * Don't load the PostHog SDK early for this: wait until it loads after the window load event (instrumentation-client),
+   * or sooner if something else needs it. For above-the-fold experiments, where loading it early would slow the page.
+   */
+  afterPageLoad?: boolean;
+  /**
+   * A press or key inside this element before the flag resolves serves control for the rest of the page load
+   * (flag_fallback, reason "interacted"), so a visitor already using what control shows never sees it change,
+   * and their clicks and preview aren't counted for a variant they didn't see.
+   */
+  freezeOnInteraction?: RefObject<HTMLElement | null>;
+}
+
 /**
  * The variant to show, evaluated by posthog-js on this page's id, or undefined until it's known
- * (render a neutral placeholder). A timeout, a flags error or a flag that's off serves control as
+ * (render control or a neutral placeholder). A timeout, a flags error or a flag that's off serves control as
  * a fallback. Without NEXT_PUBLIC_POSTHOG_KEY there are no flags and nothing is recorded.
+ * What this page load served first is served again on a later mount (a client-side return to the page), and every
+ * event the page sends afterwards carries it (see rememberServed).
  */
-export function useExperiment(key: ExperimentKey): Served | undefined {
-  return useServed(key, (settle) => {
+export function useExperiment<K extends ExperimentKey>(key: K, options: ExperimentOptions = {}): Served<Variant<K>> | undefined {
+  return useServed<Served<Variant<K>>>(key, (settle) => {
+    const earlier = servedEarlier(key) as Served<Variant<K>> | undefined;
+    if (earlier) {
+      settle(earlier);
+      return () => {};
+    }
     if (!analyticsEnabled) {
       settle(fallbackServed("unassigned"));
       return () => {};
@@ -42,8 +64,17 @@ export function useExperiment(key: ExperimentKey): Served | undefined {
     let stopped = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let off: (() => void) | undefined;
+    const area = options.freezeOnInteraction?.current;
+    const interacted = () => settle(fallbackServed("interacted"));
+    // Focused or typed into before hydration, when nothing was listening yet.
+    if (area && (area.contains(document.activeElement) || [...area.querySelectorAll("input")].some((input) => input.value))) {
+      interacted();
+      return () => {};
+    }
+    area?.addEventListener("pointerdown", interacted, { capture: true });
+    area?.addEventListener("keydown", interacted, { capture: true });
     // The SDK may still be loading; the flags request starts when it initialises, so time it from there.
-    void loadAnalytics().then((posthog) => {
+    void (options.afterPageLoad ? afterPageLoad().then(loadAnalytics) : loadAnalytics()).then((posthog) => {
       if (stopped) return;
       if (!posthog) return settle(fallbackServed("error"));
       timer = setTimeout(() => settle(fallbackServed("timeout")), FLAGS_TIMEOUT_MS);
@@ -51,13 +82,15 @@ export function useExperiment(key: ExperimentKey): Served | undefined {
         if (context?.errorsLoading) return settle(fallbackServed("error"));
         // send_event: false, so the only exposure is trackServed's, with the variant actually shown.
         const value = posthog.getFeatureFlag(key, { send_event: false });
-        settle(value === "control" || value === "treatment" ? { variant: value } : fallbackServed("unassigned"));
+        settle(isVariant(key, value) ? { variant: value } : fallbackServed("unassigned"));
       });
     });
     return () => {
       stopped = true;
       clearTimeout(timer);
       off?.();
+      area?.removeEventListener("pointerdown", interacted, { capture: true });
+      area?.removeEventListener("keydown", interacted, { capture: true });
     };
   });
 }
@@ -67,7 +100,7 @@ export function useExperiment(key: ExperimentKey): Served | undefined {
  * returns it as is, so the server HTML and the first client render show it, and records it once per mount
  * like useExperiment. Nothing about what's shown waits on the browser.
  */
-export function useServerAssignment(key: ExperimentKey, served: Served): Served {
+export function useServerAssignment<S extends Served>(key: ExperimentKey, served: S): S {
   const tracked = useRef(false);
   useEffect(() => {
     if (tracked.current) return;
@@ -107,7 +140,10 @@ export function useRenderedExperiment(key: ExperimentKey, served: Served | null)
   const recorded = useRef(false);
   useEffect(() => {
     if (!shownThisPage.has(key)) shownThisPage.set(key, shown);
-    if (!shown || recorded.current) return;
+    if (!shown) return;
+    // Later events on this page carry it too ($feature/<key>), like useExperiment's.
+    rememberServed(key, shown);
+    if (recorded.current) return;
     recorded.current = true;
     trackServed(key, shown, { whenLoaded: true });
   }, [key, shown]);

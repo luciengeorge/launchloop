@@ -10,7 +10,7 @@ const FIXTURE_PORT = 3419;
 const HERO_PORT = 3420;
 const baseURL = `http://127.0.0.1:${PORT}`;
 const heroURL = `http://127.0.0.1:${HERO_PORT}`;
-const HERO_SPEC = /hero-headline\.spec\.ts/;
+const HERO_SPEC = /hero-(headline|2x2)\.spec\.ts/;
 
 const serverEnv = {
   MOCK_MODE: "true",

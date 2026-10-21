@@ -25,6 +25,9 @@ export const SITE = {
 /** What an unpaid kit page actually shows. Keep every free-tier mention in sync with this. */
 export const FREE_PREVIEW = ["Product brief from your repo", "Product Hunt tagline", "First post of your X thread", "3 watermarked images"] as const;
 
+/** "See an example kit" in the home hero (exp_hero_sample_cta): a static page of the sample app's kit (see EXAMPLE_KIT). */
+export const EXAMPLE_KIT_PATH = "/example-kit";
+
 /** Default free preview allowance per IP. Copy states resolvedPreviewLimits(), which is this unless an env override is set. */
 export const PREVIEW_LIMITS = { perHour: 10, perDay: 40 } as const;
 
