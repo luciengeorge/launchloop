@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
-import { renderToStaticMarkup } from "react-dom/server";
+import { Suspense, use } from "react";
+import { renderToReadableStream, renderToStaticMarkup } from "react-dom/server";
 import { HeroHeadline, HeroHeadlinePending } from "@/components/hero-headline";
 import { EXPERIMENTS, isVariant, parseExperiments } from "@/lib/experiments";
 import { HERO_HEADLINE_CONTROL, HERO_HEADLINE_TEST, lookupHeroHeadline, splitHeadline } from "@/lib/hero-headline";
@@ -10,7 +11,7 @@ const h1 = (node: React.ReactNode) => html(node).match(/<(h1|div)\b[^>]*data-res
 /** The visible headline: the h1's text (the other arm's headline is generated content, not text). */
 const text = (node: React.ReactNode) => h1(node).replace(/<[^>]+>/g, "");
 const reserve = (node: React.ReactNode) => h1(node).match(/data-reserve="([^"]*)"/)?.[1];
-const h1Count = (node: React.ReactNode) => html(node).match(/<h1[\s>]/g)?.length ?? 0;
+const h1Count = (node: React.ReactNode) => (typeof node === "string" ? node : html(node)).match(/<h1[\s>]/g)?.length ?? 0;
 
 test.describe("HeroHeadline", () => {
   test("control: the current headline and highlight, not running, assigned control, and every fallback", () => {
@@ -50,6 +51,33 @@ test.describe("HeroHeadline", () => {
     const placeholder = h1(<HeroHeadlinePending />);
     expect(placeholder).toMatch(/^<div role="heading" aria-level="1" class="([^"]+)"/);
     expect(placeholder.match(/class="([^"]+)"/)![1]).toBe(h1(<HeroHeadline served={null} />).match(/class="([^"]+)"/)![1]);
+  });
+
+  test("one level-1 heading exposed at a time: the placeholder until the h1 streams in hidden, then React's reveal removes the placeholder", async () => {
+    let arrive!: () => void;
+    const arrived = new Promise<void>((resolve) => (arrive = resolve));
+    function Streamed() {
+      use(arrived);
+      return <HeroHeadline served={{ variant: "test" }} />;
+    }
+    const stream = await renderToReadableStream(
+      <main>
+        <Suspense fallback={<HeroHeadlinePending />}>
+          <Streamed />
+        </Suspense>
+      </main>,
+    );
+    arrive();
+    const markup = await new Response(stream).text();
+    const [pending, boundaryEnd] = [markup.indexOf('<!--$?--><template id="B:0">'), markup.indexOf("<!--/$-->")];
+    const placeholder = markup.indexOf('role="heading" aria-level="1"');
+    expect(placeholder, "the placeholder is the pending boundary's fallback").toBeGreaterThan(pending);
+    expect(placeholder).toBeLessThan(boundaryEnd);
+    expect(markup.match(/role="heading"/g)).toHaveLength(1);
+    expect(markup).not.toMatch(/aria-hidden/);
+    expect(h1Count(markup), "the streamed h1 only").toBe(1);
+    expect(markup.slice(boundaryEnd), "the h1 waits in React's hidden container").toMatch(/<div hidden id="S:0"><h1 /);
+    expect(markup, "React's reveal swaps the h1 in for the fallback, removing the placeholder").toContain('$RC("B:0","S:0")');
   });
 
   test("the streamed headline brings a script that shows it in the placeholder, unless the failsafe already showed control", () => {
