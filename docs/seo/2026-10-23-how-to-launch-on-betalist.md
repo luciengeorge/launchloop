@@ -7,7 +7,7 @@ Blog post requested on Wednesday 21 October 2026. Sources were read the same day
 **URL:** `/blog/how-to-launch-on-betalist`
 **Title:** `How to launch on BetaList: submission guide · LaunchLoop` (56 characters)
 **Description:** `How to launch on BetaList from its own pages: who it is for, what it rejects, how submission and paid plans work, review times and the day you are featured.` (156 characters)
-**H1:** How to launch on BetaList. **Published and updated:** 2026-10-23, as the brief asked (bump both in `src/lib/blog.ts` if it merges on another day). **Byline:** Lucien George. **Reading time:** 15 minutes (2,956 words in the rendered body at 200 words a minute; the e2e suite recounts it).
+**H1:** How to launch on BetaList. **Published and updated:** 2026-10-23, as the brief asked (bump both in `src/lib/blog.ts` if it merges on another day). **Byline:** Lucien George. **Reading time:** 15 minutes (2,957 words in the rendered body at 200 words a minute; the e2e suite recounts it).
 
 Target queries: "how to launch on betalist" and "betalist submission". No keyword lookups were made for this post.
 
@@ -142,7 +142,7 @@ Target queries: "how to launch on betalist" and "betalist submission". No keywor
 - Signed out, the submission form sends you to the sign-in page: `/submit` redirect, see Method.
 - The FAQ sends you to your dashboard to check a submission's status: "How can I see the status of my startup submission? Visit your dashboard."
 - Refunds can take 5 to 10 business days to reach your statement: FAQ, "How long does a refund take?" (source uses an en dash).
-- Site QA nit (21 October 2026): the refund paragraph now quotes the Submission Terms' "If your priority listing submission is not accepted for featuring, you are generally eligible for a refund." before the two discretion clauses, and "The FAQ is simple:" now reads "The FAQ says:". `/terms/submissions` was fetched again at 07:12 UTC on 21 October 2026, returned HTTP 200 and was unchanged from the first read; all three refund quotes match it word for word.
+- Site QA nit (21 October 2026): the refund paragraph now quotes the Submission Terms' "If your priority listing submission is not accepted for featuring, you are generally eligible for a refund." before the two discretion clauses, and "The FAQ is simple:" now reads "The FAQ says:". `/terms/submissions` was fetched again at 07:12 UTC on 21 October 2026, returned HTTP 200 and was unchanged from the first read; all three refund quotes match it word for word. A second, optional nit split the eligibility quote from the discretion clauses ("They also say" instead of "but also"), so each quote ends its own sentence; the quotes themselves are unchanged.
 - They reserve the right to limit or deny refunds in some cases, including repeated rejected submissions: Submission Terms, section 4 ("We reserve the right to limit or deny refunds in cases of abuse, repeated rejected submissions, violations of these terms, or if your startup is ultimately featured.").
 - Boost is cancel anytime: Boost page plan cards.
 - You can resubmit after a rejection: FAQ, "Can I resubmit my startup after it was rejected?" ("Yes, you are welcome to resubmit your startup in the future if you've made improvements based on our submission guidelines.").

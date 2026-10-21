@@ -245,7 +245,7 @@ export default function BetaListLaunchPostPage() {
       <p>
         The FAQ says: <q>If your startup is not selected, you will receive a full refund automatically. Once your startup has been featured, refunds are not
         available.</q> It says a refund can take 5 to 10 business days to reach your statement. The Submission Terms are more guarded. They say{" "}
-        <q>If your priority listing submission is not accepted for featuring, you are generally eligible for a refund.</q> but also{" "}
+        <q>If your priority listing submission is not accepted for featuring, you are generally eligible for a refund.</q> They also say{" "}
         <q>Refunds are provided at BetaList&apos;s discretion.</q> and <q>Refunds may be issued minus payment processing fees at our discretion.</q> They reserve the right to
         limit or deny refunds in some cases, including repeated rejected submissions, so it pays to check the guidelines before you submit rather than after.
       </p>
