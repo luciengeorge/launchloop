@@ -135,7 +135,7 @@ export default function RedditPromotionPage() {
         </li>
         <li>
           <strong>r/indiehackers:</strong> rule 1 of the <a href={SRC.indieHackersRules}>rules</a> allows one promotional post per product: &ldquo;Users can self promote their
-          product 1 time using the Self Promotion flair.&rdquo; The purpose is for feedback and critique, not advertisement. Rule 2 says posts with MRR info should have
+          product 1 time using the Self Promotion flair.&rdquo; It goes on: &ldquo;The purpose is for feedback and critique not advertisement.&rdquo; Rule 2 says posts with MRR info should have
           proof: &ldquo;no proof, no post&rdquo;. A <a href={SRC.indieHackersSub}>moderator post</a> adds no fake questions to boost a product, zero tolerance for vote manipulation, and that new
           accounts have to wait and can only ask questions through modmail.
         </li>

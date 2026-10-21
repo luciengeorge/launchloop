@@ -4,7 +4,7 @@ import { GUIDES } from "../../src/lib/guides";
 const NEW_GUIDES = [
   { path: "/show-hn-launch-checklist", h1: "The Show HN launch checklist", title: /^Show HN checklist: how to post on Show HN · LaunchLoop$/, updated: "2026-10-20" },
   { path: "/how-to-write-a-product-hunt-tagline", h1: "How to write a Product Hunt tagline", title: /^How to write a Product Hunt tagline: examples · LaunchLoop$/, updated: "2026-10-18" },
-  { path: "/how-to-promote-on-reddit", h1: "How to promote your app on Reddit", title: /^How to promote on Reddit: self-promotion rules · LaunchLoop$/, updated: "2026-10-19" },
+  { path: "/how-to-promote-on-reddit", h1: "How to promote your app on Reddit", title: /^How to promote on Reddit: self-promotion rules · LaunchLoop$/, updated: "2026-10-21" },
   { path: "/how-to-write-a-show-hn-post", h1: "How to write a Show HN post", title: /^How to write a Show HN post: title and text · LaunchLoop$/, updated: "2026-10-20" },
 ] as const;
 
@@ -140,7 +140,7 @@ test("Reddit guide cites Reddit's rules and the HN no-AI-text guidance, and link
   await expect(article).toContainText("made-up product");
   await expect(article).toContainText("Think project, not product");
   await expect(article).toContainText("Users can self promote their product 1 time using the Self Promotion flair.");
-  await expect(article).toContainText("The purpose is for feedback and critique, not advertisement.");
+  await expect(article).toContainText("It goes on: “The purpose is for feedback and critique not advertisement.”");
   await expect(article).toContainText("Rule 2 says posts with MRR info should have proof: “no proof, no post”.");
   await expect(article).toContainText(
     "You may share your startup in the Share Your Startup thread stickied at the top of the subreddit (the rules call it monthly).",

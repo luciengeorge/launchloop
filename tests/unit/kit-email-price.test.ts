@@ -71,6 +71,15 @@ describe("kit emails quote the amount Stripe charged", () => {
     expect(failed.text).toContain("or a full refund. You don");
   });
 
+  it("a zero amount (a 100% off code) names no price either", async () => {
+    const [ready, failed] = await rendered({ amount: 0, currency: "gbp" });
+    for (const email of [ready, failed]) {
+      expect(email.text).toContain("Receipt: LaunchLoop Launch Kit · Ref");
+      expect(`${email.subject}${email.text}${email.html}`).not.toMatch(/£/);
+    }
+    expect(failed.text).toContain("or a full refund. You don");
+  });
+
   it("renders without touching Resend", async () => {
     await rendered({ amount: 1400, currency: "gbp" });
     expect(resend.constructed).not.toHaveBeenCalled();
