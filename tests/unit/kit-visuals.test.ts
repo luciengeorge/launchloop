@@ -1,11 +1,12 @@
 import { parse } from "node-html-parser";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { negotiate } from "./negotiate";
 import { bytesResponse, png, sizedGif, sizedPng, sizedWebp } from "./png";
 
 const fetchMock = vi.hoisted(() => ({ safeFetch: vi.fn(), safeFetchBytes: vi.fn() }));
 vi.mock("@/lib/ingest/safe-fetch", async (importOriginal) => ({ ...(await importOriginal<object>()), ...fetchMock }));
 
-const { discoverVisuals, fits, kitImageFormat, readmeShots, repoImageFiles, treePaths } = await import("@/lib/ingest/visuals");
+const { discoverVisuals, fits, IMAGE_ACCEPT, kitImageFormat, readmeShots, repoImageFiles, treePaths } = await import("@/lib/ingest/visuals");
 const { isGitHubIdenticon } = await import("@/lib/image-tone");
 const { pageImages } = await import("@/lib/ingest/site");
 const { imageSize, svgSize } = await import("@/lib/ingest/image-size");
@@ -155,7 +156,7 @@ describe("discoverVisuals", () => {
     expect(visuals.logo).toMatchObject({ url: "https://raw.githubusercontent.com/acme/rocket/HEAD/public/logo.svg", format: "svg", source: "repo" });
   });
 
-  it("rejects WebP and GIF candidates, falling back to the next PNG or to nothing, and never asks for them", async () => {
+  it("rejects WebP and GIF candidates, falling back to the next PNG or to nothing, and never names them in Accept", async () => {
     fetchMock.safeFetch.mockResolvedValue({ url: "", status: 200, contentType: "application/json", text: '{"tree":[]}' });
     fetchMock.safeFetchBytes.mockImplementation(async (url: string) => {
       if (url.endsWith("app.png")) return bytesResponse(sizedWebp(2400, 1500), "image/webp");
@@ -166,10 +167,40 @@ describe("discoverVisuals", () => {
     });
     const visuals = await discoverVisuals({ ...REPO, readme: "![App](docs/app.png) ![Demo](docs/demo.png)" }, site);
     expect(visuals).toEqual({ screenshot: expect.objectContaining({ url: "https://rocket.dev/og.png", format: "png" }) });
-    for (const [, options] of fetchMock.safeFetchBytes.mock.calls) expect(options.accept).not.toMatch(/webp|gif|\*\/\*/);
+    for (const [, options] of fetchMock.safeFetchBytes.mock.calls) expect(options.accept).not.toMatch(/webp|gif/);
 
     fetchMock.safeFetchBytes.mockImplementation(async () => bytesResponse(sizedWebp(1600, 1000), "image/webp"));
     expect(await discoverVisuals({ ...REPO, readme: "![App](docs/app.png)" }, site)).toEqual({});
+  });
+
+  it("asks for PNG first with a low-q fallback, so a server honouring q values sends PNG, and a WebP-only one is still dropped", async () => {
+    expect(IMAGE_ACCEPT.screenshot).toBe("image/png,image/jpeg;q=0.9,*/*;q=0.1");
+    expect(IMAGE_ACCEPT.logo).toBe("image/svg+xml,image/png,image/jpeg;q=0.9,*/*;q=0.1");
+    // A CDN that prefers WebP on a tie, as Framer's does, and has every format of each image.
+    const cdn = ["image/webp", "image/avif", "image/gif", "image/png", "image/jpeg"];
+    expect(negotiate(IMAGE_ACCEPT.screenshot, cdn)).toBe("image/png");
+    expect(negotiate(IMAGE_ACCEPT.logo, ["image/webp", "image/svg+xml", "image/png"])).toBe("image/svg+xml");
+    expect(negotiate(IMAGE_ACCEPT.screenshot, ["image/webp", "image/jpeg"])).toBe("image/jpeg");
+    // The old header named WebP, so the CDN's preference won.
+    expect(negotiate("image/png,image/jpeg,image/webp,image/gif,image/svg+xml;q=0.9,*/*;q=0.1", cdn)).toBe("image/webp");
+    // Without the fallback a WebP-only origin would answer 406; with it, it answers WebP, which is dropped.
+    expect(negotiate("image/png,image/jpeg", ["image/webp"])).toBeUndefined();
+
+    const bytesFor = { "image/png": sizedPng(1600, 1000), "image/jpeg": sizedPng(1600, 1000), "image/webp": sizedWebp(1600, 1000) } as Record<string, Uint8Array>;
+    const served: (string | undefined)[] = [];
+    const serve = (offered: string[]) => async (_url: string, options: { accept: string }) => {
+      const type = negotiate(options.accept, offered);
+      served.push(type);
+      return type ? bytesResponse(bytesFor[type], type) : { ...bytesResponse(new Uint8Array(), "text/plain"), status: 406 };
+    };
+    fetchMock.safeFetch.mockResolvedValue({ url: "", status: 200, contentType: "application/json", text: '{"tree":[]}' });
+    const repoOnly = { ...REPO, readme: "![App](docs/app.png)" };
+    fetchMock.safeFetchBytes.mockImplementation(serve(cdn));
+    expect((await discoverVisuals(repoOnly, undefined)).screenshot).toMatchObject({ format: "png", width: 1600 });
+    expect(served).toEqual(["image/png"]);
+    fetchMock.safeFetchBytes.mockImplementation(serve(["image/webp"]));
+    expect(await discoverVisuals(repoOnly, undefined)).toEqual({});
+    expect(served).toEqual(["image/png", "image/webp"]);
   });
 
   it("a README image URL with a stray % doesn't fail the lookup", async () => {

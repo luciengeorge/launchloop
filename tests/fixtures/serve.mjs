@@ -52,6 +52,19 @@ const webp = (w, h) => {
   b.writeUIntLE(h - 1, 27, 3);
   return b;
 };
+/**
+ * Picks WebP or PNG the way a CDN like Framer's does: by q value (the most specific matching range
+ * wins), WebP on a tie.
+ */
+const negotiateImage = (accept) => {
+  const ranges = accept.split(",").map((part) => {
+    const [range, ...params] = part.trim().toLowerCase().split(";");
+    const q = params.map((p) => p.trim()).find((p) => p.startsWith("q="));
+    return { range: range.trim(), q: q ? Number(q.slice(2)) : 1 };
+  });
+  const qOf = (type) => (ranges.find((r) => r.range === type) ?? ranges.find((r) => r.range === "image/*") ?? ranges.find((r) => r.range === "*/*"))?.q ?? 0;
+  return qOf("image/png") > qOf("image/webp") ? "png" : "webp";
+};
 const gif = (w, h) => {
   const b = Buffer.alloc(13);
   b.write("GIF89a", 0);
@@ -96,7 +109,7 @@ const routes = {
       <link rel="apple-touch-icon" sizes="180x180" href="/og/img-180x180.png">
       </head><body><h1>Framewise</h1><p>Framewise turns screen recordings into step-by-step product docs your team can edit.</p></body></html>`);
   },
-  // A share image that is always WebP, a GIF icon, and an icon that, like Framer's CDN, is WebP whenever the Accept header allows it.
+  // A share image that is always WebP (even to a low-q */*), a GIF icon, and an icon that, like Framer's CDN, is WebP unless Accept ranks PNG higher.
   "/visual-webp": (_req, res) => {
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
     res.end(`<!doctype html><html><head><title>Cadence</title>
@@ -276,7 +289,7 @@ createServer(async (req, res) => {
   const other = /^\/og\/(webp|gif|negotiated)-(\d{1,4})x(\d{1,4})\.png$/.exec(req.url);
   if (other) {
     const [w, h] = [Number(other[2]), Number(other[3])];
-    const format = other[1] === "negotiated" ? (/image\/webp/.test(req.headers.accept ?? "") ? "webp" : "png") : other[1];
+    const format = other[1] === "negotiated" ? negotiateImage(req.headers.accept ?? "*/*") : other[1];
     res.writeHead(200, { "Content-Type": `image/${format}` });
     return res.end(format === "webp" ? webp(w, h) : format === "gif" ? gif(w, h) : png(w, h));
   }
