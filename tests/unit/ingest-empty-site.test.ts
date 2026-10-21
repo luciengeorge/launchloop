@@ -77,11 +77,37 @@ describe("ingest: kit visuals are best effort", () => {
       expect(result.visuals).toEqual({});
     }
     expect(m.sentryCapture).toHaveBeenCalledTimes(1);
-    expect(m.sentryCapture).toHaveBeenCalledWith(expect.any(URIError), expect.objectContaining({ extra: expect.objectContaining({ stage: "ingest.visuals", throttleKey: "ingest.visuals:URIError" }) }));
+    expect(m.sentryCapture).toHaveBeenCalledWith(
+      expect.any(URIError),
+      expect.objectContaining({ extra: expect.objectContaining({ stage: "ingest.visuals", throttleKey: "ingest.visuals:URIError:URI malformed" }) }),
+    );
 
     m.discoverVisuals.mockRejectedValue(new TypeError("boom"));
     await ingest("https://tool4boxology.service.tib.eu");
     expect(m.sentryCapture).toHaveBeenCalledTimes(2);
-    expect(m.sentryCapture).toHaveBeenLastCalledWith(expect.any(TypeError), expect.objectContaining({ extra: expect.objectContaining({ throttleKey: "ingest.visuals:TypeError" }) }));
+    expect(m.sentryCapture).toHaveBeenLastCalledWith(expect.any(TypeError), expect.objectContaining({ extra: expect.objectContaining({ throttleKey: "ingest.visuals:TypeError:boom" }) }));
+  });
+
+  it("two different errors of the same type in one window both reach Sentry; the same one with another URL or count doesn't", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    m.sentryCapture.mockClear();
+    m.fetchSite.mockResolvedValue(emptySpa("https://tool4boxology.service.tib.eu/"));
+    m.findRepoByName.mockResolvedValue({ owner: "SDM-TIB", name: "Tool4Boxology" });
+    m.fetchRepo.mockResolvedValue(repo("SDM-TIB", "Tool4Boxology"));
+    const errors = [
+      new TypeError("Cannot read properties of undefined (reading 'width')"),
+      new TypeError("fetch failed for https://cdn.example.com/a.png after 3 tries"),
+      new TypeError("Cannot read properties of undefined (reading 'width')"),
+      new TypeError("fetch failed for https://other.example.org/b.png?v=9 after 12 tries"),
+    ];
+    for (const error of errors) {
+      m.discoverVisuals.mockRejectedValue(error);
+      await ingest("https://tool4boxology.service.tib.eu");
+    }
+    expect(m.sentryCapture.mock.calls.map(([error]) => (error as Error).message)).toEqual([errors[0].message, errors[1].message]);
+    expect(m.sentryCapture.mock.calls.map(([, hint]) => (hint as { extra: { throttleKey: string } }).extra.throttleKey)).toEqual([
+      "ingest.visuals:TypeError:Cannot read properties of undefined (reading 'width')",
+      "ingest.visuals:TypeError:fetch failed for <url> after # tries",
+    ]);
   });
 });
