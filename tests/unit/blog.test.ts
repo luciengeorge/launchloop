@@ -32,6 +32,7 @@ describe("blog registry", () => {
     expect(PAGES.blog.description.length).toBeGreaterThanOrEqual(138);
     expect(PAGES.blog.description.length).toBeLessThanOrEqual(158);
     expect(`${PAGES.blog.title} ${PAGES.blog.description}`).not.toMatch(DASHES);
+    expect(PAGES.blog.description, "names no individual posts, so it stays true as posts are added").not.toMatch(/Product Hunt|Indie Hackers|BetaList|starting with/);
     expect(PAGES.blog.updated).toBe(BLOG_POSTS.map((p) => p.updated).sort().at(-1));
   });
 
