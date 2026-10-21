@@ -2,18 +2,20 @@ import * as Sentry from "@sentry/nextjs";
 import { after } from "next/server";
 
 type ErrorContext = Record<string, unknown>;
+type ErrorTags = Record<string, string | number | boolean>;
 
 /**
  * Logs the error and sends it to Sentry. Calls the SDK directly: instrumentation.ts is bundled separately
  * from route handlers, so a sink registered there would never see errors caught in a route.
  */
-export function captureException(error: unknown, context?: ErrorContext) {
+export function captureException(error: unknown, context?: ErrorContext, tags?: ErrorTags) {
   const message = error instanceof Error ? error.message : String(error);
-  console.error(`[launchloop:error] ${message}`, context ?? {}, error);
+  console.error(`[launchloop:error] ${message}`, tags ? { ...context, tags } : (context ?? {}), error);
   // Browser errors relayed via /api/log are already sent by the client SDK.
   if (context?.stage === "client" && process.env.NEXT_PUBLIC_SENTRY_DSN) return;
   try {
-    Sentry.captureException(error, { extra: context, tags: typeof context?.stage === "string" ? { stage: context.stage } : undefined });
+    const stageTag = typeof context?.stage === "string" ? { stage: context.stage } : undefined;
+    Sentry.captureException(error, { extra: context, tags: stageTag || tags ? { ...stageTag, ...tags } : undefined });
     flushAfterResponse();
   } catch {
     // A broken sink must never take the request down with it.
