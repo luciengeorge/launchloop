@@ -149,7 +149,7 @@ function imageSizeCheck(image: OgImageInfo): OgCheck {
 
   if (format === "svg") {
     statuses.push("fail");
-    notes.push("It's an SVG, which Facebook, X and LinkedIn don't show. Export a PNG or JPG.");
+    notes.push("It's an SVG, and some platforms don't accept SVG: X's archived card docs say it isn't supported. Export a PNG or JPG.");
   } else if (!width || !height) {
     statuses.push("warn");
     notes.push(`We couldn't read the size of this ${format && format !== "unknown" ? format.toUpperCase() : "file"}. PNG or JPG at ${OG_IMAGE.width}×${OG_IMAGE.height} is the safe choice.`);

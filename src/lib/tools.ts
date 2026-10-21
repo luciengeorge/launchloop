@@ -66,7 +66,7 @@ export const OG_FAQ: readonly ToolFaqItem[] = [
   },
   {
     q: "Why isn't my link showing a preview image?",
-    a: "Usually one of five things: there's no og:image tag, the image URL is relative instead of a full https:// address, the image is an SVG, the page or image needs a login or blocks crawlers, or the app cached an old version. Paste the URL above and the checklist tells you which one it is.",
+    a: "Check five things: that there's an og:image tag, that its URL is a full https:// address rather than a relative one, that the image is a PNG or JPG (some platforms don't accept SVG), that the page and image load without a login and the platform's crawler isn't blocked, and that the app hasn't cached an old version. Paste the URL above and the checklist tells you which one it is.",
   },
   {
     q: "Why does my card look different on X, LinkedIn and Slack?",

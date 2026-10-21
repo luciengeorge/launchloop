@@ -164,4 +164,23 @@ All read on 21 October 2026 (the X rows from the archive captures named above).
 ## Follow-ups
 
 - Done in this PR after review: the interactive tool's caption in `src/components/tools/og-preview.tsx` used to say the preview frame is "The large card X, LinkedIn, Slack, Facebook and iMessage are based on". It now calls it a generic large-card preview, says each platform crops and renders link cards a little differently, and links to `/blog/og-image-size`. No Apple source was read, so it says nothing about iMessage.
-- The tool page's pitfall "SVGs aren't shown by Facebook, X or LinkedIn" and "blocked in robots.txt" are unsourced; X's archived docs back the SVG claim for X only, and Slack says it ignores robots.txt.
+- Done in this PR after review: the tool page's SVG and robots.txt pitfalls were unsourced. See "Quotes on /tools/og-preview" below.
+
+## Quotes on /tools/og-preview
+
+Added after review on 21 October 2026, so that the tool page's SVG and robots.txt pitfalls only claim what a source says. Each quote was checked by script against the same saved copies as the post's quotes. The LinkedIn, Facebook and Slack lines were read live again on 21 October 2026 at about 08:09 UTC and still match (Slack wraps `robots.txt` in `<code>`).
+
+| # | Quote (verbatim) | Source | Read |
+| --- | --- | --- | --- |
+| T1 | "SVG is not supported." | https://web.archive.org/web/20260112050218/https://developer.x.com/en/docs/x-for-websites/cards/overview/summary-card-with-large-image | 21 October 2026 (archive capture of 12 January 2026) |
+| T2 | "will still display in the link page post, but the size will be much smaller." | https://developers.facebook.com/documentation/sharing/webmasters/images | 21 October 2026 |
+| T3 | "your website may be blocking us from pulling the image or the image may be located on a protected directory or website." | https://www.linkedin.com/help/linkedin/answer/a521928 | 21 October 2026 |
+| T4 | "Your website has a robots.txt file that is blocking Twitter from getting your Card metadata." | https://web.archive.org/web/20260104011518/https://developer.x.com/en/docs/x-for-websites/cards/guides/troubleshooting-cards | 21 October 2026 (archive capture of 4 January 2026) |
+| T5 | "We do not currently honor robots.txt files." | https://api.slack.com/robots | 21 October 2026 |
+
+What changed on the page:
+
+- **"SVG or a tiny logo" pitfall:** it used to say "SVGs aren't shown by Facebook, X or LinkedIn, and anything under 600×315 becomes a thumbnail." It now says some platforms don't accept SVG and quotes X's archived card docs (T1). It also quotes Facebook on images under 600 x 315 (T2) instead of saying they become a thumbnail. Facebook and LinkedIn don't say anything about SVG directly, so they aren't cited for it.
+- **"A login wall or a blocked crawler" pitfall:** it used to say a page "blocked in robots.txt" shows a blank preview. It now asks you to check that the page and image load without a login, quoting LinkedIn (T3). It says robots.txt depends on the platform, citing X's archived troubleshooting docs (T4) and Slack, which ignores robots.txt (T5).
+- **"Why isn't my link showing a preview image?" FAQ** (visible and FAQPage JSON-LD, which share one string): "Usually one of five things" became "Check five things", the SVG item says some platforms don't accept SVG, and "blocks crawlers" became "the platform's crawler isn't blocked". The answer is paraphrase, so it has no quotes.
+- **Checker note for an SVG `og:image`** (`src/lib/og-check.ts`): "It's an SVG, which Facebook, X and LinkedIn don't show." became "It's an SVG, and some platforms don't accept SVG: X's archived card docs say it isn't supported."

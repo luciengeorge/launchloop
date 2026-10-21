@@ -59,6 +59,32 @@ test("the size copy matches the sources, and the size FAQ is one sentence plus a
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("OG image size for X, LinkedIn, Facebook and Slack");
 });
 
+test("the SVG and robots.txt pitfalls quote their sources, and the missing-image FAQ matches its JSON-LD", async ({ page }) => {
+  await page.goto(PATH);
+  const pitfalls = page.getByTestId("og-pitfalls");
+  const svg = pitfalls.getByRole("listitem").filter({ hasText: "SVG or a tiny logo" });
+  await expect(svg.locator("q", { hasText: "SVG is not supported." })).toBeVisible();
+  await expect(svg.locator('a[href^="https://web.archive.org/web/20260112050218/"]')).toBeVisible();
+  await expect(svg).toContainText("Some platforms don't accept SVG");
+  await expect(svg).not.toContainText("aren't shown by Facebook, X or LinkedIn");
+
+  const crawler = pitfalls.getByRole("listitem").filter({ hasText: "A login wall or a blocked crawler" });
+  await expect(crawler.locator("q", { hasText: "Your website has a robots.txt file that is blocking Twitter from getting your Card metadata." })).toBeVisible();
+  await expect(crawler.locator("q", { hasText: "We do not currently honor robots.txt files." })).toBeVisible();
+  for (const href of ["https://api.slack.com/robots", "https://www.linkedin.com/help/linkedin/answer/a521928"]) await expect(crawler.locator(`a[href="${href}"]`)).toBeVisible();
+  await expect(crawler.locator('a[href^="https://web.archive.org/web/20260104011518/"]')).toBeVisible();
+  await expect(crawler).not.toContainText("is blocked in robots.txt, the preview is blank");
+  await expect(pitfalls).not.toContainText(/\u2013|\u2014/);
+
+  const q = "Why isn't my link showing a preview image?";
+  const visible = ((await page.locator("section", { has: page.getByRole("heading", { level: 3, name: q }) }).locator("p").textContent()) ?? "").trim();
+  expect(visible).toContain("some platforms don't accept SVG");
+  expect(visible).not.toMatch(/^Usually/);
+  const graph = JSON.parse((await page.locator('script[type="application/ld+json"]').textContent()) ?? "{}");
+  const faq = (graph["@graph"] as { "@type": string; mainEntity: { name: string; acceptedAnswer: { text: string } }[] }[]).find((n) => n["@type"] === "FAQPage")!;
+  expect(faq.mainEntity.find((e) => e.name === q)!.acceptedAnswer.text).toBe(visible);
+});
+
 test("short alias redirects to the tools URL", async ({ request }) => {
   const res = await request.get("/og-preview", { maxRedirects: 0 });
   expect(res.status()).toBe(308);

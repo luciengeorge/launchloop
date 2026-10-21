@@ -27,14 +27,44 @@ const TAGS = `<meta property="og:title" content="Turn your GitHub repo into a la
 <meta property="og:url" content="https://your-app.com/" />
 <meta name="twitter:card" content="summary_large_image" />`;
 
-const PITFALLS = [
+const SRC = {
+  xCard: "https://web.archive.org/web/20260112050218/https://developer.x.com/en/docs/x-for-websites/cards/overview/summary-card-with-large-image",
+  xTroubleshooting: "https://web.archive.org/web/20260104011518/https://developer.x.com/en/docs/x-for-websites/cards/guides/troubleshooting-cards",
+  facebookImages: "https://developers.facebook.com/documentation/sharing/webmasters/images",
+  linkedinShareable: "https://www.linkedin.com/help/linkedin/answer/a521928",
+  slackRobots: "https://api.slack.com/robots",
+} as const;
+
+const LINK = "font-medium text-foreground underline underline-offset-4";
+
+const PITFALLS: { title: string; body: React.ReactNode }[] = [
   { title: "Tags added by JavaScript", body: "Link previewers don't run JavaScript. If your app sets its title and og:image in the browser, which many AI-built single-page apps do, crawlers see an empty page. Put the tags in the HTML the server sends." },
   { title: "A relative image URL", body: "og:image=\"/og.png\" works in a browser and fails in most crawlers. Use the full https:// address." },
-  { title: "SVG or a tiny logo", body: `SVGs aren't shown by Facebook, X or LinkedIn, and anything under ${OG_MIN.width}×${OG_MIN.height} becomes a thumbnail. Export a PNG or JPG at ${SIZE}.` },
+  {
+    title: "SVG or a tiny logo",
+    body: (
+      <>
+        Some platforms don&apos;t accept SVG: X&apos;s <a href={SRC.xCard} className={LINK}>archived card docs</a> say <q>SVG is not supported.</q> Use a PNG or JPG at {SIZE}.
+        Small images shrink too: <a href={SRC.facebookImages} className={LINK}>Facebook</a> says an image under 600 x 315{" "}
+        <q>will still display in the link page post, but the size will be much smaller.</q>
+      </>
+    ),
+  },
   { title: "Text too close to the edges", body: "Some apps crop a few pixels, and the card is often shown around 500px wide. Keep the headline large, centred and well inside the frame." },
-  { title: "A login wall or a blocked crawler", body: "If the page or the image needs a login, redirects to one, or is blocked in robots.txt, the preview is blank. The image has to be publicly reachable too." },
+  {
+    title: "A login wall or a blocked crawler",
+    body: (
+      <>
+        Check that the page and the image both load without a login. <a href={SRC.linkedinShareable} className={LINK}>LinkedIn</a> says a missing image can mean{" "}
+        <q>your website may be blocking us from pulling the image or the image may be located on a protected directory or website.</q> Rules in robots.txt depend on the
+        platform: X&apos;s <a href={SRC.xTroubleshooting} className={LINK}>archived troubleshooting docs</a> list{" "}
+        <q>Your website has a robots.txt file that is blocking Twitter from getting your Card metadata.</q> as a cause, while{" "}
+        <a href={SRC.slackRobots} className={LINK}>Slack</a> says <q>We do not currently honor robots.txt files.</q>
+      </>
+    ),
+  },
   { title: "An old cached card", body: "Apps cache the first card they see, sometimes for days. After fixing your tags, refresh it with the Facebook Sharing Debugger or LinkedIn Post Inspector, and share a fresh link to test." },
-] as const;
+];
 
 /** The FAQPage answer for an item: the visible text, with its "more" link as an <a>, which Google allows in Answer text. */
 function faqAnswerHtml(base: string, item: ToolFaqItem, promo: boolean): string {
