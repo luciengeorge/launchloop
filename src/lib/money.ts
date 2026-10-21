@@ -12,6 +12,6 @@ const GBP_WHOLE = new Intl.NumberFormat("en-GB", { style: "currency", currency: 
 
 /** "£14", "£14.50". Undefined for anything but GBP (Checkout only charges GBP), so copy drops the price instead. */
 export function formatPaidAmount(paid: PaidAmount | undefined): string | undefined {
-  if (!paid || paid.currency.toLowerCase() !== "gbp" || !Number.isInteger(paid.amount) || paid.amount < 0) return undefined;
+  if (!paid || paid.currency.toLowerCase() !== "gbp" || !Number.isInteger(paid.amount) || paid.amount <= 0) return undefined;
   return (paid.amount % 100 === 0 ? GBP_WHOLE : GBP).format(paid.amount / 100);
 }
