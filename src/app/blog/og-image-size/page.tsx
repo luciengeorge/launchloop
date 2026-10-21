@@ -328,10 +328,8 @@ export default function OgImageSizePostPage() {
       <h3 id="blocked">An image the crawler can&apos;t reach</h3>
       <p>
         Check that both the page and the image load without a login, from outside your network. X&apos;s archived <a href={SRC.xTroubleshooting}>troubleshooting page</a> says that when an image
-        doesn&apos;t show, <q>The most common cause is that the image specified via the twitter:image tag is not publicly accessible on the web.</q> <a href={SRC.linkedinShareable}>LinkedIn says</a> that if the image
-        meets the requirements and still doesn&apos;t appear,{" "}
-        <q>your website may be blocking us from pulling the image or the image may be located on a protected directory or website.</q> Robots rules differ: X&apos;s archived
-        docs list <q>Your website has a robots.txt file that is blocking Twitter from getting your Card metadata.</q> as a cause, while <a href={SRC.slackRobots}>Slack&apos;s Robots page</a> says{" "}
+        doesn&apos;t show, <q>The most common cause is that the image specified via the twitter:image tag is not publicly accessible on the web.</q> Robots rules differ: X&apos;s
+        archived docs list <q>Your website has a robots.txt file that is blocking Twitter from getting your Card metadata.</q> as a cause, while <a href={SRC.slackRobots}>Slack&apos;s Robots page</a> says{" "}
         <q>We do not currently honor robots.txt files.</q> <a href={SRC.facebookImages}>Facebook</a> adds a server check: <q>Our crawler only accepts gzip and deflate encodings, so make sure your server
         uses the right encoding.</q>
       </p>

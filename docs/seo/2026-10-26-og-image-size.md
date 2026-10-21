@@ -7,7 +7,7 @@ Blog post requested on Wednesday 21 October 2026, to publish on Monday 26 Octobe
 **URL:** `/blog/og-image-size`
 **Title:** `OG image size: X, LinkedIn, Facebook and Slack · LaunchLoop` (59 characters). Facebook's doc was readable, so the title keeps Facebook (the fallback title without it wasn't needed).
 **Description:** `Open Graph image size from each platform's own docs: a safe 1200×630 default, what Facebook, LinkedIn, X and Slack say, the tags to set and how to test it.` (155 characters)
-**H1:** OG image size for X, LinkedIn, Facebook and Slack. **Published and updated:** 2026-10-26 (the date in the brief; bump both in `src/lib/blog.ts` if it merges on another day). **Byline:** Lucien George. **Reading time:** 15 min (2,965 words / 200).
+**H1:** OG image size for X, LinkedIn, Facebook and Slack. **Published and updated:** 2026-10-26 (the date in the brief; bump both in `src/lib/blog.ts` if it merges on another day). **Byline:** Lucien George. **Reading time:** 15 min (2,930 words / 200).
 
 Targets "og image size", "open graph image size" and "open graph image", plus "twitter card image size" (the X section and FAQ) and "linkedin preview image size" (the LinkedIn section and the 1200×627 FAQ). No keyword volumes were looked up for this post, so none are quoted.
 
@@ -27,8 +27,8 @@ The post's five FAQs don't repeat the tool's five (size, missing preview, why ca
 - **X:** the live card docs are gone. `developer.x.com/en/docs/x-for-websites/cards/overview/summary-card-with-large-image` now redirects to `https://docs.x.com/overview`, and the same paths on `docs.x.com` return HTTP 404 (checked 21 October 2026). The X quotes come from the Internet Archive's raw (`id_`) captures: Summary Card with Large Image, 12 January 2026 (`20260112050218`); Cards markup, 16 January 2026 (`20260116124848`); Troubleshooting Cards, 4 January 2026 (`20260104011518`, served gzipped). The post labels them as X's archived docs with those dates.
 - **LinkedIn Post Inspector** (`https://www.linkedin.com/post-inspector/`) is a JavaScript app whose HTML has no readable text, so the post describes it from LinkedIn's help article "Use Post Inspector to refresh URL" (a6233775), found by web search and then fetched directly.
 - **LaunchLoop's OG preview** was described from the live page at `https://launchloop.dev/tools/og-preview` (read 21 October 2026): the intro, the noscript note, the WebApplication feature list and the "Is the OG preview free?" FAQ answer.
-- Each page was saved and reduced to plain text, and a script searched for every `<q>` on the post in it: 53 of 53 match word for word, keeping each page's own apostrophes (Facebook uses curly ones).
-- Cross-check: every non-X quote was also searched for in the Internet Archive's latest capture of its page (June to October 2026, dates in the table). All 45 match. The two differences are formatting only: Facebook's archived Markdown copies use straight apostrophes where the live pages have curly ones (rows 9, 41 and 42), and "Facebook Crawler" is a link in the archived webmasters guide (row 10). The 8 X quotes are from the archive captures themselves.
+- Each page was saved and reduced to plain text, and a script searched for every `<q>` on the post in it: 52 of 52 match word for word, keeping each page's own apostrophes (Facebook uses curly ones).
+- Cross-check: every non-X quote was also searched for in the Internet Archive's latest capture of its page (June to October 2026, dates in the table). All 44 match. The two differences are formatting only: Facebook's archived Markdown copies use straight apostrophes where the live pages have curly ones (rows 9, 41 and 42), and "Facebook Crawler" is a link in the archived webmasters guide (row 10). The 8 X quotes are from the archive captures themselves.
 
 ## Sources
 
@@ -119,13 +119,12 @@ All read on 21 October 2026 (the X rows from the archive captures named above).
 | 47 | "Discord caches previews for about 30 minutes." | https://docs.discord.com/developers/link-previews/overview | yes (2026-10-20) |
 | 48 | "The tags must be in the HTML your server sends. No code is executed, so tags added by a client-side script after load are never seen." | https://docs.discord.com/developers/link-previews/overview | yes (2026-10-20) |
 | 49 | "The most common cause is that the image specified via the twitter:image tag is not publicly accessible on the web." | https://web.archive.org/web/20260104011518/https://developer.x.com/en/docs/x-for-websites/cards/guides/troubleshooting-cards | is the archive copy |
-| 50 | "your website may be blocking us from pulling the image or the image may be located on a protected directory or website." | https://www.linkedin.com/help/linkedin/answer/a521928 | yes (2026-08-17) |
-| 51 | "Your website has a robots.txt file that is blocking Twitter from getting your Card metadata." | https://web.archive.org/web/20260104011518/https://developer.x.com/en/docs/x-for-websites/cards/guides/troubleshooting-cards | is the archive copy |
-| 52 | "We do not currently honor robots.txt files." | https://api.slack.com/robots | yes (2026-10-05) |
-| 53 | "Our crawler only accepts gzip and deflate encodings, so make sure your server uses the right encoding." | https://developers.facebook.com/documentation/sharing/webmasters/images | yes (2026-10-10) |
+| 50 | "Your website has a robots.txt file that is blocking Twitter from getting your Card metadata." | https://web.archive.org/web/20260104011518/https://developer.x.com/en/docs/x-for-websites/cards/guides/troubleshooting-cards | is the archive copy |
+| 51 | "We do not currently honor robots.txt files." | https://api.slack.com/robots | yes (2026-10-05) |
+| 52 | "Our crawler only accepts gzip and deflate encodings, so make sure your server uses the right encoding." | https://developers.facebook.com/documentation/sharing/webmasters/images | yes (2026-10-10) |
 ## Paraphrased claims and their sources
 
-- 1200×630 is "at least" LinkedIn's 1200 x 627 minimum in both directions, and 1200 / 630 is about 1.905: arithmetic on the quoted figures.
+- 1200×630 meets LinkedIn's 1200 x 627 minimum in both directions, and 1200 / 630 is about 1.905: arithmetic on quotes 1 and 2. The words "at least" in the quick answer's quote are Facebook's ("Use images that are at least 1200 x 630 pixels", quote 1), not LinkedIn's: LinkedIn's wording is "Minimum image dimensions" (quote 2).
 - 1200×630 sits inside X's archived 300x157 minimum and 4096x4096 maximum: arithmetic on quote 15.
 - A 2:1 image at 1200 wide is 1200×600, below LinkedIn's 627-pixel minimum height: arithmetic on quotes 2 and 15.
 - LinkedIn's single image ads specifications are separate from the sharing module: a521928 lists them under "The image specifications for single image ads are:".
@@ -153,7 +152,7 @@ All read on 21 October 2026 (the X rows from the archive captures named above).
 
 - **Facebook:** nothing had to be cut. The doc was readable via a browser-like fetch, so Facebook stays in the title and its sizes are quoted.
 - **LinkedIn single image ads specs** (JPG, PNG or GIF, 7680 x 4320 maximum, 640 x 360 minimum and the square and vertical sizes): they're for paid ads, not shared links.
-- **LinkedIn's "Images less than 401 pixels wide display as a thumbnail image."**: it sits after the ads specifications in a521928, so it isn't clear which section it belongs to.
+- **Everything in a521928 after the single image ads specifications.** That part of the article has three lines: "Images less than 401 pixels wide display as a thumbnail image.", a tip about ads shared organically, and the note "If the image meets the requirements, but it still does not appear in updates on LinkedIn, your website may be blocking us from pulling the image or the image may be located on a protected directory or website." It isn't clear whether they belong to the sharing module or to the ads specifications, so one rule applies to all three: none is used. An earlier revision quoted the "blocking us" note in the post and on the tool page while leaving out the 401px line; after Site QA (21 October 2026) the note was removed from both, and X's archived troubleshooting quote about images that aren't publicly accessible covers the same check.
 - **LinkedIn's three-day share box note** in "Edit a shared post" (a522811): only seen in a search result, not fetched, so not used.
 - **X's other limits** (`twitter:image:alt` maximum 420 characters, title 70 and description 200 characters, the 2 MB page limit, the 144 x 144 minimum on the troubleshooting page, TLS and IP ranges): not needed for the size question, and the 144 x 144 figure conflicts with the 300x157 on the card page.
 - **Discord's other limits** (title 70 bytes, description 350 bytes, 4 images per link, 5 links per message): not about the image size.
@@ -164,23 +163,44 @@ All read on 21 October 2026 (the X rows from the archive captures named above).
 ## Follow-ups
 
 - Done in this PR after review: the interactive tool's caption in `src/components/tools/og-preview.tsx` used to say the preview frame is "The large card X, LinkedIn, Slack, Facebook and iMessage are based on". It now calls it a generic large-card preview, says each platform crops and renders link cards a little differently, and links to `/blog/og-image-size`. No Apple source was read, so it says nothing about iMessage.
-- Done in this PR after review: the tool page's SVG and robots.txt pitfalls were unsourced. See "Quotes on /tools/og-preview" below.
+- Done in this PR after review: the tool page's SVG and robots.txt pitfalls were unsourced, and after Site QA so were four more pitfalls and some checker notes. See "Quotes on /tools/og-preview" below.
 
 ## Quotes on /tools/og-preview
 
-Added after review on 21 October 2026, so that the tool page's SVG and robots.txt pitfalls only claim what a source says. Each quote was checked by script against the same saved copies as the post's quotes. The LinkedIn, Facebook and Slack lines were read live again on 21 October 2026 at about 08:09 UTC and still match (Slack wraps `robots.txt` in `<code>`).
+Added after review on 21 October 2026, and extended after Site QA the same day, so that every pitfall on the tool page and every platform claim in the checker's notes only says what a source says. Each quote was checked by script against the same saved copies as the post's quotes. The LinkedIn, Facebook and Slack lines were read live again on 21 October 2026 at about 08:09 UTC and still match (Slack wraps `robots.txt` in `<code>`).
 
-| # | Quote (verbatim) | Source | Read |
-| --- | --- | --- | --- |
-| T1 | "SVG is not supported." | https://web.archive.org/web/20260112050218/https://developer.x.com/en/docs/x-for-websites/cards/overview/summary-card-with-large-image | 21 October 2026 (archive capture of 12 January 2026) |
-| T2 | "will still display in the link page post, but the size will be much smaller." | https://developers.facebook.com/documentation/sharing/webmasters/images | 21 October 2026 |
-| T3 | "your website may be blocking us from pulling the image or the image may be located on a protected directory or website." | https://www.linkedin.com/help/linkedin/answer/a521928 | 21 October 2026 |
-| T4 | "Your website has a robots.txt file that is blocking Twitter from getting your Card metadata." | https://web.archive.org/web/20260104011518/https://developer.x.com/en/docs/x-for-websites/cards/guides/troubleshooting-cards | 21 October 2026 (archive capture of 4 January 2026) |
-| T5 | "We do not currently honor robots.txt files." | https://api.slack.com/robots | 21 October 2026 |
+| # | Quote (verbatim) | Where on the tool | Source | Read |
+| --- | --- | --- | --- | --- |
+| T1 | "SVG is not supported." | SVG pitfall | https://web.archive.org/web/20260112050218/https://developer.x.com/en/docs/x-for-websites/cards/overview/summary-card-with-large-image | 21 October 2026 (archive capture of 12 January 2026) |
+| T2 | "will still display in the link page post, but the size will be much smaller." | SVG pitfall, and the checker's note for images under 600×315 | https://developers.facebook.com/documentation/sharing/webmasters/images | 21 October 2026 |
+| T3 | "The most common cause is that the image specified via the twitter:image tag is not publicly accessible on the web." | Login wall pitfall | https://web.archive.org/web/20260104011518/https://developer.x.com/en/docs/x-for-websites/cards/guides/troubleshooting-cards | 21 October 2026 (archive capture of 4 January 2026) |
+| T4 | "Your website has a robots.txt file that is blocking Twitter from getting your Card metadata." | Login wall pitfall | https://web.archive.org/web/20260104011518/https://developer.x.com/en/docs/x-for-websites/cards/guides/troubleshooting-cards | 21 October 2026 (archive capture of 4 January 2026) |
+| T5 | "We do not currently honor robots.txt files." | Login wall pitfall | https://api.slack.com/robots | 21 October 2026 |
+| T6 | "No code is executed, so tags added by a client-side script after load are never seen." | JavaScript pitfall | https://docs.discord.com/developers/link-previews/overview | 21 October 2026 |
+| T7 | "Relative URLs must start with /." | Relative URL pitfall | https://docs.discord.com/developers/link-previews/overview | 21 October 2026 |
+| T8 | "as close to 1.91:1 aspect ratio as possible to display the full image in Feed without any cropping." | Edges pitfall | https://developers.facebook.com/documentation/sharing/webmasters/images | 21 October 2026 |
+| T9 | "roughly every seven days" | Cached card pitfall | https://web.archive.org/web/20260104011518/https://developer.x.com/en/docs/x-for-websites/cards/guides/troubleshooting-cards | 21 October 2026 (archive capture of 4 January 2026) |
+| T10 | "for around 30 minutes" | Cached card pitfall | https://api.slack.com/robots | 21 October 2026 |
+| T11 | "can also be used to update the image for a piece of content" | Cached card pitfall | https://developers.facebook.com/documentation/sharing/webmasters/images | 21 October 2026 |
+| T12 | "You can use the Post Inspector as a tool to refresh the URL." | Cached card pitfall | https://www.linkedin.com/help/linkedin/answer/a6233775 | 21 October 2026 |
+
+T9 is part of "The Twitter web crawler re-indexes the Card tag information on your page roughly every seven days.", T10 of "Responses to these requests are cached globally across the service for around 30 minutes.", and T11 of "This can also be used to update the image for a piece of content.", which Facebook says of the Sharing Debugger (and of a Graph API scrape) under "Pre-caching images".
 
 What changed on the page:
 
-- **"SVG or a tiny logo" pitfall:** it used to say "SVGs aren't shown by Facebook, X or LinkedIn, and anything under 600×315 becomes a thumbnail." It now says some platforms don't accept SVG and quotes X's archived card docs (T1). It also quotes Facebook on images under 600 x 315 (T2) instead of saying they become a thumbnail. Facebook and LinkedIn don't say anything about SVG directly, so they aren't cited for it.
-- **"A login wall or a blocked crawler" pitfall:** it used to say a page "blocked in robots.txt" shows a blank preview. It now asks you to check that the page and image load without a login, quoting LinkedIn (T3). It says robots.txt depends on the platform, citing X's archived troubleshooting docs (T4) and Slack, which ignores robots.txt (T5).
+- **"Tags added by JavaScript" pitfall:** it used to say "Link previewers don't run JavaScript" and that "many AI-built single-page apps do" set tags in the browser. Neither had a source. It now asks you to check the tags are in the server's HTML and quotes Discord (T6), the only doc checked that says so.
+- **"A relative image URL" pitfall:** it used to say a relative path "fails in most crawlers". No doc says that. It now says every Open Graph protocol example is a full URL (paraphrase of ogp.me's examples) and quotes Discord, the only platform doc checked that mentions relative URLs (T7).
+- **"SVG or a tiny logo" pitfall:** it used to say "SVGs aren't shown by Facebook, X or LinkedIn, and anything under 600×315 becomes a thumbnail." It now says some platforms don't accept SVG and quotes X's archived card docs (T1), and quotes Facebook on images under 600 x 315 (T2). Facebook and LinkedIn say nothing about SVG directly, so they aren't cited for it.
+- **"Text too close to the edges" pitfall:** it used to say "Some apps crop a few pixels, and the card is often shown around 500px wide." Neither had a source. It is now plain advice to keep the headline inside the frame, with Facebook's quote on cropping off the 1.91:1 ratio (T8). The 500px figure is gone.
+- **"A login wall or a blocked crawler" pitfall:** it used to say a page "blocked in robots.txt" shows a blank preview. It now asks you to check that the page and image load without a login, quoting X's archived troubleshooting docs (T3; this replaced a LinkedIn quote, see "Left out"), and says robots.txt depends on the platform, citing X (T4) and Slack, which ignores robots.txt (T5).
+- **"An old cached card" pitfall:** it used to say "Apps cache the first card they see, sometimes for days" and to "share a fresh link to test". It now gives only the documented times, X's archived "roughly every seven days" (T9) and Slack's "around 30 minutes" (T10), and the documented refresh tools: Facebook's Sharing Debugger (T11) and LinkedIn's Post Inspector (T12).
+- **"The 1200×630 rule" list:** "X skips images over 5 MB, and smaller files load before the person scrolls past" became X's archived "less than 5MB" and LinkedIn's 5 MB, plus advice to aim for under 1 MB. "Smaller images are shown as a little thumbnail beside the text, or dropped" became Facebook's "still display, but much smaller" (paraphrase of T2). "Readable when the card is about 500px wide on a phone" became "large enough to read on a phone". "Relative paths and http images fail in more apps than you'd expect" became a pointer to the Open Graph protocol's full-URL examples.
+- **The width and height paragraph** and the checker's matching note: "Facebook and LinkedIn can show the image on the very first share" now names Facebook only, which is the only doc that says it (post quotes 29 and 40, Images in Link Shares, "Pre-caching images").
 - **"Why isn't my link showing a preview image?" FAQ** (visible and FAQPage JSON-LD, which share one string): "Usually one of five things" became "Check five things", the SVG item says some platforms don't accept SVG, and "blocks crawlers" became "the platform's crawler isn't blocked". The answer is paraphrase, so it has no quotes.
-- **Checker note for an SVG `og:image`** (`src/lib/og-check.ts`): "It's an SVG, which Facebook, X and LinkedIn don't show." became "It's an SVG, and some platforms don't accept SVG: X's archived card docs say it isn't supported."
+- **Checker notes** (`src/lib/og-check.ts`):
+  - An SVG `og:image` is now a warning, not a failure, since the message is hedged: "It's an SVG, and some platforms don't accept SVG: X's archived card docs say it isn't supported."
+  - Under 600×315 (still a failure): "so most apps show it as a small thumbnail or not at all" became Facebook's wording, T2, in quotation marks.
+  - "Only twitter:image is set; Facebook, LinkedIn, Slack and iMessage read og:image." named iMessage with no Apple source. It now says og:image is the tag Facebook's and LinkedIn's sharing docs ask for (Images in Link Shares; LinkedIn a521928 lists og:image among the tags that must exist).
+  - "many crawlers ignore relative image URLs" became the Open Graph protocol pointer.
+  - "X skips images over 5 MB and big files slow every crawler down" became X's archived "less than 5MB" and LinkedIn's 5 MB.
+  - `tests/unit/og-check.test.ts` covers the SVG warning, the under-600×315 wording, the Facebook-only first-share note and a well-tagged pass.

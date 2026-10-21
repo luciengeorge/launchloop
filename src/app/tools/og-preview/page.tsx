@@ -31,15 +31,35 @@ const SRC = {
   xCard: "https://web.archive.org/web/20260112050218/https://developer.x.com/en/docs/x-for-websites/cards/overview/summary-card-with-large-image",
   xTroubleshooting: "https://web.archive.org/web/20260104011518/https://developer.x.com/en/docs/x-for-websites/cards/guides/troubleshooting-cards",
   facebookImages: "https://developers.facebook.com/documentation/sharing/webmasters/images",
-  linkedinShareable: "https://www.linkedin.com/help/linkedin/answer/a521928",
+  linkedinPostInspector: "https://www.linkedin.com/help/linkedin/answer/a6233775",
   slackRobots: "https://api.slack.com/robots",
+  discordLinkPreviews: "https://docs.discord.com/developers/link-previews/overview",
+  ogp: "https://ogp.me/",
 } as const;
 
 const LINK = "font-medium text-foreground underline underline-offset-4";
 
 const PITFALLS: { title: string; body: React.ReactNode }[] = [
-  { title: "Tags added by JavaScript", body: "Link previewers don't run JavaScript. If your app sets its title and og:image in the browser, which many AI-built single-page apps do, crawlers see an empty page. Put the tags in the HTML the server sends." },
-  { title: "A relative image URL", body: "og:image=\"/og.png\" works in a browser and fails in most crawlers. Use the full https:// address." },
+  {
+    title: "Tags added by JavaScript",
+    body: (
+      <>
+        If your app sets its title and og:image in the browser, check that they&apos;re also in the HTML the server sends.{" "}
+        <a href={SRC.discordLinkPreviews} className={LINK}>Discord&apos;s doc</a> says <q>No code is executed, so tags added by a client-side script after load are never
+        seen.</q>
+      </>
+    ),
+  },
+  {
+    title: "A relative image URL",
+    body: (
+      <>
+        Use the full https:// address in og:image, not a path like /og.png. Every example in the <a href={SRC.ogp} className={LINK}>Open Graph protocol</a> is a full URL,
+        and of the platform docs we checked only <a href={SRC.discordLinkPreviews} className={LINK}>Discord&apos;s</a> mentions relative URLs:{" "}
+        <q>Relative URLs must start with /.</q>
+      </>
+    ),
+  },
   {
     title: "SVG or a tiny logo",
     body: (
@@ -50,20 +70,40 @@ const PITFALLS: { title: string; body: React.ReactNode }[] = [
       </>
     ),
   },
-  { title: "Text too close to the edges", body: "Some apps crop a few pixels, and the card is often shown around 500px wide. Keep the headline large, centred and well inside the frame." },
+  {
+    title: "Text too close to the edges",
+    body: (
+      <>
+        Keep the headline large, centred and well inside the frame. An image that doesn&apos;t match a platform&apos;s ratio can be cropped:{" "}
+        <a href={SRC.facebookImages} className={LINK}>Facebook</a> asks for images{" "}
+        <q>as close to 1.91:1 aspect ratio as possible to display the full image in Feed without any cropping.</q>
+      </>
+    ),
+  },
   {
     title: "A login wall or a blocked crawler",
     body: (
       <>
-        Check that the page and the image both load without a login. <a href={SRC.linkedinShareable} className={LINK}>LinkedIn</a> says a missing image can mean{" "}
-        <q>your website may be blocking us from pulling the image or the image may be located on a protected directory or website.</q> Rules in robots.txt depend on the
-        platform: X&apos;s <a href={SRC.xTroubleshooting} className={LINK}>archived troubleshooting docs</a> list{" "}
-        <q>Your website has a robots.txt file that is blocking Twitter from getting your Card metadata.</q> as a cause, while{" "}
+        Check that the page and the image both load without a login. X&apos;s <a href={SRC.xTroubleshooting} className={LINK}>archived troubleshooting docs</a> say that
+        when an image isn&apos;t shown,{" "}
+        <q>The most common cause is that the image specified via the twitter:image tag is not publicly accessible on the web.</q> Rules in robots.txt depend on the
+        platform: the same docs list <q>Your website has a robots.txt file that is blocking Twitter from getting your Card metadata.</q> as a cause, while{" "}
         <a href={SRC.slackRobots} className={LINK}>Slack</a> says <q>We do not currently honor robots.txt files.</q>
       </>
     ),
   },
-  { title: "An old cached card", body: "Apps cache the first card they see, sometimes for days. After fixing your tags, refresh it with the Facebook Sharing Debugger or LinkedIn Post Inspector, and share a fresh link to test." },
+  {
+    title: "An old cached card",
+    body: (
+      <>
+        Platforms keep what they fetched for a while. X&apos;s <a href={SRC.xTroubleshooting} className={LINK}>archived docs</a> say its crawler re-indexes card tags{" "}
+        <q>roughly every seven days</q>, and <a href={SRC.slackRobots} className={LINK}>Slack</a> caches responses <q>for around 30 minutes</q>. To refresh a card after
+        fixing your tags, <a href={SRC.facebookImages} className={LINK}>Facebook</a> says its Sharing Debugger{" "}
+        <q>can also be used to update the image for a piece of content</q>, and <a href={SRC.linkedinPostInspector} className={LINK}>LinkedIn</a> says{" "}
+        <q>You can use the Post Inspector as a tool to refresh the URL.</q>
+      </>
+    ),
+  },
 ];
 
 /** The FAQPage answer for an item: the visible text, with its "more" link as an <a>, which Google allows in Answer text. */
@@ -151,17 +191,17 @@ export default async function OgPreviewPage() {
             describe a 2:1 image and Slack publishes no size, so it&apos;s the safest single size rather than an exact match everywhere.
           </li>
           <li>
-            <strong>PNG or JPG, ideally under 1 MB.</strong> X skips images over 5 MB, and smaller files load before the person scrolls past.
+            <strong>PNG or JPG, under 5 MB.</strong> X&apos;s archived docs say images must be less than 5MB, and LinkedIn&apos;s limit for shared images is 5 MB. Smaller
+            is better, so aim for under 1 MB if you can.
           </li>
           <li>
-            <strong>Never below {OG_MIN.width}×{OG_MIN.height}.</strong> Smaller images are shown as a little thumbnail beside the text, or dropped.
+            <strong>Never below {OG_MIN.width}×{OG_MIN.height}.</strong> Facebook says smaller images still display in the post, but much smaller.
           </li>
           <li>
-            <strong>One idea, big type.</strong> Your product name and a short headline, readable when the card is about 500px wide on a phone. Keep it away from the
-            edges.
+            <strong>One idea, big type.</strong> Your product name and a short headline, large enough to read on a phone. Keep it away from the edges.
           </li>
           <li>
-            <strong>A full https:// URL.</strong> Relative paths and http images fail in more apps than you&apos;d expect.
+            <strong>A full https:// URL.</strong> Use the full address rather than a relative path: every example in the Open Graph protocol is a full URL.
           </li>
         </ul>
 
@@ -173,8 +213,8 @@ export default async function OgPreviewPage() {
       </pre>
       <div className={`max-w-3xl ${prose}`}>
         <p>
-          The width, height and alt tags are optional but worth it: with the size declared, Facebook and LinkedIn can show the image on the very first share instead of
-          waiting to download it.
+          The width, height and alt tags are optional but worth it: with the size declared, <a href={SRC.facebookImages}>Facebook</a> can show the image on the very first
+          share instead of waiting to download it.
         </p>
 
         <h2 id="pitfalls">Common pitfalls</h2>

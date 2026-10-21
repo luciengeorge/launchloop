@@ -71,10 +71,36 @@ test("the SVG and robots.txt pitfalls quote their sources, and the missing-image
   const crawler = pitfalls.getByRole("listitem").filter({ hasText: "A login wall or a blocked crawler" });
   await expect(crawler.locator("q", { hasText: "Your website has a robots.txt file that is blocking Twitter from getting your Card metadata." })).toBeVisible();
   await expect(crawler.locator("q", { hasText: "We do not currently honor robots.txt files." })).toBeVisible();
-  for (const href of ["https://api.slack.com/robots", "https://www.linkedin.com/help/linkedin/answer/a521928"]) await expect(crawler.locator(`a[href="${href}"]`)).toBeVisible();
+  await expect(crawler.locator("q", { hasText: "The most common cause is that the image specified via the twitter:image tag is not publicly accessible on the web." })).toBeVisible();
+  await expect(crawler.locator('a[href="https://api.slack.com/robots"]')).toBeVisible();
+  await expect(crawler).not.toContainText("your website may be blocking us");
   await expect(crawler.locator('a[href^="https://web.archive.org/web/20260104011518/"]')).toBeVisible();
   await expect(crawler).not.toContainText("is blocked in robots.txt, the preview is blank");
   await expect(pitfalls).not.toContainText(/\u2013|\u2014/);
+
+  const item = (title: string) => pitfalls.getByRole("listitem").filter({ hasText: title });
+  const js = item("Tags added by JavaScript");
+  await expect(js.locator("q", { hasText: "No code is executed, so tags added by a client-side script after load are never seen." })).toBeVisible();
+  await expect(js).not.toContainText("Link previewers don't run JavaScript");
+  const relative = item("A relative image URL");
+  await expect(relative.locator("q", { hasText: "Relative URLs must start with /." })).toBeVisible();
+  await expect(relative.locator('a[href="https://ogp.me/"]')).toBeVisible();
+  await expect(relative).not.toContainText("fails in most crawlers");
+  const edges = item("Text too close to the edges");
+  await expect(edges.locator("q", { hasText: "to display the full image in Feed without any cropping." })).toBeVisible();
+  await expect(edges).not.toContainText("500px");
+  const cache = item("An old cached card");
+  for (const quote of ["roughly every seven days", "for around 30 minutes", "can also be used to update the image for a piece of content", "You can use the Post Inspector as a tool to refresh the URL."]) {
+    await expect(cache.locator("q", { hasText: quote }), quote).toBeVisible();
+  }
+  await expect(cache.locator('a[href="https://www.linkedin.com/help/linkedin/answer/a6233775"]')).toBeVisible();
+  await expect(cache).not.toContainText("sometimes for days");
+  for (const li of await pitfalls.getByRole("listitem").all()) await expect(li.locator("a").first()).toHaveAttribute("href", /^https:\/\//);
+
+  const main = page.locator("main");
+  await expect(main).not.toContainText("Facebook and LinkedIn can show the image");
+  await expect(main).toContainText("with the size declared, Facebook can show the image on the very first share");
+  await expect(main).not.toContainText(/500px|fail in more apps|little thumbnail/);
 
   const q = "Why isn't my link showing a preview image?";
   const visible = ((await page.locator("section", { has: page.getByRole("heading", { level: 3, name: q }) }).locator("p").textContent()) ?? "").trim();

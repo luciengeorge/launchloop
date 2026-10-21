@@ -134,8 +134,8 @@ function imageCheck(image: OgImageInfo | undefined): OgCheck {
   if (!image) return { id: "image", status: "fail", label, detail: "No og:image. Links share as a plain text card with no picture, which gets far fewer clicks." };
   if (!image.loaded) return { id: "image", status: "fail", label, detail: `The ${image.source} URL didn't load: ${image.error ?? "unknown error"}.` };
   const notes: string[] = [];
-  if (image.source === "twitter:image") notes.push("Only twitter:image is set; Facebook, LinkedIn, Slack and iMessage read og:image.");
-  if (image.relative) notes.push("The URL is relative. Use the full https:// address; many crawlers ignore relative image URLs.");
+  if (image.source === "twitter:image") notes.push("Only twitter:image is set. Add og:image too: it is the tag Facebook's and LinkedIn's sharing docs ask for.");
+  if (image.relative) notes.push("The URL is relative. Use the full https:// address, which is the form every Open Graph protocol example uses.");
   if (image.insecure) notes.push("The page is https but the image is http. Serve the image over https so every app will load it.");
   if (notes.length) return { id: "image", status: "warn", label, detail: notes.join(" ") };
   return { id: "image", status: "pass", label, detail: "og:image is set and loads." };
@@ -148,7 +148,7 @@ function imageSizeCheck(image: OgImageInfo): OgCheck {
   const notes: string[] = [];
 
   if (format === "svg") {
-    statuses.push("fail");
+    statuses.push("warn");
     notes.push("It's an SVG, and some platforms don't accept SVG: X's archived card docs say it isn't supported. Export a PNG or JPG.");
   } else if (!width || !height) {
     statuses.push("warn");
@@ -158,7 +158,7 @@ function imageSizeCheck(image: OgImageInfo): OgCheck {
     const off = Math.abs(ratio - OG_RATIO) / OG_RATIO;
     if (width < OG_MIN.width || height < OG_MIN.height) {
       statuses.push("fail");
-      notes.push(`It's ${width}×${height}, below ${OG_MIN.width}×${OG_MIN.height}, so most apps show it as a small thumbnail or not at all. Use ${OG_IMAGE.width}×${OG_IMAGE.height}.`);
+      notes.push(`It's ${width}×${height}, below ${OG_MIN.width}×${OG_MIN.height}. Facebook says a smaller image "will still display in the link page post, but the size will be much smaller." Use ${OG_IMAGE.width}×${OG_IMAGE.height}.`);
     } else if (off > RATIO_TOLERANCE) {
       statuses.push("warn");
       const shape = ratio < OG_RATIO ? "too tall, so the top and bottom get cropped" : "too wide, so the sides get cropped";
@@ -173,7 +173,7 @@ function imageSizeCheck(image: OgImageInfo): OgCheck {
   }
   if (image.bytes && image.bytes > OG_IMAGE_MAX_BYTES) {
     statuses.push("warn");
-    notes.push(`The file is ${mb(image.bytes)}. X skips images over 5 MB and big files slow every crawler down; aim for under 1 MB.`);
+    notes.push(`The file is ${mb(image.bytes)}. X's archived docs say images must be less than 5MB, and LinkedIn's limit is 5 MB; aim for under 1 MB.`);
   }
   return { id: "image-size", status: worst(statuses), label, detail: notes.join(" ") };
 }
@@ -184,7 +184,7 @@ function imageTagsCheck(tags: OgTags, image: OgImageInfo): OgCheck {
   const declaredW = Number(tags.ogImageWidth);
   const declaredH = Number(tags.ogImageHeight);
   if (!tags.ogImageWidth || !tags.ogImageHeight) {
-    notes.push("Add og:image:width and og:image:height so Facebook and LinkedIn can show the image on the very first share.");
+    notes.push("Add og:image:width and og:image:height so Facebook can show the image on the very first share.");
   } else if (image.width && image.height && (declaredW !== image.width || declaredH !== image.height)) {
     notes.push(`The tags say ${tags.ogImageWidth}×${tags.ogImageHeight} but the file is ${image.width}×${image.height}. Make them match.`);
   }
