@@ -10,7 +10,9 @@ import { cn } from "@/lib/utils";
  * The home h1. The other arm's headline sits in the same grid cell as hidden generated content (not in the text or
  * the accessibility tree), so the box is as tall as the taller headline at every width and both arms lay out the same.
  * `placeholder`: the Suspense fallback, a div with the heading role and the same box, so the page's HTML (which also
- * holds the streamed h1, hidden until React reveals it) has one h1.
+ * holds the streamed h1, hidden until React reveals it) has one h1. It's the only level-1 heading assistive tech can
+ * see until then: the h1 waits in React's `hidden` container, and the reveal removes the placeholder as it inserts the
+ * h1. Don't aria-hide it: without JavaScript it's the page's only heading.
  */
 function Headline({ text, placeholder = false, className, ...props }: { text: string; placeholder?: boolean } & HTMLAttributes<HTMLElement>) {
   const [lead, rest] = splitHeadline(text);

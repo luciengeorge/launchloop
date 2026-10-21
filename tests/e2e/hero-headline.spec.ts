@@ -23,6 +23,8 @@ const SUBHEADLINE = "LaunchLoop reads your repo's README, package.json and recen
 
 interface Watch {
   __seenHeadlines: string[];
+  /** The most level-1 headings assistive tech could see in any one frame (display:none, visibility:hidden and aria-hidden excluded). */
+  __maxLevel1: number;
   __firstVisibleAt?: number;
   __loadAt?: number;
   __shift: number;
@@ -35,6 +37,7 @@ test.beforeEach(async ({ context }) => {
     const w = window as unknown as Watch;
     // Every home h1 text painted visible, frame by frame; when one first showed; total layout shift; the load event.
     w.__seenHeadlines = [];
+    w.__maxLevel1 = 0;
     w.__shift = 0;
     addEventListener("load", () => (w.__loadAt = performance.now()), { once: true });
     new PerformanceObserver((list) => {
@@ -48,6 +51,10 @@ test.beforeEach(async ({ context }) => {
         const text = h1.textContent ?? "";
         if (!w.__seenHeadlines.includes(text)) w.__seenHeadlines.push(text);
       }
+      const level1 = [...document.querySelectorAll('h1, [role="heading"][aria-level="1"]')].filter(
+        (el) => el.checkVisibility({ visibilityProperty: true }) && !el.closest('[aria-hidden="true"]'),
+      );
+      w.__maxLevel1 = Math.max(w.__maxLevel1, level1.length);
       requestAnimationFrame(tick);
     };
     requestAnimationFrame(tick);
@@ -58,7 +65,7 @@ test.afterEach(({ request }) => setHeroHeadline(request, null));
 const watched = (page: Page) =>
   page.evaluate((): Watch => {
     const w = window as unknown as Watch;
-    return { __seenHeadlines: w.__seenHeadlines, __firstVisibleAt: w.__firstVisibleAt, __loadAt: w.__loadAt, __shift: w.__shift };
+    return { __seenHeadlines: w.__seenHeadlines, __maxLevel1: w.__maxLevel1, __firstVisibleAt: w.__firstVisibleAt, __loadAt: w.__loadAt, __shift: w.__shift };
   });
 
 /** This page's anonymous id, from its own $pageview (sent once the SDK has loaded after the page). */
@@ -291,6 +298,25 @@ test("the server HTML has exactly one h1, the streamed headline, whatever the fl
     expect(placeholder, `flag ${variant}`).toHaveLength(1);
     expect(placeholder[0], `flag ${variant}`).toContain('role="heading"');
     expect(placeholder[0], `flag ${variant}`).toContain('aria-level="1"');
+  }
+});
+
+test("assistive tech never sees two level-1 headings: the placeholder until React reveals the h1, then the h1 alone", async ({ page, isMobile }) => {
+  test.skip(isMobile, "The headings don't depend on the viewport");
+  // Answered at once, before the 700 ms failsafe, and after it (control stays).
+  for (const [variant, delayMs, expected] of [
+    ["test", 0, HERO_HEADLINE_TEST],
+    ["test", 300, HERO_HEADLINE_TEST],
+    ["test", 1800, HERO_HEADLINE_CONTROL],
+  ] as const) {
+    await setHeroHeadline(page.request, variant, delayMs);
+    await page.goto("/", { waitUntil: "commit" });
+    await expect(headline(page)).toHaveText(expected);
+    await page.waitForLoadState("load");
+    await page.waitForTimeout(delayMs + 600);
+    await expect(page.getByRole("heading", { level: 1 }), `${delayMs} ms`).toHaveCount(1);
+    expect(await page.locator("main #start [data-hero-pending], main #start [role=heading]").count(), `placeholder gone, ${delayMs} ms`).toBe(0);
+    expect((await watched(page)).__maxLevel1, `${delayMs} ms`).toBe(1);
   }
 });
 
