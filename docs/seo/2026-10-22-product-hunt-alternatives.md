@@ -1,13 +1,13 @@
 # Source check: Product Hunt alternatives, 22 October 2026
 
-Blog post for `/blog`, requested on Tuesday 20 October 2026. Every source was read on 20 October 2026 between about 18:40 and 19:15 UTC. Every quote on the page was copied from the fetched page, not from memory or a search snippet, and then checked again by script against saved copies of those pages (see Method).
+Blog post for `/blog`, requested on Tuesday 20 October 2026. Every source was read on 20 October 2026 between about 18:40 and 19:15 UTC. Every quote on the page was copied from the fetched page, not from memory or a search snippet, and then checked again by script against saved copies of those pages (see Method). After QA found that Uneed's pages had changed, every price on the page and every Uneed quote were checked again on the live pages on Wednesday 21 October 2026, between about 13:07 and 13:12 UTC (see "Re-check, 21 October 2026").
 
 ## Page
 
 **URL:** `/blog/product-hunt-alternatives`
 **Title:** `Product Hunt alternatives: where to launch · LaunchLoop` (55 characters)
 **Description:** `Sites like Product Hunt, from their own pages: who BetaList, Uneed, Peerlist, DevHunt, Show HN and others are for, what a launch costs and the rules.` (149 characters)
-**H1:** Product Hunt alternatives for indie makers. **Published and updated:** 2026-10-22, as the brief asked (bump both in `src/lib/blog.ts` if it merges on another day). **Byline:** Lucien George. **Reading time:** 19 minutes (3,727 words in the rendered body at 200 words a minute; the e2e suite recounts it).
+**H1:** Product Hunt alternatives for indie makers. **Published and updated:** 2026-10-22, as the brief asked (bump both in `src/lib/blog.ts` if it merges on another day). **Byline:** Lucien George. **Reading time:** 19 minutes (3,745 words in the rendered body at 200 words a minute; the e2e suite recounts it).
 
 ## Target queries
 
@@ -38,6 +38,7 @@ Its page also leads with its own waitlist product. Ours differs by quoting each 
 - Fazier and Microlaunch show a crossed-out price next to a lower one. The page's computed styles were checked to see which is crossed out (`text-decoration: line-through`), and the post gives the lower, current price. Fazier was re-checked live at 19:45 UTC on 20 October 2026: Basic "Free" (no crossed-out price), Lite $29 (crossed out $39), Premium $49 (crossed out $69), Super $99 (crossed out $139). The post now says Fazier has a free tier and three paid tiers, each with a crossed-out price, and gives both prices for each.
 - Reddit returned HTTP 403 to `curl` and to headless Chromium ("You've been blocked by network security"), and the fetch service timed out. The subreddit text comes from the Internet Archive's copies of the old.reddit rules pages (see Sources), which the page says.
 - Indie Hackers' About page was read through the fetch service (Cursor's WebFetch), as for the Indie Hackers post.
+- 21 October 2026 re-check: `curl` with a Chrome user agent (`Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36`) got HTTP 200 and the full server-rendered text from uneed.best/how-it-works, uneed.best/pricing, help.uneed.best's What we accept, betalist.com/advertise, betalist.com/boost, betalist.com/faq, devhunt.org/faq, fazier.com/submit, tinystartups.com/about and /terms, and microlaunch.net/premium. None of them served a Cloudflare challenge. Fazier's and Microlaunch's crossed-out prices were read from the served markup (Fazier's `price-original`, `price-premium-original` and `s-original-price` classes; Microlaunch's `line-through` class). Microlaunch's FAQ answer, which only opens on click, was read from the premium page's own bundle (`/_next/static/chunks/app/premium/page-be4d5ecc7e9635f4.js`), and Tiny Startups' £69 item from the same submit bundle as on 20 October (`page-b59f221a9d1a7430.js`, unchanged).
 - Cross-check: after the page was written, a script loaded the rendered post, took every `<q>`, and searched for it in the saved plain-text copies of the sources (whitespace normalised, Markdown link and bold syntax stripped). All 77 quotes were found word for word, with the same apostrophes. The same script confirmed the article has no en or em dashes. Quotes were cut short wherever the source continues with an em dash (BetaList's own-domain rule, Uneed's accept list, Tiny Startups' leaderboard sentence).
 
 ## Sites included, and why
@@ -82,13 +83,26 @@ No site in the brief had to be dropped for being unreadable. Reddit's live pages
 - Show HN appears on the Show HN new page first and on the show page after a small points threshold; the project must be your own and non-trivial: Show HN guidelines.
 - BetaList accepts products "Not available to anyone yet", "Private beta accessible by invitation only" and "Recently launched", and rejects "Launched weeks ago or longer": Submission Guidelines (the rejected items are the list styled `text-red-500`). The same applies to the landing page items (templates, Bootstrap, LaunchRock, Unbounce, free hosting subdomains, direct app store links) and the signup items ("Follow us on X to get notified").
 - BetaList: payment at checkout, editorial review, decision by email: FAQ, "What happens after I submit my startup?". Boost, $99/week or $199/month, only for featured startups, keeps you on the homepage and in the newsletter: Boost page.
-- Uneed leaderboards for day, week, month and year that roll: How it works. Fast-track ($14.99) gives a date "around 2 weeks out" and stays published; Relaunch $15; below a score of 10 the product "can't join the free line again": How it works. Uneed's list of what it declines and the NSFW and invite-only exception for paid launches: What we accept. Audience, 125K monthly visitors and 26,000 newsletter subscribers: Pricing.
+- Uneed's day leaderboard "resets daily at 12:00 AM PST", and the week, month and year leaderboards are "rolling (sliding windows)": How it works, 21 October 2026. Skip the waiting line is $39.99: How it works ("Skip the waiting line ($39.99)"), Pricing ("Skip the line", "$39.99") and What we accept ("Skip the Waiting Line ($39.99)"), all on 21 October 2026. Fast-track ($14.99) gives a date "around 2 weeks out" and stays published; Relaunch $15; below a score of 10 the product "can't join the free line again": How it works. Uneed's list of what it declines and the NSFW and invite-only exception for paid launches: What we accept. Audience, 125K monthly visitors and 26,000 newsletter subscribers: Pricing.
 - Fazier's daily, weekly and monthly leaderboards: the homepage links to `/leaderboard/weekly/...` and `/leaderboard/monthly/...`, and the Lite tier mentions "top 3 daily products". Account and form fields: Fazier launch guide. Tier contents: Submit page.
 - Tiny Startups: Monday to Sunday leaderboard and the top-two Product of the Week badge: About. Five-step form: Submit page. Paid upgrades, the credit on rejection, and "real, working products" you own or may promote: Terms. Audience, "20,000+ early adopters" (About) and a newsletter "read by 25k+ startup founders" (Submit).
 - Peerlist calls itself a professional network for showing your proof of work: help center `llms.txt` ("Peerlist is a professional network where you can showcase your proof of work, and get hired by the best companies."). What can be launched, the spam examples (including resharing on Scroll), and scheduling a launch ahead: Launchpad FAQ, Rules and Guidelines, and launch guide.
 - Indie Hackers' founder's advice to post a launch as a milestone and as a forum post: our Indie Hackers post and its quote log (`2026-10-21-how-to-launch-on-indie-hackers.md`).
 - Reddit's site-wide spam rules and per-subreddit self-promotion rules: our Reddit guide and its research note (`2026-10-19-reddit-self-promotion-guide.md`).
 - What a LaunchLoop kit drafts (Product Hunt name, tagline, description and maker comment, landing copy, X thread, LinkedIn post and images) from your repo and live page, matching the preview CTA's "Paste your GitHub repo or live URL", and that it doesn't write Show HN, Reddit or Indie Hackers posts: `src/lib/copy.ts` and the preview CTA. The post says these fields are "the same kind of fields boards like Fazier and Peerlist ask for": Fazier's launch guide lists name, tagline, description, category, thumbnail and gallery; Peerlist's rules list product name, tagline, cover image and demo link. The brief asked to say a kit "drafts the copy for these sites"; the post is narrower because the kit doesn't produce site-specific posts.
+
+## Re-check, 21 October 2026
+
+QA found that Uneed's live pages no longer matched the 20 October read. Re-read live on 21 October 2026, about 13:07 to 13:12 UTC, with the method above:
+
+- **Uneed, Skip the waiting line: now $39.99** on How it works ("Skip the waiting line ($39.99): pick the exact date you want."), on Pricing (Skip the line, "$39.99", and "Choose your launch date for free (worth $39.99)" in the Pro plan) and in the help center's What we accept ("Skip the Waiting Line ($39.99)"). The table, the Uneed section and this log now say $39.99. The 20 October price is in this file's git history; `tests/unit/blog.test.ts` and `tests/e2e/blog.spec.ts` fail if it comes back.
+- **Uneed, free waiting line: quote #32 replaced.** How it works now says "we assign your launch date automatically, at least 30 days out, at the back of the line." and Pricing says "We assign your launch date, at the back of the line." Neither page gives an upper limit any more, so the table now says "at least 30 days out", the Uneed section quotes the new text, and "Choosing where to launch" says Uneed's free line "is at least 30 days away" instead of giving a maximum wait.
+- **Uneed, leaderboards.** The post said all four leaderboards roll. How it works says Product of the Day "resets daily at 12:00 AM PST" and the other three are rolling, so the post now says that.
+- **Unchanged on Uneed:** Fast-track $14.99 ("around 2 weeks out", stays published), Relaunch $15, a yearly Pro plan, 125K monthly visitors and 26,000 newsletter subscribers, the moderation rule, the NSFW and invite-only exception ("refused whatever you paid, and we refund you"), and quotes #29 to #31 and #33 to #38, all found word for word.
+- **Quotes #19 (BetaList Advertise) and #35 (Uneed Pricing)** were read on the live pages with `curl`. No archive copy was needed.
+- **Every other price on the page is unchanged:** DevHunt $19 and $49; BetaList Boost $99 a week or $199 a month; Fazier Basic free, Lite $29 (crossed out $39), Premium $49 (crossed out $69), Super $99 (crossed out $139); Tiny Startups £29 on About and £69 for the submit form's "Instant listing + DR 71+ do-follow backlink"; Microlaunch Launch Pro $39 (crossed out $49) and Launch Plus $79 (crossed out $99), and "Pro Launch ($49)" in its FAQ. That is why the page now says "Prices checked on 21 October 2026." under the table, and the intro gives prices as of 21 October 2026.
+- **Not re-read on 21 October:** the non-price quotes from the other sites (DevHunt, Show HN, BetaList FAQ and criteria, Fazier, Tiny Startups, Microlaunch rules, Peerlist, Indie Hackers) and the two subreddit archive copies. They stay dated 20 October 2026 (24 and 28 August for the archives), and the Sources paragraph on the page says so. The FAQ answer about free routes still says "On 20 October 2026", because Microlaunch's signed-out launch window and Peerlist were not reopened.
+- **Dates:** published and updated stay 2026-10-22 in `src/lib/blog.ts`, which feeds the byline, the BlogPosting JSON-LD, the sitemap and the RSS feed.
 
 ## Sources
 
@@ -142,7 +156,7 @@ No site in the brief had to be dropped for being unreadable. Reddit's live pages
 | 16 | "Current plans and prices are shown at the end of the submission form." | https://betalist.com/faq |
 | 17 | "If your startup isn't selected, you get a full refund automatically." | https://betalist.com/faq |
 | 18 | "differ mainly by how quickly your startup is featured and whether newsletter inclusion is guaranteed." | https://betalist.com/faq |
-| 19 | "Promote your product to startup founders and early adopters" | https://betalist.com/advertise |
+| 19 | "Promote your product to startup founders and early adopters" | https://betalist.com/advertise (re-read live on 21 October 2026: `curl`, HTTP 200, no Cloudflare challenge) |
 | 20 | "Your startup must have its own domain" | https://betalist.com/faq |
 | 21 | "It's not the right place to promote your blog, newsletter, online store, etc." | https://betalist.com/criteria |
 | 22 | "Each startup gets two opportunities to be featured. Once pre-launch, and once during launch." | https://betalist.com/criteria |
@@ -155,10 +169,10 @@ No site in the brief had to be dropped for being unreadable. Reddit's live pages
 | 29 | "Uneed is a social launchpad for tech products." | https://www.uneed.best/how-it-works; https://www.uneed.best/pricing |
 | 30 | "Every day at 12:00 AM PST, a new batch of products goes live on the homepage" | https://www.uneed.best/how-it-works |
 | 31 | "Submitting is not scheduling." | https://www.uneed.best/how-it-works |
-| 32 | "between 30 days and 5 months out." | https://www.uneed.best/how-it-works |
+| 32 | "at least 30 days out, at the back of the line." | https://www.uneed.best/how-it-works (read live on 21 October 2026; replaces the earlier quote, which is no longer on the page) |
 | 33 | "Your launch needs an upvote score of 10 on launch day to stay published, and 20 to keep a do-follow backlink." | https://www.uneed.best/how-it-works |
-| 34 | "pick the exact date you want. Published with a do-follow backlink for life, no minimum upvote score." | https://www.uneed.best/how-it-works |
-| 35 | "mostly made of founders, indie hackers, tech enthusiasts" | https://www.uneed.best/pricing |
+| 34 | "pick the exact date you want. Published with a do-follow backlink for life, no minimum upvote score." | https://www.uneed.best/how-it-works (re-read live on 21 October 2026, after "Skip the waiting line ($39.99):") |
+| 35 | "mostly made of founders, indie hackers, tech enthusiasts" | https://www.uneed.best/pricing (re-read live on 21 October 2026: `curl`, HTTP 200, no Cloudflare challenge) |
 | 36 | "Free submissions go through moderation and can be declined, most often because they fall into a category we already receive dozens of every week. Paid launches are never declined." | https://www.uneed.best/how-it-works |
 | 37 | "Our reviewers need to be able to actually try your product." | https://help.uneed.best/common-questions-and-issues/what-we-accept |
 | 38 | "Don't buy votes: we detect it, the votes get removed, and repeat offenders get banned." | https://www.uneed.best/how-it-works |

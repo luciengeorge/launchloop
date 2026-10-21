@@ -70,7 +70,7 @@ export default function ProductHuntAlternativesPostPage() {
       <p>
         Product Hunt isn&apos;t the only place to launch. This is a guide to eleven others that indie makers use, from DevHunt and BetaList to Show HN and two subreddits. For
         each one it covers what the site is for, how to submit, whether it is free, what the paid options cost, and its rules, using only what the site&apos;s own pages say.
-        Prices are as the sites showed them on 20 October 2026, and they change, so check before you pay.
+        Prices are as the sites showed them on 21 October 2026, and they change, so check before you pay.
       </p>
       <p>
         There are no scores or rankings here. The sites are grouped by the kind of product they fit: developer tools, products still in beta, general launch boards, and
@@ -79,7 +79,7 @@ export default function ProductHuntAlternativesPostPage() {
       </p>
 
       <h2 id="at-a-glance">Free or paid, at a glance</h2>
-      <p>What each site&apos;s own pages said about cost on 20 October 2026. Where a site shows a crossed-out price next to a lower one, the table gives the lower price.</p>
+      <p>What each site&apos;s own pages said about cost. Where a site shows a crossed-out price next to a lower one, the table gives the lower price.</p>
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm text-muted-foreground">
           <thead>
@@ -112,8 +112,8 @@ export default function ProductHuntAlternativesPostPage() {
             </tr>
             <tr className="border-b border-border">
               <td className="py-2 pr-4 align-top">Uneed</td>
-              <td className="py-2 pr-4 align-top">Free waiting line, 30 days to 5 months out</td>
-              <td className="py-2 align-top">Fast-track $14.99, Skip the waiting line $29.99, Relaunch $15</td>
+              <td className="py-2 pr-4 align-top">Free waiting line, at least 30 days out</td>
+              <td className="py-2 align-top">Fast-track $14.99, Skip the waiting line $39.99, Relaunch $15</td>
             </tr>
             <tr className="border-b border-border">
               <td className="py-2 pr-4 align-top">Fazier</td>
@@ -148,6 +148,7 @@ export default function ProductHuntAlternativesPostPage() {
           </tbody>
         </table>
       </div>
+      <p>Prices checked on 21 October 2026.</p>
 
       <h2 id="dev-tools">If you built a developer tool</h2>
       <h3 id="devhunt">DevHunt</h3>
@@ -263,7 +264,7 @@ export default function ProductHuntAlternativesPostPage() {
       <h3 id="uneed">Uneed</h3>
       <p>
         <strong>What it is.</strong> <q>Uneed is a social launchpad for tech products.</q> Its <a href={SRC.uneedHowItWorks}>how it works</a> page says{" "}
-        <q>Every day at 12:00 AM PST, a new batch of products goes live on the homepage</q>, with day, week, month and year leaderboards that roll rather than reset.
+        <q>Every day at 12:00 AM PST, a new batch of products goes live on the homepage</q>. The day leaderboard resets daily, and the week, month and year leaderboards roll rather than reset.
       </p>
       <p>
         <strong>How to submit.</strong> Add your product on the submission page, then sign up to save it. <q>Submitting is not scheduling.</q> You go back to your dashboard and
@@ -274,7 +275,7 @@ export default function ProductHuntAlternativesPostPage() {
       </p>
       <ul>
         <li>
-          <strong>The free waiting line.</strong> Uneed assigns the date, <q>between 30 days and 5 months out.</q>{" "}
+          <strong>The free waiting line.</strong> Uneed assigns the date, <q>at least 30 days out, at the back of the line.</q>{" "}
           <q>Your launch needs an upvote score of 10 on launch day to stay published, and 20 to keep a do-follow backlink.</q> Below 10, the product goes back to your dashboard
           and can&apos;t join the free line again.
         </li>
@@ -282,7 +283,7 @@ export default function ProductHuntAlternativesPostPage() {
           <strong>Fast-track, $14.99.</strong> A date about two weeks out, and the product stays published whatever happens on launch day.
         </li>
         <li>
-          <strong>Skip the waiting line, $29.99.</strong> <q>pick the exact date you want. Published with a do-follow backlink for life, no minimum upvote score.</q>
+          <strong>Skip the waiting line, $39.99.</strong> <q>pick the exact date you want. Published with a do-follow backlink for life, no minimum upvote score.</q>
         </li>
       </ul>
       <p>A product you have already launched there can relaunch for $15. The <a href={SRC.uneedPricing}>pricing page</a> also lists a yearly Pro subscription and advertising.</p>
@@ -465,7 +466,7 @@ export default function ProductHuntAlternativesPostPage() {
           the general boards. A finished product: any of them, but BetaList turns down launches that are weeks old or more.
         </li>
         <li>
-          <strong>Count the wait.</strong> Uneed&apos;s free line can be up to 5 months away, Fazier&apos;s free tier reviews within 30 days, Microlaunch onboards between the
+          <strong>Count the wait.</strong> Uneed&apos;s free line is at least 30 days away, Fazier&apos;s free tier reviews within 30 days, Microlaunch onboards between the
           1st and 15th of the month, and Peerlist launches on Mondays. If your date matters, those are the numbers to plan around, or the paid options that let you pick a date.
         </li>
         <li>
@@ -496,9 +497,9 @@ export default function ProductHuntAlternativesPostPage() {
 
       <h2 id="sources">Sources</h2>
       <p>
-        Checked as of October 2026. Every quote and price on this page was read on 20 October 2026 from the site&apos;s own pages, except the two subreddits, which came from the
-        Internet Archive&apos;s copies of 24 and 28 August 2026 because Reddit blocked our requests. Prices and rules on these sites change often, so check each one before you
-        submit or pay.
+        Checked as of October 2026. Every quote on this page was read on 20 October 2026 from the site&apos;s own pages, except the two subreddits, which came from the
+        Internet Archive&apos;s copies of 24 and 28 August 2026 because Reddit blocked our requests. We checked every price and Uneed&apos;s pages again on 21 October 2026.
+        Prices and rules on these sites change often, so check each one before you submit or pay.
       </p>
       <ul>
         <li><a href={SRC.devhuntFaq}>DevHunt FAQ</a> and <a href={SRC.devhuntAdvertise}>Advertise on DevHunt</a></li>
