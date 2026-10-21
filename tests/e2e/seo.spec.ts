@@ -1,4 +1,5 @@
 import { type APIRequestContext, expect, type Page, test } from "@playwright/test";
+import { INDEXNOW_KEY } from "../../src/lib/indexnow";
 import { PRODUCTS } from "../../src/lib/products";
 
 test("home has title, description and Open Graph tags", async ({ page }) => {
@@ -26,6 +27,17 @@ test("robots, sitemap and llms.txt", async ({ request }) => {
   expect(text).toMatch(/^# LaunchLoop/);
   // The e2e build has the launch promo off, so the kit is at its list price.
   expect(text).toContain(`Launch Kit: ${PRODUCTS.kit.priceLabel} once`);
+});
+
+test("IndexNow key file is served at /<key>.txt with exactly the key", async ({ request }) => {
+  const res = await request.get(`/${INDEXNOW_KEY}.txt`, { maxRedirects: 0 });
+  expect(res.status()).toBe(200);
+  expect(res.headers()["content-type"]).toContain("text/plain");
+  expect(await res.text()).toBe(INDEXNOW_KEY);
+
+  const slash = await request.get(`/${INDEXNOW_KEY}.txt/`, { maxRedirects: 0 });
+  expect(slash.status()).toBe(308);
+  expect(new URL(slash.headers().location, "http://x").pathname).toBe(`/${INDEXNOW_KEY}.txt`);
 });
 
 type JsonLdNode = { "@type": string; [key: string]: unknown };
@@ -100,13 +112,16 @@ test("sitemap lists every indexable page once, with lastmod, and no redirecting 
     "/how-to-launch-a-vibe-coded-app",
     "/how-to-promote-on-reddit",
     "/how-to-write-a-show-hn-post",
+    "/blog",
+    "/blog/how-to-launch-on-product-hunt",
+    "/blog/how-to-launch-on-indie-hackers",
     "/privacy",
     "/terms",
   ];
   expect(paths).toEqual(expect.arrayContaining(expected));
   expect(new Set(paths).size).toBe(paths.length);
   expect(xml.match(/<lastmod>\d{4}-\d{2}-\d{2}/g)?.length).toBe(paths.length);
-  for (const path of ["/product-hunt-tagline-checker", "/og-preview", "/blog", "/login", "/account"]) expect(paths).not.toContain(path);
+  for (const path of ["/product-hunt-tagline-checker", "/og-preview", "/blog/rss.xml", "/login", "/account"]) expect(paths).not.toContain(path);
   for (const path of paths) expect((await request.get(path, { maxRedirects: 0 })).status(), path).toBe(200);
 });
 
@@ -145,13 +160,13 @@ test("every sitemap page has unique, well-sized metadata with a self canonical a
   expect(descriptions.size).toBe(paths.length);
 });
 
-test("trailing slashes, /blog and the old tool aliases redirect permanently", async ({ request }) => {
+test("trailing slashes and the old tool aliases redirect permanently", async ({ request }) => {
   const redirects: [string, string][] = [
     ["/pricing/", "/pricing"],
     ["/faq/?ref=x", "/faq?ref=x"],
     ["/tools/og-preview/", "/tools/og-preview"],
-    ["/blog", "/guides"],
-    ["/blog/anything", "/guides"],
+    ["/blog/", "/blog"],
+    ["/blog/how-to-launch-on-product-hunt/", "/blog/how-to-launch-on-product-hunt"],
     ["/product-hunt-tagline-checker", "/tools/product-hunt-tagline-checker"],
     ["/og-preview", "/tools/og-preview"],
   ];

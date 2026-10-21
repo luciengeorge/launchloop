@@ -84,6 +84,11 @@ const routes = {
     res.writeHead(200, { "Content-Type": "text/html" });
     res.end('<!doctype html><html><head></head><body><div id="root"></div><script src="/app.js"></script></body></html>');
   },
+  // A Vite shell like tool4boxology.service.tib.eu: the repo search for its <title> finds nothing, so it's site_no_content.
+  "/spa-no-repo": (_req, res) => {
+    res.writeHead(200, { "Content-Type": "text/html" });
+    res.end('<!doctype html><html><head><title>Nomatchly</title></head><body><div id="root"></div><script type="module" src="/assets/index.js"></script></body></html>');
+  },
   "/llmfail": (_req, res) => {
     res.writeHead(200, { "Content-Type": "text/html" });
     res.end(html({ title: "Outagely LLMFAIL", description: "Outagely monitors your uptime and pages you when your app goes down for real." }));
@@ -96,6 +101,8 @@ const routes = {
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ hello: "world" }));
   },
+  // Repo-name search for pages with no readable text: no repo matches, so those still fail with site_no_content.
+  "/gh/search/repositories": json({ total_count: 0, items: [] }),
   "/gh/users/real-owner": (_req, res) => {
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ login: "real-owner" }));

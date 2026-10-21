@@ -1,5 +1,5 @@
 import "server-only";
-import { env } from "../env";
+import { env, forceMock } from "../env";
 import { mainLanguages, manifestsFor, type ManifestFile } from "../stack";
 import { IngestError, USER_AGENT } from "./safe-fetch";
 
@@ -56,6 +56,28 @@ export async function gh(path: string, accept = "application/vnd.github+json", s
   };
   if (env.githubToken) headers.Authorization = `Bearer ${env.githubToken}`;
   return fetch(`${process.env.GITHUB_API_URL ?? "https://api.github.com"}${path}`, { headers, signal, cache: "no-store" });
+}
+
+const repoSlug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+/**
+ * The one public repo named exactly `name` (ignoring case and punctuation), for a live page that renders nothing
+ * without JavaScript. Null when there is no match or more than one, so a common name never picks a stranger's repo.
+ */
+export async function findRepoByName(name: string): Promise<{ owner: string; name: string } | null> {
+  const want = repoSlug(name);
+  // Mock mode only searches a fake GitHub (GITHUB_API_URL), never the real one.
+  if (want.length < 4 || (forceMock && !process.env.GITHUB_API_URL)) return null;
+  try {
+    const q = encodeURIComponent(`${name} in:name fork:false archived:false`);
+    const res = await gh(`/search/repositories?q=${q}&per_page=10`, undefined, AbortSignal.timeout(4000));
+    if (!res.ok) return null;
+    const { items = [] } = (await res.json()) as { items?: { name: string; owner: { login: string } }[] };
+    const hits = items.filter((r) => repoSlug(r.name) === want);
+    return hits.length === 1 ? { owner: hits[0].owner.login, name: hits[0].name } : null;
+  } catch {
+    return null;
+  }
 }
 
 async function raw(owner: string, name: string, file: string): Promise<string | undefined> {

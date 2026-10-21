@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import sitemap from "@/app/sitemap";
+import { BLOG_POSTS } from "@/lib/blog";
 import { GUIDES, guide, guidePath } from "@/lib/guides";
 import { llmsText } from "@/lib/llms";
 import { cardPages, guidePage, indexablePages } from "@/lib/pages";
@@ -37,9 +38,9 @@ describe("guide registry", () => {
     expect(guide("product-hunt-launch-checklist")).toMatchObject({ published: "2026-10-15", updated: "2026-10-20" });
   });
 
-  it("has unique slugs and meta titles", () => {
-    expect(new Set(GUIDES.map((g) => g.slug)).size).toBe(GUIDES.length);
-    expect(new Set(GUIDES.map((g) => g.metaTitle)).size).toBe(GUIDES.length);
+  it("has unique slugs, meta titles and descriptions, including against blog posts", () => {
+    const all = [...GUIDES, ...BLOG_POSTS];
+    for (const key of ["slug", "metaTitle", "description"] as const) expect(new Set(all.map((g) => g[key])).size, key).toBe(all.length);
   });
 });
 

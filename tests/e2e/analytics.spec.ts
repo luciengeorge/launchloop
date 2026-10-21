@@ -76,7 +76,7 @@ test("$pageview carries utm_source / utm_medium / utm_campaign, and later events
   expect((await campaignEvent(page, campaign, "preview_completed")).properties.utm_source).toBe("x");
 });
 
-test("newsletter_subscribed says which signup it came from: footer or post-preview", async ({ page }) => {
+test("newsletter_subscribed says which signup it came from: footer, post-preview or blog post", async ({ page }) => {
   const campaign = `news-${Date.now()}`;
   await page.goto(`/?utm_source=newsletter-test&utm_campaign=${campaign}`);
   await page.waitForLoadState("networkidle");
@@ -94,6 +94,40 @@ test("newsletter_subscribed says which signup it came from: footer or post-previ
   const event = await campaignEvent(page, previewCampaign, "newsletter_subscribed");
   expect(event.properties).toMatchObject({ placement: "preview", welcome: "sent" });
   expect(JSON.stringify(event)).not.toContain("@example.com");
+
+  const blogCampaign = `${campaign}-blog`;
+  await page.goto(`/blog/how-to-launch-on-product-hunt?utm_source=newsletter-test&utm_campaign=${blogCampaign}`);
+  await page.waitForLoadState("networkidle");
+  const blog = page.getByTestId("blog-newsletter");
+  await blog.getByLabel("Email for the launch-day checklist").fill(uniqueEmail("ph-blog"));
+  await blog.getByRole("button", { name: "Send me the checklist" }).click();
+  expect((await campaignEvent(page, blogCampaign, "newsletter_subscribed")).properties).toMatchObject({ placement: "blog", welcome: "sent" });
+});
+
+test("site_no_content's repo button: shown, blocked resend and click are tracked, never with the link", async ({ page }) => {
+  const campaign = `no-content-${Date.now()}`;
+  await page.goto(`/?utm_source=errors&utm_campaign=${campaign}`);
+  const input = page.getByLabel("GitHub repo or live site URL");
+  await input.fill(`${FIXTURE}/spa-no-repo`);
+  await page.getByRole("button", { name: "Get my free preview" }).first().click();
+  const cta = page.getByRole("button", { name: "Use my GitHub repo instead" });
+  await expect(cta).toBeVisible({ timeout: 15_000 });
+  await input.press("Enter");
+  await expect(cta).toBeFocused();
+  await cta.click();
+  await expect(page.getByLabel("GitHub repo URL", { exact: true })).toBeFocused();
+
+  const context = { code: "site_no_content", plan: "free", isLoggedIn: false, utm_source: "errors" };
+  const shown = await campaignEvent(page, campaign, "repo_cta_shown");
+  const blocked = await campaignEvent(page, campaign, "preview_resubmit_blocked");
+  const clicked = await campaignEvent(page, campaign, "repo_cta_clicked");
+  expect(shown.properties).toMatchObject(context);
+  expect(blocked.properties).toMatchObject(context);
+  expect(clicked.properties).toMatchObject({ ...context, prefill: "github" });
+  for (const e of [shown, blocked, clicked]) expect(JSON.stringify(e)).not.toContain("spa-no-repo");
+  // The blocked resend never became a preview attempt.
+  const attempts = (await phEvents(page)).filter((e) => e.properties.utm_campaign === campaign && e.event === "preview_started");
+  expect(attempts).toHaveLength(1);
 });
 
 test("header CTA from another page keeps the visitor's id and UTMs, through to the server-side purchase event", async ({ page }) => {
