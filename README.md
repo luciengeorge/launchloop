@@ -230,6 +230,7 @@ Two PostHog multivariate flags (50/50, variants `control` and `treatment`). Unti
 - **Plain form posts** (no JS, or before hydration) are redirected back with `?subscribed=1`, or `?subscribed=0&error=<code>` and a `#hash` that reveals the message without JavaScript. `next` is only honoured as a same-origin path, checked after URL parsing in `newsletterReturnPath`, which builds every redirect.
 - On a page with the £19 unlock panel, the footer's Subscribe button is an outline button so the unlock button is the only primary one.
 - **Counting signups.** `newsletter_subscribed` is captured by the API, not the browser: posthog-js drops every event from automated browsers (`navigator.webdriver`, headless Chrome), which is how QA signs up, and a plain form post has no SDK at all. A new subscriber is `welcome` `sent` or `skipped`; filter `is_test` and `is_webdriver` out for real traffic.
+- **Accessibility.** The success message renders into a `role="status"` region that is mounted (empty) from the start, so screen readers announce it, and focus moves to the checklist link when the form is replaced. The blog block's form is named by its heading, so a blog page doesn't have two forms called "Newsletter signup".
 
 ## Ship Loop waitlist
 

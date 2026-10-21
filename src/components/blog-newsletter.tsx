@@ -29,6 +29,7 @@ export function BlogNewsletter({ post }: { post: BlogPost }) {
           buttonLabel="Send me the checklist"
           buttonVariant="outline"
           returnTo={postPath(post)}
+          labelledBy="blog-newsletter-heading"
         />
       </div>
     </section>

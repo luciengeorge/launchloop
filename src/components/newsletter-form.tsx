@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { isTestVisit, pageAnalyticsId } from "@/lib/analytics";
@@ -32,6 +32,8 @@ interface Props {
   returnTo?: string;
   /** The no-JS post's `?subscribed=`, `?welcome=` and `?error=` when the server page already knows them, so they render without JavaScript. */
   redirected?: { subscribed?: string; welcome?: string; error?: string };
+  /** Id of the visible heading that names this form, so it isn't one of two "Newsletter signup" forms on the page. */
+  labelledBy?: string;
 }
 
 export function NewsletterForm({
@@ -43,8 +45,10 @@ export function NewsletterForm({
   buttonVariant = "default",
   returnTo,
   redirected: redirectedProp,
+  labelledBy,
 }: Props) {
   const id = useId();
+  const live = useRef<HTMLDivElement>(null);
   const [state, setState] = useState<"idle" | "loading">("idle");
   const [welcome, setWelcome] = useState<WelcomeOutcome | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -60,6 +64,11 @@ export function NewsletterForm({
   const outcome = welcome ?? (redirected.subscribed === "1" ? parseWelcome(redirected.welcome) : null);
   const redirectError = redirected.subscribed === "0" ? (newsletterError(redirected.error) ?? NEWSLETTER_ERRORS.invalid) : null;
   const shownError = error ?? (state === "idle" ? redirectError : null);
+
+  // The submit button unmounts with the form, which drops focus to <body>: hand it to the checklist link instead.
+  useEffect(() => {
+    if (welcome && (!document.activeElement || document.activeElement === document.body)) live.current?.querySelector("a")?.focus();
+  }, [welcome]);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -82,57 +91,75 @@ export function NewsletterForm({
     setState("idle");
   }
 
-  if (outcome) return <Subscribed placement={placement} welcome={outcome} />;
-
   return (
-    <form onSubmit={onSubmit} method="post" action="/api/newsletter" className="space-y-2" aria-label="Newsletter signup" data-placement={placement}>
-      <input type="hidden" name="placement" value={placement} />
-      {returnTo ? <input type="hidden" name="next" value={returnTo} /> : null}
-      <label htmlFor={`${id}-email`} className={hideLabel ? "sr-only" : "text-sm font-medium"}>
-        {label}
-      </label>
-      <div className="flex max-w-sm gap-2">
-        <Input
-          id={`${id}-email`}
-          name="email"
-          type="email"
-          required
-          placeholder="you@example.com"
-          autoComplete="email"
-          aria-describedby={hint ? `${id}-hint` : undefined}
-          className="h-9 bg-background"
-        />
-        <Button type="submit" size="lg" variant={buttonVariant} disabled={state === "loading"}>
-          {state === "loading" ? "Joining…" : buttonLabel}
-        </Button>
-      </div>
-      {hint ? (
-        <p id={`${id}-hint`} className="text-xs text-muted-foreground">
-          {hint}
-        </p>
-      ) : null}
-      {shownError ? <p className="text-sm text-destructive" role="alert">{shownError}</p> : null}
-      {/* A static page can't read ?error= on the server, so until JS runs the post's redirect reveals one of these by its #hash. */}
-      {hydrated || redirectError
-        ? null
-        : (Object.keys(NEWSLETTER_ERRORS) as NewsletterErrorCode[]).map((code) => (
-            <p key={code} id={newsletterErrorAnchor(placement, code)} className="hidden text-sm text-destructive target:block">
-              {NEWSLETTER_ERRORS[code]}
+    <div>
+      {outcome ? null : (
+        <form
+          onSubmit={onSubmit}
+          method="post"
+          action="/api/newsletter"
+          className="space-y-2"
+          {...(labelledBy ? { "aria-labelledby": labelledBy } : { "aria-label": "Newsletter signup" })}
+          data-placement={placement}
+        >
+          <input type="hidden" name="placement" value={placement} />
+          {returnTo ? <input type="hidden" name="next" value={returnTo} /> : null}
+          <label htmlFor={`${id}-email`} className={hideLabel ? "sr-only" : "text-sm font-medium"}>
+            {label}
+          </label>
+          <div className="flex max-w-sm gap-2">
+            <Input
+              id={`${id}-email`}
+              name="email"
+              type="email"
+              required
+              placeholder="you@example.com"
+              autoComplete="email"
+              aria-describedby={hint ? `${id}-hint` : undefined}
+              className="h-9 bg-background"
+            />
+            <Button type="submit" size="lg" variant={buttonVariant} disabled={state === "loading"}>
+              {state === "loading" ? "Joining…" : buttonLabel}
+            </Button>
+          </div>
+          {hint ? (
+            <p id={`${id}-hint`} className="text-xs text-muted-foreground">
+              {hint}
             </p>
-          ))}
-    </form>
+          ) : null}
+          {shownError ? <p className="text-sm text-destructive" role="alert">{shownError}</p> : null}
+          {/* A static page can't read ?error= on the server, so until JS runs the post's redirect reveals one of these by its #hash. */}
+          {hydrated || redirectError
+            ? null
+            : (Object.keys(NEWSLETTER_ERRORS) as NewsletterErrorCode[]).map((code) => (
+                <p key={code} id={newsletterErrorAnchor(placement, code)} className="hidden text-sm text-destructive target:block">
+                  {NEWSLETTER_ERRORS[code]}
+                </p>
+              ))}
+        </form>
+      )}
+      {/* Mounted (empty) before any submit: screen readers only announce changes to a live region that already exists. */}
+      <div
+        ref={live}
+        role="status"
+        className="space-y-1 text-sm"
+        {...(outcome ? { "data-testid": `newsletter-done-${placement}`, "data-welcome": outcome } : {})}
+      >
+        {outcome ? <Subscribed welcome={outcome} /> : null}
+      </div>
+    </div>
   );
 }
 
 /** Only says an email is on its way when this signup actually sent one. */
-function Subscribed({ placement, welcome }: { placement: NewsletterPlacement; welcome: WelcomeOutcome }) {
+function Subscribed({ welcome }: { welcome: WelcomeOutcome }) {
   const link = (text: string) => (
     <Link href={LEAD_MAGNET.path} className="font-medium text-foreground underline underline-offset-4 hover:text-primary">
       {text}
     </Link>
   );
   return (
-    <div className="space-y-1 text-sm" role="status" data-testid={`newsletter-done-${placement}`} data-welcome={welcome}>
+    <>
       {welcome === "existing" ? (
         <p className="font-medium">You&apos;re already on the list. Here&apos;s the {LEAD_MAGNET.title}:</p>
       ) : (
@@ -149,6 +176,6 @@ function Subscribed({ placement, welcome }: { placement: NewsletterPlacement; we
       ) : (
         <p className="text-muted-foreground">{link("Open the checklist")}</p>
       )}
-    </div>
+    </>
   );
 }
