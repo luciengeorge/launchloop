@@ -1,3 +1,4 @@
+import { postPath } from "./blog";
 import { KIT_PRICE_TOKEN } from "./site";
 
 export type Tool = {
@@ -54,10 +55,14 @@ export const TAGLINE_FAQ = [
   },
 ] as const;
 
-export const OG_FAQ = [
+/** A tool FAQ answer, optionally ending with a link to the page that covers the question in full. */
+export type ToolFaqItem = { q: string; a: string; more?: { href: string; label: string } };
+
+export const OG_FAQ: readonly ToolFaqItem[] = [
   {
     q: "What size should an Open Graph image be?",
-    a: "1200×630 pixels, a 1.91:1 ratio, as a PNG or JPG. Keep it under 1 MB if you can and well under 5 MB, which is where X stops showing images. Anything smaller than 600×315 is shown as a small thumbnail or not at all, and keep your headline away from the edges because some apps crop a little.",
+    a: "Use 1200×630 pixels as a PNG or JPG under 5 MB: it's the size Facebook recommends and it meets LinkedIn's 1200×627 minimum, though X's archived docs describe a 2:1 image and Slack publishes no size.",
+    more: { href: postPath({ slug: "og-image-size" }), label: "See what each platform's docs say." },
   },
   {
     q: "Why isn't my link showing a preview image?",
@@ -75,4 +80,4 @@ export const OG_FAQ = [
     q: "Is the OG preview free?",
     a: "Yes, with no sign-up and no card. It fetches the public page and its share image the way a link previewer would, as LaunchLoopBot, and doesn't save the URL or the results.",
   },
-] as const;
+];

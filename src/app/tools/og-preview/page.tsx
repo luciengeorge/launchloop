@@ -12,7 +12,7 @@ import { isLaunchPromoOn } from "@/lib/launch-promo-server";
 import { pageMetadata } from "@/lib/seo";
 import { SITE, kitPriceText } from "@/lib/site";
 import { breadcrumbs, faqPage } from "@/lib/structured-data";
-import { OG_FAQ, OG_PREVIEW as tool, TAGLINE_CHECKER } from "@/lib/tools";
+import { OG_FAQ, OG_PREVIEW as tool, TAGLINE_CHECKER, type ToolFaqItem } from "@/lib/tools";
 
 export const metadata: Metadata = pageMetadata(toolPage(tool));
 
@@ -35,6 +35,12 @@ const PITFALLS = [
   { title: "A login wall or a blocked crawler", body: "If the page or the image needs a login, redirects to one, or is blocked in robots.txt, the preview is blank. The image has to be publicly reachable too." },
   { title: "An old cached card", body: "Apps cache the first card they see, sometimes for days. After fixing your tags, refresh it with the Facebook Sharing Debugger or LinkedIn Post Inspector, and share a fresh link to test." },
 ] as const;
+
+/** The FAQPage answer for an item: the visible text, with its "more" link as an <a>, which Google allows in Answer text. */
+function faqAnswerHtml(base: string, item: ToolFaqItem, promo: boolean): string {
+  const text = kitPriceText(item.a, promo);
+  return item.more ? `${text} <a href="${base}${item.more.href}">${item.more.label}</a>` : text;
+}
 
 const prose =
   "space-y-5 leading-relaxed [&_h2]:mt-14 [&_h2]:scroll-mt-20 [&_h2]:text-2xl [&_h2]:font-semibold [&_h2]:tracking-tight [&_h3]:mt-6 [&_h3]:font-semibold [&_li]:text-muted-foreground [&_ul]:list-disc [&_ul]:space-y-2 [&_ul]:pl-5 [&_p]:text-muted-foreground [&_a]:font-medium [&_a]:text-foreground [&_a]:underline [&_a]:underline-offset-4 [&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-sm [&_code]:text-foreground";
@@ -72,7 +78,7 @@ export default async function OgPreviewPage() {
             },
             faqPage(
               `${url}#faq`,
-              OG_FAQ.map((item) => ({ q: item.q, a: kitPriceText(item.a, promo) })),
+              OG_FAQ.map((item) => ({ q: item.q, a: faqAnswerHtml(base, item, promo) })),
             ),
             breadcrumbs(base, [
               { name: "Tools", path: PAGES.tools.path },
@@ -111,8 +117,8 @@ export default async function OgPreviewPage() {
         <h2 id="size">The {SIZE} rule</h2>
         <ul>
           <li>
-            <strong>{SIZE} pixels, a 1.91:1 ratio.</strong> It&apos;s the size Facebook, LinkedIn, X and Slack all design their large card around, so one image works
-            everywhere.
+            <strong>{SIZE} pixels, a 1.91:1 ratio.</strong> It&apos;s the size Facebook recommends and it meets LinkedIn&apos;s 1200×627 minimum. X&apos;s archived docs
+            describe a 2:1 image and Slack publishes no size, so it&apos;s the safest single size rather than an exact match everywhere.
           </li>
           <li>
             <strong>PNG or JPG, ideally under 1 MB.</strong> X skips images over 5 MB, and smaller files load before the person scrolls past.
@@ -175,6 +181,12 @@ export default async function OgPreviewPage() {
               <h3>{item.q}</h3>
               <p className="mt-2">
                 <PricedText text={item.a} promo={promo} />
+                {item.more ? (
+                  <>
+                    {" "}
+                    <Link href={item.more.href}>{item.more.label}</Link>
+                  </>
+                ) : null}
               </p>
             </section>
           ))}
