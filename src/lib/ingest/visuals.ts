@@ -1,4 +1,5 @@
 import "server-only";
+import { isGitHubIdenticon } from "../image-tone";
 import type { KitImageFormat, KitImageRef, KitVisuals } from "../schema";
 import { githubApiUrl, githubAuthHeaders, type RepoData } from "./github";
 import { imageSize, type ImageFormat } from "./image-size";
@@ -135,9 +136,9 @@ export function fits(kind: Kind, format: KitImageFormat, width: number, height: 
   return (format === "svg" || Math.min(width, height) >= 64) && ratio >= 0.8 && ratio <= 1.25;
 }
 
-async function probe(candidate: Candidate, kind: Kind): Promise<KitImageRef | null> {
+async function probe(candidate: Candidate, kind: Kind, signal: AbortSignal): Promise<KitImageRef | null> {
   try {
-    const res = await safeFetchBytes(candidate.url, { accept: IMAGE_ACCEPT[kind], maxBytes: PROBE_BYTES, timeoutMs: 4000 });
+    const res = await safeFetchBytes(candidate.url, { accept: IMAGE_ACCEPT[kind], maxBytes: PROBE_BYTES, timeoutMs: 4000, signal });
     if (res.status >= 400) return null;
     const size = imageSize(res.bytes, res.contentType);
     const format = kitImageFormat(kind, size.format, res.contentType);
@@ -146,6 +147,7 @@ async function probe(candidate: Candidate, kind: Kind): Promise<KitImageRef | nu
     const cap = kind === "screenshot" ? MAX_SCREENSHOT_BYTES : MAX_LOGO_BYTES;
     if (res.contentLength && res.contentLength > cap) return null;
     if (!fits(kind, format, size.width, size.height)) return null;
+    if (candidate.source === "avatar" && format === "png" && isGitHubIdenticon(res.bytes)) return null;
     return { url: candidate.url, width: size.width, height: size.height, format, source: candidate.source };
   } catch {
     return null;
@@ -161,7 +163,10 @@ class Picker {
   private groups: { candidates: Candidate[]; results: (KitImageRef | null | undefined)[] }[] = [];
   private pending: Promise<unknown>[] = [];
   private seen = new Set<string>();
-  constructor(private kind: Kind) {}
+  constructor(
+    private kind: Kind,
+    private signal: AbortSignal,
+  ) {}
 
   /** Reserves a rank slot now, so groups that resolve later still sort where they belong. */
   slot(): (candidates: Candidate[], max: number) => void {
@@ -170,7 +175,7 @@ class Picker {
     return (candidates, max) => {
       group.candidates = candidates.filter((c) => !this.seen.has(c.url) && this.seen.add(c.url)).slice(0, max);
       group.results = group.candidates.map(() => undefined);
-      this.pending.push(...group.candidates.map((c, i) => probe(c, this.kind).then((r) => (group.results[i] = r))));
+      this.pending.push(...group.candidates.map((c, i) => probe(c, this.kind, this.signal).then((r) => (group.results[i] = r))));
     };
   }
 
@@ -178,7 +183,7 @@ class Picker {
   best = () => this.groups.flatMap((g) => g.results).find((r): r is KitImageRef => !!r);
 }
 
-async function repoTree(repo: RepoData): Promise<string[]> {
+async function repoTree(repo: RepoData, signal: AbortSignal): Promise<string[]> {
   try {
     const res = await safeFetch(githubApiUrl(`/repos/${repo.owner}/${repo.name}/git/trees/HEAD?recursive=1`), {
       accept: "application/vnd.github+json",
@@ -186,6 +191,7 @@ async function repoTree(repo: RepoData): Promise<string[]> {
       originHeaders: githubAuthHeaders(),
       maxBytes: TREE_BYTES,
       timeoutMs: 2500,
+      signal,
     });
     return res.status === 200 ? treePaths(res.text) : [];
   } catch {
@@ -195,8 +201,10 @@ async function repoTree(repo: RepoData): Promise<string[]> {
 
 /** Best effort: a product screenshot and a logo for the kit images, or nothing, never slower than the budget. */
 export async function discoverVisuals(repo: RepoData | undefined, site: SiteData | undefined, budgetMs = VISUALS_BUDGET_MS): Promise<KitVisuals> {
-  const shots = new Picker("screenshot");
-  const logos = new Picker("logo");
+  // Cancels whatever is still downloading once the budget is spent.
+  const abort = new AbortController();
+  const shots = new Picker("screenshot", abort.signal);
+  const logos = new Picker("logo", abort.signal);
   const readmeSlot = shots.slot();
   const repoShotSlot = shots.slot();
   const siteOgSlot = shots.slot();
@@ -211,7 +219,8 @@ export async function discoverVisuals(repo: RepoData | undefined, site: SiteData
   avatarSlot(repo?.orgAvatarUrl ? [{ url: repo.orgAvatarUrl, source: "avatar" }] : [], 1);
   const fromTree = (async () => {
     if (!repo) return;
-    const files = repoImageFiles(await repoTree(repo));
+    const files = repoImageFiles(await repoTree(repo, abort.signal));
+    if (abort.signal.aborted) return;
     const fromRepo = (paths: string[]): Candidate[] => paths.map((p) => ({ url: rawUrl(repo.owner, repo.name, p), source: "repo" }));
     repoShotSlot(fromRepo(files.shots), 2);
     repoOgSlot(fromRepo(files.ogs), 1);
@@ -229,5 +238,6 @@ export async function discoverVisuals(repo: RepoData | undefined, site: SiteData
   }
   const screenshot = shots.best();
   const logo = logos.best();
+  abort.abort();
   return { ...(screenshot && { screenshot }), ...(logo && { logo }) };
 }

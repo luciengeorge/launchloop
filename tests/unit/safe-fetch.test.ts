@@ -118,6 +118,15 @@ describe("safeFetch address validation", () => {
     expect(page.url).toBe("https://example.com/");
     expect(String(undiciFetch.fetch.mock.calls[0][0])).toBe("https://example.com/");
   });
+
+  it("stops when the caller's signal aborts, well before its own timeout", async () => {
+    dns.lookup.mockResolvedValue(resolvesTo(PUBLIC_V4));
+    undiciFetch.fetch.mockImplementation((_target, init: { signal: AbortSignal }) => new Promise((_, reject) => init.signal.addEventListener("abort", () => reject(init.signal.reason))));
+    const caller = new AbortController();
+    const pending = safeFetch("https://slow.example.com/", { timeoutMs: 60_000, signal: caller.signal });
+    setTimeout(() => caller.abort(), 10);
+    await expect(pending).rejects.toMatchObject({ code: "site_timeout" });
+  });
 });
 
 describe("pinnedLookup", () => {

@@ -1,11 +1,12 @@
 import { parse } from "node-html-parser";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { bytesResponse, sizedGif, sizedPng, sizedWebp } from "./png";
+import { bytesResponse, png, sizedGif, sizedPng, sizedWebp } from "./png";
 
 const fetchMock = vi.hoisted(() => ({ safeFetch: vi.fn(), safeFetchBytes: vi.fn() }));
 vi.mock("@/lib/ingest/safe-fetch", async (importOriginal) => ({ ...(await importOriginal<object>()), ...fetchMock }));
 
 const { discoverVisuals, fits, kitImageFormat, readmeShots, repoImageFiles, treePaths } = await import("@/lib/ingest/visuals");
+const { isGitHubIdenticon } = await import("@/lib/image-tone");
 const { pageImages } = await import("@/lib/ingest/site");
 const { imageSize, svgSize } = await import("@/lib/ingest/image-size");
 
@@ -178,13 +179,22 @@ describe("discoverVisuals", () => {
     expect(visuals.screenshot).toMatchObject({ url: "https://example.com/100%.png", source: "readme" });
   });
 
-  it("never waits longer than its budget, keeping whatever already arrived", async () => {
-    fetchMock.safeFetch.mockReturnValue(new Promise(() => {}));
-    fetchMock.safeFetchBytes.mockImplementation((url: string) => (url.endsWith("apple.png") ? Promise.resolve(bytesResponse(sizedPng(180, 180))) : new Promise(() => {})));
+  it("never waits longer than its budget, keeping whatever already arrived and cancelling the rest", async () => {
+    const signals: AbortSignal[] = [];
+    const hang = (options: { signal?: AbortSignal }) => {
+      if (options.signal) signals.push(options.signal);
+      return new Promise(() => {});
+    };
+    fetchMock.safeFetch.mockImplementation((_url: string, options: { signal?: AbortSignal }) => hang(options));
+    fetchMock.safeFetchBytes.mockImplementation((url: string, options: { signal?: AbortSignal }) =>
+      url.endsWith("apple.png") ? Promise.resolve(bytesResponse(sizedPng(180, 180))) : hang(options),
+    );
     const started = Date.now();
     const visuals = await discoverVisuals({ ...REPO, readme: "![App](docs/app.png)" }, site, 150);
     expect(Date.now() - started).toBeLessThan(1000);
     expect(visuals).toEqual({ logo: expect.objectContaining({ url: "https://rocket.dev/apple.png" }) });
+    expect(signals.length).toBeGreaterThanOrEqual(3);
+    expect(signals.every((s) => s.aborted)).toBe(true);
   });
 
   it("uses an organisation's avatar, and finds nothing without a repo or site", async () => {
@@ -192,5 +202,18 @@ describe("discoverVisuals", () => {
     fetchMock.safeFetchBytes.mockResolvedValue(bytesResponse(sizedPng(460, 460)));
     expect((await discoverVisuals({ ...REPO, orgAvatarUrl: "https://avatars.githubusercontent.com/u/1?v=4" }, undefined)).logo).toMatchObject({ source: "avatar" });
     expect(await discoverVisuals(undefined, undefined)).toEqual({});
+  });
+
+  it("skips GitHub's default identicon avatar, which says nothing about the project", async () => {
+    // 420px, one colour in 70px cells on #F0F0F0, with a 35px margin, as GitHub draws them.
+    const cell = (x: number, y: number) => x >= 35 && x < 385 && y >= 35 && y < 385 && (Math.floor((x - 35) / 70) + Math.floor((y - 35) / 70)) % 2 === 0;
+    const identicon = png(420, 420, (x, y) => (cell(x, y) ? [116, 223, 163, 255] : [240, 240, 240, 255]));
+    const logo = png(420, 420, (x, y) => (cell(x, y) ? [116, 223, 163, 255] : x < 210 ? [20, 20, 20, 255] : [240, 240, 240, 255]));
+    expect(isGitHubIdenticon(identicon)).toBe(true);
+    expect(isGitHubIdenticon(logo)).toBe(false);
+
+    fetchMock.safeFetch.mockResolvedValue({ url: "", status: 404, contentType: "", text: "" });
+    fetchMock.safeFetchBytes.mockResolvedValue(bytesResponse(identicon));
+    expect(await discoverVisuals({ ...REPO, orgAvatarUrl: "https://avatars.githubusercontent.com/u/74306737?v=4" }, undefined)).toEqual({});
   });
 });

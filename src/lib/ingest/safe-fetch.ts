@@ -124,6 +124,8 @@ interface SafeFetchOptions {
   originHeaders?: Record<string, string>;
   maxBytes?: number;
   timeoutMs?: number;
+  /** Aborts the fetch early, as a timeout does. */
+  signal?: AbortSignal;
 }
 
 export interface SafeFetchResult {
@@ -162,7 +164,7 @@ export async function safeFetchBytes(input: string, options: SafeFetchOptions = 
       try {
         res = await fetch(current, {
           redirect: "manual",
-          signal: AbortSignal.timeout(timeoutMs),
+          signal: options.signal ? AbortSignal.any([AbortSignal.timeout(timeoutMs), options.signal]) : AbortSignal.timeout(timeoutMs),
           headers: {
             "User-Agent": USER_AGENT,
             Accept: options.accept ?? "text/html,*/*;q=0.8",

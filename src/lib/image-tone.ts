@@ -16,11 +16,13 @@ function paeth(a: number, b: number, c: number) {
   return pa <= pb && pa <= pc ? a : pb <= pc ? b : c;
 }
 
+type DecodedPng = { width: number; height: number; rgba: (x: number, y: number) => [number, number, number, number] };
+
 /**
  * Decodes an 8-bit, non-interlaced PNG (greyscale, RGB, palette, with or without alpha) far enough
  * to sample its pixels. Anything else (16-bit, interlaced, oversized, corrupt) returns undefined.
  */
-export function pngTone(bytes: Uint8Array): ImageTone | undefined {
+function decodePng(bytes: Uint8Array): DecodedPng | undefined {
   try {
     const view = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
     if (view.length < 33 || view.readUInt32BE(0) !== 0x89504e47) return undefined;
@@ -65,39 +67,55 @@ export function pngTone(bytes: Uint8Array): ImageTone | undefined {
       }
     }
 
-    let clear = 0;
-    let total = 0;
-    let lum = 0;
-    let weight = 0;
-    for (let sy = 0; sy < SAMPLES; sy++) {
-      for (let sx = 0; sx < SAMPLES; sx++) {
-        const x = Math.min(width - 1, Math.floor(((sx + 0.5) * width) / SAMPLES));
-        const y = Math.min(height - 1, Math.floor(((sy + 0.5) * height) / SAMPLES));
-        const o = y * stride + x * channels;
-        let r: number, g: number, b: number, a: number;
-        if (colorType === 0 || colorType === 4) {
-          r = g = b = pixels[o];
-          a = colorType === 4 ? pixels[o + 1] : 255;
-        } else if (colorType === 3) {
-          const idx = pixels[o];
-          [r, g, b] = [palette![idx * 3], palette![idx * 3 + 1], palette![idx * 3 + 2]];
-          a = trns && idx < trns.length ? trns[idx] : 255;
-        } else {
-          [r, g, b] = [pixels[o], pixels[o + 1], pixels[o + 2]];
-          a = colorType === 6 ? pixels[o + 3] : 255;
-        }
-        total++;
-        if (a < 128) clear++;
-        else {
-          lum += luminance([r, g, b]) * a;
-          weight += a;
-        }
+    const rgba = (x: number, y: number): [number, number, number, number] => {
+      const o = y * stride + x * channels;
+      if (colorType === 0 || colorType === 4) return [pixels[o], pixels[o], pixels[o], colorType === 4 ? pixels[o + 1] : 255];
+      if (colorType === 3) {
+        const idx = pixels[o];
+        return [palette![idx * 3], palette![idx * 3 + 1], palette![idx * 3 + 2], trns && idx < trns.length ? trns[idx] : 255];
       }
-    }
-    return { transparent: clear / total > 0.02, luminance: weight ? lum / weight : 0 };
+      return [pixels[o], pixels[o + 1], pixels[o + 2], colorType === 6 ? pixels[o + 3] : 255];
+    };
+    return { width, height, rgba };
   } catch {
     return undefined;
   }
+}
+
+/** A SAMPLES × SAMPLES grid of pixels spread evenly over the image. */
+function* samples({ width, height, rgba }: DecodedPng) {
+  for (let sy = 0; sy < SAMPLES; sy++) {
+    for (let sx = 0; sx < SAMPLES; sx++) {
+      yield rgba(Math.min(width - 1, Math.floor(((sx + 0.5) * width) / SAMPLES)), Math.min(height - 1, Math.floor(((sy + 0.5) * height) / SAMPLES)));
+    }
+  }
+}
+
+export function pngTone(bytes: Uint8Array): ImageTone | undefined {
+  const png = decodePng(bytes);
+  if (!png) return undefined;
+  let clear = 0;
+  let total = 0;
+  let lum = 0;
+  let weight = 0;
+  for (const [r, g, b, a] of samples(png)) {
+    total++;
+    if (a < 128) clear++;
+    else {
+      lum += luminance([r, g, b]) * a;
+      weight += a;
+    }
+  }
+  return { transparent: clear / total > 0.02, luminance: weight ? lum / weight : 0 };
+}
+
+/** GitHub's default avatar: a 420px PNG of one colour on #F0F0F0, nothing to do with the project. */
+export function isGitHubIdenticon(bytes: Uint8Array): boolean {
+  const png = decodePng(bytes);
+  if (!png || png.width !== 420 || png.height !== 420) return false;
+  const colours = new Set<string>();
+  for (const [r, g, b] of samples(png)) colours.add(`${r},${g},${b}`);
+  return colours.size === 2 && colours.has("240,240,240");
 }
 
 /**
