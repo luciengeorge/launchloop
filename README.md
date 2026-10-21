@@ -155,6 +155,7 @@ To switch models, change the env vars; no code changes are needed.
 - `/sitemap.xml` and `/robots.txt` (kits, checkout and API are disallowed; kit pages are `noindex`)
 - `/faq` with `FAQPage` JSON-LD; `SoftwareApplication` JSON-LD with offers on the home page
 - `/llms.txt`: a plain-language description for AI assistants
+- IndexNow: changed blog, guide and tool URLs are pinged after each production deploy (see `docs/seo/indexnow.md`)
 - Semantic HTML: one `h1` per page, landmarks, labelled forms, a skip link
 
 ## Analytics
