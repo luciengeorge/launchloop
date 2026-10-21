@@ -2,12 +2,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { RepoData } from "@/lib/ingest/github";
 import type { SiteData } from "@/lib/ingest/site";
 
-const m = vi.hoisted(() => ({ fetchSite: vi.fn(), fetchRepo: vi.fn(), findRepoByName: vi.fn() }));
+const m = vi.hoisted(() => ({ fetchSite: vi.fn(), fetchRepo: vi.fn(), findRepoByName: vi.fn(), discoverVisuals: vi.fn(), captureException: vi.fn() }));
 vi.mock("@/lib/ingest/site", () => ({ fetchSite: m.fetchSite }));
+vi.mock("@/lib/ingest/visuals", () => ({ discoverVisuals: m.discoverVisuals }));
 vi.mock("@/lib/ingest/github", async (orig) => ({ ...(await orig<typeof import("@/lib/ingest/github")>()), fetchRepo: m.fetchRepo, findRepoByName: m.findRepoByName }));
 vi.mock("@/lib/ingest/repo-palette", () => ({ fetchRepoPalette: vi.fn(async () => ({ source: "default" })) }));
 vi.mock("@/lib/kit-tracing", () => ({ phase: (_n: string, _o: string, _a: unknown, fn: () => unknown) => fn() }));
-vi.mock("@/lib/observability", () => ({ captureException: vi.fn() }));
+vi.mock("@/lib/observability", () => ({ captureException: m.captureException }));
 
 const { ingest } = await import("@/lib/ingest");
 
@@ -17,6 +18,7 @@ const repo = (owner: string, name: string, homepage?: string) => ({ owner, name,
 
 beforeEach(() => {
   m.findRepoByName.mockResolvedValue(null);
+  m.discoverVisuals.mockResolvedValue({});
 });
 
 describe("ingest: a site URL whose page has no readable text", () => {
@@ -50,5 +52,23 @@ describe("ingest: a site URL whose page has no readable text", () => {
     await expect(ingest("acme.io")).rejects.toMatchObject({ code: "site_no_content" });
     expect(m.findRepoByName.mock.calls).toEqual([["acme"], ["Rocket Skates"]]);
     expect(m.fetchRepo).not.toHaveBeenCalled();
+  });
+});
+
+describe("ingest: kit visuals are best effort", () => {
+  it.each([
+    ["rejects", () => Promise.reject(new URIError("URI malformed"))],
+    ["throws", () => {
+      throw new URIError("URI malformed");
+    }],
+  ])("a visuals lookup that %s still ingests, with no visuals", async (_, impl) => {
+    m.fetchSite.mockResolvedValue(emptySpa("https://tool4boxology.service.tib.eu/"));
+    m.findRepoByName.mockResolvedValue({ owner: "SDM-TIB", name: "Tool4Boxology" });
+    m.fetchRepo.mockResolvedValue(repo("SDM-TIB", "Tool4Boxology"));
+    m.discoverVisuals.mockImplementation(impl);
+    const result = await ingest("https://tool4boxology.service.tib.eu");
+    expect(result.repo?.name).toBe("Tool4Boxology");
+    expect(result.visuals).toEqual({});
+    expect(m.captureException).toHaveBeenCalledWith(expect.any(URIError), { stage: "ingest.visuals" });
   });
 });

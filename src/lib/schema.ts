@@ -71,7 +71,8 @@ export interface SourceSummary {
   warnings: string[];
 }
 
-export type KitImageFormat = "png" | "jpeg" | "gif" | "webp" | "svg";
+/** What Satori can draw. It renders WebP, GIF and AVIF as blank boxes, so those are never kept. */
+export type KitImageFormat = "png" | "jpeg" | "svg";
 
 /** An image found at ingest and checked for size and format. The bytes are fetched again (SSRF-guarded) when an image is rendered. */
 export interface KitImageRef {

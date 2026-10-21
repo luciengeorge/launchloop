@@ -48,4 +48,25 @@ export function sizedPng(width: number, height: number) {
   return bytes;
 }
 
+/** A VP8X WebP header that claims any size. */
+export function sizedWebp(width: number, height: number) {
+  const b = Buffer.alloc(30);
+  b.write("RIFF", 0);
+  b.writeUInt32LE(22, 4);
+  b.write("WEBPVP8X", 8);
+  b.writeUInt32LE(10, 16);
+  b.writeUIntLE(width - 1, 24, 3);
+  b.writeUIntLE(height - 1, 27, 3);
+  return new Uint8Array(b);
+}
+
+/** A GIF header that claims any size. */
+export function sizedGif(width: number, height: number) {
+  const b = Buffer.alloc(13);
+  b.write("GIF89a", 0);
+  b.writeUInt16LE(width, 6);
+  b.writeUInt16LE(height, 8);
+  return new Uint8Array(b);
+}
+
 export const bytesResponse = (bytes: Uint8Array, contentType = "image/png") => ({ url: "", status: 200, contentType, bytes, truncated: false, contentLength: bytes.byteLength });

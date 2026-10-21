@@ -1,11 +1,11 @@
 import { parse } from "node-html-parser";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { bytesResponse, sizedPng } from "./png";
+import { bytesResponse, sizedGif, sizedPng, sizedWebp } from "./png";
 
 const fetchMock = vi.hoisted(() => ({ safeFetch: vi.fn(), safeFetchBytes: vi.fn() }));
 vi.mock("@/lib/ingest/safe-fetch", async (importOriginal) => ({ ...(await importOriginal<object>()), ...fetchMock }));
 
-const { discoverVisuals, fits, readmeShots, repoImageFiles, treePaths } = await import("@/lib/ingest/visuals");
+const { discoverVisuals, fits, kitImageFormat, readmeShots, repoImageFiles, treePaths } = await import("@/lib/ingest/visuals");
 const { pageImages } = await import("@/lib/ingest/site");
 const { imageSize, svgSize } = await import("@/lib/ingest/image-size");
 
@@ -29,6 +29,11 @@ describe("README images", () => {
       "https://raw.githubusercontent.com/acme/rocket/main/assets/run view.png",
       "https://github.com/user-attachments/assets/0a1b2c3d",
     ]);
+  });
+
+  it("matches a path with a stray % as written instead of throwing", () => {
+    const readme = "![Usage](https://example.com/100%.png)\n![Run](https://example.com/logo%zz.png)\n![App](https://example.com/app%20view.png)";
+    expect(readmeShots(readme, "acme", "rocket")).toEqual(["https://example.com/100%.png", "https://example.com/app%20view.png"]);
   });
 });
 
@@ -90,6 +95,18 @@ describe("shape rules", () => {
     expect(fits("logo", "svg", 400, 100)).toBe(false);
   });
 
+  it("keeps only what Satori draws: PNG and JPEG, plus SVG for a logo, with any image content type agreeing", () => {
+    expect(kitImageFormat("screenshot", "png", "image/png")).toBe("png");
+    expect(kitImageFormat("screenshot", "jpeg", "image/jpeg; charset=binary")).toBe("jpeg");
+    expect(kitImageFormat("screenshot", "png", "application/octet-stream")).toBe("png");
+    expect(kitImageFormat("screenshot", "webp", "image/webp")).toBeNull();
+    expect(kitImageFormat("logo", "gif", "image/gif")).toBeNull();
+    expect(kitImageFormat("logo", "avif", "image/avif")).toBeNull();
+    expect(kitImageFormat("screenshot", "png", "image/webp")).toBeNull();
+    expect(kitImageFormat("logo", "svg", "image/svg+xml")).toBe("svg");
+    expect(kitImageFormat("screenshot", "svg", "image/svg+xml")).toBeNull();
+  });
+
   it("reads SVG sizes from width/height or the viewBox", () => {
     expect(svgSize('<svg xmlns="http://www.w3.org/2000/svg" width="64px" height="64">')).toEqual({ width: 64, height: 64 });
     expect(svgSize('<svg viewBox="0 0 120 40" width="100%">')).toEqual({ width: 120, height: 40 });
@@ -135,6 +152,30 @@ describe("discoverVisuals", () => {
     const visuals = await discoverVisuals({ ...REPO, readme: "![a](square.png) ![b](huge.png) ![c](gone.png)" }, { ...site, icons: [] });
     expect(visuals.screenshot).toMatchObject({ url: "https://rocket.dev/og.png", source: "site" });
     expect(visuals.logo).toMatchObject({ url: "https://raw.githubusercontent.com/acme/rocket/HEAD/public/logo.svg", format: "svg", source: "repo" });
+  });
+
+  it("rejects WebP and GIF candidates, falling back to the next PNG or to nothing, and never asks for them", async () => {
+    fetchMock.safeFetch.mockResolvedValue({ url: "", status: 200, contentType: "application/json", text: '{"tree":[]}' });
+    fetchMock.safeFetchBytes.mockImplementation(async (url: string) => {
+      if (url.endsWith("app.png")) return bytesResponse(sizedWebp(2400, 1500), "image/webp");
+      if (url.endsWith("demo.png")) return bytesResponse(sizedGif(1600, 1000), "image/gif");
+      if (url === "https://rocket.dev/og.png") return bytesResponse(sizedPng(1200, 630));
+      if (url.endsWith("apple.png")) return bytesResponse(sizedWebp(180, 180), "image/webp");
+      throw new Error(`unexpected ${url}`);
+    });
+    const visuals = await discoverVisuals({ ...REPO, readme: "![App](docs/app.png) ![Demo](docs/demo.png)" }, site);
+    expect(visuals).toEqual({ screenshot: expect.objectContaining({ url: "https://rocket.dev/og.png", format: "png" }) });
+    for (const [, options] of fetchMock.safeFetchBytes.mock.calls) expect(options.accept).not.toMatch(/webp|gif|\*\/\*/);
+
+    fetchMock.safeFetchBytes.mockImplementation(async () => bytesResponse(sizedWebp(1600, 1000), "image/webp"));
+    expect(await discoverVisuals({ ...REPO, readme: "![App](docs/app.png)" }, site)).toEqual({});
+  });
+
+  it("a README image URL with a stray % doesn't fail the lookup", async () => {
+    fetchMock.safeFetch.mockResolvedValue({ url: "", status: 200, contentType: "application/json", text: '{"tree":[]}' });
+    fetchMock.safeFetchBytes.mockImplementation(async (url: string) => bytesResponse(url.includes("100%") ? sizedPng(1600, 1000) : sizedPng(180, 180)));
+    const visuals = await discoverVisuals({ ...REPO, readme: "![Usage](https://example.com/100%.png)" }, { ...site, ogImage: undefined });
+    expect(visuals.screenshot).toMatchObject({ url: "https://example.com/100%.png", source: "readme" });
   });
 
   it("never waits longer than its budget, keeping whatever already arrived", async () => {

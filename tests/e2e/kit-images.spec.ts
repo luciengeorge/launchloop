@@ -29,6 +29,22 @@ test("a preview from a site with a share image and an icon keeps them and draws 
   }
 });
 
+test("WebP and GIF images are never kept, and an image a CDN would send as WebP is asked for as PNG", async ({ request }) => {
+  const res = await request.post("/api/kits", { data: { url: `${FIXTURE}/visual-webp` }, headers: { "x-forwarded-for": `198.51.100.${Math.floor(Math.random() * 200) + 20}` } });
+  expect(res.status()).toBe(201);
+  const { id } = (await res.json()) as { id: string };
+
+  // No screenshot, so the images use the type-led layout; the logo is the negotiated icon, served as PNG.
+  expect(kitRecord(id).visuals).toEqual({ logo: { url: `${FIXTURE}/og/negotiated-152x152.png`, width: 152, height: 152, format: "png", source: "site" } });
+
+  for (const [variant, size] of Object.entries(SIZES)) {
+    const image = await request.get(`/api/og/${id}/${variant}`);
+    expect(image.status(), variant).toBe(200);
+    expect(image.headers()["cache-control"], "the logo loaded again at render time").toBe("public, max-age=300, s-maxage=300");
+    expect(pngSize(await image.body()), variant).toEqual(size);
+  }
+});
+
 test("a sample kit with no screenshot or logo still draws every size", async ({ request }) => {
   const { id } = (await (await request.post("/api/kits", { data: { url: "sample" } })).json()) as { id: string };
   expect(kitRecord(id).visuals).toEqual({});

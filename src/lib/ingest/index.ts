@@ -134,8 +134,15 @@ async function repoForEmptySite(site: SiteData, linked: { owner: string; name: s
   }
 }
 
-const tracedVisuals = (repo: RepoData | undefined, site: SiteData | undefined) =>
-  phase("ingest.visuals", "http.client", { "kit.repo": repo ? `${repo.owner}/${repo.name}` : "[none]" }, () => discoverVisuals(repo, site));
+/** Best effort: a kit without a screenshot or logo still renders, so a failure here never fails the ingest. */
+async function tracedVisuals(repo: RepoData | undefined, site: SiteData | undefined): Promise<KitVisuals> {
+  try {
+    return await phase("ingest.visuals", "http.client", { "kit.repo": repo ? `${repo.owner}/${repo.name}` : "[none]" }, () => discoverVisuals(repo, site));
+  } catch (error) {
+    captureException(error, { stage: "ingest.visuals" });
+    return {};
+  }
+}
 
 const tracedRepoPalette = (owner: string, name: string) =>
   phase("ingest.repo_palette", "http.client.github", { "kit.repo": `${owner}/${name}` }, () => fetchRepoPalette(owner, name));

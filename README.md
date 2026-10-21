@@ -121,7 +121,7 @@ Stripe paid ─▶ recordPayment ─▶ fulfilKit: full copy (LLM + rubric + ret
 
 | Path | What it does |
 | --- | --- |
-| `src/lib/ingest/` | GitHub reader, live-page scraper, brand-colour extraction (hex/rgb/hsl/oklch), SSRF-safe fetch, screenshot and logo discovery (`visuals.ts`) |
+| `src/lib/ingest/` | GitHub reader, live-page scraper, brand-colour extraction (hex/rgb/hsl/oklch), SSRF-safe fetch, screenshot and logo discovery (`visuals.ts`; PNG and JPEG, plus SVG logos, because Satori draws WebP and GIF as blank boxes) |
 | `src/lib/brief.ts` | Deterministic facts and the LLM product brief |
 | `src/lib/llm.ts` | **The only LLM module.** AI SDK `generateText` + `Output.object` through the AI Gateway provider, fallback models, rubric-driven retries |
 | `src/lib/copy.ts` | Prompts, mock writer, rubric (limits, vote-begging, hype words), final enforcement |

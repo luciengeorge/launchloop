@@ -133,9 +133,6 @@ export function imageTone(bytes: Uint8Array, format: KitImageFormat): ImageTone 
       return svgTone(new TextDecoder().decode(bytes));
     case "jpeg":
       return { transparent: false, luminance: 0.5 };
-    case "gif":
-    case "webp":
-      return undefined;
     default: {
       const unreachable: never = format;
       return unreachable;

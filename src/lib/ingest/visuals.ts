@@ -1,7 +1,7 @@
 import "server-only";
 import type { KitImageFormat, KitImageRef, KitVisuals } from "../schema";
 import { githubApiUrl, githubAuthHeaders, type RepoData } from "./github";
-import { imageSize } from "./image-size";
+import { imageSize, type ImageFormat } from "./image-size";
 import { safeFetch, safeFetchBytes } from "./safe-fetch";
 import type { SiteData } from "./site";
 
@@ -14,10 +14,28 @@ export const MAX_LOGO_BYTES = 400_000;
 const MAX_SIDE = 4096;
 const TREE_BYTES = 1_500_000;
 
-type Kind = "screenshot" | "logo";
+export type Kind = "screenshot" | "logo";
 type Candidate = { url: string; source: KitImageRef["source"] };
 
-const RASTER: KitImageFormat[] = ["png", "jpeg", "webp", "gif"];
+const RASTER: KitImageFormat[] = ["png", "jpeg"];
+
+/**
+ * Only formats Satori draws. Offering WebP or GIF lets CDNs like Framer's negotiate them, and Satori
+ * renders those as blank boxes.
+ */
+export const IMAGE_ACCEPT: Record<Kind, string> = { screenshot: "image/png,image/jpeg", logo: "image/svg+xml,image/png,image/jpeg" };
+
+/**
+ * The response's format if the kit images can use it: the bytes must be PNG or JPEG (or SVG for a
+ * logo), and an image content type, when sent, must agree.
+ */
+export function kitImageFormat(kind: Kind, sniffed: ImageFormat, contentType: string): KitImageFormat | null {
+  const allowed: ImageFormat[] = kind === "logo" ? [...RASTER, "svg"] : RASTER;
+  if (!allowed.includes(sniffed)) return null;
+  const type = contentType.split(";")[0].trim().toLowerCase();
+  if (type.startsWith("image/") && !/^image\/(png|x-png|jpe?g|pjpeg)$/.test(type) && !(kind === "logo" && type === "image/svg+xml")) return null;
+  return sniffed as KitImageFormat;
+}
 
 /** Badges, charts, buttons and other README furniture that is never the product itself. */
 const NOT_A_SHOT_HOST =
@@ -60,15 +78,24 @@ export function readmeShots(readme: string, owner: string, name: string): string
       }
       if (NOT_A_SHOT_HOST.test(parsed.hostname)) return false;
       if (/\.svg$/i.test(parsed.pathname) || /\/badge|\/workflows\//i.test(parsed.pathname)) return false;
-      return !NOT_A_SHOT_WORDS.test(alt) && !NOT_A_SHOT_WORDS.test(decodeURIComponent(parsed.pathname));
+      return !NOT_A_SHOT_WORDS.test(alt) && !NOT_A_SHOT_WORDS.test(safeDecode(parsed.pathname));
     })
     .map((i) => i.url);
 }
 
-const IMAGE_FILE = /\.(png|jpe?g|webp|gif|svg)$/i;
+/** A stray % (as in /100%.png) makes decodeURIComponent throw; the raw path is still fine to match against. */
+function safeDecode(path: string): string {
+  try {
+    return decodeURIComponent(path);
+  } catch {
+    return path;
+  }
+}
+
+const IMAGE_FILE = /\.(png|jpe?g|svg)$/i;
 const SHOT_NAME = /(^|[/_.-])(screenshots?|screen|hero|preview|demo|dashboard|product|app[-_]?shot|showcase)([/_.-]|$)/i;
-const OG_NAME = /(^|\/)(og|og[-_]image|opengraph[-_]image|social[-_](card|preview|image)|twitter[-_]image)\.(png|jpe?g|webp)$/i;
-const LOGO_NAME = /(^|\/)(logo|logomark|mark|icon|app[-_]icon|apple[-_]touch[-_]icon|favicon|brand)([-_.](\d+|light|dark|square|mark|icon|x\d+|\d+x\d+))*\.(svg|png|jpe?g|webp)$/i;
+const OG_NAME = /(^|\/)(og|og[-_]image|opengraph[-_]image|social[-_](card|preview|image)|twitter[-_]image)\.(png|jpe?g)$/i;
+const LOGO_NAME = /(^|\/)(logo|logomark|mark|icon|app[-_]icon|apple[-_]touch[-_]icon|favicon|brand)([-_.](\d+|light|dark|square|mark|icon|x\d+|\d+x\d+))*\.(svg|png|jpe?g)$/i;
 const SKIP_DIR = /(^|\/)(node_modules|vendor|test|tests|__tests__|fixtures|examples?|\.agents|\.cursor|\.claude|skills|third[-_]party|locales?)\//i;
 const ASSET_DIR = /^(?:(?:apps|packages)\/[^/]+\/)?(?:public|static|assets|images|img|media|docs|\.github|app|src\/app|src\/assets|website)\//i;
 
@@ -110,19 +137,16 @@ export function fits(kind: Kind, format: KitImageFormat, width: number, height: 
 
 async function probe(candidate: Candidate, kind: Kind): Promise<KitImageRef | null> {
   try {
-    const res = await safeFetchBytes(candidate.url, {
-      accept: "image/png,image/jpeg,image/webp,image/gif,image/svg+xml;q=0.9,*/*;q=0.1",
-      maxBytes: PROBE_BYTES,
-      timeoutMs: 4000,
-    });
+    const res = await safeFetchBytes(candidate.url, { accept: IMAGE_ACCEPT[kind], maxBytes: PROBE_BYTES, timeoutMs: 4000 });
     if (res.status >= 400) return null;
     const size = imageSize(res.bytes, res.contentType);
-    if (size.format === "unknown" || size.format === "avif" || !size.width || !size.height) return null;
-    if (size.format === "svg" && res.truncated) return null;
+    const format = kitImageFormat(kind, size.format, res.contentType);
+    if (!format || !size.width || !size.height) return null;
+    if (format === "svg" && res.truncated) return null;
     const cap = kind === "screenshot" ? MAX_SCREENSHOT_BYTES : MAX_LOGO_BYTES;
     if (res.contentLength && res.contentLength > cap) return null;
-    if (!fits(kind, size.format, size.width, size.height)) return null;
-    return { url: candidate.url, width: size.width, height: size.height, format: size.format, source: candidate.source };
+    if (!fits(kind, format, size.width, size.height)) return null;
+    return { url: candidate.url, width: size.width, height: size.height, format, source: candidate.source };
   } catch {
     return null;
   }

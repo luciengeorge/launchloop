@@ -2,7 +2,7 @@ import "server-only";
 import { imageTone, type ImageTone } from "./image-tone";
 import { imageSize } from "./ingest/image-size";
 import { safeFetchBytes } from "./ingest/safe-fetch";
-import { fits, MAX_LOGO_BYTES, MAX_SCREENSHOT_BYTES } from "./ingest/visuals";
+import { fits, IMAGE_ACCEPT, kitImageFormat, MAX_LOGO_BYTES, MAX_SCREENSHOT_BYTES } from "./ingest/visuals";
 import type { KitImageFormat, KitImageRef, KitVisuals } from "./schema";
 
 /** An image ready to embed: a data URI, so Satori never fetches anything itself. */
@@ -19,7 +19,7 @@ const CACHE_TTL_MS = 10 * 60 * 1000;
 /** Entries are base64 data URIs of up to ~4 MB each, so the cache stays small. */
 const CACHE_MAX = 12;
 
-const MIME: Record<KitImageFormat, string> = { png: "image/png", jpeg: "image/jpeg", gif: "image/gif", webp: "image/webp", svg: "image/svg+xml" };
+const MIME: Record<KitImageFormat, string> = { png: "image/png", jpeg: "image/jpeg", svg: "image/svg+xml" };
 
 /** Three variants of one kit render at once; the cache lets them share one download per image. */
 const cache = new Map<string, { at: number; value: Promise<LoadedImage | null> }>();
@@ -27,16 +27,17 @@ const cache = new Map<string, { at: number; value: Promise<LoadedImage | null> }
 async function fetchImage(ref: KitImageRef, kind: "screenshot" | "logo"): Promise<LoadedImage | null> {
   try {
     const res = await safeFetchBytes(ref.url, {
-      accept: "image/png,image/jpeg,image/webp,image/gif,image/svg+xml;q=0.9,*/*;q=0.1",
+      accept: IMAGE_ACCEPT[kind],
       maxBytes: kind === "screenshot" ? MAX_SCREENSHOT_BYTES : MAX_LOGO_BYTES,
       timeoutMs: ASSET_TIMEOUT_MS,
     });
     if (res.status >= 400 || res.truncated) return null;
     const size = imageSize(res.bytes, res.contentType);
-    if (size.format === "unknown" || size.format === "avif" || !size.width || !size.height) return null;
-    if (!fits(kind, size.format, size.width, size.height)) return null;
-    const src = `data:${MIME[size.format]};base64,${Buffer.from(res.bytes).toString("base64")}`;
-    return { src, width: size.width, height: size.height, format: size.format, tone: kind === "logo" ? imageTone(res.bytes, size.format) : undefined };
+    const format = kitImageFormat(kind, size.format, res.contentType);
+    if (!format || !size.width || !size.height) return null;
+    if (!fits(kind, format, size.width, size.height)) return null;
+    const src = `data:${MIME[format]};base64,${Buffer.from(res.bytes).toString("base64")}`;
+    return { src, width: size.width, height: size.height, format, tone: kind === "logo" ? imageTone(res.bytes, format) : undefined };
   } catch {
     return null;
   }

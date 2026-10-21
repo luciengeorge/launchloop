@@ -1,11 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { bytesResponse, png, sizedPng } from "./png";
+import { bytesResponse, png, sizedGif, sizedPng, sizedWebp } from "./png";
 
 const fetchMock = vi.hoisted(() => ({ safeFetchBytes: vi.fn() }));
 vi.mock("@/lib/ingest/safe-fetch", async (importOriginal) => ({ ...(await importOriginal<object>()), ...fetchMock }));
 
 const { pngTone, svgTone } = await import("@/lib/image-tone");
 const { loadKitImageAssets } = await import("@/lib/image-assets");
+const { planKitImage } = await import("@/lib/image-layout");
 
 describe("loadKitImageAssets", () => {
   beforeEach(() => {
@@ -29,6 +30,26 @@ describe("loadKitImageAssets", () => {
     expect(assets.logo?.tone).toEqual({ transparent: true, luminance: 1 });
     expect(fetchMock.safeFetchBytes.mock.calls.map(([, o]) => o.maxBytes)).toEqual([3_000_000, 400_000]);
     expect(await loadKitImageAssets(undefined)).toEqual({ degraded: false });
+  });
+
+  it("drops a WebP screenshot and a GIF logo, so the image falls back to the type-led layout and the monogram", async () => {
+    fetchMock.safeFetchBytes.mockImplementation(async (url: string) =>
+      url.endsWith("shot.png") ? bytesResponse(sizedWebp(1600, 1000), "image/webp") : bytesResponse(sizedGif(180, 180), "image/gif"),
+    );
+    const assets = await loadKitImageAssets({
+      screenshot: { url: "https://cal.dev/shot.png", width: 1600, height: 1000, format: "png", source: "site" },
+      logo: { url: "https://cal.dev/logo.png", width: 180, height: 180, format: "png", source: "site" },
+    });
+    expect(assets).toEqual({ degraded: true });
+    for (const [, options] of fetchMock.safeFetchBytes.mock.calls) expect(options.accept).not.toMatch(/webp|gif|\*\/\*/);
+
+    const content = { name: "Cadence", tagline: "Book meetings across every calendar", headline: "Scheduling without the back and forth", features: ["Syncs every calendar"], domain: "cal.dev" };
+    for (const variant of ["og", "x", "ph"] as const) {
+      const plan = planKitImage(variant, content, { screenshot: assets.screenshot, watermark: false });
+      expect(plan.layout, variant).toBe("type");
+      expect(plan.shot, variant).toBeNull();
+    }
+    expect(planKitImage("og", content, { screenshot: { width: 1600, height: 1000 }, watermark: false }).layout).toBe("shot");
   });
 });
 
