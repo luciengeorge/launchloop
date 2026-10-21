@@ -4,6 +4,7 @@ import { Check, ChevronDown, ChevronRight, Clock, Lock, PartyPopper } from "luci
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { CopyButton } from "@/components/copy-button";
+import { cn } from "cn";
 import { StartLink } from "@/components/start-link";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -11,6 +12,9 @@ import { IMAGE_VARIANTS, kitImageUrl } from "@/lib/image-variants";
 import { charLength, xLength } from "@/lib/limits";
 import { PIPELINE_STAGES, TASK_GROUPS, currentStageIndex, type KitTask, type TaskGroup } from "@/lib/tasks";
 import { Confetti } from "./confetti";
+
+/** A filled primary button whose orange is darkened toward the text colour, so its white label is 4.5:1 or better (WCAG AA), hovered too. The plain primary is 3.6:1. */
+const PRIMARY_FILL = "bg-[color-mix(in_oklch,var(--primary),var(--foreground)_25%)] hover:bg-[color-mix(in_oklch,var(--primary),var(--foreground)_35%)]";
 
 interface Props {
   kitId: string;
@@ -406,7 +410,7 @@ function TaskRow({ kitId, task, done, pop, onToggle, kitLocked }: { kitId: strin
           {task.cta && !task.locked ? (
             <div className="mt-3 flex flex-col gap-2 rounded-lg border border-border bg-muted/40 p-3 sm:flex-row sm:items-center sm:justify-between" data-testid="task-cta">
               <p className="text-sm">{task.cta.text}</p>
-              <StartLink className={buttonVariants({ className: "h-10 shrink-0 px-4" })}>{task.cta.label}</StartLink>
+              <StartLink className={cn(buttonVariants(), "h-10 shrink-0 px-4", PRIMARY_FILL)}>{task.cta.label}</StartLink>
             </div>
           ) : null}
         </div>
