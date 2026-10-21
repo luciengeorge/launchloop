@@ -14,6 +14,7 @@ import { LAUNCH_PROMO } from "@/lib/products";
 import { looksLikeGitHubUrl, replacesPrefix, repoPrefill, sameInput } from "@/lib/repo-cta";
 import { hasSessionHint } from "@/lib/session-hint";
 import { START_EVENT, type StartPlan } from "@/lib/start-intent";
+import { sampleCtaLayout, useHeroSampleCta } from "./home-hero";
 import { KitPrice } from "./kit-price";
 import { RateLimitActions } from "./rate-limit-actions";
 
@@ -48,6 +49,8 @@ export function KitForm({ promo }: { promo: boolean }) {
   const inputRef = useRef<HTMLInputElement>(null);
   // What the last run actually sent: "Try a sample app" leaves the input empty, so retry can't use `url`.
   const lastInput = useRef("");
+  const sampleCta = useHeroSampleCta();
+  const sampleRow = sampleCtaLayout(sampleCta);
 
   // Arriving via /#start or ?plan=kit (or a StartLink on this page): scroll to the form, focus it, preselect the plan.
   // ?url= prefills the input, e.g. when a free tool hands over the repo it just read.
@@ -209,7 +212,7 @@ export function KitForm({ promo }: { promo: boolean }) {
         </Button>
       </form>
 
-      <div className="flex min-h-6 flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+      <div className={sampleRow.row}>
         {loading ? (
           <ol role="status" aria-live="polite" aria-label="Progress" data-testid="kit-progress" className="flex flex-wrap items-center gap-x-4 gap-y-1">
             {STEPS.map((s, i) => {
@@ -233,8 +236,8 @@ export function KitForm({ promo }: { promo: boolean }) {
                 "Free preview · No sign-up · Public repos only"
               )}
             </span>
-            <span aria-hidden="true" className="hidden sm:inline">·</span>
-            <button type="button" className="font-medium text-foreground underline underline-offset-4 hover:text-primary" onClick={() => void submit("sample")}>
+            <span aria-hidden="true" className={sampleRow.separator}>·</span>
+            <button type="button" className={sampleRow.button} data-variant={sampleCta ?? undefined} onClick={() => void submit("sample")}>
               Try a sample app
             </button>
           </>
