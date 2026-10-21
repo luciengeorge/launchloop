@@ -28,7 +28,7 @@ export interface ClientEvents {
   };
   newsletter_subscribed: { placement: NewsletterPlacement; welcome: WelcomeOutcome };
   /**
-   * A click on a link, a button or the URL field in the home hero (HeroClicks). `label` is the visible text, or the
+   * A click on a link, a button or the URL field in the home hero (HomeHero). `label` is the visible text, or the
    * field's label: never what was typed. `link_url` is scrubbed like every URL.
    */
   hero_clicked: { element: "a" | "button" | "input"; label: string; link_url?: string };
@@ -142,8 +142,8 @@ function initAnalytics(posthog: PostHog, token: string, start: { url: string; at
     person_profiles: "identified_only",
     capture_pageview: "history_change",
     capture_pageleave: true,
-    // Clicks are captured explicitly, in the home hero only (hero_clicked): autocapture would depend on the project's
-    // remote config, and anywhere else on the site would be out of scope.
+    // Clicks are sent explicitly, from the home hero only (hero_clicked). posthog-js autocaptures only once the
+    // project's remote config allows it, so an allowlist here could silently capture nothing.
     autocapture: false,
     capture_exceptions: false,
     capture_heatmaps: false,
