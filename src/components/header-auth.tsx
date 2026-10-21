@@ -42,9 +42,9 @@ export function HeaderAuth({ promo }: { promo: boolean }) {
           </StartLink>
         ) : (
           <StartLink plan="kit" className={ctaCls}>
-            {/* Phones show "Get my kit, £19" so the header fits in 360px; the accessible name keeps "launch". */}
+            {/* Phones show "Get my kit, £19" so the header fits in 360px, and so does md to lg beside the nav links; the accessible name keeps "launch". */}
             <span>
-              Get my <span className="max-sm:sr-only">launch </span>kit, <KitPrice promo={false} />
+              Get my <span className="max-sm:sr-only md:max-lg:sr-only">launch </span>kit, <KitPrice promo={false} />
             </span>
           </StartLink>
         )}
