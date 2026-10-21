@@ -1,31 +1,34 @@
 /**
  * Pings IndexNow with the indexable URLs a production deploy changed. See docs/seo/indexnow.md.
  *
- *   npm run indexnow -- deploy --sha <sha> [--deployment-id <id>] [--wait <seconds>] [--dry-run]
+ *   npm run indexnow -- deploy --sha <sha> [--deployment-id <id>] [--environment <name>] [--wait <seconds>] [--dry-run]
  *   npm run indexnow -- urls "<url or path> ..." [--dry-run]
  *   npm run indexnow -- all [--dry-run]
  *
- * Only URLs listed in the live sitemap.xml that answer 200 are sent. Network and IndexNow errors are logged as
- * warnings and never fail the run; a broken script or git error still does, so it shows up in the Actions tab.
+ * Only URLs listed in the live sitemap.xml that answer 200 are sent, plus deleted or renamed pages that now
+ * answer 404 or 410. Network and IndexNow errors are logged as warnings and the script still exits 0.
+ * A script or git error exits non-zero: the workflow's ping step is continue-on-error, so that failure shows
+ * only inside the run.
  */
 import { execFileSync } from "node:child_process";
 import { parseArgs } from "node:util";
 import { GUIDES } from "../src/lib/guides.ts";
 import {
   absoluteUrl,
-  changedPaths,
+  diffPaths,
   INDEXNOW_ENDPOINT,
   INDEXNOW_MAX_URLS,
   INDEXNOW_ORIGIN,
   indexNowAccepted,
   indexNowBody,
   inSitemap,
+  isGone,
   parseUrlList,
   sitemapPaths,
 } from "../src/lib/indexnow.ts";
 
 const USAGE = `Usage:
-  npm run indexnow -- deploy --sha <sha> [--deployment-id <id>] [--wait <seconds>] [--dry-run]
+  npm run indexnow -- deploy --sha <sha> [--deployment-id <id>] [--environment <name>] [--wait <seconds>] [--dry-run]
   npm run indexnow -- urls "<url or path> ..." [--dry-run]
   npm run indexnow -- all [--dry-run]`;
 
@@ -34,6 +37,7 @@ const { values, positionals } = parseArgs({
   options: {
     sha: { type: "string" },
     "deployment-id": { type: "string" },
+    environment: { type: "string", default: "Production" },
     wait: { type: "string", default: "0" },
     "dry-run": { type: "boolean", default: false },
     help: { type: "boolean", default: false },
@@ -55,10 +59,10 @@ async function github<T>(path: string): Promise<T> {
   return (await res.json()) as T;
 }
 
-/** The commit of the last successful Production deployment before this one, from Vercel's GitHub deployments. */
-async function previousProductionSha(sha: string, deploymentId: number | undefined): Promise<string | undefined> {
+/** The commit of the last successful deployment to the same environment before this one, from Vercel's GitHub deployments. */
+async function previousProductionSha(sha: string, deploymentId: number | undefined, environment: string): Promise<string | undefined> {
   if (!process.env.GITHUB_REPOSITORY || !process.env.GITHUB_TOKEN) return undefined;
-  const deployments = await github<GitHubDeployment[]>("/deployments?environment=Production&per_page=30");
+  const deployments = await github<GitHubDeployment[]>(`/deployments?environment=${encodeURIComponent(environment)}&per_page=30`);
   for (const d of deployments) {
     if (d.sha === sha || (deploymentId !== undefined && d.id >= deploymentId)) continue;
     // Older successful deployments get an "inactive" status on top of their "success" one, so search the history.
@@ -68,10 +72,11 @@ async function previousProductionSha(sha: string, deploymentId: number | undefin
   return undefined;
 }
 
-async function changedFiles(sha: string, deploymentId: number | undefined): Promise<string[]> {
+/** `git diff --name-status` from the previous production commit, with renames as one "R" line (old, then new path). */
+async function nameStatus(sha: string, deploymentId: number | undefined, environment: string): Promise<string> {
   let base: string | undefined;
   try {
-    base = await previousProductionSha(sha, deploymentId);
+    base = await previousProductionSha(sha, deploymentId, environment);
   } catch (error) {
     warn(`Couldn't read previous production deployment (${(error as Error).message}), diffing against the parent commit.`);
   }
@@ -85,7 +90,7 @@ async function changedFiles(sha: string, deploymentId: number | undefined): Prom
   }
   base ??= `${sha}~1`;
   console.log(`Diffing ${base}..${sha}`);
-  return git("diff", "--name-only", base, sha).split("\n").filter(Boolean);
+  return git("diff", "--name-status", "--find-renames", base, sha);
 }
 
 async function liveSitemap(): Promise<string[]> {
@@ -99,14 +104,14 @@ async function liveSitemap(): Promise<string[]> {
   return [];
 }
 
-/** Exactly 200, without following redirects: a redirect or error page is not what we want indexed. */
-async function answers200(path: string): Promise<boolean> {
+/** The status without following redirects, or 0 on a network error. Only exactly 200 counts as live. */
+async function statusOf(path: string): Promise<number> {
   try {
-    const res = await fetch(absoluteUrl(path), { redirect: "manual" });
+    const res = await fetch(absoluteUrl(path), { redirect: "manual", signal: AbortSignal.timeout(10_000) });
     await res.body?.cancel();
-    return res.status === 200;
+    return res.status;
   } catch {
-    return false;
+    return 0;
   }
 }
 
@@ -115,8 +120,8 @@ async function live(candidates: readonly string[]): Promise<{ ok: string[]; miss
   const ok: string[] = [];
   for (let i = 0; i < listed.length; i += 8) {
     const batch = listed.slice(i, i + 8);
-    const results = await Promise.all(batch.map(answers200));
-    ok.push(...batch.filter((_, j) => results[j]));
+    const statuses = await Promise.all(batch.map(statusOf));
+    ok.push(...batch.filter((_, j) => statuses[j] === 200));
   }
   const missing = candidates.filter((c) => !c.endsWith("/*") && !ok.includes(c));
   return { ok, missing };
@@ -132,6 +137,22 @@ async function liveWithWait(candidates: readonly string[], waitSeconds: number) 
     result = await live(candidates);
   }
   return result;
+}
+
+/** Deleted or renamed-away pages: sent as changed if still listed and live, as removed if they answer 404 or 410. */
+async function checkRemoved(removed: readonly string[]): Promise<{ live: string[]; gone: string[] }> {
+  if (!removed.length) return { live: [], gone: [] };
+  const listed = new Set(await liveSitemap());
+  const live: string[] = [];
+  const gone: string[] = [];
+  for (const path of removed) {
+    const status = await statusOf(path);
+    if (status === 200 && listed.has(path)) live.push(path);
+    else if (isGone(status)) gone.push(path);
+    else console.log(`Removed page ${path} answered ${status || "nothing"}, skipped.`);
+  }
+  if (gone.length) console.log(`Gone (404 or 410), sent as removals: ${gone.join(", ")}`);
+  return { live, gone };
 }
 
 async function ping(paths: string[], dryRun: boolean) {
@@ -169,15 +190,17 @@ async function main() {
   }
   const guideSlugs = GUIDES.map((g) => g.slug);
   let candidates: string[];
+  let removed: string[] = [];
   let waitSeconds = 0;
   switch (mode) {
     case "deploy": {
       const sha = values.sha;
       if (!sha) throw new Error("deploy needs --sha");
       const id = values["deployment-id"] ? Number(values["deployment-id"]) : undefined;
-      const files = await changedFiles(sha, Number.isSafeInteger(id) ? id : undefined);
-      console.log(`Changed files (${files.length}):\n  ${files.join("\n  ") || "(none)"}`);
-      candidates = changedPaths(files, guideSlugs);
+      const diff = await nameStatus(sha, Number.isSafeInteger(id) ? id : undefined, values.environment);
+      console.log(`Changed files:\n  ${diff.split("\n").join("\n  ") || "(none)"}`);
+      ({ changed: candidates, removed } = diffPaths(diff, guideSlugs));
+      if (removed.length) console.log(`Deleted or renamed pages: ${removed.join(", ")}`);
       waitSeconds = Number(values.wait) || 0;
       break;
     }
@@ -194,10 +217,10 @@ async function main() {
       throw new Error(`Unknown mode "${mode}".\n${USAGE}`);
   }
   console.log(`Candidates: ${candidates.join(", ") || "(none)"}`);
-  if (!candidates.length) return ping([], dryRun);
-  const { ok, missing } = await liveWithWait(candidates, waitSeconds);
+  const { ok, missing } = candidates.length ? await liveWithWait(candidates, waitSeconds) : { ok: [], missing: [] };
   if (missing.length) console.log(`Skipped, not in the live sitemap or not 200: ${missing.join(", ")}`);
-  await ping(ok, dryRun);
+  const { live, gone } = await checkRemoved(removed);
+  await ping([...new Set([...ok, ...live, ...gone])], dryRun);
 }
 
 await main();
