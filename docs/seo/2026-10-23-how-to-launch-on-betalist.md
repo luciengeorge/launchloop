@@ -7,7 +7,7 @@ Blog post requested on Wednesday 21 October 2026. Sources were read the same day
 **URL:** `/blog/how-to-launch-on-betalist`
 **Title:** `How to launch on BetaList: submission guide · LaunchLoop` (56 characters)
 **Description:** `How to launch on BetaList from its own pages: who it is for, what it rejects, how submission and paid plans work, review times and the day you are featured.` (156 characters)
-**H1:** How to launch on BetaList. **Published and updated:** 2026-10-23, as the brief asked (bump both in `src/lib/blog.ts` if it merges on another day). **Byline:** Lucien George. **Reading time:** 15 minutes (2,934 words in the rendered body at 200 words a minute; the e2e suite recounts it).
+**H1:** How to launch on BetaList. **Published and updated:** 2026-10-23, as the brief asked (bump both in `src/lib/blog.ts` if it merges on another day). **Byline:** Lucien George. **Reading time:** 15 minutes (2,956 words in the rendered body at 200 words a minute; the e2e suite recounts it).
 
 Target queries: "how to launch on betalist" and "betalist submission". No keyword lookups were made for this post.
 
@@ -18,8 +18,8 @@ Target queries: "how to launch on betalist" and "betalist submission". No keywor
 - The Internet Archive has no copy of the submission form: every capture of `betalist.com/submit` from January 2025 to 6 October 2026 is an HTTP 302 redirect. It also has no capture of `/terms/submissions`.
 - BetaList's 42 public Stimulus controllers (`/assets/controllers/*.js`) contain no plan names or prices.
 - A web search for BetaList submission prices returned only BetaList's own FAQ, terms, Boost and guidelines pages, none of which prints a submission price.
-- Cross-check: after the page was built, a script took every `<q>` from the rendered article (89 quotes, 88 unique) and searched for it in plain-text copies of the live sources (whitespace normalised). All 89 were found word for word, with BetaList's straight apostrophes. The same script found no en or em dashes in the article. Quotes are cut short wherever BetaList's sentence continues with an em dash (the own-domain rule, the "Visit Site" do-follow sentence, "Introductory pricing" and the Boost page's "one-time event" sentence). The refund time is written in the source as 5 and 10 joined by an en dash, so the page paraphrases it as "5 to 10 business days" outside a quote.
-- Archive cross-check: the live FAQ matches the Internet Archive copy of 30 September 2026 (`https://web.archive.org/web/20260930083134/https://betalist.com/support`) word for word except the editing answer, which BetaList has since rewritten (quotes 53, 86 and 87 below are live only). The Submission Guidelines match the copy of 12 July 2026 (`https://web.archive.org/web/20260712213007/https://betalist.com/criteria`) and Boost matches the copy of 30 August 2026 (`https://web.archive.org/web/20260830182036/https://betalist.com/boost`).
+- Cross-check: after the page was built, a script took every `<q>` from the rendered article (90 quotes, 89 unique) and searched for it in plain-text copies of the live sources (whitespace normalised). All 90 were found word for word, with BetaList's straight apostrophes. The same script found no en or em dashes in the article. Quotes are cut short wherever BetaList's sentence continues with an em dash (the own-domain rule, the "Visit Site" do-follow sentence, "Introductory pricing" and the Boost page's "one-time event" sentence). The refund time is written in the source as 5 and 10 joined by an en dash, so the page paraphrases it as "5 to 10 business days" outside a quote.
+- Archive cross-check: the live FAQ matches the Internet Archive copy of 30 September 2026 (`https://web.archive.org/web/20260930083134/https://betalist.com/support`) word for word except the editing answer, which BetaList has since rewritten (quotes 53, 87 and 88 below are live only). The Submission Guidelines match the copy of 12 July 2026 (`https://web.archive.org/web/20260712213007/https://betalist.com/criteria`) and Boost matches the copy of 30 August 2026 (`https://web.archive.org/web/20260830182036/https://betalist.com/boost`).
 
 ## Sources
 
@@ -108,30 +108,31 @@ Target queries: "how to launch on betalist" and "betalist submission". No keywor
 | 62 | "Priority listing guarantees faster review, not acceptance or any specific results." | https://betalist.com/terms/submissions | no copy checked |
 | 63 | "Premium submissions can pick a preferred date of featuring, subject to availability." | https://betalist.com/terms/submissions | no copy checked |
 | 64 | "If your startup is not selected, you will receive a full refund automatically. Once your startup has been featured, refunds are not available." | https://betalist.com/support | yes (2026-09-30) |
-| 65 | "Refunds are provided at BetaList's discretion." | https://betalist.com/terms/submissions | no copy checked |
-| 66 | "Refunds may be issued minus payment processing fees at our discretion." | https://betalist.com/terms/submissions | no copy checked |
-| 67 | "Introductory pricing" | https://betalist.com/boost | yes (2026-08-30) |
-| 68 | "Your startup appears in the "Boosted" section on the BetaList homepage, rotated among active boosts." | https://betalist.com/boost | yes (2026-08-30) |
-| 69 | "Yes, boosts are available for startups that have been featured on BetaList." | https://betalist.com/boost | yes (2026-08-30) |
-| 70 | "If you don't match the guidelines or want additional exposure you can have a look at our advertising packages." | https://betalist.com/support | yes (2026-09-30) |
-| 71 | "It depends on the plan you paid for. The expected timeline is shown when you choose a plan and in your confirmation email." | https://betalist.com/support | yes (2026-09-30) |
-| 72 | "Advertised timeframes for featuring represent our best effort and may vary based on volume and other factors." | https://betalist.com/terms/submissions | no copy checked |
-| 73 | "If we contact you regarding your submission, you are responsible for responding promptly." | https://betalist.com/terms/submissions | no copy checked |
-| 74 | "Focus on improving your value proposition, design, and uniqueness before resubmitting." | https://betalist.com/support | yes (2026-09-30) |
-| 75 | "Otherwise, you cannot choose the exact date of featuring, and your startup may be featured on any day including weekends and holidays." | https://betalist.com/terms/submissions | no copy checked |
-| 76 | "your startup appears on BetaList for a day and then moves down the list." | https://betalist.com/boost | yes (2026-08-30) |
-| 77 | "The Trending Startups section on the homepage showcases the most popular, recently featured startups." | https://betalist.com/support | yes (2026-09-30) |
-| 78 | "We take a few metrics in mind, including how many tweets a startup post has received. We're not disclosing the exact algorithm, but the more engagement your startup post receives, the higher its chances of getting trending." | https://betalist.com/support | yes (2026-09-30) |
-| 79 | "When it isn't guaranteed, the newsletter only includes the most popular featured startups. It takes at least 24 hours between a startup getting featured and being included in the newsletter so we can fairly determine popularity." | https://betalist.com/support | yes (2026-09-30) |
-| 80 | "The "Visit Site" button on your featured listing is a do-follow link" | https://betalist.com/support | yes (2026-09-30) |
-| 81 | "It routes through a 301 redirect to your website so we can track clicks and add ref=betalist attribution." | https://betalist.com/support | yes (2026-09-30) |
-| 82 | "We automatically add UTM tracking parameters to links to your website, so you can track traffic from BetaList using Google Analytics or similar tools." | https://betalist.com/support | yes (2026-09-30) |
-| 83 | "We may also change how your startup is presented on our platform, including design, layout, and link attributes, without notice." | https://betalist.com/terms/submissions | no copy checked |
-| 84 | "Submissions that are misleading, fraudulent, or otherwise violate these terms may be rejected or removed at any time." | https://betalist.com/terms/submissions | no copy checked |
-| 85 | "If you receive sales or promotional emails after being featured, it's likely because service providers scrape startup directories (including BetaList) for leads and find publicly available contact information on your own website or social media profiles." | https://betalist.com/support | yes (2026-09-30) |
-| 86 | "Most edits are approved automatically within minutes; the rest are reviewed by our team." | https://betalist.com/support | no: the 2026-09-30 copy predates this wording |
-| 87 | "The one rule for moving to a new domain is that your old URL must redirect to your new one" | https://betalist.com/support | no: the 2026-09-30 copy predates this wording |
-| 88 | "We generally only feature each startup once, with one exception" | https://betalist.com/support | yes (2026-09-30) |
+| 65 | "If your priority listing submission is not accepted for featuring, you are generally eligible for a refund." | https://betalist.com/terms/submissions | no copy checked |
+| 66 | "Refunds are provided at BetaList's discretion." | https://betalist.com/terms/submissions | no copy checked |
+| 67 | "Refunds may be issued minus payment processing fees at our discretion." | https://betalist.com/terms/submissions | no copy checked |
+| 68 | "Introductory pricing" | https://betalist.com/boost | yes (2026-08-30) |
+| 69 | "Your startup appears in the "Boosted" section on the BetaList homepage, rotated among active boosts." | https://betalist.com/boost | yes (2026-08-30) |
+| 70 | "Yes, boosts are available for startups that have been featured on BetaList." | https://betalist.com/boost | yes (2026-08-30) |
+| 71 | "If you don't match the guidelines or want additional exposure you can have a look at our advertising packages." | https://betalist.com/support | yes (2026-09-30) |
+| 72 | "It depends on the plan you paid for. The expected timeline is shown when you choose a plan and in your confirmation email." | https://betalist.com/support | yes (2026-09-30) |
+| 73 | "Advertised timeframes for featuring represent our best effort and may vary based on volume and other factors." | https://betalist.com/terms/submissions | no copy checked |
+| 74 | "If we contact you regarding your submission, you are responsible for responding promptly." | https://betalist.com/terms/submissions | no copy checked |
+| 75 | "Focus on improving your value proposition, design, and uniqueness before resubmitting." | https://betalist.com/support | yes (2026-09-30) |
+| 76 | "Otherwise, you cannot choose the exact date of featuring, and your startup may be featured on any day including weekends and holidays." | https://betalist.com/terms/submissions | no copy checked |
+| 77 | "your startup appears on BetaList for a day and then moves down the list." | https://betalist.com/boost | yes (2026-08-30) |
+| 78 | "The Trending Startups section on the homepage showcases the most popular, recently featured startups." | https://betalist.com/support | yes (2026-09-30) |
+| 79 | "We take a few metrics in mind, including how many tweets a startup post has received. We're not disclosing the exact algorithm, but the more engagement your startup post receives, the higher its chances of getting trending." | https://betalist.com/support | yes (2026-09-30) |
+| 80 | "When it isn't guaranteed, the newsletter only includes the most popular featured startups. It takes at least 24 hours between a startup getting featured and being included in the newsletter so we can fairly determine popularity." | https://betalist.com/support | yes (2026-09-30) |
+| 81 | "The "Visit Site" button on your featured listing is a do-follow link" | https://betalist.com/support | yes (2026-09-30) |
+| 82 | "It routes through a 301 redirect to your website so we can track clicks and add ref=betalist attribution." | https://betalist.com/support | yes (2026-09-30) |
+| 83 | "We automatically add UTM tracking parameters to links to your website, so you can track traffic from BetaList using Google Analytics or similar tools." | https://betalist.com/support | yes (2026-09-30) |
+| 84 | "We may also change how your startup is presented on our platform, including design, layout, and link attributes, without notice." | https://betalist.com/terms/submissions | no copy checked |
+| 85 | "Submissions that are misleading, fraudulent, or otherwise violate these terms may be rejected or removed at any time." | https://betalist.com/terms/submissions | no copy checked |
+| 86 | "If you receive sales or promotional emails after being featured, it's likely because service providers scrape startup directories (including BetaList) for leads and find publicly available contact information on your own website or social media profiles." | https://betalist.com/support | yes (2026-09-30) |
+| 87 | "Most edits are approved automatically within minutes; the rest are reviewed by our team." | https://betalist.com/support | no: the 2026-09-30 copy predates this wording |
+| 88 | "The one rule for moving to a new domain is that your old URL must redirect to your new one" | https://betalist.com/support | no: the 2026-09-30 copy predates this wording |
+| 89 | "We generally only feature each startup once, with one exception" | https://betalist.com/support | yes (2026-09-30) |
 
 ## Paraphrased claims and their sources
 
@@ -141,7 +142,8 @@ Target queries: "how to launch on betalist" and "betalist submission". No keywor
 - Signed out, the submission form sends you to the sign-in page: `/submit` redirect, see Method.
 - The FAQ sends you to your dashboard to check a submission's status: "How can I see the status of my startup submission? Visit your dashboard."
 - Refunds can take 5 to 10 business days to reach your statement: FAQ, "How long does a refund take?" (source uses an en dash).
-- Repeated rejected submissions can limit refunds: Submission Terms, section 4 ("We reserve the right to limit or deny refunds in cases of abuse, repeated rejected submissions, violations of these terms, or if your startup is ultimately featured.").
+- Site QA nit (21 October 2026): the refund paragraph now quotes the Submission Terms' "If your priority listing submission is not accepted for featuring, you are generally eligible for a refund." before the two discretion clauses, and "The FAQ is simple:" now reads "The FAQ says:". `/terms/submissions` was fetched again at 07:12 UTC on 21 October 2026, returned HTTP 200 and was unchanged from the first read; all three refund quotes match it word for word.
+- They reserve the right to limit or deny refunds in some cases, including repeated rejected submissions: Submission Terms, section 4 ("We reserve the right to limit or deny refunds in cases of abuse, repeated rejected submissions, violations of these terms, or if your startup is ultimately featured.").
 - Boost is cancel anytime: Boost page plan cards.
 - You can resubmit after a rejection: FAQ, "Can I resubmit my startup after it was rejected?" ("Yes, you are welcome to resubmit your startup in the future if you've made improvements based on our submission guidelines.").
 - A startup featured before launch can be featured again at launch: FAQ, "How do I get featured again?" (the rest of the sentence after "with one exception" contains the typo "eligble", so it is paraphrased).
