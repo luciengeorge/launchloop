@@ -161,7 +161,7 @@ All read on 21 October 2026 (the X rows from the archive captures named above).
 - **Any stats on how often each mistake happens:** none of the sources give one, and the post says the list is checks, not a ranking.
 - **Any LaunchLoop metric or testimonial:** none used.
 
-## Follow-ups (not in this PR)
+## Follow-ups
 
-- `src/components/tools/og-preview.tsx` still says the preview frame is "The large card X, LinkedIn, Slack, Facebook and iMessage are based on". It's the interactive tool's caption, outside this PR's two tool-page changes.
+- Done in this PR after review: the interactive tool's caption in `src/components/tools/og-preview.tsx` used to say the preview frame is "The large card X, LinkedIn, Slack, Facebook and iMessage are based on". It now calls it a generic large-card preview, says each platform crops and renders link cards a little differently, and links to `/blog/og-image-size`. No Apple source was read, so it says nothing about iMessage.
 - The tool page's pitfall "SVGs aren't shown by Facebook, X or LinkedIn" and "blocked in robots.txt" are unsourced; X's archived docs back the SVG claim for X only, and Slack says it ignores robots.txt.

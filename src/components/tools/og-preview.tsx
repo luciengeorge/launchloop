@@ -8,6 +8,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { postPath } from "@/lib/blog";
 import { OG_IMAGE, type OgCard, type OgCheck, type OgImageInfo, type OgTags } from "@/lib/og-check";
 import type { CheckStatus } from "@/lib/tagline-check";
 
@@ -201,9 +202,13 @@ export function OgPreview({ promo }: { promo: boolean }) {
             <section aria-labelledby={`${ids}-card`} className="space-y-2">
               <h2 id={`${ids}-card`} className="text-sm font-medium">Link preview</h2>
               <LinkCard key={preview.url} preview={preview} />
-              <p className="text-xs text-muted-foreground">
-                The large card X, LinkedIn, Slack, Facebook and iMessage are based on, framed at {OG_IMAGE.width}×{OG_IMAGE.height}. Images that aren&apos;t 1.91:1 are cropped
-                the same way here.
+              <p className="text-xs text-muted-foreground" data-testid="og-card-caption">
+                A generic large-card preview, framed at {OG_IMAGE.width}×{OG_IMAGE.height}. Each platform crops and renders link cards a little differently, and images that
+                aren&apos;t 1.91:1 are cropped to fit this frame.{" "}
+                <Link href={postPath({ slug: "og-image-size" })} className="underline underline-offset-4 hover:text-foreground">
+                  See what each platform&apos;s docs say
+                </Link>
+                .
               </p>
             </section>
             <section aria-labelledby={`${ids}-checks`} className="rounded-xl border border-border bg-card p-5">

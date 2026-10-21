@@ -90,6 +90,11 @@ test("well-tagged page: card at 1200×630, every check passes, deep link to the 
   expect(frame.width / frame.height).toBeCloseTo(1200 / 630, 1);
   await expect(page.getByTestId("og-card-image").locator("img")).toHaveJSProperty("naturalWidth", 1200);
 
+  const caption = page.getByTestId("og-card-caption");
+  await expect(caption).toHaveText("A generic large-card preview, framed at 1200×630. Each platform crops and renders link cards a little differently, and images that aren't 1.91:1 are cropped to fit this frame. See what each platform's docs say.");
+  await expect(caption.locator('a[href="/blog/og-image-size"]')).toBeVisible();
+  await expect(caption).not.toContainText(/iMessage|based on/);
+
   for (const id of ["title", "description", "image", "image-size", "image-tags", "twitter-card", "url"]) {
     await expect(page.locator(`[data-check="${id}"]`)).toHaveAttribute("data-status", "pass");
   }
