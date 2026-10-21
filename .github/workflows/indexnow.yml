@@ -23,11 +23,18 @@ permissions:
   contents: read
   deployments: read
 
+concurrency:
+  group: indexnow
+  cancel-in-progress: false
+
 jobs:
   ping:
     name: Ping IndexNow
-    if: github.event_name == 'workflow_dispatch' || (github.event.deployment_status.state == 'success' && github.event.deployment.environment == 'Production')
+    # startsWith ignores case, so this matches "Production" (this repo's name) and suffixed monorepo names alike.
+    if: github.event_name == 'workflow_dispatch' || (github.event.deployment_status.state == 'success' && startsWith(github.event.deployment.environment, 'production'))
     runs-on: ubuntu-latest
+    # IndexNow is best effort: a failure here must never leave a red X on main.
+    continue-on-error: true
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
@@ -39,16 +46,20 @@ jobs:
           node-version: 22
       - name: Ping changed URLs
         if: github.event_name == 'deployment_status'
-        run: npm run indexnow -- deploy --sha "$SHA" --deployment-id "$DEPLOYMENT_ID" --wait 120
+        continue-on-error: true
+        run: npm run indexnow -- deploy --sha "$SHA" --deployment-id "$DEPLOYMENT_ID" --environment "$ENVIRONMENT" --wait 120
         env:
           SHA: ${{ github.event.deployment.sha }}
           DEPLOYMENT_ID: ${{ github.event.deployment.id }}
+          ENVIRONMENT: ${{ github.event.deployment.environment }}
           GITHUB_TOKEN: ${{ github.token }}
       - name: Ping the whole sitemap
         if: github.event_name == 'workflow_dispatch' && inputs.all
+        continue-on-error: true
         run: npm run indexnow -- all ${{ inputs.dry_run && '--dry-run' || '' }}
       - name: Ping the given URLs
         if: github.event_name == 'workflow_dispatch' && !inputs.all
+        continue-on-error: true
         run: npm run indexnow -- urls "$URLS" ${{ inputs.dry_run && '--dry-run' || '' }}
         env:
           URLS: ${{ inputs.urls }}

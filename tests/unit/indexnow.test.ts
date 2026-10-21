@@ -8,12 +8,14 @@ import { BLOG_POSTS, postPath } from "@/lib/blog";
 import { GUIDES, guidePath } from "@/lib/guides";
 import {
   changedPaths,
+  diffPaths,
   INDEXNOW_KEY,
   INDEXNOW_KEY_LOCATION,
   INDEXNOW_MAX_URLS,
   indexNowAccepted,
   indexNowBody,
   inSitemap,
+  isGone,
   parseUrlList,
   routeOf,
   sitemapPaths,
@@ -113,6 +115,51 @@ describe("changedPaths", () => {
   });
 });
 
+describe("diffPaths", () => {
+  const diff = (...lines: string[]) => diffPaths(lines.join("\n"), SLUGS);
+
+  it("pings modified and added pages as changed, with their hubs", () => {
+    expect(diff("M\tsrc/app/blog/a/page.tsx", "A\tsrc/app/tools/new/page.tsx", "M\tREADME.md")).toEqual({
+      changed: ["/blog", "/blog/a", "/tools", "/tools/new"],
+      removed: [],
+    });
+  });
+
+  it("lists a deleted post as removed and still pings the blog index", () => {
+    expect(diff("D\tsrc/app/blog/old-post/page.tsx")).toEqual({ changed: ["/blog"], removed: ["/blog/old-post"] });
+  });
+
+  it("lists a renamed post's old path as removed and its new path as changed", () => {
+    expect(diff("R100\tsrc/app/blog/old-slug/page.tsx\tsrc/app/blog/new-slug/page.tsx")).toEqual({
+      changed: ["/blog", "/blog/new-slug"],
+      removed: ["/blog/old-slug"],
+    });
+  });
+
+  it("lists a deleted guide as removed and pings /guides", () => {
+    expect(diff("D\tsrc/app/show-hn-launch-checklist/page.tsx")).toEqual({ changed: ["/guides"], removed: ["/show-hn-launch-checklist"] });
+  });
+
+  it("doesn't call a page removed when only one of its files went and another still maps to it", () => {
+    expect(diff("D\tsrc/app/tools/og-preview/opengraph-image.tsx", "M\tsrc/app/tools/og-preview/page.tsx")).toEqual({
+      changed: ["/tools", "/tools/og-preview"],
+      removed: [],
+    });
+  });
+
+  it("keeps a removed page out of changed even when a deleted child lists it as a parent", () => {
+    expect(diff("D\tsrc/app/blog/a/page.tsx", "D\tsrc/app/blog/a/b/page.tsx")).toEqual({ changed: ["/blog"], removed: ["/blog/a", "/blog/a/b"] });
+  });
+
+  it("ignores deleted files outside blog, guides and tools, and blank lines", () => {
+    expect(diff("D\tsrc/app/faq/page.tsx", "D\tsrc/lib/rss.ts", "", "R090\tdocs/a.md\tdocs/b.md")).toEqual({ changed: [], removed: [] });
+  });
+
+  it("sends only 404 and 410 as removals", () => {
+    expect([200, 301, 308, 404, 410, 500, 0].filter(isGone)).toEqual([404, 410]);
+  });
+});
+
 describe("sitemap matching", () => {
   const xml = `<?xml version="1.0"?><urlset>
     <url><loc>https://launchloop.dev/</loc></url>
@@ -138,6 +185,14 @@ describe("sitemap matching", () => {
 describe("parseUrlList", () => {
   it("accepts paths and launchloop.dev URLs, split on spaces, commas and new lines", () => {
     expect(parseUrlList("/blog/, https://launchloop.dev/faq\n/blog /")).toEqual({ paths: ["/blog", "/faq", "/"], rejected: [] });
+  });
+
+  it("strips a trailing slash from full URLs the same way as from paths", () => {
+    expect(parseUrlList("https://launchloop.dev/blog/ https://launchloop.dev/tools/og-preview// https://launchloop.dev/ https://launchloop.dev").paths).toEqual([
+      "/blog",
+      "/tools/og-preview",
+      "/",
+    ]);
   });
 
   it("rejects other hosts, http and junk", () => {
