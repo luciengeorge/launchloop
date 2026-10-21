@@ -28,7 +28,7 @@ export const BLOG_POSTS: BlogPost[] = [
       "Open Graph image size from each platform's own docs: a safe 1200×630 default, what Facebook, LinkedIn, X and Slack say, the tags to set and how to test it.",
     published: "2026-10-26",
     updated: "2026-10-26",
-    readingMinutes: 10,
+    readingMinutes: 15,
   },
   {
     slug: "how-to-launch-on-product-hunt",
