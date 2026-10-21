@@ -160,8 +160,18 @@ function recordPosthog(body) {
   }
 }
 
-/** Flag variants per distinct id, and an optional delay before answering, set by tests through POST /ph/_flags. Everyone else gets no flags. */
+/**
+ * Flag variants per distinct id, and an optional delay before answering, set by tests through POST /ph/_flags.
+ * An id ending in `*` covers every id with that prefix (the home headline is bucketed on a fresh `hero:<uuid>`
+ * per view); an exact id wins. Everyone else gets no flags.
+ */
 const flagOverrides = new Map();
+const overrideFor = (distinctId) => {
+  if (typeof distinctId !== "string") return undefined;
+  if (flagOverrides.has(distinctId)) return flagOverrides.get(distinctId);
+  for (const [pattern, override] of flagOverrides) if (pattern.endsWith("*") && distinctId.startsWith(pattern.slice(0, -1))) return override;
+  return undefined;
+};
 
 /** The distinct_id in a flags request: posthog-node sends JSON; posthog-js may gzip it. */
 function flagsDistinctId(body) {
@@ -241,7 +251,7 @@ createServer(async (req, res) => {
       return res.end("{}");
     }
     if (pathname.startsWith("/ph/flags")) {
-      const override = flagOverrides.get(flagsDistinctId(body));
+      const override = overrideFor(flagsDistinctId(body));
       if (override?.delayMs) await new Promise((resolve) => setTimeout(resolve, override.delayMs));
       if (res.destroyed) return;
       res.writeHead(200, { "Content-Type": "application/json" });

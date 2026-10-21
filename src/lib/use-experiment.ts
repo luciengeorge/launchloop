@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type RefObject } from "react";
 import { afterPageLoad, analyticsEnabled, loadAnalytics, rememberServed, servedEarlier, trackServed } from "./analytics";
 import { fallbackServed, isVariant, type ExperimentKey, type Served, type Variant } from "./experiments";
 
@@ -104,4 +104,40 @@ export function useServerAssignment<S extends Served>(key: ExperimentKey, served
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once per mount, with what the first render showed
   }, [key]);
   return served;
+}
+
+/**
+ * What this page load has shown for a server-rendered experiment (see useRenderedExperiment); null when it wasn't
+ * running. Page memory only, like the analytics id, and only written in the browser.
+ */
+const shownThisPage = new Map<ExperimentKey, Served | null>();
+
+const noSubscription = () => () => {};
+
+/** What this page load already showed for `key`, or undefined (always, during server rendering and hydration). */
+export function useShownExperiment(key: ExperimentKey): Served | null | undefined {
+  return useSyncExternalStore(
+    noSubscription,
+    () => shownThisPage.get(key),
+    () => undefined,
+  );
+}
+
+/**
+ * For a variant the server rendered into the HTML, so the first paint is already final. Returns the server's
+ * assignment, or what this page load showed before (a client-side return to the page re-renders on the server,
+ * with a fresh assignment), and records it once per mount like useExperiment. The record waits for the SDK's
+ * deferred load rather than pulling it in during hydration. `served` null: the experiment isn't running, so
+ * nothing is recorded.
+ */
+export function useRenderedExperiment(key: ExperimentKey, served: Served | null): Served | null {
+  const [shown] = useState(() => (shownThisPage.has(key) ? shownThisPage.get(key)! : served));
+  const recorded = useRef(false);
+  useEffect(() => {
+    if (!shownThisPage.has(key)) shownThisPage.set(key, shown);
+    if (!shown || recorded.current) return;
+    recorded.current = true;
+    trackServed(key, shown, { whenLoaded: true });
+  }, [key, shown]);
+  return shown;
 }

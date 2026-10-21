@@ -143,14 +143,15 @@ test("promo treatment: the price line, LAUNCH14 note and £14 button are in the 
   }
 });
 
+// posthog-js drops every event from a likely bot (HeadlessChrome UA or brand, navigator.webdriver).
+const userAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36";
+const notABot = (context: BrowserContext) =>
+  context.addInitScript(() => {
+    Object.defineProperty(Navigator.prototype, "webdriver", { get: () => false });
+    Object.defineProperty(Navigator.prototype, "userAgentData", { get: () => undefined });
+  });
+
 test.describe("promo bucketing", () => {
-  // posthog-js drops every event from a likely bot (HeadlessChrome UA or brand, navigator.webdriver).
-  const userAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36";
-  const notABot = (context: BrowserContext) =>
-    context.addInitScript(() => {
-      Object.defineProperty(Navigator.prototype, "webdriver", { get: () => false });
-      Object.defineProperty(Navigator.prototype, "userAgentData", { get: () => undefined });
-    });
   test.use({ userAgent });
   test.beforeEach(({ context }) => notABot(context));
 
