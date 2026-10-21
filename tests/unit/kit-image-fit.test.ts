@@ -127,6 +127,38 @@ describe("fitText", () => {
     for (const line of fit.lines) expect(textWidth(line, 50, 0, 600)).toBeLessThanOrEqual(900);
   });
 
+  it("prefers a smaller size that keeps every word whole to a larger one that splits a word", () => {
+    const opts = { sizes: [124, 112, 100, 88, 76, 64], maxWidth: 640, maxLines: 2, lineHeight: 1.02, weight: 700, letterSpacing: -3 } as const;
+    expect(textWidth("Tool4Boxology", 124, -3, 700)).toBeGreaterThan(640);
+    expect(wrapText("Tool4Boxology", 124, 640, -3, 700)).toHaveLength(2);
+    const fit = fitText("Tool4Boxology", opts);
+    expect(fit.lines).toEqual(["Tool4Boxology"]);
+    expect(fit.truncated).toBe(false);
+    const largestWhole = opts.sizes.find((s) => textWidth("Tool4Boxology", s, -3, 700) <= 640);
+    expect(fit.fontSize).toBe(largestWhole);
+  });
+
+  it("splits a word only when even the smallest size can't fit it whole, at the largest size that then fits", () => {
+    const word = "Pneumonoultramicroscopicsilicovolcanoconiosis";
+    const opts = { sizes: [124, 100, 76, 64], maxWidth: 640, maxLines: 3, lineHeight: 1.02, weight: 700, letterSpacing: -3 } as const;
+    expect(textWidth(word, 64, -3, 700)).toBeGreaterThan(640);
+    const fit = fitText(word, opts);
+    expect(fit.lines.length).toBeGreaterThan(1);
+    expect(fit.lines.join("")).toBe(word);
+    expect(fit.truncated).toBe(false);
+    for (const line of fit.lines) expect(textWidth(line, fit.fontSize, -3, 700)).toBeLessThanOrEqual(640);
+    expect(fit.fontSize).toBe(opts.sizes.find((s) => wrapText(word, s, 640, -3, 700).length <= 3));
+  });
+
+  it("keeps a long one-word name whole in every variant and layout (prod kit 9okQ31: 'Tool4Boxol / ogy')", () => {
+    for (const variant of VARIANTS) {
+      for (const [label, media] of MEDIA) {
+        const plan = planKitImage(variant, { ...SHORT, name: "Tool4Boxology" }, media);
+        expect(plan.name.text.lines, `${variant} ${label}`).toEqual(["Tool4Boxology"]);
+      }
+    }
+  });
+
   it("respects maxHeight as a line cap", () => {
     const fit = fitText(LONG.headline, { sizes: [40], maxWidth: 400, maxLines: 10, lineHeight: 1.25, maxHeight: 100 });
     expect(fit.lines).toHaveLength(2);
@@ -172,6 +204,8 @@ describe("kit image layout", () => {
         ["long", LONG],
         ["short", SHORT],
         ["empty", EMPTY],
+        ["one-word name", { ...SHORT, name: "Tool4Boxology" }],
+        ["unbreakable name", { ...LONG, name: "Pneumonoultramicroscopicsilicovolcanoconiosis" }],
       ] as const) {
         it(`${variant}, ${label}, ${copy} copy: nothing overlaps or leaves the frame`, () => {
           const plan = planKitImage(variant, content, media);
