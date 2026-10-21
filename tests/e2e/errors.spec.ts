@@ -133,6 +133,8 @@ test("repo mode ends once the input isn't a GitHub link; on mobile the repo butt
   // So does pasting another site's link over the prefill. Backspacing through the prefill doesn't.
   await siteInput.fill("https://acme.io");
   await cta.click();
+  // The form focuses the input a frame later; pressing first would focus it with the caret at the start.
+  await expect(repoInput).toBeFocused();
   await repoInput.press("Backspace");
   await expect(repoInput).toHaveValue("https://github.com");
   await repoInput.fill("https://github.com/");
