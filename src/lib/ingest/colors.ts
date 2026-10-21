@@ -106,6 +106,18 @@ const mix = (a: RGB, b: RGB, t: number): RGB => [0, 1, 2].map((i) => a[i] + (b[i
 
 const COLOR_TOKEN = /#[0-9a-fA-F]{3,8}\b|(?:rgba?|hsla?|oklch)\([^)]*\)/g;
 
+/**
+ * A grey, near-white or near-black theme-color is the page's own chrome colour rather than a brand
+ * hue, so it stands in for the background when the CSS declares none. Without it a light site
+ * would get a dark, accent-tinted background that isn't its branding.
+ */
+function neutralThemeColor(themeColor: string | undefined): RGB | null {
+  const rgb = themeColor ? parseColor(themeColor) : null;
+  if (!rgb) return null;
+  const { s, l } = hsl(rgb);
+  return s <= 0.25 || l >= 0.92 || l <= 0.08 ? rgb : null;
+}
+
 export interface ColorHints {
   css: string;
   themeColor?: string;
@@ -149,10 +161,12 @@ export function extractPalette({ css, themeColor }: ColorHints, source: "site" |
   let accent = ranked[0].rgb;
   const white: RGB = [255, 255, 255];
   const ink: RGB = [10, 10, 16];
-  let background: RGB = declaredBackground ?? mix(accent, ink, 0.9);
-  if (contrast(background, accent) < 2.2) background = mix(accent, ink, 0.92);
+  const pageBackground = declaredBackground ?? neutralThemeColor(themeColor);
+  let background: RGB = pageBackground ?? mix(accent, ink, 0.9);
+  // The page's own background is the brand; only a background we made up gets swapped for contrast.
+  if (!pageBackground && contrast(background, accent) < 2.2) background = mix(accent, ink, 0.92);
   const foreground = contrast(background, white) >= contrast(background, ink) ? white : ink;
-  for (let i = 0; i < 6 && contrast(background, accent) < 3; i++) accent = mix(accent, foreground, 0.15);
+  for (let i = 0; i < 10 && contrast(background, accent) < 3; i++) accent = mix(accent, foreground, 0.15);
   const accentForeground = contrast(accent, white) >= contrast(accent, ink) ? white : ink;
   const muted = mix(foreground, background, 0.38);
 

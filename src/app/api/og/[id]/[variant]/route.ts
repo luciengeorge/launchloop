@@ -12,7 +12,7 @@ export async function GET(req: Request, ctx: RouteContext<"/api/og/[id]/[variant
   if (!kit) return Response.json({ error: "Kit not found" }, { status: 404 });
 
   try {
-    const res = renderKitImage(kit, name, { watermark: !kit.paid });
+    const res = await renderKitImage(kit, name, { watermark: !kit.paid });
     // The paid URL asked for before payment: answer, but never let the watermarked image be cached under it.
     if (new URL(req.url).searchParams.get("v") === "paid" && !kit.paid) res.headers.set("Cache-Control", "no-store");
     return res;

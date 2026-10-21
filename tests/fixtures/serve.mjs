@@ -41,6 +41,24 @@ const png = (w, h) => {
   const raw = Buffer.concat(Array.from({ length: h }, () => row));
   return Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), pngChunk("IHDR", ihdr), pngChunk("IDAT", deflateSync(raw)), pngChunk("IEND", Buffer.alloc(0))]);
 };
+/** A VP8X WebP header: enough for a size reader, and a format Satori draws as a blank box. */
+const webp = (w, h) => {
+  const b = Buffer.alloc(30);
+  b.write("RIFF", 0);
+  b.writeUInt32LE(22, 4);
+  b.write("WEBPVP8X", 8);
+  b.writeUInt32LE(10, 16);
+  b.writeUIntLE(w - 1, 24, 3);
+  b.writeUIntLE(h - 1, 27, 3);
+  return b;
+};
+const gif = (w, h) => {
+  const b = Buffer.alloc(13);
+  b.write("GIF89a", 0);
+  b.writeUInt16LE(w, 6);
+  b.writeUInt16LE(h, 8);
+  return b;
+};
 
 const origin = `http://127.0.0.1:${port}`;
 const ogPage = (head) => (_req, res) => {
@@ -69,6 +87,25 @@ const routes = {
     <meta property="og:image" content="${origin}/og/img-1200x1200.png" />`),
   "/og/broken-image": ogPage(`<meta property="og:title" content="Brokenpic" /><meta property="og:image" content="${origin}/og/missing.png" />`),
   "/og/none": ogPage(""),
+  // A product page with a landscape share image (the kit images' screenshot) and an apple-touch-icon (their logo).
+  "/visual": (_req, res) => {
+    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+    res.end(`<!doctype html><html><head><title>Framewise</title>
+      <meta name="description" content="Framewise turns screen recordings into step-by-step product docs your team can edit.">
+      <meta property="og:image" content="${origin}/og/img-1600x1000.png">
+      <link rel="apple-touch-icon" sizes="180x180" href="/og/img-180x180.png">
+      </head><body><h1>Framewise</h1><p>Framewise turns screen recordings into step-by-step product docs your team can edit.</p></body></html>`);
+  },
+  // A share image that is always WebP, a GIF icon, and an icon that, like Framer's CDN, is WebP whenever the Accept header allows it.
+  "/visual-webp": (_req, res) => {
+    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+    res.end(`<!doctype html><html><head><title>Cadence</title>
+      <meta name="description" content="Cadence books meetings across every calendar your team uses, without the back and forth.">
+      <meta property="og:image" content="${origin}/og/webp-1600x1000.png">
+      <link rel="apple-touch-icon" sizes="180x180" href="/og/gif-180x180.png">
+      <link rel="apple-touch-icon" sizes="152x152" href="/og/negotiated-152x152.png">
+      </head><body><h1>Cadence</h1><p>Cadence books meetings across every calendar your team uses, without the back and forth.</p></body></html>`);
+  },
   "/slow": (_req, res) => setTimeout(() => res.end("<title>Too late</title>"), 5000),
   // Slow but inside SITE_FETCH_TIMEOUT_MS, so a preview is still being written for a moment after it's accepted.
   "/slowish": (_req, res) =>
@@ -235,6 +272,13 @@ createServer(async (req, res) => {
   if (img) {
     res.writeHead(200, { "Content-Type": "image/png" });
     return res.end(png(Number(img[1]), Number(img[2])));
+  }
+  const other = /^\/og\/(webp|gif|negotiated)-(\d{1,4})x(\d{1,4})\.png$/.exec(req.url);
+  if (other) {
+    const [w, h] = [Number(other[2]), Number(other[3])];
+    const format = other[1] === "negotiated" ? (/image\/webp/.test(req.headers.accept ?? "") ? "webp" : "png") : other[1];
+    res.writeHead(200, { "Content-Type": `image/${format}` });
+    return res.end(format === "webp" ? webp(w, h) : format === "gif" ? gif(w, h) : png(w, h));
   }
   // Fake PostHog (NEXT_PUBLIC_POSTHOG_HOST in the test build): no flags for anyone, so every
   // experiment is control unless a test sets variants for a distinct id (POST /ph/_flags
