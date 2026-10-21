@@ -204,12 +204,18 @@ export const servedEarlier = (key: ExperimentKey): Served | undefined => servedO
  * So those are replaced with what this page did serve through useExperiment (`fallback/<key>` for a
  * fallback, as on the server's checkout events): preview_started can be split by the hero variant shown.
  * Experiments the page didn't serve travel only on exposures and the server's events, which set them explicitly.
+ * An exposure keeps its own flag as sent; the other experiments on it are what this page served too (the
+ * headline is assigned on the server, so posthog-js's guess for this page's id can say test while control
+ * showed), and only those the page didn't serve keep posthog-js's value.
  */
 function withServedExperiments(event: CaptureResult): CaptureResult["properties"] {
-  if (event.event === "$feature_flag_called") return event.properties;
   const properties = { ...event.properties };
-  for (const key of Object.values(EXPERIMENTS)) delete properties[`$feature/${key}`];
-  const served = [...servedOnPage];
+  const exposure = event.event === "$feature_flag_called";
+  const own = exposure ? properties.$feature_flag : undefined;
+  const served = [...servedOnPage].filter(([key]) => key !== own);
+  for (const key of Object.values(EXPERIMENTS)) {
+    if (key !== own && (!exposure || servedOnPage.has(key))) delete properties[`$feature/${key}`];
+  }
   const variants = Object.fromEntries(served.map(([key, s]) => [key, s.variant]));
   return { ...properties, ...featureProperties(variants, served.filter(([, s]) => s.fallback).map(([key]) => key)) };
 }

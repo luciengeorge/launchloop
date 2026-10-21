@@ -53,6 +53,30 @@ describe("experiment properties on events", () => {
     expect(event.properties).not.toHaveProperty(`$feature/${hero}`);
   });
 
+  it("the sample CTA exposure carries the headline the page showed, not posthog-js's evaluation of it", async () => {
+    const { analytics, send } = await load();
+    const headline = EXPERIMENTS.heroHeadline;
+    // The server rendered control; posthog-js, evaluating exp_hero_headline for this page's own id, says test.
+    analytics.rememberServed(headline, { variant: "control" });
+    analytics.rememberServed(hero, { variant: "test" });
+    const exposure = send("$feature_flag_called", { $feature_flag: hero, $feature_flag_response: "test", [`$feature/${hero}`]: "test", [`$feature/${headline}`]: "test" });
+    expect(exposure.properties).toEqual({ $feature_flag: hero, $feature_flag_response: "test", [`$feature/${hero}`]: "test", [`$feature/${headline}`]: "control" });
+
+    // A headline served as a fallback is tagged fallback/<key> on the exposure too.
+    const fallback = await load();
+    fallback.analytics.rememberServed(headline, { variant: "control", fallback: "timeout" });
+    const tagged = fallback.send("$feature_flag_called", { $feature_flag: hero, $feature_flag_response: "control", [`$feature/${hero}`]: "control", [`$feature/${headline}`]: "test" });
+    expect(tagged.properties).toMatchObject({ [`$feature/${hero}`]: "control", [`fallback/${headline}`]: "control" });
+    expect(tagged.properties).not.toHaveProperty(`$feature/${headline}`);
+  });
+
+  it("an exposure keeps posthog-js's value for an experiment the page didn't serve", async () => {
+    const { analytics, send } = await load();
+    analytics.rememberServed(hero, { variant: "control" });
+    const exposure = { $feature_flag: hero, $feature_flag_response: "control", [`$feature/${hero}`]: "control", [`$feature/${EXPERIMENTS.heroHeadline}`]: "test" };
+    expect(send("$feature_flag_called", exposure).properties).toEqual(exposure);
+  });
+
   it("nothing served on this page: no experiment properties at all, and the exposure is left as sent", async () => {
     const { send } = await load();
     expect(send("$pageview", { [`$feature/${hero}`]: "test" }).properties).toEqual({});
