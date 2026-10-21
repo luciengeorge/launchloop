@@ -124,12 +124,15 @@ test("flags too slow or failing: control, and the hero never flips when test arr
   await expect(page.getByTestId("example-kit-link")).toHaveCount(0);
 });
 
-test("test: the example kit link opens the kit page", async ({ page }) => {
+test("test: the example kit link opens the kit page, and the click is recorded with the variant and no kit id", async ({ page }) => {
   await forceHeroVariant(page, "test");
-  await openHome(page);
+  const campaign = await openHome(page);
+  await waitForEvent(page, campaign, exposure);
   const example = page.getByTestId("example-kit-link");
-  await expect(example).toBeVisible();
   const navigation = page.waitForURL((u) => u.pathname === EXAMPLE_KIT_PATH);
   await example.click();
   await navigation;
+  const click = await waitForEvent(page, campaign, (e) => e.event === "hero_clicked" && e.properties.label === "See an example kit");
+  expect(click.properties).toMatchObject({ element: "a", [`$feature/${FLAG}`]: "test" });
+  expect(String(click.properties.link_url)).toMatch(/\/kit\/\[id\]$/);
 });

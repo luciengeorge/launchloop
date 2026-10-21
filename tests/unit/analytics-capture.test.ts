@@ -16,25 +16,19 @@ async function load() {
   const analytics = await import("@/lib/analytics");
   await analytics.loadAnalytics();
   const config = posthog.init.mock.calls.at(-1)![1] as Partial<PostHogConfig>;
-  const send = (event: string, properties: Record<string, unknown>) => config.before_send!({ event, properties } as unknown as CaptureResult) as CaptureResult;
+  const beforeSend = config.before_send as (event: CaptureResult | null) => CaptureResult | null;
+  const send = (event: string, properties: Record<string, unknown>) => beforeSend({ event, properties } as unknown as CaptureResult)!;
   return { analytics, config, send };
 }
 
 describe("posthog-js config", () => {
-  it("captures $pageleave, autocaptures only hero clicks on links, buttons and the URL field, and keeps replay off", async () => {
-    const { analytics, config } = await load();
+  it("captures $pageleave; no autocapture, heatmaps, dead clicks or session replay (hero clicks are sent explicitly)", async () => {
+    const { config } = await load();
     expect(config.capture_pageleave).toBe(true);
-    expect(config.disable_session_recording).toBe(true);
+    expect(config.autocapture).toBe(false);
     expect(config.capture_heatmaps).toBe(false);
     expect(config.capture_dead_clicks).toBe(false);
-    expect(config.autocapture).toEqual({
-      dom_event_allowlist: ["click"],
-      css_selector_allowlist: [`[${analytics.CAPTURE_CLICKS_ATTR}]`],
-      element_allowlist: ["a", "button", "input"],
-      element_attribute_ignorelist: ["value"],
-      capture_copied_text: false,
-    });
-    expect(analytics.captureClicks).toEqual({ [analytics.CAPTURE_CLICKS_ATTR]: "" });
+    expect(config.disable_session_recording).toBe(true);
   });
 });
 

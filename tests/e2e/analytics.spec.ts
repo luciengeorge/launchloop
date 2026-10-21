@@ -43,11 +43,11 @@ async function campaignEvent(page: Page, campaign: string, event: string): Promi
   return found!;
 }
 
-async function serverEvent(page: Page, id: string, event: string): Promise<PhEvent> {
+async function serverEvent(page: Page, id: string, event: string, match: (e: PhEvent) => boolean = () => true): Promise<PhEvent> {
   let found: PhEvent | undefined;
   await expect
     .poll(async () => {
-      found = (await phEvents(page)).find((e) => e.event === event && distinctId(e) === id);
+      found = (await phEvents(page)).find((e) => e.event === event && distinctId(e) === id && match(e));
       return found;
     })
     .toBeTruthy();
@@ -269,7 +269,7 @@ test("a guest checkout started before the PostHog SDK loads waits for it and joi
   expect(pageview.properties.$pathname).toBe("/kit/[id]");
 });
 
-test("clicks are autocaptured in the hero only, never what's typed; leaving the page sends $pageleave; no session replay", async ({ page }) => {
+test("clicks are captured in the hero only, never what's typed; leaving the page sends $pageleave; no session replay", async ({ page }) => {
   const campaign = `clicks-${Date.now()}`;
   const replayRequests: string[] = [];
   page.on("request", (r) => {
@@ -288,21 +288,26 @@ test("clicks are autocaptured in the hero only, never what's typed; leaving the 
   await page.getByRole("button", { name: "Try a sample app" }).click();
   await page.waitForURL(/\/kit\/[\w-]+$/);
 
-  const leave = await campaignEvent(page, campaign, "$pageleave");
-  expect(leave.properties.$pathname ?? leave.properties.$prev_pageview_pathname).toBe("/");
   await campaignEvent(page, campaign, "preview_started");
-  let clicks: PhEvent[] = [];
   await expect
-    .poll(async () => {
-      clicks = (await phEvents(page)).filter((e) => e.event === "$autocapture" && e.properties.utm_campaign === campaign);
-      return clicks.map((e) => e.properties.$el_text ?? null);
-    })
-    .toEqual([null, "Try a sample app"]);
-  for (const click of clicks) {
-    expect(click.properties.$event_type).toBe("click");
-    expect(String(click.properties.$elements_chain)).toContain("data-capture-clicks");
-  }
-  expect(String(clicks[0].properties.$elements_chain)).toMatch(/^input/);
+    .poll(async () =>
+      (await phEvents(page))
+        .filter((e) => e.properties.utm_campaign === campaign && (e.event === "hero_clicked" || e.event === "$autocapture"))
+        .map((e) => ({ event: e.event, element: e.properties.element, label: e.properties.label })),
+    )
+    .toEqual([
+      { event: "hero_clicked", element: "input", label: "GitHub repo or live site URL" },
+      { event: "hero_clicked", element: "button", label: "Try a sample app" },
+    ]);
+
+  // Leaving the home page (pagehide: closing the tab or a full page load) sends $pageleave for it by beacon. Headless
+  // Chromium drops beacons sent while page.goto unloads the page, so fire the event the browser would.
+  const leaving = `${campaign}-leave`;
+  await page.goto(`/?utm_campaign=${leaving}`);
+  await campaignEvent(page, leaving, "$pageview");
+  await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent("pagehide", { persisted: false })));
+  expect((await campaignEvent(page, leaving, "$pageleave")).properties.$pathname).toBe("/");
+
   const everything = JSON.stringify(await phEvents(page));
   expect(everything).not.toContain(secret);
   expect(replayRequests).toEqual([]);
@@ -321,7 +326,7 @@ test("QA traffic: every browser and server event carries is_test, through client
   await page.waitForURL(/\/kit\/[\w-]+$/);
   for (const name of ["preview_started", "preview_completed"]) expect((await campaignEvent(page, campaign, name)).properties.is_test).toBe(true);
   const firstView = distinctId(landing)!;
-  const served = await serverEvent(page, firstView, "flag_fallback");
+  const served = await serverEvent(page, firstView, "flag_fallback", (e) => e.properties.flag === "exp_launch14_promo");
   expect(served.properties).toMatchObject({ flag: "exp_launch14_promo", is_test: true });
 
   // A full reload drops the tag from the URL and gets a new anonymous id; the tab still remembers it's QA.
