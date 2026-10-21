@@ -1,5 +1,6 @@
 import { after } from "next/server";
 import { captureServerEvent, resolveDistinctId } from "@/lib/analytics-server";
+import { isQaReferer } from "@/lib/attribution";
 import { addContact, isEmail, isUndeliverableEmail } from "@/lib/audience";
 import { seeOther } from "@/lib/auth";
 import { newsletterWelcomeEmail, sendEmail } from "@/lib/email";
@@ -10,6 +11,7 @@ import {
   type NewsletterPlacement,
   type NewsletterResult,
   type WelcomeOutcome,
+  isResendTestAddress,
   newsletterReturnPath,
   parsePlacement,
 } from "@/lib/newsletter";
@@ -40,7 +42,9 @@ export async function POST(req: Request) {
     await addContact(email, "newsletter", { placement });
     const welcome = await claimWelcome(email, placement);
     if (welcome === "sent") after(() => sendWelcome(email, placement));
-    after(() => trackSignup(data, isForm, placement, welcome));
+    // QA traffic: a QA-tagged tab (the fetch's isTest), a QA-tagged page (its Referer, the only signal a no-JS post has) or Resend's test sink.
+    const isTest = (!isForm && data.isTest === true) || isQaReferer(req) || isResendTestAddress(email);
+    after(() => trackSignup(data, isForm, placement, welcome, isTest));
     return respond({ ok: true, welcome });
   } catch (error) {
     captureException(error, { stage: "api.newsletter" });
@@ -70,7 +74,7 @@ async function claimWelcome(email: string, placement: NewsletterPlacement): Prom
  * The page's anonymous id when the form's fetch sent one, so the event joins that visit's pageview and UTMs; a plain
  * form post has none and gets a server id. Never the email.
  */
-function trackSignup(data: Record<string, unknown>, isForm: boolean, placement: NewsletterPlacement, welcome: WelcomeOutcome) {
+function trackSignup(data: Record<string, unknown>, isForm: boolean, placement: NewsletterPlacement, welcome: WelcomeOutcome, isTest: boolean) {
   return captureServerEvent("newsletter_subscribed", {
     distinctId: resolveDistinctId(isForm ? undefined : data.analyticsId),
     properties: {
@@ -78,7 +82,7 @@ function trackSignup(data: Record<string, unknown>, isForm: boolean, placement: 
       welcome,
       submitted: isForm ? "form" : "js",
       ...(isForm ? {} : { is_webdriver: data.isWebdriver === true }),
-      ...(!isForm && data.isTest === true ? { is_test: true } : {}),
+      ...(isTest ? { is_test: true } : {}),
     },
   });
 }

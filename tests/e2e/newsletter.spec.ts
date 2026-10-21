@@ -197,6 +197,16 @@ test("a plain form post (no JavaScript) is counted once, as submitted: form", as
   expect(await formSignups()).toBe(before + 1);
 });
 
+test("a signup with a Resend test address is is_test, and the address isn't in the event", async ({ request }) => {
+  const analyticsId = crypto.randomUUID();
+  const res = await postJson(request, { email: `delivered+${Date.now()}@resend.dev`, placement: "footer", analyticsId });
+  expect(await res.json()).toMatchObject({ ok: true });
+  let event: PhEvent | undefined;
+  await expect.poll(async () => (event = (await signupEvents(request)).find((e) => e.distinct_id === analyticsId))).toBeTruthy();
+  expect(event!.properties).toMatchObject({ placement: "footer", submitted: "js", is_test: true });
+  expect(JSON.stringify(event)).not.toMatch(/resend\.dev|delivered/);
+});
+
 test("concurrent signups for one new address send one welcome email", async ({ request }) => {
   const email = uniqueEmail("race");
   const responses = await Promise.all([1, 2, 3, 4].map((n) => postJson(request, { email, placement: n % 2 ? "footer" : "preview" })));
@@ -311,6 +321,25 @@ test.describe("plain form posts", () => {
       expect(page.url()).not.toContain("example.com");
       await expect(footer.getByText("Too many attempts. Try again later.")).toBeVisible();
       await expect(footer.getByText("Couldn't subscribe you right now. Please try again.")).toBeHidden();
+    });
+
+    test("a signup from a ?qa=1 page is is_test, though no JavaScript ran; the same signup from an untagged page isn't", async ({ page }) => {
+      const blog = "/blog/how-to-launch-on-product-hunt";
+      const formEvents = async () => (await signupEvents(page.request)).filter((e) => e.properties.submitted === "form");
+      for (const [query, tagged] of [["?qa=1", true], ["", false]] as const) {
+        const before = (await formEvents()).length;
+        await page.setExtraHTTPHeaders({ "x-forwarded-for": freshIp() });
+        await page.goto(`${blog}${query}`);
+        const block = page.getByTestId("blog-newsletter");
+        await block.getByLabel("Email for the launch-day checklist").fill(uniqueEmail("nojs-qa"));
+        await block.getByRole("button", { name: "Send me the checklist" }).click();
+        await page.waitForURL((u) => u.pathname === blog && u.searchParams.get("subscribed") === "1");
+        await expect.poll(async () => (await formEvents()).length).toBe(before + 1);
+        const event = (await formEvents()).at(-1)!;
+        expect(event.properties).toMatchObject({ placement: "blog", welcome: "sent" });
+        if (tagged) expect(event.properties.is_test).toBe(true);
+        else expect(event.properties).not.toHaveProperty("is_test");
+      }
     });
 
     test("a server error message shows without JavaScript", async ({ page }) => {

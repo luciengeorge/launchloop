@@ -5,6 +5,9 @@ export type NewsletterPlacement = "footer" | "preview" | "blog";
 
 export const parsePlacement = (value: unknown): NewsletterPlacement => (value === "preview" || value === "blog" ? value : "footer");
 
+/** Resend's test sink (delivered@resend.dev, bounced@resend.dev, ...): only QA ever signs up with it. */
+export const isResendTestAddress = (email: string) => /(^|\.)resend\.dev$/.test(email.slice(email.lastIndexOf("@") + 1).trim().toLowerCase());
+
 /** The lead magnet: the public checklist guide, linked from the success state and the welcome email. */
 export const LEAD_MAGNET = { title: "launch-day checklist", path: "/product-hunt-launch-checklist" } as const;
 
