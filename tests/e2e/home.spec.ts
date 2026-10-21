@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { logIn, makeSampleKit, uniqueEmail } from "./helpers";
+import { h1Tags, logIn, MAIN_H1_HEIGHTS, makeSampleKit, setHeroHeadline, uniqueEmail } from "./helpers";
 
 test("home page explains the product and offers the input", async ({ page }) => {
   await page.goto("/");
@@ -8,6 +8,29 @@ test("home page explains the product and offers the input", async ({ page }) => 
   await expect(page.getByRole("button", { name: "Get my free preview" }).first()).toBeVisible();
   await expect(page.getByRole("heading", { name: "Three steps. Pay only for what you need." })).toBeVisible();
   await expect(page.getByText("£19", { exact: true }).first()).toBeVisible();
+});
+
+test("HERO_EXPERIMENT unset (production): the home h1 is main's static h1, whatever PostHog says", async ({ page }) => {
+  await setHeroHeadline(page.request, "test");
+  try {
+    const html = await (await page.request.get("/")).text();
+    expect(html).toContain('<h1 class="max-w-3xl text-balance text-4xl font-semibold tracking-tight sm:text-6xl">Paste your repo. <span class="text-primary">Get your whole launch.</span></h1>');
+    expect(html).not.toMatch(/data-hero|data-reserve|hero-failsafe/);
+    expect(h1Tags(html)).toHaveLength(1);
+    await page.goto("/");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Paste your repo. Get your whole launch.");
+  } finally {
+    await setHeroHeadline(page.request, null);
+  }
+});
+
+test("HERO_EXPERIMENT unset: the home h1 is main's height at each width", async ({ page, isMobile }) => {
+  for (const { width, height } of MAIN_H1_HEIGHTS.filter((w) => w.mobile === isMobile)) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/");
+    await page.waitForLoadState("load");
+    expect((await page.getByRole("heading", { level: 1 }).boundingBox())!.height, `h1 height at ${width}px`).toBe(height);
+  }
 });
 
 test("home header when signed out: Log in and Get my launch kit", async ({ page }) => {
