@@ -59,6 +59,28 @@ const EXPECT: Record<string, { links: string[]; quotes: string[] }> = {
       "Our ranking algorithm rewards posts that generate discussion and have more comments.",
     ],
   },
+  "og-image-size": {
+    links: [
+      "/tools/og-preview",
+      "/product-hunt-launch-checklist#images",
+      "/blog/how-to-launch-on-product-hunt",
+      "/how-to-write-a-product-hunt-tagline",
+      "https://www.linkedin.com/help/linkedin/answer/a521928",
+      "https://www.linkedin.com/post-inspector/",
+      "https://ogp.me/",
+      "https://developers.facebook.com/documentation/sharing/webmasters/images",
+      "https://web.archive.org/web/20260112050218/https://developer.x.com/en/docs/x-for-websites/cards/overview/summary-card-with-large-image",
+      "https://docs.slack.dev/messaging/unfurling-links-in-messages",
+      "https://docs.discord.com/developers/link-previews/overview",
+    ],
+    quotes: [
+      "Minimum image dimensions: 1200 (w) x 627 (h) pixels",
+      "Use images that are at least 1200 x 630 pixels for the best display on high resolution devices.",
+      "Images for this Card support an aspect ratio of 2:1 with minimum dimensions of 300x157 or maximum of 4096x4096 pixels.",
+      "Slack crawls the URL, looks for common OpenGraph and X (formerly known as Twitter) Card metadata, and renders some micro-approximation of the content.",
+      "If the page specifies an og:image it should specify og:image:alt.",
+    ],
+  },
 };
 
 test("/blog is a real page now, not a redirect, with every post newest first and a Guides section", async ({ page, request }) => {
@@ -266,4 +288,45 @@ test("the Indie Hackers post dates old advice and quotes the terms as they read 
   await expect(body.locator("h2#replies ~ ul strong").first()).toContainText("2019 and 2020 tips");
   await expect(body.locator("q", { hasText: "You will only use the Services for your own internal, personal, non-commercial use" })).toBeVisible();
   await expect(body.locator("h2#sources ~ p").first()).not.toContainText("Internet Archive");
+});
+
+test("the OG image size post labels X's archived docs, says where no size is published and calls 1600×900 house style", async ({ page }) => {
+  await page.goto(postPath(BLOG_POSTS.find((p) => p.slug === "og-image-size")!));
+  const body = page.locator("article > div").first();
+  for (const id of ["quick-answer", "platforms", "meta-tags", "testing", "mistakes", "launch-images"]) await expect(page.locator(`h2#${id}`)).toBeVisible();
+
+  const section = (id: string) =>
+    page.locator(`h3#${id}`).evaluate((h3) => {
+      const parts: string[] = [];
+      const links: string[] = [];
+      for (let el = h3.nextElementSibling; el && el.tagName !== "H3" && el.tagName !== "H2"; el = el.nextElementSibling) {
+        parts.push((el as HTMLElement).innerText);
+        el.querySelectorAll("a").forEach((a) => links.push(a.getAttribute("href") ?? ""));
+      }
+      return { text: parts.join("\n"), links };
+    });
+
+  const x = await section("x");
+  await expect(page.locator("h3#x")).toContainText("archived docs");
+  expect(x.text).toContain("12 January 2026");
+  expect(x.text).toContain("Internet Archive");
+  expect(x.links.filter((href) => href.includes("x.com")).length).toBeGreaterThan(0);
+  for (const href of x.links.filter((h) => h.includes("x.com"))) expect(href).toMatch(/^https:\/\/web\.archive\.org\/web\/2026/);
+
+  expect((await section("slack")).text).toContain("Slack doesn't publish an image size");
+  expect((await section("discord")).text).toContain("They are examples, not a requirement.");
+  expect((await section("disagree")).text).toMatch(/Facebook and LinkedIn say 1\.91:1\. X's archived docs say 2:1\./);
+  expect((await section("facebook")).links).toContain("https://developers.facebook.com/documentation/sharing/webmasters");
+
+  await expect(page.getByTestId("og-size-tags")).toContainText('<meta property="og:image:width" content="1200" />');
+  await expect(page.getByTestId("og-size-tags")).toContainText('<meta name="twitter:card" content="summary_large_image" />');
+
+  const launch = await page.locator("h2#launch-images").evaluate((h2) => {
+    const parts: string[] = [];
+    for (let el = h2.nextElementSibling; el && el.tagName !== "H2" && el.tagName !== "SECTION"; el = el.nextElementSibling) parts.push((el as HTMLElement).innerText);
+    return parts.join("\n");
+  });
+  expect(launch).toContain("LaunchLoop's house style is a 1600×900 image for launch posts.");
+  expect(launch).toContain("none of the docs above set a size for it");
+  await expect(body).not.toContainText("all design their large card around");
 });
