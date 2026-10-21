@@ -63,6 +63,74 @@ test("Blog is in the mobile menu at 375px, and opening the menu doesn't change t
   await expect(footerBlog).toHaveAttribute("href", "/blog");
 });
 
+test("the mobile menu closes when focus leaves it, either way", async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto("/");
+  const banner = page.getByRole("banner");
+  const toggle = banner.getByRole("button", { name: "Menu" });
+  const faq = banner.getByRole("link", { name: "FAQ", exact: true });
+
+  // Tab through every link, then past the last one.
+  await toggle.click();
+  await expect(toggle).toBeFocused();
+  for (let i = 0; i < 7; i++) await page.keyboard.press("Tab");
+  await expect(faq).toBeFocused();
+  await expect(toggle).toHaveAttribute("aria-expanded", "true");
+  await page.keyboard.press("Tab");
+  await expect(toggle).toHaveAttribute("aria-expanded", "false");
+  await expect(faq).toBeHidden();
+
+  // Shift+Tab off the button, back to the CTA.
+  await toggle.click();
+  await expect(faq).toBeVisible();
+  await page.keyboard.press("Shift+Tab");
+  await expect(banner.locator("a[data-plan=kit]")).toBeFocused();
+  await expect(toggle).toHaveAttribute("aria-expanded", "false");
+});
+
+test("the menu button's hit area is at least 44 by 44 inside the 57px header", async ({ page }) => {
+  for (const width of [320, 375]) {
+    await page.setViewportSize({ width, height: 812 });
+    await page.goto("/");
+    const box = (await page.getByRole("banner").getByRole("button", { name: "Menu" }).boundingBox())!;
+    expect(box.width, `menu button width at ${width}px`).toBeGreaterThanOrEqual(44);
+    expect(box.height, `menu button height at ${width}px`).toBeGreaterThanOrEqual(44);
+    expect(box.x + box.width, `menu button past the viewport at ${width}px`).toBeLessThanOrEqual(width);
+    expect(await headerHeight(page)).toBe(HEADER_HEIGHT);
+  }
+});
+
+for (const signedIn of [false, true]) {
+  test(`header links' accessible names start with their visible text (voice control), ${signedIn ? "signed in" : "signed out"}`, async ({ page, baseURL }) => {
+    if (signedIn) await signedInHeader(page, baseURL!);
+    for (const width of [375, 768, 1024, 1280]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto("/");
+      await expect(authLink(page, signedIn)).toBeVisible();
+      const controls = page.getByRole("banner").locator("a:visible, button:visible");
+      for (let i = 0; i < (await controls.count()); i++) {
+        const control = controls.nth(i);
+        // Rendered text only: no sr-only spans, nothing display: none. The Soon badge is extra to the label, not part of it.
+        const visible = await control.evaluate((el) => {
+          const parts: string[] = [];
+          const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+          for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+            const parent = n.parentElement!;
+            const box = parent.getBoundingClientRect();
+            // sr-only (at any breakpoint) leaves a 1px box; display: none leaves none.
+            if (parent.closest("[data-slot=badge]") || box.width <= 1 || box.height <= 1) continue;
+            parts.push(n.textContent!);
+          }
+          return parts.join("").replace(/\s+/g, " ").trim();
+        });
+        if (!visible) continue;
+        const escaped = visible.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        await expect(control, `"${visible}" at ${width}px`).toHaveAccessibleName(new RegExp(`^${escaped}`));
+      }
+    }
+  });
+}
+
 for (const signedIn of [false, true]) {
   test(`header (${signedIn ? "signed in" : "signed out"}): same height as before, no wrapping or overflow, Blog reachable at every width`, async ({ page, baseURL }) => {
     if (signedIn) await signedInHeader(page, baseURL!);
@@ -88,7 +156,8 @@ for (const signedIn of [false, true]) {
           const rects: DOMRect[] = [];
           const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
           for (let n = walker.nextNode(); n; n = walker.nextNode()) {
-            if (!n.textContent!.trim() || n.parentElement!.closest(".sr-only")) continue;
+            const box = n.parentElement!.getBoundingClientRect();
+            if (!n.textContent!.trim() || box.width <= 1 || box.height <= 1) continue;
             const range = document.createRange();
             range.selectNodeContents(n);
             rects.push(...[...range.getClientRects()].filter((r) => r.width > 0));

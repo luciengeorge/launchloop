@@ -32,7 +32,16 @@ export function MobileMenu({ children }: { children: React.ReactNode }) {
   }, [open]);
 
   return (
-    <nav ref={root} aria-label="Main" className="flex md:hidden">
+    <nav
+      ref={root}
+      aria-label="Main"
+      className="flex md:hidden"
+      onBlur={(e) => {
+        // Only when focus lands on something else (Tab past the last link): a click that focuses nothing, like a tap on a
+        // link in Safari, has no relatedTarget and must not hide the panel before the click arrives.
+        if (e.relatedTarget && !e.currentTarget.contains(e.relatedTarget)) setOpen(false);
+      }}
+    >
       <button
         ref={button}
         type="button"
@@ -40,7 +49,8 @@ export function MobileMenu({ children }: { children: React.ReactNode }) {
         aria-expanded={open}
         aria-controls={panelId}
         onClick={() => setOpen((o) => !o)}
-        className="inline-flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
+        // 44px hit area in a 32px slot: the negative margin keeps the row's layout and the header's height.
+        className="-mx-1.5 inline-flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
       >
         {open ? <X className="size-5" aria-hidden="true" /> : <Menu className="size-5" aria-hidden="true" />}
       </button>
