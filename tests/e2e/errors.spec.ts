@@ -53,7 +53,7 @@ test("site with no readable text: one click switches to the GitHub repo, and the
   await page.goto("/");
   const input = page.getByLabel("GitHub repo or live site URL");
   const submit = page.getByRole("button", { name: "Get my free preview" }).first();
-  await input.fill(`${FIXTURE}/empty`);
+  await input.fill(`${FIXTURE}/spa-no-repo`);
   await submit.click();
   const alert = page.getByTestId("kit-error");
   await expect(alert).toHaveAttribute("data-code", "site_no_content", { timeout: 15_000 });
@@ -69,13 +69,13 @@ test("site with no readable text: one click switches to the GitHub repo, and the
   await expect(cta).toBeFocused();
   await input.press("Enter");
   await expect(cta).toBeFocused();
-  expect(sent).toEqual([`${FIXTURE}/empty`]);
+  expect(sent).toEqual([`${FIXTURE}/spa-no-repo`]);
 
   // A different link lifts the block; typing the failed one back (a trailing slash is the same page) brings it back.
   await input.fill(`${FIXTURE}/other`);
   await expect(alert).toHaveCount(0);
   await expect(submit).not.toHaveAttribute("aria-disabled");
-  await input.fill(`${FIXTURE}/empty/`);
+  await input.fill(`${FIXTURE}/spa-no-repo/`);
   await expect(alert).toHaveAttribute("data-code", "site_no_content");
   await expect(alert.getByTestId("kit-resubmit-hint")).toBeVisible();
   await expect(submit).toHaveAttribute("aria-disabled", "true");
@@ -97,7 +97,7 @@ test("site with no readable text: one click switches to the GitHub repo, and the
   await expect(repoInput).toHaveValue("https://github.com/fixture-labs/pulse");
   await submit.click();
   await page.waitForURL(/\/kit\/[\w-]+$/);
-  expect(sent).toEqual([`${FIXTURE}/empty`, "https://github.com/fixture-labs/pulse"]);
+  expect(sent).toEqual([`${FIXTURE}/spa-no-repo`, "https://github.com/fixture-labs/pulse"]);
 });
 
 test("a GitHub Pages site with no readable text prefills its repo", async ({ page }) => {

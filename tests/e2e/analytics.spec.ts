@@ -100,7 +100,7 @@ test("site_no_content's repo button: shown, blocked resend and click are tracked
   const campaign = `no-content-${Date.now()}`;
   await page.goto(`/?utm_source=errors&utm_campaign=${campaign}`);
   const input = page.getByLabel("GitHub repo or live site URL");
-  await input.fill(`${FIXTURE}/empty`);
+  await input.fill(`${FIXTURE}/spa-no-repo`);
   await page.getByRole("button", { name: "Get my free preview" }).first().click();
   const cta = page.getByRole("button", { name: "Use my GitHub repo instead" });
   await expect(cta).toBeVisible({ timeout: 15_000 });
@@ -116,7 +116,7 @@ test("site_no_content's repo button: shown, blocked resend and click are tracked
   expect(shown.properties).toMatchObject(context);
   expect(blocked.properties).toMatchObject(context);
   expect(clicked.properties).toMatchObject({ ...context, prefill: "github" });
-  for (const e of [shown, blocked, clicked]) expect(JSON.stringify(e)).not.toContain("/empty");
+  for (const e of [shown, blocked, clicked]) expect(JSON.stringify(e)).not.toContain("spa-no-repo");
   // The blocked resend never became a preview attempt.
   const attempts = (await phEvents(page)).filter((e) => e.properties.utm_campaign === campaign && e.event === "preview_started");
   expect(attempts).toHaveLength(1);
