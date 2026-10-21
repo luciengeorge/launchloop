@@ -66,6 +66,11 @@ export function useExperiment<K extends ExperimentKey>(key: K, options: Experime
     let off: (() => void) | undefined;
     const area = options.freezeOnInteraction?.current;
     const interacted = () => settle(fallbackServed("interacted"));
+    // Focused or typed into before hydration, when nothing was listening yet.
+    if (area && (area.contains(document.activeElement) || [...area.querySelectorAll("input")].some((input) => input.value))) {
+      interacted();
+      return () => {};
+    }
     area?.addEventListener("pointerdown", interacted, { capture: true });
     area?.addEventListener("keydown", interacted, { capture: true });
     // The SDK may still be loading; the flags request starts when it initialises, so time it from there.
@@ -135,7 +140,10 @@ export function useRenderedExperiment(key: ExperimentKey, served: Served | null)
   const recorded = useRef(false);
   useEffect(() => {
     if (!shownThisPage.has(key)) shownThisPage.set(key, shown);
-    if (!shown || recorded.current) return;
+    if (!shown) return;
+    // Later events on this page carry it too ($feature/<key>), like useExperiment's.
+    rememberServed(key, shown);
+    if (recorded.current) return;
     recorded.current = true;
     trackServed(key, shown, { whenLoaded: true });
   }, [key, shown]);
