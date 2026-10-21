@@ -2,15 +2,16 @@ import Link from "next/link";
 import { JsonLd } from "@/components/json-ld";
 import { KitPrice } from "@/components/kit-price";
 import { buttonVariants } from "@/components/ui/button";
+import { longDate } from "@/lib/blog";
 import { siteUrl } from "@/lib/env";
 import { isLaunchPromoOn } from "@/lib/launch-promo-server";
 import type { SitePage } from "@/lib/pages";
 import { SITE } from "@/lib/site";
 import { breadcrumbs, collectionPage } from "@/lib/structured-data";
 
-type HubItem = { path: string; title: string; description: string; updated?: string };
+type HubItem = { path: string; title: string; description: string; updated?: string; published?: string; readingMinutes?: number };
 
-/** A crawlable index of guides or tools: CollectionPage JSON-LD, breadcrumbs, the main list and links to the sibling hub. */
+/** A crawlable index of guides, tools or blog posts: CollectionPage JSON-LD, breadcrumbs, the main list and links to the sibling hub. */
 export async function HubPage({
   page,
   crumb,
@@ -57,7 +58,16 @@ export async function HubPage({
                 </Link>
               </h2>
               <p className="mt-2 text-muted-foreground">{item.description}</p>
-              {item.updated ? (
+              {item.published ? (
+                <p className="mt-3 text-xs text-muted-foreground">
+                  Published <time dateTime={item.published}>{longDate(item.published)}</time>
+                  {item.readingMinutes ? (
+                    <>
+                      {" "}<span aria-hidden="true">·</span> {item.readingMinutes} min read
+                    </>
+                  ) : null}
+                </p>
+              ) : item.updated ? (
                 <p className="mt-3 text-xs text-muted-foreground">
                   Updated <time dateTime={item.updated}>{new Date(item.updated).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}</time>
                 </p>

@@ -1,11 +1,14 @@
+import { BLOG_AUTHOR, BLOG_FEED_PATH, blogPosts, postPath } from "@/lib/blog";
 import { GUIDES, guidePath } from "@/lib/guides";
+import { PAGES } from "@/lib/pages";
 import { LAUNCH_PROMO, PRODUCTS } from "@/lib/products";
-import { FAQ, KIT_CONTENTS, PREVIEW_LIMITS, SITE, kitPriceLabel, kitPriceText } from "@/lib/site";
+import { FAQ, KIT_CONTENTS, SITE, kitPriceLabel, kitPriceText, resolvedPreviewLimits } from "@/lib/site";
 import { TOOLS } from "@/lib/tools";
 
 /** `promo` is isLaunchPromoOn(), so the kit price here matches the pages and Checkout. */
 export function llmsText(base: string, full: boolean, promo: boolean) {
   const kitPrice = kitPriceLabel(promo);
+  const limits = resolvedPreviewLimits();
   const kitPricing = promo
     ? `${kitPrice} (full price ${PRODUCTS.kit.priceLabel}; ${LAUNCH_PROMO.code} is applied at checkout), once, for one app, paid through Stripe Checkout.`
     : `${kitPrice} once, for one app, paid through Stripe Checkout.`;
@@ -23,7 +26,7 @@ The kit is delivered on a results page, as a ZIP download and by email.
 
 ## Pricing (GBP)
 
-- Free preview: the product brief, the Product Hunt tagline, the first post of the X thread and three watermarked images. No account needed. Public repos and live sites only, up to ${PREVIEW_LIMITS.perHour} previews an hour and ${PREVIEW_LIMITS.perDay} a day.
+- Free preview: the product brief, the Product Hunt tagline, the first post of the X thread and three watermarked images. No account needed. Public repos and live sites only, up to ${limits.perHour} previews an hour and ${limits.perDay} a day.
 - Launch Kit: ${kitPricing} Not a subscription. 14-day refund.
 - Ship Loop (coming soon, separate from the kit, not on sale): a free waitlist only, with nothing to buy and no price yet. For after launch: drafts an X post, a LinkedIn post, a changelog blurb and an image on every release and emails them to the user to approve or edit. It never posts for the user. Members are emailed if and when it launches.
 
@@ -42,6 +45,7 @@ The kit is delivered on a results page, as a ZIP download and by email.
 - [Ship Loop](${base}/ship-loop): what Ship Loop will do, and its free waitlist
 - [FAQ](${base}/faq): answers to common questions
 - [Guides](${base}/guides): every launch guide in one list
+- [Blog](${base}${PAGES.blog.path}): launch how-tos sourced from each platform's own rules and guidance, newest first ([RSS](${base}${BLOG_FEED_PATH}))
 - [Free tools](${base}/tools): every free tool in one list
 - [Privacy](${base}/privacy)
 - [Terms](${base}/terms)
@@ -53,6 +57,10 @@ ${TOOLS.map((t) => `- [${t.title}](${base}${t.path}): ${t.description}`).join("\
 ## Guides
 
 ${GUIDES.map((g) => `- [${g.title}](${base}${guidePath(g)}): ${g.description}`).join("\n")}
+
+## Blog
+
+${blogPosts().map((p) => `- [${p.title}](${base}${postPath(p)}) (published ${p.published}, by ${BLOG_AUTHOR.name}): ${p.description}`).join("\n")}
 `;
   const tail = full
     ? `

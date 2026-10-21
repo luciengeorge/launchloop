@@ -12,9 +12,6 @@ const nextConfig: NextConfig = {
     return [
       { source: "/product-hunt-tagline-checker", destination: "/tools/product-hunt-tagline-checker", permanent: true },
       { source: "/og-preview", destination: "/tools/og-preview", permanent: true },
-      // There is no blog: the guides hub is the content index.
-      { source: "/blog", destination: "/guides", permanent: true },
-      { source: "/blog/:path*", destination: "/guides", permanent: true },
     ];
   },
   // First-party proxy for PostHog so ad blockers don't drop conversion events.

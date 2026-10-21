@@ -57,6 +57,34 @@ test("FAQ page ships FAQPage JSON-LD", async ({ page }) => {
   expect(faq.mainEntity.length).toBeGreaterThan(5);
 });
 
+test("FAQ explains where the advice comes from, with sources, and the JSON-LD answer matches the page", async ({ page }) => {
+  await page.goto("/faq");
+  await page.getByRole("navigation", { name: "Questions" }).getByRole("link", { name: "Where does the advice come from?" }).click();
+  await expect(page).toHaveURL(/#where-does-the-advice-come-from$/);
+  const section = page.locator("#where-does-the-advice-come-from");
+  await expect(section.getByRole("heading", { level: 2 })).toHaveText("Where does the advice come from?");
+  for (const href of [
+    "https://help.producthunt.com/en/articles/17350772-launch-guide",
+    "https://help.producthunt.com/en/articles/479557-how-to-post-a-product",
+    "https://news.ycombinator.com/newsguidelines.html",
+    "https://news.ycombinator.com/showhn.html",
+    "https://docs.x.com/fundamentals/counting-characters",
+    "https://www.linkedin.com/help/linkedin/answer/a528176",
+    "/how-to-write-a-product-hunt-tagline",
+    "/show-hn-launch-checklist",
+    "/how-to-promote-on-reddit",
+  ]) {
+    await expect(section.locator(`a[href="${href}"]`).first(), href).toBeVisible();
+  }
+  const text = (await section.textContent()) ?? "";
+  expect(text).toContain("drafted by AI");
+  expect(text).not.toMatch(/[\u2013\u2014]/);
+
+  const answer = (await section.locator("h2 + p").textContent())?.trim();
+  const faq = findNode<{ mainEntity: { name: string; acceptedAnswer: { text: string } }[] }>(await jsonLdNodes(page), "FAQPage");
+  expect(faq.mainEntity.find((q) => q.name === "Where does the advice come from?")?.acceptedAnswer.text).toBe(answer);
+});
+
 test("sitemap lists every indexable page once, with lastmod, and no redirecting URLs", async ({ request }) => {
   const { xml, paths } = await sitemapPaths(request);
   const expected = [
@@ -72,13 +100,16 @@ test("sitemap lists every indexable page once, with lastmod, and no redirecting 
     "/how-to-launch-a-vibe-coded-app",
     "/how-to-promote-on-reddit",
     "/how-to-write-a-show-hn-post",
+    "/blog",
+    "/blog/how-to-launch-on-product-hunt",
+    "/blog/how-to-launch-on-indie-hackers",
     "/privacy",
     "/terms",
   ];
   expect(paths).toEqual(expect.arrayContaining(expected));
   expect(new Set(paths).size).toBe(paths.length);
   expect(xml.match(/<lastmod>\d{4}-\d{2}-\d{2}/g)?.length).toBe(paths.length);
-  for (const path of ["/product-hunt-tagline-checker", "/og-preview", "/blog", "/login", "/account"]) expect(paths).not.toContain(path);
+  for (const path of ["/product-hunt-tagline-checker", "/og-preview", "/blog/rss.xml", "/login", "/account"]) expect(paths).not.toContain(path);
   for (const path of paths) expect((await request.get(path, { maxRedirects: 0 })).status(), path).toBe(200);
 });
 
@@ -117,13 +148,13 @@ test("every sitemap page has unique, well-sized metadata with a self canonical a
   expect(descriptions.size).toBe(paths.length);
 });
 
-test("trailing slashes, /blog and the old tool aliases redirect permanently", async ({ request }) => {
+test("trailing slashes and the old tool aliases redirect permanently", async ({ request }) => {
   const redirects: [string, string][] = [
     ["/pricing/", "/pricing"],
     ["/faq/?ref=x", "/faq?ref=x"],
     ["/tools/og-preview/", "/tools/og-preview"],
-    ["/blog", "/guides"],
-    ["/blog/anything", "/guides"],
+    ["/blog/", "/blog"],
+    ["/blog/how-to-launch-on-product-hunt/", "/blog/how-to-launch-on-product-hunt"],
     ["/product-hunt-tagline-checker", "/tools/product-hunt-tagline-checker"],
     ["/og-preview", "/tools/og-preview"],
   ];

@@ -1,16 +1,14 @@
 import Link from "next/link";
 import { JsonLd } from "@/components/json-ld";
-import { KitPrice } from "@/components/kit-price";
+import { PreviewCta } from "@/components/preview-cta";
 import { siteUrl } from "@/lib/env";
 import { GUIDES, guidePath, type Guide } from "@/lib/guides";
-import { isLaunchPromoOn } from "@/lib/launch-promo-server";
 import { guidePage, PAGES } from "@/lib/pages";
 import { SITE } from "@/lib/site";
 import { breadcrumbs } from "@/lib/structured-data";
 
-export async function GuideLayout({ guide, children }: { guide: Guide; children: React.ReactNode }) {
+export function GuideLayout({ guide, children }: { guide: Guide; children: React.ReactNode }) {
   const base = siteUrl();
-  const promo = await isLaunchPromoOn();
   const page = guidePage(guide);
   const url = `${base}${page.path}`;
   const others = GUIDES.filter((g) => g.slug !== guide.slug);
@@ -28,7 +26,7 @@ export async function GuideLayout({ guide, children }: { guide: Guide; children:
               url,
               mainEntityOfPage: url,
               image: `${base}${page.image.url}`,
-              datePublished: guide.updated,
+              datePublished: guide.published,
               dateModified: guide.updated,
               inLanguage: "en-GB",
               author: { "@type": "Organization", name: SITE.name, url: `${base}/` },
@@ -55,16 +53,7 @@ export async function GuideLayout({ guide, children }: { guide: Guide; children:
       <div className="mt-10 space-y-5 leading-relaxed [&_h2]:mt-10 [&_h2]:scroll-mt-20 [&_h2]:text-2xl [&_h2]:font-semibold [&_h2]:tracking-tight [&_h3]:mt-6 [&_h3]:font-semibold [&_li]:text-muted-foreground [&_ol]:list-decimal [&_ol]:space-y-2 [&_ol]:pl-5 [&_p]:text-muted-foreground [&_ul]:list-disc [&_ul]:space-y-2 [&_ul]:pl-5 [&_a]:font-medium [&_a]:text-foreground [&_a]:underline [&_a]:underline-offset-4">
         {children}
       </div>
-      <aside className="mt-14 rounded-xl border border-border bg-card p-6">
-        <h2 className="text-xl font-semibold">Skip the blank page</h2>
-        <p className="mt-2 text-muted-foreground">
-          Paste your GitHub repo or live URL and {SITE.name} drafts your landing copy, Product Hunt post, X thread, LinkedIn post and launch images, all inside each platform&apos;s limits.
-          The preview is free; the full kit is <KitPrice promo={promo} />.
-        </p>
-        <Link href="/#start" className="mt-4 inline-flex h-10 items-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90">
-          Get a free preview
-        </Link>
-      </aside>
+      <PreviewCta />
       <nav aria-label="More guides" className="mt-10 text-sm">
         <h2 className="font-medium">More guides</h2>
         <ul className="mt-2 space-y-1">

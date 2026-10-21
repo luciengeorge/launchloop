@@ -3,7 +3,7 @@ import { kitErrorBody, rateLimitedBody } from "./errors";
 import { IngestError, normaliseKitInput } from "./ingest";
 import { SAMPLE_INPUT } from "./ingest/sample";
 import { captureExceptionThrottled } from "./observability";
-import { PREVIEW_LIMITS } from "./site";
+import { resolvedPreviewLimits } from "./site";
 import { store } from "./store";
 
 const buckets = new Map<string, { count: number; resetAt: number }>();
@@ -49,14 +49,14 @@ export function ipv6Prefix64(raw: string): string {
   return `${groups.map((g) => parseInt(g, 16).toString(16)).join(":")}::/64`;
 }
 
-const PREVIEWS_PER_HOUR = Number(process.env.PREVIEW_RATE_LIMIT_PER_HOUR ?? PREVIEW_LIMITS.perHour);
-const PREVIEWS_PER_DAY = Number(process.env.PREVIEW_RATE_LIMIT_PER_DAY ?? PREVIEW_LIMITS.perDay);
+/** The free preview limits this server enforces, and the numbers its rate_limited copy states. */
+export const PREVIEW_LIMITS_RESOLVED = resolvedPreviewLimits();
 
 /** One budget per IP for everything that reads a repo and calls the LLM for free: previews and tool generations. */
 export function freePreviewLimit(req: Request) {
   return sharedRateLimit(`kits:${clientIp(req)}`, [
-    { limit: PREVIEWS_PER_HOUR, seconds: 60 * 60 },
-    { limit: PREVIEWS_PER_DAY, seconds: 24 * 60 * 60 },
+    { limit: PREVIEW_LIMITS_RESOLVED.perHour, seconds: 60 * 60 },
+    { limit: PREVIEW_LIMITS_RESOLVED.perDay, seconds: 24 * 60 * 60 },
   ]);
 }
 
@@ -154,7 +154,7 @@ export async function freePreviewGate(req: Request, rawInput: string): Promise<F
     const limit = await freePreviewLimit(req);
     if (!limit.ok) {
       await uncount(limit.counted);
-      return { refused: Response.json(rateLimitedBody(limit.retryAfterSeconds), { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } }) };
+      return { refused: Response.json(rateLimitedBody(limit.retryAfterSeconds, PREVIEW_LIMITS_RESOLVED), { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } }) };
     }
     if (await overGlobalDailyCap()) {
       await uncount(limit.counted);

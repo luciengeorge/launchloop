@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { AdviceSources } from "@/components/advice-sources";
 import { JsonLd } from "@/components/json-ld";
 import { PricedText } from "@/components/kit-price";
 import { siteUrl } from "@/lib/env";
 import { isLaunchPromoOn } from "@/lib/launch-promo-server";
 import { PAGES } from "@/lib/pages";
 import { pageMetadata } from "@/lib/seo";
-import { FAQ, kitPriceText } from "@/lib/site";
+import { ADVICE_SOURCES_Q, FAQ, kitPriceText } from "@/lib/site";
 import { breadcrumbs, faqPage } from "@/lib/structured-data";
 
 const page = PAGES.faq;
@@ -54,6 +55,7 @@ export default async function FaqPage() {
             <p className="mt-2 leading-relaxed text-muted-foreground">
               <PricedText text={item.a} promo={promo} />
             </p>
+            {item.q === ADVICE_SOURCES_Q && <AdviceSources />}
           </section>
         ))}
       </div>
