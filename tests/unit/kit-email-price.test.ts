@@ -71,6 +71,15 @@ describe("kit emails quote the amount Stripe charged", () => {
     expect(failed.text).toContain("or a full refund. You don");
   });
 
+  it("a zero amount (a 100% off code) names no price either", async () => {
+    const [ready, failed] = await rendered({ amount: 0, currency: "gbp" });
+    for (const email of [ready, failed]) {
+      expect(email.text).toContain("Receipt: LaunchLoop Launch Kit · Ref");
+      expect(`${email.subject}${email.text}${email.html}`).not.toMatch(/£/);
+    }
+    expect(failed.text).toContain("or a full refund. You don");
+  });
+
   it("renders without touching Resend", async () => {
     await rendered({ amount: 1400, currency: "gbp" });
     expect(resend.constructed).not.toHaveBeenCalled();
@@ -83,13 +92,13 @@ describe("money helpers", () => {
     expect(formatPaidAmount({ amount: 1400, currency: "gbp" })).toBe("£14");
     expect(formatPaidAmount({ amount: 1900, currency: "GBP" })).toBe("£19");
     expect(formatPaidAmount({ amount: 1450, currency: "gbp" })).toBe("£14.50");
-    expect(formatPaidAmount({ amount: 0, currency: "gbp" })).toBe("£0");
   });
 
-  it("drops the price rather than guess: unknown, non-GBP or malformed amounts", () => {
+  it("drops the price rather than guess: unknown, non-GBP, malformed, zero or negative amounts", () => {
     expect(formatPaidAmount(undefined)).toBeUndefined();
     expect(formatPaidAmount({ amount: 1400, currency: "usd" })).toBeUndefined();
     expect(formatPaidAmount({ amount: 14.5, currency: "gbp" })).toBeUndefined();
+    expect(formatPaidAmount({ amount: 0, currency: "gbp" })).toBeUndefined();
     expect(formatPaidAmount({ amount: -100, currency: "gbp" })).toBeUndefined();
   });
 

@@ -55,7 +55,7 @@ export const GUIDES: Guide[] = [
     description:
       "How to promote your app on Reddit without getting banned: Reddit's self-promotion rules, how subreddit rules differ, and how to write a post that stays up.",
     published: "2026-10-19",
-    updated: "2026-10-19",
+    updated: "2026-10-21",
   },
   {
     slug: "how-to-write-a-show-hn-post",
