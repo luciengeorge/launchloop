@@ -269,6 +269,45 @@ test("a guest checkout started before the PostHog SDK loads waits for it and joi
   expect(pageview.properties.$pathname).toBe("/kit/[id]");
 });
 
+test("clicks are autocaptured in the hero only, never what's typed; leaving the page sends $pageleave; no session replay", async ({ page }) => {
+  const campaign = `clicks-${Date.now()}`;
+  const replayRequests: string[] = [];
+  page.on("request", (r) => {
+    if (/\/lp-relay\/(s|ses)\//.test(new URL(r.url()).pathname)) replayRequests.push(r.url());
+  });
+  await page.goto(`/?utm_campaign=${campaign}`);
+  await campaignEvent(page, campaign, "$pageview");
+
+  const secret = `secret-owner-${Date.now()}/private-repo`;
+  const input = page.getByLabel("GitHub repo or live site URL");
+  await input.click();
+  await input.fill(`github.com/${secret}`);
+  // Outside the hero: an FAQ question (a button) and the footer's newsletter field.
+  await page.getByTestId("faq-question").first().click();
+  await page.getByRole("contentinfo").getByLabel("Weekly launch teardowns").click();
+  await page.getByRole("button", { name: "Try a sample app" }).click();
+  await page.waitForURL(/\/kit\/[\w-]+$/);
+
+  const leave = await campaignEvent(page, campaign, "$pageleave");
+  expect(leave.properties.$pathname ?? leave.properties.$prev_pageview_pathname).toBe("/");
+  await campaignEvent(page, campaign, "preview_started");
+  let clicks: PhEvent[] = [];
+  await expect
+    .poll(async () => {
+      clicks = (await phEvents(page)).filter((e) => e.event === "$autocapture" && e.properties.utm_campaign === campaign);
+      return clicks.map((e) => e.properties.$el_text ?? null);
+    })
+    .toEqual([null, "Try a sample app"]);
+  for (const click of clicks) {
+    expect(click.properties.$event_type).toBe("click");
+    expect(String(click.properties.$elements_chain)).toContain("data-capture-clicks");
+  }
+  expect(String(clicks[0].properties.$elements_chain)).toMatch(/^input/);
+  const everything = JSON.stringify(await phEvents(page));
+  expect(everything).not.toContain(secret);
+  expect(replayRequests).toEqual([]);
+});
+
 test("QA traffic: every browser and server event carries is_test, through client navigations, a reload and checkout", async ({ page }) => {
   const campaign = `qa-${Date.now()}`;
   await page.goto(`/?utm_source=qa&utm_medium=internal&utm_campaign=${campaign}&qa=1`);
