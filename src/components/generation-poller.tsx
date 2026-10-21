@@ -36,9 +36,14 @@ export function GenerationPoller({ kitId, failed, sectionsReady }: { kitId: stri
     };
   }, [kitId, router]);
 
-  // sm:min-h-24 matches the "kit is ready" card that replaces this (kit-view.tsx), so the checklist below doesn't move.
+  // Same min heights as the "kit is ready" card that replaces this (kit-view.tsx), so the checklist below doesn't move.
   return (
-    <div role="status" aria-live="polite" data-testid="generation-poller" className="flex items-center gap-3 rounded-2xl border border-dashed border-border bg-card px-5 py-4 sm:min-h-24">
+    <div
+      role="status"
+      aria-live="polite"
+      data-testid="generation-poller"
+      className="flex min-h-48 items-center gap-3 rounded-2xl border border-dashed border-border bg-card px-5 py-4 sm:min-h-29 lg:min-h-24"
+    >
       <Loader2 className="size-5 shrink-0 animate-spin text-primary" aria-hidden="true" />
       <div>
         <p className="font-medium">Payment received. Your kit is unlocking…</p>
