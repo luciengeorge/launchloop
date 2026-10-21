@@ -6,6 +6,7 @@ import { llmsText } from "@/lib/llms";
 import { cardPages, indexablePages, PAGES, postPage } from "@/lib/pages";
 import { blogFeed } from "@/lib/rss";
 import { SITE } from "@/lib/site";
+import { OG_FAQ, OG_PREVIEW } from "@/lib/tools";
 
 const BASE = "https://launchloop.test";
 const DASHES = /[\u2013\u2014]/;
@@ -118,5 +119,25 @@ describe("RSS feed", () => {
     expect(rssDate("2026-10-21")).toBe("Wed, 21 Oct 2026 00:00:00 GMT");
     expect(xml).not.toMatch(/&(?!amp;|lt;|gt;|quot;|apos;)/);
     expect(xml).toContain("founders&apos; own advice");
+  });
+});
+
+describe("OG image size post", () => {
+  const p = post("og-image-size");
+
+  it("targets OG and Open Graph image size, dated 26 October 2026, without echoing the OG preview tool", () => {
+    expect(fullTitle(p.metaTitle)).toBe("OG image size: X, LinkedIn, Facebook and Slack · LaunchLoop");
+    expect(p.description).toMatch(/^Open Graph image size/);
+    expect(p).toMatchObject({ published: "2026-10-26", updated: "2026-10-26" });
+    expect(p.metaTitle).not.toBe(OG_PREVIEW.metaTitle);
+    expect(p.description).not.toBe(OG_PREVIEW.description);
+  });
+
+  it("is where the OG preview's size FAQ sends readers, and that FAQ answer is a single sentence", () => {
+    const size = OG_FAQ.find((item) => item.q === "What size should an Open Graph image be?")!;
+    expect(size.more?.href).toBe(postPath(p));
+    expect(BLOG_POSTS.map(postPath)).toContain(size.more?.href);
+    expect(size.a.match(/[.!?](\s|$)/g)).toHaveLength(1);
+    expect(size.a).not.toMatch(/all design|works everywhere/);
   });
 });

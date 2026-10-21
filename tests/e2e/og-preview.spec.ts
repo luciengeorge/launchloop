@@ -36,6 +36,29 @@ test("OG preview has its own title, meta, canonical, share image and JSON-LD", a
   expect(body).not.toMatch(/\bupvot|\bvotes?\b/);
 });
 
+test("the size copy matches the sources, and the size FAQ is one sentence plus a link to the blog post, in the page and the JSON-LD", async ({ page }) => {
+  await page.goto(PATH);
+  const size = page.locator("h2#size + ul");
+  await expect(size).not.toContainText("all design their large card around");
+  await expect(size).toContainText("X's archived docs describe a 2:1 image and Slack publishes no size");
+
+  const q = "What size should an Open Graph image be?";
+  const answer = page.locator("section", { has: page.getByRole("heading", { level: 3, name: q }) }).locator("p");
+  await expect(answer.locator('a[href="/blog/og-image-size"]')).toHaveText("See what each platform's docs say.");
+  const visible = ((await answer.textContent()) ?? "").trim();
+  expect(visible.replace(/ See what each platform's docs say\.$/, "").match(/[.!?](\s|$)/g)).toHaveLength(1);
+
+  const graph = JSON.parse((await page.locator('script[type="application/ld+json"]').textContent()) ?? "{}");
+  const faq = (graph["@graph"] as { "@type": string; mainEntity: { name: string; acceptedAnswer: { text: string } }[] }[]).find((n) => n["@type"] === "FAQPage")!;
+  const text = faq.mainEntity.find((e) => e.name === q)!.acceptedAnswer.text;
+  expect(text).toMatch(/<a href="http:\/\/127\.0\.0\.1:\d+\/blog\/og-image-size">See what each platform's docs say\.<\/a>$/);
+  expect(text.replace(/<[^>]+>/g, "")).toBe(visible);
+
+  await page.locator('a[href="/blog/og-image-size"]').first().click();
+  await expect(page).toHaveURL(/\/blog\/og-image-size$/);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("OG image size for X, LinkedIn, Facebook and Slack");
+});
+
 test("short alias redirects to the tools URL", async ({ request }) => {
   const res = await request.get("/og-preview", { maxRedirects: 0 });
   expect(res.status()).toBe(308);
