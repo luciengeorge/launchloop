@@ -96,6 +96,8 @@ const routes = {
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ hello: "world" }));
   },
+  // Repo-name search for pages with no readable text: no repo matches, so those still fail with site_no_content.
+  "/gh/search/repositories": json({ total_count: 0, items: [] }),
   "/gh/users/real-owner": (_req, res) => {
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ login: "real-owner" }));
