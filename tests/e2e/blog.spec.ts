@@ -81,6 +81,8 @@ const EXPECT: Record<string, { links: string[]; quotes: string[] }> = {
       "DevHunt is a launchpad for developer tools, built by developers.",
       "Show HN is for something you've made that other people can play with.",
       "Submitting is not scheduling.",
+      "at least 30 days out, at the back of the line.",
+      "pick the exact date you want. Published with a do-follow backlink for life, no minimum upvote score.",
       "Anyone with a Verified Peerlist profile can launch their products on Peerlist Launchpad.",
       "Products rank over 1 month",
       "Launching is free; Skip the queue (£29) puts you in the next Monday batch",
@@ -262,6 +264,25 @@ test("the alternatives post groups sites by fit, prices each one, and never list
   }
   await expect(page.locator("article h3", { hasText: "LaunchLoop" })).toHaveCount(0);
   await expect(page.locator("article > div").first()).toContainText("LaunchLoop isn't a launch platform.");
+});
+
+test("the alternatives post has Uneed's 21 October prices and wait, dates the table, and keeps the old ones out of the page and JSON-LD", async ({ page }) => {
+  await page.goto("/blog/product-hunt-alternatives");
+  const uneed = page.locator("#at-a-glance + p + div table tbody tr", { has: page.locator("td:first-child", { hasText: /^Uneed$/ }) });
+  await expect(uneed.locator("td")).toHaveText(["Uneed", "Free waiting line, at least 30 days out", "Fast-track $14.99, Skip the waiting line $39.99, Relaunch $15"]);
+  await expect(page.locator("#at-a-glance + p + div + p")).toHaveText("Prices checked on 21 October 2026.");
+
+  const body = page.locator("article > div").first();
+  await expect(body.locator("li", { hasText: "Skip the waiting line, $39.99." })).toBeVisible();
+  await expect(body.locator("li", { hasText: "Count the wait." })).toContainText("Uneed's free line is at least 30 days away");
+  const OLD = /29\.99|5 months|between 30 days and/i;
+  await expect(page.locator("article")).not.toContainText(OLD);
+  for (const raw of await page.locator('script[type="application/ld+json"]').allTextContents()) expect(raw).not.toMatch(OLD);
+
+  const faq = findNode<{ mainEntity: { name: string; acceptedAnswer: { text: string } }[] }>(await jsonLdNodes(page), "FAQPage");
+  const visible = await page.locator("article #faq ~ div h3").allInnerTexts();
+  expect(faq.mainEntity.map((q) => q.name)).toEqual(visible);
+  for (const q of faq.mainEntity) await expect(body).toContainText(q.acceptedAnswer.text);
 });
 
 test("the Product Hunt post hands the step-by-step to the checklist instead of repeating it", async ({ page }) => {
