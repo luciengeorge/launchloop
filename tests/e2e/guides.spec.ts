@@ -140,7 +140,11 @@ test("Reddit guide cites Reddit's rules and the HN no-AI-text guidance, and link
   await expect(article).toContainText("made-up product");
   await expect(article).toContainText("Think project, not product");
   await expect(article).toContainText("Users can self promote their product 1 time using the Self Promotion flair.");
-  await expect(article).toContainText("no proof, no post");
+  await expect(article).toContainText("The purpose is for feedback and critique, not advertisement.");
+  await expect(article).toContainText("Rule 2 says posts with MRR info should have proof: “no proof, no post”.");
+  await expect(article).toContainText(
+    "You may share your startup in the Share Your Startup thread stickied at the top of the subreddit (the rules call it monthly).",
+  );
   await expect(page.locator('a[href*="share_your_startup_quarterly_post"]')).toHaveCount(0);
 });
 
