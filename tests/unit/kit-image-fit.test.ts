@@ -177,10 +177,20 @@ describe("monogram", () => {
     ["Cal.com", "Ca"],
     ["API", "AP"],
     ["Écrire", "Éc"],
+    // Decomposed (e + combining acute): normalised to NFC, the accent stays on its letter.
+    ["e\u0301crire", "Éc"],
+    ["e\u0301crire de\u0301mo", "ÉD"],
+    // Capitals that are two letters take their title case instead of making three ("SSe", "FIl").
+    ["ßeta", "Ss"],
+    ["ﬁle", "Fi"],
+    ["ß Labs", "SL"],
+    // Two graphemes: "हि" and the conjunct "न्दी".
+    ["हिन्दी", "हिन्दी"],
     ["X", "X"],
     ["!!!", "•"],
   ])("%s → %s", (name, letters) => {
     expect(monogram(name)).toBe(letters);
+    expect(Array.from(new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(letters)).length).toBeLessThanOrEqual(2);
   });
 
   it("two letters are never a lone narrow glyph, and the widest pair still fits the tile", () => {
