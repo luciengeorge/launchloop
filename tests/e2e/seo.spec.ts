@@ -1,4 +1,5 @@
 import { type APIRequestContext, expect, type Page, test } from "@playwright/test";
+import { INDEXNOW_KEY } from "../../src/lib/indexnow";
 import { PRODUCTS } from "../../src/lib/products";
 
 test("home has title, description and Open Graph tags", async ({ page }) => {
@@ -26,6 +27,17 @@ test("robots, sitemap and llms.txt", async ({ request }) => {
   expect(text).toMatch(/^# LaunchLoop/);
   // The e2e build has the launch promo off, so the kit is at its list price.
   expect(text).toContain(`Launch Kit: ${PRODUCTS.kit.priceLabel} once`);
+});
+
+test("IndexNow key file is served at /<key>.txt with exactly the key", async ({ request }) => {
+  const res = await request.get(`/${INDEXNOW_KEY}.txt`, { maxRedirects: 0 });
+  expect(res.status()).toBe(200);
+  expect(res.headers()["content-type"]).toContain("text/plain");
+  expect(await res.text()).toBe(INDEXNOW_KEY);
+
+  const slash = await request.get(`/${INDEXNOW_KEY}.txt/`, { maxRedirects: 0 });
+  expect(slash.status()).toBe(308);
+  expect(new URL(slash.headers().location, "http://x").pathname).toBe(`/${INDEXNOW_KEY}.txt`);
 });
 
 type JsonLdNode = { "@type": string; [key: string]: unknown };
