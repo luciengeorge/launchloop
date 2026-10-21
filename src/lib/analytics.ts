@@ -1,14 +1,17 @@
 import type { CaptureResult, PostHog, PostHogInterface } from "posthog-js";
 import { type Attribution, QA_PARAM, readLandingAttribution } from "./attribution";
 import { ANALYTICS_ID_PARAM, EXPERIMENTS, isAnalyticsId, type ExperimentKey, type FallbackReason, type Served, type Variant } from "./experiments";
-import type { NewsletterPlacement, WelcomeOutcome } from "./newsletter";
 import { POSTHOG_PROXY_PATH, posthogUiHost } from "./posthog-config";
+import type { RepoPrefill } from "./repo-cta";
 import { scrubProperties } from "./scrub-url";
 import type { StartPlan } from "./start-intent";
 
 export type PreviewSource = "github" | "site" | "sample";
 
-/** Browser events. Checkout events are captured server-side (see analytics-server.ts) so they carry the Stripe price. */
+/**
+ * Browser events. Checkout events are captured server-side (see analytics-server.ts) so they carry the Stripe price,
+ * and newsletter_subscribed so automated browsers and no-JS posts count.
+ */
 export interface ClientEvents {
   preview_started: { source: PreviewSource; plan: StartPlan; isLoggedIn: boolean };
   preview_completed: { kitId: string; source: PreviewSource; plan: StartPlan; isLoggedIn: boolean; durationMs: number };
@@ -26,7 +29,11 @@ export interface ClientEvents {
     /** The server had accepted the preview, so the form sent the visitor to /kit/[id] instead of showing an error. */
     recovered?: boolean;
   };
-  newsletter_subscribed: { placement: NewsletterPlacement; welcome: WelcomeOutcome };
+  /** site_no_content's "Use my GitHub repo instead" button, shown with the error. Never carries the link. */
+  repo_cta_shown: { code: "site_no_content"; plan: StartPlan; isLoggedIn: boolean };
+  repo_cta_clicked: { code: "site_no_content"; plan: StartPlan; isLoggedIn: boolean; prefill: RepoPrefill };
+  /** The visitor tried to send the link that just failed with site_no_content again; the form pointed them at the button. */
+  preview_resubmit_blocked: { code: "site_no_content"; plan: StartPlan; isLoggedIn: boolean };
   /** Control served without a PostHog assignment (see Served). Not an exposure, so it stays out of the experiment. */
   flag_fallback: { flag: ExperimentKey; variant: Variant; reason: FallbackReason; fallback: true };
 }
@@ -75,12 +82,17 @@ export const isTestVisit = (): boolean => landing?.is_test === true;
 
 let client: Promise<PostHog | undefined> | undefined;
 
+let markRequested!: () => void;
+/** Settles the first time anything asks for the SDK, without asking for it itself. */
+const requested = new Promise<void>((resolve) => (markRequested = resolve));
+
 /**
  * The SDK is ~100 KB gzipped, so it isn't in the page's initial scripts: instrumentation-client loads it once the
  * page has loaded, and anything that needs it sooner (an event, a flag, the analytics id) loads it on demand.
  * Resolves undefined when analytics is off or the SDK fails to load.
  */
 export function loadAnalytics(): Promise<PostHog | undefined> {
+  markRequested();
   if (!key || !pageStart) return Promise.resolve(undefined);
   client ??= import("posthog-js").then(
     ({ default: posthog }) => {
@@ -188,13 +200,18 @@ export function track<E extends keyof ClientEvents>(event: E, properties: Client
 /**
  * Records what an experiment served on this page, once per view, always with the variant shown:
  * PostHog's $feature_flag_called exposure for an assignment, or flag_fallback for control served
- * without one, which keeps the view out of the experiment.
+ * without one, which keeps the view out of the experiment. `whenLoaded` waits for the SDK to load as it
+ * normally would (after the load event, or sooner for an event) instead of loading it now.
  */
-export function trackServed(key: ExperimentKey, served: Served) {
-  if (served.fallback) return track("flag_fallback", { flag: key, variant: served.variant, reason: served.fallback, fallback: true });
-  void loadAnalytics().then((posthog) =>
-    posthog?.capture("$feature_flag_called", { $feature_flag: key, $feature_flag_response: served.variant, [`$feature/${key}`]: served.variant }),
-  );
+export function trackServed(key: ExperimentKey, served: Served, { whenLoaded = false }: { whenLoaded?: boolean } = {}) {
+  const send = () => {
+    if (served.fallback) return track("flag_fallback", { flag: key, variant: served.variant, reason: served.fallback, fallback: true });
+    void loadAnalytics().then((posthog) =>
+      posthog?.capture("$feature_flag_called", { $feature_flag: key, $feature_flag_response: served.variant, [`$feature/${key}`]: served.variant }),
+    );
+  };
+  if (whenLoaded) void requested.then(send);
+  else send();
 }
 
 /** This page's anonymous PostHog id, sent with checkout so server events join the same funnel. */

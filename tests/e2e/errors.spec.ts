@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Locator, type Route } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { kitErrorBody, rateLimitedBody } from "../../src/lib/errors";
@@ -36,6 +36,132 @@ for (const c of CASES) {
     expect(new URL(page.url()).pathname).toBe("/");
   });
 }
+
+/** Clipboard events dispatched in the page reach React's onPaste without clipboard permissions. */
+const paste = (input: Locator, text: string) =>
+  input.evaluate((el, value) => {
+    const clipboardData = new DataTransfer();
+    clipboardData.setData("text/plain", value);
+    el.dispatchEvent(new ClipboardEvent("paste", { clipboardData, bubbles: true, cancelable: true }));
+  }, text);
+
+test("site with no readable text: one click switches to the GitHub repo, and the same link can't be sent again", async ({ page }) => {
+  const sent: string[] = [];
+  page.on("request", (r) => {
+    if (r.method() === "POST" && new URL(r.url()).pathname === "/api/kits") sent.push((r.postDataJSON() as { url: string }).url);
+  });
+  await page.goto("/");
+  const input = page.getByLabel("GitHub repo or live site URL");
+  const submit = page.getByRole("button", { name: "Get my free preview" }).first();
+  await input.fill(`${FIXTURE}/spa-no-repo`);
+  await submit.click();
+  const alert = page.getByTestId("kit-error");
+  await expect(alert).toHaveAttribute("data-code", "site_no_content", { timeout: 15_000 });
+  const cta = alert.getByRole("button", { name: "Use my GitHub repo instead" });
+  await expect(cta).toBeVisible();
+
+  // The same link again: the submit is aria-disabled (still focusable), the hint points at the button, and neither a
+  // click nor Enter sends anything; both move focus to the button instead.
+  await expect(submit).toHaveAttribute("aria-disabled", "true");
+  await expect(submit).toHaveAttribute("aria-describedby", "kit-form-resubmit-hint");
+  await expect(alert.getByTestId("kit-resubmit-hint")).toHaveText("Sending this link again will fail the same way. Change it, or use your repo:");
+  await submit.click({ force: true });
+  await expect(cta).toBeFocused();
+  await input.press("Enter");
+  await expect(cta).toBeFocused();
+  expect(sent).toEqual([`${FIXTURE}/spa-no-repo`]);
+
+  // A different link lifts the block; typing the failed one back (a trailing slash is the same page) brings it back.
+  await input.fill(`${FIXTURE}/other`);
+  await expect(alert).toHaveCount(0);
+  await expect(submit).not.toHaveAttribute("aria-disabled");
+  await input.fill(`${FIXTURE}/spa-no-repo/`);
+  await expect(alert).toHaveAttribute("data-code", "site_no_content");
+  await expect(alert.getByTestId("kit-resubmit-hint")).toBeVisible();
+  await expect(submit).toHaveAttribute("aria-disabled", "true");
+
+  // Keyboard only: Enter in the input lands on the button, Enter on the button switches to the repo.
+  await input.press("Enter");
+  await expect(cta).toBeFocused();
+  await page.keyboard.press("Enter");
+  const repoInput = page.getByLabel("GitHub repo URL", { exact: true });
+  await expect(repoInput).toBeFocused();
+  await expect(repoInput).toHaveValue("https://github.com/");
+  await expect(repoInput).toHaveAttribute("placeholder", "github.com/you/your-app");
+  expect(await repoInput.evaluate((el: HTMLInputElement) => [el.selectionStart, el.selectionEnd])).toEqual([19, 19]);
+  await expect(alert).toHaveCount(0);
+  await expect(submit).not.toHaveAttribute("aria-disabled");
+
+  // Pasting the whole repo link replaces the prefix rather than appending to it.
+  await paste(repoInput, "https://github.com/fixture-labs/pulse");
+  await expect(repoInput).toHaveValue("https://github.com/fixture-labs/pulse");
+  await submit.click();
+  await page.waitForURL(/\/kit\/[\w-]+$/);
+  expect(sent).toEqual([`${FIXTURE}/spa-no-repo`, "https://github.com/fixture-labs/pulse"]);
+});
+
+test("a GitHub Pages site with no readable text prefills its repo", async ({ page }) => {
+  await page.route("**/api/kits", (route) => route.fulfill({ status: 422, json: kitErrorBody("site_no_content") }));
+  await page.goto("/");
+  await page.getByLabel("GitHub repo or live site URL").fill("https://acme.github.io/rocket/");
+  await page.getByRole("button", { name: "Get my free preview" }).first().click();
+  await page.getByRole("button", { name: "Use my GitHub repo instead" }).click();
+  const repoInput = page.getByLabel("GitHub repo URL", { exact: true });
+  await expect(repoInput).toBeFocused();
+  await expect(repoInput).toHaveValue("https://github.com/acme/rocket");
+});
+
+test("repo mode ends once the input isn't a GitHub link; on mobile the repo button is 44px tall and described by the hint", async ({ page }) => {
+  await page.route("**/api/kits", (route) => route.fulfill({ status: 422, json: kitErrorBody("site_no_content") }));
+  await page.setViewportSize({ width: 375, height: 800 });
+  await page.goto("/");
+  const siteInput = page.getByLabel("GitHub repo or live site URL");
+  const repoInput = page.getByLabel("GitHub repo URL", { exact: true });
+  const cta = page.getByRole("button", { name: "Use my GitHub repo instead" });
+  await siteInput.fill("https://acme.io");
+  await page.getByRole("button", { name: "Get my free preview" }).first().click();
+  await expect(cta).toHaveAttribute("aria-describedby", "kit-form-resubmit-hint");
+  expect((await cta.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+
+  // Clearing the input ends repo mode: the label and placeholder are the general ones again.
+  await cta.click();
+  await expect(repoInput).toHaveValue("https://github.com/");
+  await repoInput.fill("");
+  await expect(siteInput).toHaveAttribute("placeholder", "github.com/you/your-app or your-app.com");
+  await expect(repoInput).toHaveCount(0);
+
+  // So does pasting another site's link over the prefill. Backspacing through the prefill doesn't.
+  await siteInput.fill("https://acme.io");
+  await cta.click();
+  await repoInput.press("Backspace");
+  await expect(repoInput).toHaveValue("https://github.com");
+  await repoInput.fill("https://github.com/");
+  await paste(repoInput, "https://other-site.io");
+  await expect(siteInput).toHaveValue("https://other-site.io");
+  await expect(siteInput).toHaveAttribute("placeholder", "github.com/you/your-app or your-app.com");
+});
+
+test("only site_no_content blocks a resend: a dropped connection, a busy AI or a limit can be retried with the same link", async ({ page }) => {
+  const responses = [
+    (route: Route) => route.abort("connectionreset"),
+    (route: Route) => route.fulfill({ status: 503, json: kitErrorBody("ai_busy") }),
+    (route: Route) => route.fulfill({ status: 429, headers: { "Retry-After": "600" }, json: rateLimitedBody(600) }),
+  ];
+  let posts = 0;
+  await page.route("**/api/kits", (route) => responses[Math.min(posts++, responses.length - 1)](route));
+  await page.goto("/");
+  await page.getByLabel("GitHub repo or live site URL").fill("github.com/acme/app");
+  const submit = page.getByRole("button", { name: "Get my free preview" }).first();
+  const alert = page.getByTestId("kit-error");
+  for (const [i, code] of ["network", "ai_busy", "rate_limited"].entries()) {
+    await submit.click();
+    await expect(alert).toHaveAttribute("data-code", code);
+    expect(posts).toBe(i + 1);
+    await expect(submit).not.toHaveAttribute("aria-disabled");
+    await expect(page.getByTestId("kit-repo-cta")).toHaveCount(0);
+    await expect(page.getByTestId("kit-resubmit-hint")).toHaveCount(0);
+  }
+});
 
 test("API returns structured errors with a code and a fix", async ({ request }) => {
   const res = await request.post("/api/kits", { data: { url: "github.com/real-owner/secret-repo" } });
@@ -104,11 +230,14 @@ test("preview requests are rate limited per IP across the hour; invalid URLs, th
   expect(statuses.slice(0, 50).every((s) => s === 422)).toBe(true);
   expect(statuses[50]).toBe(429);
   const res = await post("github.com/real-owner/secret-repo");
-  const body = (await res.json()) as { code: string; fix: string; retryAfterSeconds: number };
+  const body = (await res.json()) as { code: string; fix: string; retryAfterSeconds: number; limits: { perHour: number; perDay: number } };
   expect(body.code).toBe("rate_limited");
   expect(body.retryAfterSeconds).toBeGreaterThan(0);
   expect(res.headers()["retry-after"]).toBe(String(body.retryAfterSeconds));
   expect(body.fix).toMatch(/Try again in \d+ (min|hours)/);
+  // The copy states the limits this server enforces (PREVIEW_RATE_LIMIT_PER_HOUR/_PER_DAY in playwright.config.ts), not the defaults.
+  expect(body.limits).toEqual({ perHour: 40, perDay: 60 });
+  expect(body.fix).toContain("You can run 40 an hour and 60 a day.");
   // A different IP is unaffected.
   expect((await post("not a url", "198.51.100.7")).status()).toBe(422);
 });
@@ -134,6 +263,24 @@ test("rate limited previews say when to try again", async ({ page }) => {
   await expect(retry).toHaveAttribute("aria-disabled", "true");
   await retry.focus();
   await expect(retry).toBeFocused();
+});
+
+test("the limit box states the allowance the server sent, not the bundle's defaults", async ({ page }) => {
+  await page.route("**/api/kits", (route) => route.fulfill({ status: 429, headers: { "Retry-After": "600" }, json: rateLimitedBody(600, { perHour: 3, perDay: 7 }) }));
+  await page.goto("/");
+  await page.getByLabel("GitHub repo or live site URL").fill("github.com/acme/app");
+  await page.getByRole("button", { name: "Get my free preview" }).first().click();
+  const alert = page.getByTestId("kit-error");
+  await expect(alert).toHaveAttribute("data-code", "rate_limited");
+  await expect(alert).toContainText("You can run 3 an hour and 7 a day.");
+  await expect(alert).not.toContainText("10 an hour");
+});
+
+test("pricing and terms state the limits the server enforces", async ({ page }) => {
+  await page.goto("/pricing");
+  await expect(page.locator("main")).toContainText("Public repos only. 40 per hour, 60 per day.");
+  await page.goto("/terms");
+  await expect(page.locator("main")).toContainText("40 previews an hour and 60 a day.");
 });
 
 test("rate limited with a preview from this browser: 'Unlock my kit' opens it, and the retry comes back at the reset", async ({ page }) => {

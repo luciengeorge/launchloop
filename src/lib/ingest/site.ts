@@ -65,19 +65,18 @@ export async function fetchSite(url: string, warnings: string[]): Promise<SiteDa
     }),
   );
 
-  // Pricing links usually live in the nav, so find them before stripping it.
+  // Pricing and repo links usually live in the nav or footer, so find them before stripping those.
   const pricingUrl = findPricingLink(root, page.url);
+  const githubUrl = root
+    .querySelectorAll("a[href]")
+    .map((a) => a.getAttribute("href") ?? "")
+    .find((href) => /^https?:\/\/(www\.)?github\.com\/[\w.-]+\/[\w.-]+\/?$/i.test(href));
   const images = pageImages(root, page.url);
   root.querySelectorAll("script, style, noscript, svg, nav, header, footer, [role=navigation]").forEach((el) => el.remove());
   const body = root.querySelector("body") ?? root;
   const text = (sel: string, max: number) => unique(body.querySelectorAll(sel).map((el) => clean(el.text)), max);
 
   const prices = await extractPrices(body, page.url, pricingUrl);
-
-  const githubUrl = root
-    .querySelectorAll("a[href]")
-    .map((a) => a.getAttribute("href") ?? "")
-    .find((href) => /^https?:\/\/(www\.)?github\.com\/[\w.-]+\/[\w.-]+\/?$/i.test(href));
 
   const paragraphs = text("p", 12).filter((p) => p.length > 30);
   if (paragraphs.length === 0 && !clean(body.text)) {

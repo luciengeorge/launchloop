@@ -16,6 +16,7 @@
 # next.js
 /.next/
 /.next-test/
+/.next-test-hero/
 /out/
 
 # production
@@ -44,6 +45,7 @@ next-env.d.ts
 # local data (file store, mock outbox)
 /.data/
 /.data-test/
+/.data-test-hero/
 
 # playwright
 /test-results/

@@ -73,10 +73,10 @@ async function customerExists(s: Stripe, id: string): Promise<boolean> {
  * whose stored customer came from a Checkout purchase. Every account has a Stripe customer
  * (see ensureStripeCustomer), so having one is not enough on its own. Mock mode has no Stripe
  * customer, but paid kit buyers still see the button and get the mock portal note.
+ * Takes the membership the caller already read, so /account doesn't fetch it twice.
  */
-export async function hasBillingAccess(email: string, hasPaidKit: boolean): Promise<boolean> {
-  if (hasPaidKit) return true;
-  if (await getShipLoop(email)) return true;
+export async function hasBillingAccess(email: string, hasPaidKit: boolean, shipLoop: ShipLoopMembership | null): Promise<boolean> {
+  if (hasPaidKit || shipLoop) return true;
   const source = (await getStoredBillingCustomer(email))?.source;
   return source === "kit" || source === "shiploop";
 }

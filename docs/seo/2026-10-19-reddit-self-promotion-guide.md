@@ -111,6 +111,13 @@ Site QA supplied the current rule wording for the changes made after review:
 - r/indiehackers rule 1: "Users can self promote their product 1 time using the Self Promotion flair." Posts mentioning MRR must include proof ("no proof, no post").
 - r/startups: the rules now say "Monthly Share Your Startup thread", so the page no longer links the older quarterly thread.
 
+Second Site QA pass, rule text as live on 21 October 2026:
+
+- r/indiehackers rule 1 (checked 21 Oct 2026): "Users can self promote their product 1 time using the Self Promotion flair. The purpose is for feedback and critique not advertisement." The page quotes both sentences verbatim, the second without a comma, as Reddit has it.
+- r/indiehackers rule 2, MRR (checked 21 Oct 2026): "no proof, no post".
+- r/startups: the pinned thread is titled "Share your startup, quarterly post", while rule 2 still says "Monthly Share Your Startup thread". The page names the Share Your Startup thread, says the rules call it monthly, and does not link the pinned thread.
+- The Reddit guide's `updated` date is now 2026-10-21; `published` stays 2026-10-19.
+
 Dated claims checked against archived copies, because reddit.com and indiehackers.com return HTTP 403 to `curl` from the VM:
 
 - r/modnews 10:1 clarification, December 2014: verified. The Wayback snapshot shows the post title "Moderators: Clarifications around our 10:1 self-promotional guidelines", author u/krispykrackers, `created-timestamp="2014-12-04T20:49:15.819000+0000"`, and the quoted text ("For every 1 time you post self-promotional content, 9 other posts (submissions or comments) should not contain self-promotional content." and "If someone exceeds the 10% that doesn't automatically make them a spammer!"). The post says "We made some small changes in our self-promotional wiki and our faq language", which only Reddit staff can do. Archive: http://web.archive.org/web/20250728232805/https://www.reddit.com/r/modnews/comments/2oamgp/moderators_clarifications_around_our_101/

@@ -1,11 +1,22 @@
-/** PostHog multivariate flags (50/50, variants "control" and "treatment"). Pure: shared by browser and server. */
+/** PostHog multivariate flags. Pure: shared by browser and server. */
 export const EXPERIMENTS = {
   launchPromo: "exp_launch14_promo",
   shipLoopUpsell: "exp_shiploop_success_upsell",
+  heroHeadline: "exp_hero_headline",
 } as const;
 
 export type ExperimentKey = (typeof EXPERIMENTS)[keyof typeof EXPERIMENTS];
-export type Variant = "control" | "treatment";
+
+/** Each flag's variant keys, as set up in PostHog. Control is what every fallback serves. */
+const VARIANTS = {
+  exp_launch14_promo: ["control", "treatment"],
+  exp_shiploop_success_upsell: ["control", "treatment"],
+  exp_hero_headline: ["control", "test"],
+} as const satisfies Record<ExperimentKey, readonly ["control", ...string[]]>;
+
+export type Variant<K extends ExperimentKey = ExperimentKey> = (typeof VARIANTS)[K][number];
+
+export const isVariant = <K extends ExperimentKey>(key: K, value: unknown): value is Variant<K> => (VARIANTS[key] as readonly unknown[]).includes(value);
 /** The variant each experiment showed on the page that made the request. */
 export type Experiments = Partial<Record<ExperimentKey, Variant>>;
 
@@ -41,7 +52,7 @@ export function parseExperiments(value: unknown): Experiments {
   if (!value || typeof value !== "object") return {};
   const out: Experiments = {};
   for (const [key, variant] of Object.entries(value)) {
-    if (KEYS.has(key) && (variant === "control" || variant === "treatment")) out[key as ExperimentKey] = variant;
+    if (KEYS.has(key) && isVariant(key as ExperimentKey, variant)) out[key as ExperimentKey] = variant;
   }
   return out;
 }

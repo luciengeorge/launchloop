@@ -3,7 +3,7 @@ import { phase } from "../kit-tracing";
 import { captureException } from "../observability";
 import type { KitVisuals, Palette, SourceSummary } from "../schema";
 import { DEFAULT_PALETTE, extractPalette } from "./colors";
-import { fetchRepo, parseGitHubUrl, type RepoData } from "./github";
+import { fetchRepo, findRepoByName, parseGitHubUrl, type RepoData } from "./github";
 import { liveHomepage } from "./homepage";
 import { IngestError } from "./safe-fetch";
 import { fetchRepoPalette } from "./repo-palette";
@@ -92,9 +92,12 @@ export async function ingest(rawInput: string, onStep: (step: IngestStep) => voi
     onStep("site");
     // The pasted site is the only source, so its failure is the user's error to see.
     site = await tracedSite(input, warnings);
-    if (!hasUsableContent(site)) throw new IngestError(`No usable content at ${input}`, "site_no_content");
     const linked = site.githubUrl ? parseGitHubUrl(site.githubUrl) : null;
-    if (linked) {
+    if (!hasUsableContent(site)) {
+      // A client-rendered page (an empty <div id="root">) has nothing to read; its own repo usually does.
+      repo = await repoForEmptySite(site, linked, warnings);
+      if (!repo) throw new IngestError(`No usable content at ${input}`, "site_no_content");
+    } else if (linked) {
       onStep("repo");
       try {
         const candidate = await tracedRepo(linked.owner, linked.name, warnings);
@@ -112,7 +115,23 @@ export async function ingest(rawInput: string, onStep: (step: IngestStep) => voi
     sitePalette.source === "default" && repo ? tracedRepoPalette(repo.owner, repo.name) : sitePalette,
     tracedVisuals(repo, site),
   ]);
-  return { primary: gh ? "repo" : "site", repo, site, palette, visuals, source: summarise(input, repo, site, warnings) };
+  const primary = gh || (repo && !hasUsableContent(site!)) ? "repo" : "site";
+  return { primary, repo, site, palette, visuals, source: summarise(input, repo, site, warnings) };
+}
+
+/** The empty page's own repo: the GitHub link on it, else the one repo named like its host or <title>. */
+async function repoForEmptySite(site: SiteData, linked: { owner: string; name: string } | null, warnings: string[]): Promise<RepoData | undefined> {
+  const host = new URL(site.url).hostname.replace(/^www\./, "").split(".")[0];
+  const title = site.title?.split(/\s[|·:–—-]\s/)[0];
+  const guess =
+    linked ?? (await findRepoByName(host)) ?? (title && slug(title) !== slug(host) ? await findRepoByName(title) : null);
+  if (!guess) return undefined;
+  try {
+    const candidate = await tracedRepo(guess.owner, guess.name, warnings);
+    return repoMatchesSite(candidate, site) ? candidate : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 const tracedVisuals = (repo: RepoData | undefined, site: SiteData | undefined) =>

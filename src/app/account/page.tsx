@@ -4,6 +4,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { BillingFlash } from "@/components/billing-flash";
+import { HideFooterWhileLoading } from "@/components/hide-footer-while-loading";
 import { KitForm } from "@/components/kit-form";
 import { StartLink } from "@/components/start-link";
 import { Badge } from "@/components/ui/badge";
@@ -23,8 +24,15 @@ export const metadata: Metadata = { title: "My kits", robots: { index: false, fo
 
 export default function AccountPage() {
   return (
-    <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
-      <Suspense fallback={<Skeleton className="h-96 rounded-2xl" />}>
+    <div className="mx-auto min-h-[calc(100svh-3.5rem)] max-w-4xl px-4 py-10 sm:px-6">
+      <Suspense
+        fallback={
+          <>
+            <HideFooterWhileLoading />
+            <Skeleton className="h-96 rounded-2xl" />
+          </>
+        }
+      >
         <Dashboard />
       </Suspense>
     </div>
@@ -35,11 +43,14 @@ async function Dashboard() {
   const session = await getSession();
   if (!session) redirect("/login?next=/account");
   const [kits, shipLoop, promo] = await Promise.all([listUserKits(session.email), getShipLoop(session.email), isLaunchPromoOn()]);
-  const progress = await Promise.all(kits.map((k) => (k.paid && k.content ? kitProgress(k) : null)));
-  const showBilling = await hasBillingAccess(
-    session.email,
-    kits.some((k) => k.paid),
-  );
+  const [progress, showBilling] = await Promise.all([
+    Promise.all(kits.map((k) => (k.paid && k.content ? kitProgress(k) : null))),
+    hasBillingAccess(
+      session.email,
+      kits.some((k) => k.paid),
+      shipLoop,
+    ),
+  ]);
 
   return (
     <div className="space-y-8">

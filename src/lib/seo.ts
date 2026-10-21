@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { BLOG_FEED_PATH } from "@/lib/blog";
 import type { SitePage } from "@/lib/pages";
 import { SITE } from "@/lib/site";
 
@@ -23,4 +24,10 @@ export function pageMetadata({
     openGraph: { type, siteName: SITE.name, locale: "en_GB", url: path, title: fullTitle, description, images: [{ ...image, width: 1200, height: 630 }] },
     twitter: { card: "summary_large_image", site: SITE.twitter, title: fullTitle, description, images: [{ url: image.url, alt: image.alt }] },
   };
+}
+
+/** pageMetadata plus the <link rel="alternate"> to the blog's RSS feed, for the blog index and every post. */
+export function blogPageMetadata(page: SitePage): Metadata {
+  const metadata = pageMetadata(page);
+  return { ...metadata, alternates: { ...metadata.alternates, types: { "application/rss+xml": [{ url: BLOG_FEED_PATH, title: `${SITE.name} blog` }] } } };
 }

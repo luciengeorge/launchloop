@@ -93,6 +93,11 @@ const routes = {
     res.writeHead(200, { "Content-Type": "text/html" });
     res.end('<!doctype html><html><head></head><body><div id="root"></div><script src="/app.js"></script></body></html>');
   },
+  // A Vite shell like tool4boxology.service.tib.eu: the repo search for its <title> finds nothing, so it's site_no_content.
+  "/spa-no-repo": (_req, res) => {
+    res.writeHead(200, { "Content-Type": "text/html" });
+    res.end('<!doctype html><html><head><title>Nomatchly</title></head><body><div id="root"></div><script type="module" src="/assets/index.js"></script></body></html>');
+  },
   "/llmfail": (_req, res) => {
     res.writeHead(200, { "Content-Type": "text/html" });
     res.end(html({ title: "Outagely LLMFAIL", description: "Outagely monitors your uptime and pages you when your app goes down for real." }));
@@ -105,6 +110,8 @@ const routes = {
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ hello: "world" }));
   },
+  // Repo-name search for pages with no readable text: no repo matches, so those still fail with site_no_content.
+  "/gh/search/repositories": json({ total_count: 0, items: [] }),
   "/gh/users/real-owner": (_req, res) => {
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ login: "real-owner" }));
@@ -162,8 +169,18 @@ function recordPosthog(body) {
   }
 }
 
-/** Flag variants per distinct id, and an optional delay before answering, set by tests through POST /ph/_flags. Everyone else gets no flags. */
+/**
+ * Flag variants per distinct id, and an optional delay before answering, set by tests through POST /ph/_flags.
+ * An id ending in `*` covers every id with that prefix (the home headline is bucketed on a fresh `hero:<uuid>`
+ * per view); an exact id wins. Everyone else gets no flags.
+ */
 const flagOverrides = new Map();
+const overrideFor = (distinctId) => {
+  if (typeof distinctId !== "string") return undefined;
+  if (flagOverrides.has(distinctId)) return flagOverrides.get(distinctId);
+  for (const [pattern, override] of flagOverrides) if (pattern.endsWith("*") && distinctId.startsWith(pattern.slice(0, -1))) return override;
+  return undefined;
+};
 
 /** The distinct_id in a flags request: posthog-node sends JSON; posthog-js may gzip it. */
 function flagsDistinctId(body) {
@@ -243,7 +260,7 @@ createServer(async (req, res) => {
       return res.end("{}");
     }
     if (pathname.startsWith("/ph/flags")) {
-      const override = flagOverrides.get(flagsDistinctId(body));
+      const override = overrideFor(flagsDistinctId(body));
       if (override?.delayMs) await new Promise((resolve) => setTimeout(resolve, override.delayMs));
       if (res.destroyed) return;
       res.writeHead(200, { "Content-Type": "application/json" });

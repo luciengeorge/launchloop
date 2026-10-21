@@ -1,3 +1,4 @@
+import { BLOG_POSTS, blogUpdated, postPath, type BlogPost } from "@/lib/blog";
 import { GUIDES, guidePath, type Guide } from "@/lib/guides";
 import type { ShareCard } from "@/lib/og-card";
 import { SITE } from "@/lib/site";
@@ -57,8 +58,8 @@ export const PAGES = {
   faq: core({
     path: "/faq",
     title: "FAQ: launch kits, character limits and refunds",
-    description: "How LaunchLoop reads your repo, what you get in the Launch Kit, which character limits it enforces, refunds, and the free Ship Loop waitlist.",
-    updated: "2026-10-19",
+    description: "How LaunchLoop reads your repo, where its launch advice comes from, what you get in the Launch Kit, the limits it enforces, refunds and Ship Loop.",
+    updated: "2026-10-20",
     card: { eyebrow: "FAQ", headline: "Launch kits, character limits and refunds" },
   }),
   guides: core({
@@ -68,6 +69,14 @@ export const PAGES = {
       "Free guides for launching an app built with Cursor, Lovable, Bolt or v0: Product Hunt and Show HN prep, Reddit rules, launch copy and the SEO basics.",
     updated: "2026-10-20",
     card: { eyebrow: "Guides", headline: "Launch guides for indie makers" },
+  }),
+  blog: core({
+    path: "/blog",
+    title: "Blog: sourced launch how-tos for indie makers",
+    description:
+      "Launch how-tos for indie makers, built on each platform's own rules and guidance and quoted with links, starting with Product Hunt and Indie Hackers.",
+    updated: blogUpdated(),
+    card: { eyebrow: "Blog", headline: "Launch how-tos from each platform's own pages" },
   }),
   tools: core({
     path: "/tools",
@@ -108,16 +117,29 @@ export function guidePage(g: Guide): SitePage {
   };
 }
 
+/** Posts live under /blog/<slug>, but their share image is /og/<slug> like every other card. */
+export function postPage(p: BlogPost): SitePage {
+  return {
+    path: postPath(p),
+    title: p.metaTitle,
+    description: p.description,
+    updated: p.updated,
+    type: "article",
+    image: { url: `/og/${p.slug}`, alt: `${p.title} · ${SITE.name}` },
+    card: { eyebrow: "Blog", headline: p.title },
+  };
+}
+
 export function toolPage(t: Tool): SitePage {
   return { path: t.path, title: t.metaTitle, description: t.description, updated: t.updated, type: "website", image: { url: `${t.path}/opengraph-image`, alt: t.imageAlt } };
 }
 
 /** Every page that belongs in the sitemap. Redirect aliases, noindex pages and robots-disallowed paths must never be added. */
 export function indexablePages(): SitePage[] {
-  return [...Object.values(PAGES), ...TOOLS.map(toolPage), ...GUIDES.map(guidePage)];
+  return [...Object.values(PAGES), ...TOOLS.map(toolPage), ...GUIDES.map(guidePage), ...BLOG_POSTS.map(postPage)];
 }
 
-/** Pages with a generated share image, keyed by the single path segment used in /og/<slug>. */
+/** Pages with a generated share image, keyed by the single path segment of their /og/<slug> image URL. */
 export function cardPages(): { slug: string; card: ShareCard }[] {
-  return indexablePages().flatMap((p) => (p.card ? [{ slug: p.path.slice(1), card: p.card }] : []));
+  return indexablePages().flatMap((p) => (p.card ? [{ slug: p.image.url.replace(/^\/og\//, ""), card: p.card }] : []));
 }

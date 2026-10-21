@@ -1,14 +1,20 @@
 import { RESERVED_EMAIL_ERROR } from "./login-errors";
 
 /** Where a newsletter signup happened. Stored on the contact and sent with the `newsletter_subscribed` event. */
-export type NewsletterPlacement = "footer" | "preview";
+export type NewsletterPlacement = "footer" | "preview" | "blog";
 
-export const parsePlacement = (value: unknown): NewsletterPlacement => (value === "preview" ? "preview" : "footer");
+export const parsePlacement = (value: unknown): NewsletterPlacement => (value === "preview" || value === "blog" ? value : "footer");
+
+/** Resend's test sink (delivered@resend.dev, bounced@resend.dev, ...): only QA ever signs up with it. */
+export const isResendTestAddress = (email: string) => /(^|\.)resend\.dev$/.test(email.slice(email.lastIndexOf("@") + 1).trim().toLowerCase());
 
 /** The lead magnet: the public checklist guide, linked from the success state and the welcome email. */
 export const LEAD_MAGNET = { title: "launch-day checklist", path: "/product-hunt-launch-checklist" } as const;
 
-/** Anchor of the post-preview signup, so a no-JS form post lands back on its success message. */
+/**
+ * Anchor of the in-page signup (post-preview on kit pages, end of post on blog pages), so a no-JS form post lands back on it.
+ * Only one such block per page: the footer form has no id.
+ */
 export const PREVIEW_NEWSLETTER_ANCHOR = "newsletter";
 
 /** Shared by /api/newsletter (JSON errors and form redirects) and the form, which reads `?error=<code>`. */
