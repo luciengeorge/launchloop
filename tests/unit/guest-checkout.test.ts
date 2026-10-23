@@ -108,6 +108,11 @@ const { default: Stripe } = (await import("stripe")) as unknown as { default: { 
 const KIT_ID = "kitGuestCheckout01";
 const BUYER = "buyer@example.com";
 
+// resolveKitPromo reads Date.now(), so anything that depends on LAUNCH14 pins the clock to one side of its end.
+const PROMO_ACTIVE = LAUNCH_PROMO_ENDS_AT - 1;
+const PROMO_ENDED = LAUNCH_PROMO_ENDS_AT;
+const pinClock = (now: number) => vi.useFakeTimers({ toFake: ["Date"], now });
+
 function seedKit(patch: Partial<Kit> = {}) {
   const kit = {
     id: KIT_ID,
@@ -184,10 +189,14 @@ afterEach(() => {
 });
 
 describe("/api/checkout without a user", () => {
-  it("creates a Checkout session with no customer or user id and no Customer creation, letting Stripe collect the email", async () => {
-    // The kit's own variant decides LAUNCH14 (resolveKitPromo), not what the request claims.
+  it.each([
+    { when: "before the end of LAUNCH14, asking PostHog for the kit's variant", now: PROMO_ACTIVE, flagReads: [["exp_launch14_promo", KIT_ID]] },
+    { when: "from the end of LAUNCH14, without asking PostHog", now: PROMO_ENDED, flagReads: [] },
+  ])("creates a Checkout session with no customer or user id and no Customer creation, letting Stripe collect the email ($when)", async ({ now, flagReads }) => {
+    pinClock(now);
+    // The server decides LAUNCH14 (resolveKitPromo: the kit's own variant, control from the end), not what the request claims.
     const res = await postCheckout({ product: "kit", kitId: KIT_ID, analyticsId: "ph_guest", experiments: { exp_launch14_promo: "treatment" } });
-    expect(m.kitAssignment).toHaveBeenCalledWith("exp_launch14_promo", KIT_ID);
+    expect(m.kitAssignment.mock.calls).toEqual(flagReads);
 
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ url: "https://checkout.stripe.com/c/pay/cs_test_new", promo: "none" });
@@ -201,7 +210,7 @@ describe("/api/checkout without a user", () => {
   });
 
   it("keeps LAUNCH14 for a guest whose kit is in the treatment: Customer creation stays on, since the code is first-time-only; a rejected code falls back to a guest session", async () => {
-    vi.useFakeTimers({ toFake: ["Date"], now: LAUNCH_PROMO_ENDS_AT - 1 });
+    pinClock(PROMO_ACTIVE);
     m.kitAssignment.mockResolvedValue({ variant: "treatment" });
     const res = await postCheckout({ product: "kit", kitId: KIT_ID, analyticsId: "ph_guest", experiments: {} });
 
@@ -231,7 +240,7 @@ describe("/api/checkout without a user", () => {
   });
 
   it("charges the full £19 from the end of LAUNCH14, even for a kit PostHog still puts in the treatment", async () => {
-    vi.useFakeTimers({ toFake: ["Date"], now: LAUNCH_PROMO_ENDS_AT });
+    pinClock(PROMO_ENDED);
     m.kitAssignment.mockResolvedValue({ variant: "treatment" });
     m.kv.set(`kitpromo:${KIT_ID}`, "treatment");
     const res = await postCheckout({ product: "kit", kitId: KIT_ID, analyticsId: "ph_guest", experiments: { exp_launch14_promo: "treatment" } });
@@ -464,12 +473,16 @@ describe("QA traffic (is_test) on server events", () => {
   const eventProps = (name: string) => m.captureServerEvent.mock.calls.filter(([event]) => event === name).map(([, params]) => (params as { properties: Record<string, unknown> }).properties);
   const sessionMetadata = () => (m.createSession.mock.calls.at(-1)![0] as { metadata: Record<string, string> }).metadata;
 
-  it("a checkout from a QA tab tags checkout_started, flag_fallback and the session, so the webhook's checkout_completed is tagged too", async () => {
+  it.each([
+    { when: "before the end of LAUNCH14, when PostHog fails", now: PROMO_ACTIVE, flagFallbacks: [expect.objectContaining({ flag: "exp_launch14_promo", is_test: true })] },
+    { when: "from the end of LAUNCH14, when PostHog isn't asked so there's no flag_fallback", now: PROMO_ENDED, flagFallbacks: [] },
+  ])("a checkout from a QA tab tags checkout_started, any flag_fallback and the session, so the webhook's checkout_completed is tagged too ($when)", async ({ now, flagFallbacks }) => {
+    pinClock(now);
     m.kitAssignment.mockResolvedValue({ variant: "control", fallback: "error" });
     await postCheckout({ product: "kit", kitId: KIT_ID, analyticsId: "ph_qa", isTest: true });
     await flush();
     expect(eventProps("checkout_started")).toEqual([expect.objectContaining({ kitId: KIT_ID, utm_source: "hn", is_test: true })]);
-    expect(eventProps("flag_fallback")).toEqual([expect.objectContaining({ flag: "exp_launch14_promo", is_test: true })]);
+    expect(eventProps("flag_fallback")).toEqual(flagFallbacks);
     expect(sessionMetadata()).toMatchObject({ kitId: KIT_ID, is_test: "1" });
 
     await deliver(guestEvent({ metadata: sessionMetadata() }));
