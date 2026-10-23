@@ -1,4 +1,4 @@
-# Source check: Product Hunt alternatives, 22 October 2026
+# Source check: Product Hunt alternatives, 24 October 2026
 
 Blog post for `/blog`, requested on Tuesday 20 October 2026. Every source was read on 20 October 2026 between about 18:40 and 19:15 UTC. Every quote on the page was copied from the fetched page, not from memory or a search snippet, and then checked again by script against saved copies of those pages (see Method). After QA found that Uneed's pages had changed, every price on the page and every Uneed quote were checked again on the live pages on Wednesday 21 October 2026, between about 13:07 and 13:12 UTC (see "Re-check, 21 October 2026").
 
@@ -7,7 +7,7 @@ Blog post for `/blog`, requested on Tuesday 20 October 2026. Every source was re
 **URL:** `/blog/product-hunt-alternatives`
 **Title:** `Product Hunt alternatives: where to launch · LaunchLoop` (55 characters)
 **Description:** `Sites like Product Hunt, from their own pages: who BetaList, Uneed, Peerlist, DevHunt, Show HN and others are for, what a launch costs and the rules.` (149 characters)
-**H1:** Product Hunt alternatives for indie makers. **Published and updated:** 2026-10-22, as the brief asked (bump both in `src/lib/blog.ts` if it merges on another day). **Byline:** Lucien George. **Reading time:** 19 minutes (3,745 words in the rendered body at 200 words a minute; the e2e suite recounts it).
+**H1:** Product Hunt alternatives for indie makers. **Published and updated:** 2026-10-24, moved from the brief's 2026-10-22 (bump both in `src/lib/blog.ts` if it merges on another day). **Byline:** Lucien George. **Reading time:** 19 minutes (3,745 words in the rendered body at 200 words a minute; the e2e suite recounts it).
 
 ## Target queries
 
@@ -102,7 +102,7 @@ QA found that Uneed's live pages no longer matched the 20 October read. Re-read 
 - **Quotes #19 (BetaList Advertise) and #35 (Uneed Pricing)** were read on the live pages with `curl`. No archive copy was needed.
 - **Every other price on the page is unchanged:** DevHunt $19 and $49; BetaList Boost $99 a week or $199 a month; Fazier Basic free, Lite $29 (crossed out $39), Premium $49 (crossed out $69), Super $99 (crossed out $139); Tiny Startups £29 on About and £69 for the submit form's "Instant listing + DR 71+ do-follow backlink"; Microlaunch Launch Pro $39 (crossed out $49) and Launch Plus $79 (crossed out $99), and "Pro Launch ($49)" in its FAQ. That is why the page now says "Prices checked on 21 October 2026." under the table, and the intro gives prices as of 21 October 2026.
 - **Not re-read on 21 October:** the non-price quotes from the other sites (DevHunt, Show HN, BetaList FAQ and criteria, Fazier, Tiny Startups, Microlaunch rules, Peerlist, Indie Hackers) and the two subreddit archive copies. They stay dated 20 October 2026 (24 and 28 August for the archives), and the Sources paragraph on the page says so. The FAQ answer about free routes still says "On 20 October 2026", because Microlaunch's signed-out launch window and Peerlist were not reopened.
-- **Dates:** published and updated stay 2026-10-22 in `src/lib/blog.ts`, which feeds the byline, the BlogPosting JSON-LD, the sitemap and the RSS feed.
+- **Dates:** published and updated are 2026-10-24 in `src/lib/blog.ts`, which feeds the byline, the BlogPosting JSON-LD, the sitemap and the RSS feed.
 
 ## Sources
 

@@ -26,8 +26,8 @@ export const BLOG_POSTS: BlogPost[] = [
     metaTitle: "Product Hunt alternatives: where to launch",
     description:
       "Sites like Product Hunt, from their own pages: who BetaList, Uneed, Peerlist, DevHunt, Show HN and others are for, what a launch costs and the rules.",
-    published: "2026-10-22",
-    updated: "2026-10-22",
+    published: "2026-10-24",
+    updated: "2026-10-24",
     readingMinutes: 19,
   },
   {

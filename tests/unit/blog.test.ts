@@ -77,10 +77,10 @@ describe("Product Hunt post", () => {
 describe("Product Hunt alternatives post", () => {
   const p = post("product-hunt-alternatives");
 
-  it("targets both queries, is dated 22 October 2026 and doesn't echo the Product Hunt how-to", () => {
+  it("targets both queries, is dated 24 October 2026 and doesn't echo the Product Hunt how-to", () => {
     expect(fullTitle(p.metaTitle)).toBe("Product Hunt alternatives: where to launch · LaunchLoop");
     expect(p.description).toMatch(/^Sites like Product Hunt/);
-    expect(p).toMatchObject({ published: "2026-10-22", updated: "2026-10-22" });
+    expect(p).toMatchObject({ published: "2026-10-24", updated: "2026-10-24" });
     const listed = blogPosts();
     expect(listed.map((x) => x.slug)).toContain(p.slug);
     const dates = listed.map((x) => x.published);
@@ -92,7 +92,7 @@ describe("Product Hunt alternatives post", () => {
 
   it("keeps Uneed's retired $29.99 price and its old 5 month wait out of the post and its quote log", () => {
     const root = path.join(import.meta.dirname, "../..");
-    const files = ["src/app/blog/product-hunt-alternatives/page.tsx", "docs/seo/2026-10-22-product-hunt-alternatives.md"];
+    const files = ["src/app/blog/product-hunt-alternatives/page.tsx", "docs/seo/2026-10-24-product-hunt-alternatives.md"];
     for (const file of files) {
       const text = readFileSync(path.join(root, file), "utf8");
       expect(text, file).not.toMatch(/29\.99|5 months out|up to 5 months|30 days to 5 months|between 30 days and/i);
