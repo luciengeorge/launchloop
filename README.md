@@ -16,7 +16,7 @@ Stack: Next.js 16 (App Router, Cache Components), TypeScript, Tailwind v4, shadc
 
 ## Run it locally
 
-Requires Node 20+.
+Requires Node 24.
 
 ```bash
 npm install
