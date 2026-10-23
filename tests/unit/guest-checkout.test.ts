@@ -185,7 +185,8 @@ afterEach(() => {
 
 describe("/api/checkout without a user", () => {
   it("creates a Checkout session with no customer or user id and no Customer creation, letting Stripe collect the email", async () => {
-    // The kit's own variant decides LAUNCH14 (resolveKitPromo), not what the request claims.
+    // The kit's own variant decides LAUNCH14 (resolveKitPromo), not what the request claims. After the promo ends there's no lookup at all.
+    vi.useFakeTimers({ toFake: ["Date"], now: LAUNCH_PROMO_ENDS_AT - 1 });
     const res = await postCheckout({ product: "kit", kitId: KIT_ID, analyticsId: "ph_guest", experiments: { exp_launch14_promo: "treatment" } });
     expect(m.kitAssignment).toHaveBeenCalledWith("exp_launch14_promo", KIT_ID);
 
@@ -465,6 +466,8 @@ describe("QA traffic (is_test) on server events", () => {
   const sessionMetadata = () => (m.createSession.mock.calls.at(-1)![0] as { metadata: Record<string, string> }).metadata;
 
   it("a checkout from a QA tab tags checkout_started, flag_fallback and the session, so the webhook's checkout_completed is tagged too", async () => {
+    // Before the promo end, so the kit's promo flag is looked up (and falls back).
+    vi.useFakeTimers({ toFake: ["Date"], now: LAUNCH_PROMO_ENDS_AT - 1 });
     m.kitAssignment.mockResolvedValue({ variant: "control", fallback: "error" });
     await postCheckout({ product: "kit", kitId: KIT_ID, analyticsId: "ph_qa", isTest: true });
     await flush();
