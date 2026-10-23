@@ -12,6 +12,11 @@ test("home has title, description and Open Graph tags", async ({ page }) => {
   await expect(page.locator('script[type="application/ld+json"]')).toHaveCount(1);
 });
 
+test("home's server HTML carries the Impact site verification meta tag with a value attribute", async ({ request }) => {
+  const html = await (await request.get("/")).text();
+  expect(html).toContain('<meta name="impact-site-verification" value="0b7b3f21-3941-4494-bcc1-f28c3d5decf1"/>');
+});
+
 test("robots, sitemap and llms.txt", async ({ request }) => {
   const robots = await (await request.get("/robots.txt")).text();
   expect(robots).toContain("Sitemap:");
