@@ -166,10 +166,6 @@ test("each experiment accepts only its own variants", () => {
   expect(isVariant(EXPERIMENTS.heroHeadline, "treatment")).toBe(false);
   expect(isVariant(EXPERIMENTS.launchPromo, "test")).toBe(false);
   expect(isVariant(EXPERIMENTS.launchPromo, "treatment")).toBe(true);
-  expect(isVariant(EXPERIMENTS.shipLoopUpsell, "test")).toBe(false);
-  expect(parseExperiments({ exp_hero_headline: "test", exp_launch14_promo: "test", exp_shiploop_success_upsell: "treatment" })).toEqual({
-    exp_hero_headline: "test",
-    exp_shiploop_success_upsell: "treatment",
-  });
+  expect(parseExperiments({ exp_hero_headline: "test", exp_launch14_promo: "test" })).toEqual({ exp_hero_headline: "test" });
   expect(parseExperiments({ exp_hero_headline: "treatment" })).toEqual({});
 });
