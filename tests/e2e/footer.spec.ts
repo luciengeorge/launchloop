@@ -79,6 +79,9 @@ for (const width of [375, 1280]) {
     });
     await page.setViewportSize({ width, height: 900 });
     await page.goto("/", { waitUntil: "load" });
+    // Hydration removes the footer newsletter's no-JS error anchors, and the form above this row gets 8 px shorter.
+    // Scrolled into view before that, the row would move for a reason that isn't the badges.
+    await expect(page.locator("#newsletter-footer-invalid")).toHaveCount(0);
     await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
     for (const { name } of BADGES) {
       const img = badgeLink(page, name).getByRole("img", { name, exact: true });
