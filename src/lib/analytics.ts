@@ -295,8 +295,11 @@ function scrubEvent(event: CaptureResult | null): CaptureResult | null {
   };
 }
 
-export function track<E extends keyof ClientEvents>(event: E, properties: ClientEvents[E]) {
-  void loadAnalytics().then((posthog) => posthog?.capture(event, properties));
+/** `whenLoaded`: wait for the SDK to load as it normally would (see trackServed) instead of loading it now. */
+export function track<E extends keyof ClientEvents>(event: E, properties: ClientEvents[E], { whenLoaded = false }: { whenLoaded?: boolean } = {}) {
+  const send = () => void loadAnalytics().then((posthog) => posthog?.capture(event, properties));
+  if (whenLoaded) void requested.then(send);
+  else send();
 }
 
 /**
