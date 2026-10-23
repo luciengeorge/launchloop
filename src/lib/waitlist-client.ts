@@ -70,5 +70,5 @@ export function createViewOnce(onView: () => void) {
   };
 }
 
-/** waitlist_cta_viewed for one mounted ask (see createViewOnce). */
-export const waitlistViewTracker = (surface: WaitlistSurface) => createViewOnce(() => track("waitlist_cta_viewed", waitlistContext(surface)));
+/** waitlist_cta_viewed for one mounted ask (see createViewOnce). A view alone doesn't pull the SDK in before the page has loaded. */
+export const waitlistViewTracker = (surface: WaitlistSurface) => createViewOnce(() => track("waitlist_cta_viewed", waitlistContext(surface), { whenLoaded: true }));

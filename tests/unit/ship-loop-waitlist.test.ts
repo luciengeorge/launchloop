@@ -11,8 +11,11 @@ const TEST_VISIT_KEY = "launchloop:is_test";
 const EMAIL = "buyer@example.com";
 const KIT = { source: "kit_upsell", kitId: "kit_123" } as const;
 
-/** A fresh page load of `url` (the kit success page by default), as instrumentation-client starts it. */
-async function landOn(url = `https://launchloop.dev/account/kits/${KIT.kitId}?paid=1&aid=ph_1`, storage: Record<string, string> = {}) {
+/**
+ * A fresh page load of `url` (the kit success page by default), as instrumentation-client starts it. `loaded`: the
+ * window load event has passed, so the SDK has loaded (false: before that).
+ */
+async function landOn(url = `https://launchloop.dev/account/kits/${KIT.kitId}?paid=1&aid=ph_1`, storage: Record<string, string> = {}, { loaded = true } = {}) {
   vi.resetModules();
   posthog.capture.mockClear();
   vi.stubEnv("NEXT_PUBLIC_POSTHOG_KEY", "phc_unit");
@@ -22,7 +25,9 @@ async function landOn(url = `https://launchloop.dev/account/kits/${KIT.kitId}?pa
   vi.stubGlobal("sessionStorage", { getItem: (key: string) => storage[key] ?? null, setItem: (key: string, value: string) => void (storage[key] = value) });
   const analytics = await import("@/lib/analytics");
   analytics.rememberFirstTouch();
-  return import("@/lib/waitlist-client");
+  if (loaded) await analytics.loadAnalytics();
+  posthog.init.mockClear();
+  return { analytics, ...(await import("@/lib/waitlist-client")) };
 }
 
 /** Lets track()'s SDK load and capture run. */
@@ -90,6 +95,19 @@ describe("Ship Loop waitlist ask on the kit success page", () => {
 });
 
 describe("waitlist_cta_viewed", () => {
+  it("doesn't load the SDK early: a view before the page has loaded waits for the SDK's normal load, then goes", async () => {
+    const { analytics, waitlistViewTracker } = await landOn(undefined, {}, { loaded: false });
+    const io = fakeIntersectionObserver();
+    waitlistViewTracker(KIT).observe({} as Element);
+    io.show(true);
+    await settle();
+    expect(posthog.init).not.toHaveBeenCalled();
+    expect(captured()).toEqual([]);
+    await analytics.loadAnalytics();
+    await settle();
+    expect(captured()).toEqual([{ name: "waitlist_cta_viewed", props: { signup_source: "kit_upsell", kitId: KIT.kitId } }]);
+  });
+
   it("fires once, when the ask is on screen, however often it's seen or the effect re-runs (StrictMode)", async () => {
     const { waitlistViewTracker } = await landOn();
     const io = fakeIntersectionObserver();
