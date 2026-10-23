@@ -116,6 +116,7 @@ test("promo treatment: £19 struck through, £14 with LAUNCH14, kept through the
 });
 
 test("promo treatment: the price line, LAUNCH14 note and £14 button are in the server HTML and on every reload, with the browser's flags blocked", async ({ page }) => {
+  skipIfPromoEnded();
   const kitId = await makeSampleKit(page);
   await setKitPromo(page.request, kitId, "treatment");
   // Nothing on the paywall may depend on PostHog in the browser.
