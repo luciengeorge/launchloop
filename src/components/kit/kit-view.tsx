@@ -109,7 +109,7 @@ async function PaidKit({ kit, session, query }: Props) {
         <GenerationPoller kitId={kit.id} failed={kit.status === "failed"} sectionsReady={Object.keys(sections).length} />
       )}
       {/* Straight back from checkout (?paid=1) only, for the buyer. */}
-      {owner && query.paid === "1" ? <ShipLoopUpsell /> : null}
+      {owner && query.paid === "1" ? <ShipLoopUpsell kitId={kit.id} /> : null}
       <KitChecklist kitId={kit.id} productName={kit.brief.name} tasks={tasks} locked={false} persist={owner ? "server" : "local"} initialDone={done} />
     </div>
   );

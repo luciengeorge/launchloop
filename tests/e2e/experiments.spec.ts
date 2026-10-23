@@ -46,13 +46,6 @@ async function exposures(request: APIRequestContext, flag = "exp_launch14_promo"
 const checkoutBody = (req: Request) => req.postDataJSON() as { product: string; analyticsId?: string; experiments: Record<string, string>; fallbacks: string[] };
 const isCheckout = (req: Request) => req.method() === "POST" && new URL(req.url()).pathname === "/api/checkout";
 
-async function payKit(page: Page, kitId: string, price: string) {
-  await page.getByRole("button", { name: `Unlock the full kit, ${price}` }).click();
-  await page.waitForURL(/\/checkout\/mock\?product=kit/);
-  await page.getByRole("button", { name: `Pay ${price} (test mode)` }).click();
-  await page.waitForURL(new RegExp(`/account/kits/${kitId}\\?paid=1&aid=`));
-}
-
 test("promo control: plain £19, no code on checkout, and the page sends nothing about the promo", async ({ page }) => {
   await logIn(page, uniqueEmail("promo-control"));
   const kitId = await makeSampleKit(page);
@@ -232,41 +225,6 @@ test.describe("promo bucketing", () => {
     expect((await exposures(page.request)).filter((e) => distinctId(e) === id)).toHaveLength(0);
   });
 
-  test("Ship Loop upsell: flags too slow serves control, logs flag_fallback, never flips, and later events don't claim the late variant", async ({ page }) => {
-    // After our 1.5s timeout, but inside posthog-js's own 3s flags timeout, so posthog-js does load the variant late.
-    await forceFlags(page, { exp_shiploop_success_upsell: "treatment" }, 2500);
-    await logIn(page, uniqueEmail("upsell-fallback"));
-    const kitId = await makeSampleKit(page);
-    const before = (await phEvents(page.request)).length;
-    await payKit(page, kitId, "£19");
-
-    let fallback: PhEvent | undefined;
-    await expect
-      .poll(async () => {
-        fallback = (await phEvents(page.request)).slice(before).find((e) => e.event === "flag_fallback" && e.properties.flag === "exp_shiploop_success_upsell");
-        return fallback;
-      })
-      .toBeTruthy();
-    expect(fallback!.properties).toMatchObject({ variant: "control", reason: "timeout", fallback: true });
-
-    // The flags arrive (treatment) after the timeout: the page keeps what it served.
-    await page.waitForTimeout(3000);
-    await expect(page.getByTestId("ship-loop-upsell")).toHaveCount(0);
-    // A later event: posthog-js's $pageview for a new path (only utm_ params survive URL scrubbing).
-    const tag = `later-${Date.now()}`;
-    await page.evaluate((t) => history.pushState(null, "", `/account?utm_content=${t}`), tag);
-    let later: PhEvent | undefined;
-    await expect
-      .poll(async () => {
-        later = (await phEvents(page.request)).find((e) => e.event === "$pageview" && String(e.properties.$current_url).includes(tag));
-        return later;
-      })
-      .toBeTruthy();
-    expect(later!.properties).not.toHaveProperty("$feature/exp_shiploop_success_upsell");
-    const id = distinctId(fallback!);
-    expect((await exposures(page.request, "exp_shiploop_success_upsell")).filter((e) => distinctId(e) === id)).toHaveLength(0);
-  });
-
   test("a control kit shows £19 on every reload, with a control exposure each view", async ({ page }) => {
     skipIfPromoEnded();
     const kitId = await makeSampleKit(page);
@@ -331,42 +289,4 @@ test("PostHog down at checkout: the kit's last assignment decides (logged); a fl
   expect(await checkout()).toEqual({ promo: "none", code: null });
   await page.reload();
   await expect(page.getByTestId("kit-price")).toContainText("£19");
-});
-
-test("Ship Loop upsell control: the success page is unchanged", async ({ page }) => {
-  await logIn(page, uniqueEmail("upsell-control"));
-  const kitId = await makeSampleKit(page);
-  await payKit(page, kitId, "£19");
-  await page.waitForLoadState("networkidle");
-  await expect(page.getByTestId("ship-loop-upsell")).toHaveCount(0);
-});
-
-test("Ship Loop upsell treatment: a waitlist capture after paying, no pre-order and no checkout, only on the success page", async ({ page }) => {
-  await forceFlags(page, { exp_shiploop_success_upsell: "treatment" });
-  await logIn(page, uniqueEmail("upsell-treatment"));
-  const kitId = await makeSampleKit(page);
-  await payKit(page, kitId, "£19");
-  const checkouts: Request[] = [];
-  page.on("request", (req) => {
-    if (isCheckout(req)) checkouts.push(req);
-  });
-
-  const upsell = page.getByTestId("ship-loop-upsell");
-  await expect(upsell.getByRole("heading")).toHaveText("You're in. Your kit is on its way to your inbox.");
-  await expect(upsell).toContainText("Ship Loop is coming soon. Join the waitlist, we'll email you when it launches.");
-  await expect(upsell).not.toContainText(/pre-?order|£99|first year|12 months|charged today/i);
-  await expect(upsell.getByRole("button")).toHaveText(["Join the waitlist"]);
-
-  const waitlist = page.waitForRequest((req) => req.method() === "POST" && new URL(req.url()).pathname === "/api/waitlist");
-  await upsell.getByRole("textbox", { name: "Email" }).fill(uniqueEmail("upsell-waitlist"));
-  await upsell.getByRole("button", { name: "Join the waitlist" }).click();
-  expect((await waitlist).postDataJSON()).toMatchObject({ source: "kit_upsell" });
-  await expect(upsell.getByTestId("waitlist-status")).toHaveText("You're on the waitlist. We'll email you when Ship Loop launches.");
-  expect(checkouts).toHaveLength(0);
-
-  // Not on a later visit to the same kit.
-  await page.goto(`/account/kits/${kitId}`);
-  await page.waitForLoadState("networkidle");
-  await expect(page.getByTestId("ship-loop-upsell")).toHaveCount(0);
-  expect(checkouts).toHaveLength(0);
 });

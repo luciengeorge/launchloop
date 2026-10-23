@@ -9,6 +9,7 @@ import { scrubProperties } from "./scrub-url";
 import { pendingMarkers, readServedMarker } from "./served-marker";
 import type { StartPlan } from "./start-intent";
 import type { CheckoutFailureCode, PaywallViewport, UnlockContext } from "./unlock-checkout";
+import type { WaitlistErrorReason, WaitlistSource } from "./waitlist";
 
 export type PreviewSource = "github" | "site" | "sample";
 
@@ -64,6 +65,19 @@ export interface ClientEvents {
   unlock_cta_clicked: UnlockContext & { viewport: PaywallViewport; retry: boolean };
   /** /api/checkout failed for an unlock button (or ?unlock=1 / the code login, as `panel`). Never carries the message. */
   checkout_failed: UnlockContext & { viewport: PaywallViewport; code: CheckoutFailureCode; retry: boolean };
+  /** The Ship Loop waitlist ask scrolled into view: once per mount. */
+  waitlist_cta_viewed: WaitlistEventContext;
+  /** POST /api/waitlist answered 2xx. Never sent before the response. */
+  waitlist_signup: WaitlistEventContext & { duplicate: boolean };
+  /** POST /api/waitlist failed. `status` 0: no response (network error). Never carries the email or the server's message. */
+  waitlist_error: WaitlistEventContext & { status: number; reason: WaitlistErrorReason };
+}
+
+/** Context on every waitlist event. `is_test` only on QA traffic (see isTestVisit), like every other event. */
+export interface WaitlistEventContext {
+  signup_source: WaitlistSource;
+  kitId?: string;
+  is_test?: true;
 }
 
 const key = process.env.NEXT_PUBLIC_POSTHOG_KEY;
