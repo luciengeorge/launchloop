@@ -44,7 +44,8 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: package.json
+          check-latest: true
       - name: Ping changed URLs
         if: github.event_name == 'deployment_status'
         continue-on-error: true
