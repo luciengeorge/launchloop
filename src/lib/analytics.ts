@@ -6,6 +6,7 @@ import type { RepoPrefill } from "./repo-cta";
 import { scrubProperties } from "./scrub-url";
 import { pendingMarkers, readServedMarker } from "./served-marker";
 import type { StartPlan } from "./start-intent";
+import type { WaitlistErrorReason, WaitlistSource } from "./waitlist";
 
 export type PreviewSource = "github" | "site" | "sample";
 
@@ -42,6 +43,19 @@ export interface ClientEvents {
   hero_clicked: { element: "a" | "button" | "input"; label: string; link_url?: string };
   /** Control served without a PostHog assignment (see Served). Not an exposure, so it stays out of the experiment. */
   flag_fallback: { flag: ExperimentKey; variant: Variant; reason: FallbackReason; fallback: true };
+  /** The Ship Loop waitlist ask scrolled into view: once per mount. */
+  waitlist_cta_viewed: WaitlistEventContext;
+  /** POST /api/waitlist answered 2xx. Never sent before the response. */
+  waitlist_signup: WaitlistEventContext & { duplicate: boolean };
+  /** POST /api/waitlist failed. `status` 0: no response (network error). Never carries the email or the server's message. */
+  waitlist_error: WaitlistEventContext & { status: number; reason: WaitlistErrorReason };
+}
+
+/** Context on every waitlist event. `is_test` only on QA traffic (see isTestVisit), like every other event. */
+export interface WaitlistEventContext {
+  signup_source: WaitlistSource;
+  kitId?: string;
+  is_test?: true;
 }
 
 const key = process.env.NEXT_PUBLIC_POSTHOG_KEY;
@@ -259,8 +273,11 @@ function scrubEvent(event: CaptureResult | null): CaptureResult | null {
   };
 }
 
-export function track<E extends keyof ClientEvents>(event: E, properties: ClientEvents[E]) {
-  void loadAnalytics().then((posthog) => posthog?.capture(event, properties));
+/** `whenLoaded`: wait for the SDK to load as it normally would (see trackServed) instead of loading it now. */
+export function track<E extends keyof ClientEvents>(event: E, properties: ClientEvents[E], { whenLoaded = false }: { whenLoaded?: boolean } = {}) {
+  const send = () => void loadAnalytics().then((posthog) => posthog?.capture(event, properties));
+  if (whenLoaded) void requested.then(send);
+  else send();
 }
 
 /**

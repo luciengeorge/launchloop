@@ -83,6 +83,14 @@ export async function makeSampleKit(page: Page): Promise<string> {
   return new URL(page.url()).pathname.split("/").pop()!;
 }
 
+/** Logged in, on the kit's paywall: unlock → mock checkout → back on the kit success page (`?paid=1`, with the page's `aid`). */
+export async function payKit(page: Page, kitId: string, price = "£19") {
+  await page.getByRole("button", { name: `Unlock the full kit, ${price}` }).click();
+  await page.waitForURL(/\/checkout\/mock\?product=kit/);
+  await page.getByRole("button", { name: `Pay ${price} (test mode)` }).click();
+  await page.waitForURL(new RegExp(`/account/kits/${kitId}\\?paid=1&aid=`));
+}
+
 /** Signed out: "Log in first" → email → magic link sent (the unlock button is enabled once the panel has hydrated). */
 export async function requestUnlockLogin(page: Page, email: string, price = "£19") {
   await expect(page.getByRole("button", { name: `Unlock the full kit, ${price}` })).toBeEnabled();
