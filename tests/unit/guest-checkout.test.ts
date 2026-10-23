@@ -103,10 +103,14 @@ const { encodeSession, ANON_KITS_COOKIE, SESSION_COOKIE } = await import("@/lib/
 const { listUserKitIds } = await import("@/lib/kits");
 const { getStoredBillingCustomer } = await import("@/lib/billing");
 const { LAUNCH_PROMO_ENDS_AT } = await import("@/lib/launch-promo");
+const { kitPriceLabel } = await import("@/lib/site");
 const { default: Stripe } = (await import("stripe")) as unknown as { default: { errors: { StripeInvalidRequestError: new (message: string) => Error } } };
 
 const KIT_ID = "kitGuestCheckout01";
 const BUYER = "buyer@example.com";
+const HOUR_MS = 60 * 60 * 1000;
+/** The test clock unless a test sets another: LAUNCH14 is running, so /api/checkout still reads exp_launch14_promo. */
+const PROMO_OPEN_AT = LAUNCH_PROMO_ENDS_AT - HOUR_MS;
 
 function seedKit(patch: Partial<Kit> = {}) {
   const kit = {
@@ -166,6 +170,8 @@ const postCheckout = (body: object, ip = "203.0.113.10") =>
 const login = (email: string, next?: string) => completeLogin({ email, next, createdAt: new Date().toISOString() });
 
 beforeEach(() => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(PROMO_OPEN_AT);
   vi.stubEnv("VERCEL_ENV", "");
   vi.spyOn(console, "info").mockImplementation(() => {});
   vi.spyOn(console, "error").mockImplementation(() => {});
@@ -200,13 +206,17 @@ describe("/api/checkout without a user", () => {
     expect(params.metadata).toMatchObject({ product: "kit", kitId: KIT_ID, logged_in: "0", utm_source: "hn", exp_launch14_promo: "control" });
   });
 
-  it("keeps LAUNCH14 for a guest whose kit is in the treatment: Customer creation stays on, since the code is first-time-only; a rejected code falls back to a guest session", async () => {
-    vi.useFakeTimers({ toFake: ["Date"], now: LAUNCH_PROMO_ENDS_AT - 1 });
+  it("while LAUNCH14 runs, keeps it for a guest whose kit is in the treatment: Customer creation stays on, since the code is first-time-only; a rejected code falls back to a guest session", async () => {
+    vi.setSystemTime(LAUNCH_PROMO_ENDS_AT - 1);
     m.kitAssignment.mockResolvedValue({ variant: "treatment" });
     const res = await postCheckout({ product: "kit", kitId: KIT_ID, analyticsId: "ph_guest", experiments: {} });
+    await flush();
 
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ url: "https://checkout.stripe.com/c/pay/cs_test_new", promo: "applied" });
+    const body = (await res.json()) as { promo: string };
+    expect(body).toEqual({ url: "https://checkout.stripe.com/c/pay/cs_test_new", promo: "applied" });
+    expect(kitPriceLabel(body.promo === "applied")).toBe("£14 with code LAUNCH14");
+    expect(m.captureServerEvent).toHaveBeenCalledWith("checkout_started", expect.objectContaining({ properties: expect.objectContaining({ amount: 1400, promo_code: "LAUNCH14" }) }));
     expect(m.createSession).toHaveBeenCalledTimes(1);
     const params = m.createSession.mock.calls[0]![0] as Record<string, unknown> & { metadata: Record<string, string>; payment_intent_data: { metadata: Record<string, string> } };
     expect(params.customer).toBeUndefined();
@@ -230,20 +240,38 @@ describe("/api/checkout without a user", () => {
     expect(fullPrice.metadata.promo_code).toBeUndefined();
   });
 
-  it("charges the full £19 from the end of LAUNCH14, even for a kit PostHog still puts in the treatment", async () => {
-    vi.useFakeTimers({ toFake: ["Date"], now: LAUNCH_PROMO_ENDS_AT });
-    m.kitAssignment.mockResolvedValue({ variant: "treatment" });
-    m.kv.set(`kitpromo:${KIT_ID}`, "treatment");
-    const res = await postCheckout({ product: "kit", kitId: KIT_ID, analyticsId: "ph_guest", experiments: { exp_launch14_promo: "treatment" } });
-    await flush();
+  it("from the end of LAUNCH14 every kit is control: the £19 label and a 1900 charge, with no promo, whatever PostHog or the request says", async () => {
+    const assignments = [
+      { variant: "treatment" },
+      { variant: "control" },
+      { variant: "control", fallback: "error" },
+    ] as const;
+    for (const now of [LAUNCH_PROMO_ENDS_AT, LAUNCH_PROMO_ENDS_AT + 24 * HOUR_MS]) {
+      for (const assigned of assignments) {
+        vi.setSystemTime(now);
+        vi.clearAllMocks();
+        m.kitAssignment.mockResolvedValue(assigned);
+        m.kv.set(`kitpromo:${KIT_ID}`, "treatment");
+        const res = await postCheckout({ product: "kit", kitId: KIT_ID, analyticsId: "ph_guest", experiments: { exp_launch14_promo: "treatment" } });
+        await flush();
 
-    expect(await res.json()).toEqual({ url: "https://checkout.stripe.com/c/pay/cs_test_new", promo: "none" });
-    expect(m.kitAssignment).not.toHaveBeenCalled();
-    const params = m.createSession.mock.calls[0]![0] as Record<string, unknown> & { metadata: Record<string, string> };
-    expect(params.discounts).toBeUndefined();
-    expect(params.metadata.promo_code).toBeUndefined();
-    expect(params.metadata.exp_launch14_promo).toBe("control");
-    expect(m.captureServerEvent).toHaveBeenCalledWith("checkout_started", expect.objectContaining({ properties: expect.objectContaining({ amount: 1900 }) }));
+        const body = (await res.json()) as { promo: string };
+        expect(body).toEqual({ url: "https://checkout.stripe.com/c/pay/cs_test_new", promo: "none" });
+        expect(kitPriceLabel(body.promo === "applied")).toBe("£19");
+        expect(m.kitAssignment).not.toHaveBeenCalled();
+        const params = m.createSession.mock.calls[0]![0] as Record<string, unknown> & { metadata: Record<string, string>; line_items: { price_data?: { unit_amount: number } }[] };
+        expect(params.line_items).toEqual([expect.objectContaining({ price_data: expect.objectContaining({ currency: "gbp", unit_amount: 1900 }) })]);
+        expect(params.discounts).toBeUndefined();
+        expect(params.customer_creation).toBe("if_required");
+        expect(params.metadata.promo_code).toBeUndefined();
+        expect(params.metadata.exp_launch14_promo).toBe("control");
+        const started = m.captureServerEvent.mock.calls.filter(([event]) => event === "checkout_started").map(([, p]) => (p as { properties: Record<string, unknown> }).properties);
+        expect(started).toEqual([expect.objectContaining({ amount: 1900, "fallback/exp_launch14_promo": "control" })]);
+        expect(started[0]).not.toHaveProperty("promo_code");
+        expect(started[0]).not.toHaveProperty("promo");
+        expect(m.captureServerEvent).not.toHaveBeenCalledWith("flag_fallback", expect.anything());
+      }
+    }
   });
 
   it("sells a guest the kit only: every Ship Loop or other product is a 400 before Stripe or the rate limit", async () => {
