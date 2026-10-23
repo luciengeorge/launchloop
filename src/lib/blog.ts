@@ -26,8 +26,8 @@ export const BLOG_POSTS: BlogPost[] = [
     metaTitle: "How to launch on BetaList: submission guide",
     description:
       "How to launch on BetaList from its own pages: who it is for, what it rejects, how submission and paid plans work, review times and the day you are featured.",
-    published: "2026-10-23",
-    updated: "2026-10-23",
+    published: "2026-10-25",
+    updated: "2026-10-25",
     readingMinutes: 15,
   },
   {

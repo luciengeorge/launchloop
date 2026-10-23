@@ -76,10 +76,10 @@ describe("Product Hunt post", () => {
 describe("BetaList post", () => {
   const p = post("how-to-launch-on-betalist");
 
-  it("targets launching on BetaList and BetaList submission, dated 23 October 2026", () => {
+  it("targets launching on BetaList and BetaList submission, dated 25 October 2026", () => {
     expect(fullTitle(p.metaTitle)).toBe("How to launch on BetaList: submission guide · LaunchLoop");
     expect(p.description).toMatch(/^How to launch on BetaList/);
-    expect(p).toMatchObject({ published: "2026-10-23", updated: "2026-10-23" });
+    expect(p).toMatchObject({ published: "2026-10-25", updated: "2026-10-25" });
   });
 });
 

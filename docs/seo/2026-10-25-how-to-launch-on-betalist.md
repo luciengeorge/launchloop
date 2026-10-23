@@ -1,4 +1,4 @@
-# Source check: how to launch on BetaList, 23 October 2026
+# Source check: how to launch on BetaList, 25 October 2026
 
 Blog post requested on Wednesday 21 October 2026. Sources were read the same day from about 06:40 to 06:55 UTC. Every quote on the page was copied from the fetched page, not from memory or a search snippet, and then checked again by script (see Method).
 
@@ -7,7 +7,7 @@ Blog post requested on Wednesday 21 October 2026. Sources were read the same day
 **URL:** `/blog/how-to-launch-on-betalist`
 **Title:** `How to launch on BetaList: submission guide · LaunchLoop` (56 characters)
 **Description:** `How to launch on BetaList from its own pages: who it is for, what it rejects, how submission and paid plans work, review times and the day you are featured.` (156 characters)
-**H1:** How to launch on BetaList. **Published and updated:** 2026-10-23, as the brief asked (bump both in `src/lib/blog.ts` if it merges on another day). **Byline:** Lucien George. **Reading time:** 15 minutes (2,957 words in the rendered body at 200 words a minute; the e2e suite recounts it).
+**H1:** How to launch on BetaList. **Published and updated:** 2026-10-25, moved from the brief's 2026-10-23 (bump both in `src/lib/blog.ts` if it merges on another day). **Byline:** Lucien George. **Reading time:** 15 minutes (2,957 words in the rendered body at 200 words a minute; the e2e suite recounts it).
 
 Target queries: "how to launch on betalist" and "betalist submission". No keyword lookups were made for this post.
 
