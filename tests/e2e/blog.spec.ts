@@ -1,6 +1,7 @@
 import { expect, type Page, test } from "@playwright/test";
 import { BLOG_AUTHOR, BLOG_POSTS, blogPosts, postPath, type BlogPost } from "../../src/lib/blog";
 import { GUIDES, guidePath } from "../../src/lib/guides";
+import { OG_PREVIEW, TAGLINE_CHECKER } from "../../src/lib/tools";
 
 type JsonLdNode = { "@type": string; [key: string]: unknown };
 
@@ -67,7 +68,10 @@ const EXPECT: Record<string, { links: string[]; quotes: string[] }> = {
       "/blog/how-to-launch-on-indie-hackers",
       "/blog/how-to-launch-on-product-hunt",
       "/product-hunt-launch-checklist",
-      "https://betalist.com/faq",
+      "/tools/product-hunt-tagline-checker",
+      "/tools/og-preview",
+      "https://betalist.com/help",
+      "https://betalist.com/criteria",
       "https://devhunt.org/faq",
       "https://news.ycombinator.com/showhn.html",
       "https://www.uneed.best/how-it-works",
@@ -78,6 +82,9 @@ const EXPECT: Record<string, { links: string[]; quotes: string[] }> = {
     ],
     quotes: [
       "All submissions are paid. There is no free submission option.",
+      "Each startup gets up to two opportunities to be featured: once pre-launch and once at launch.",
+      "Launched months or years ago",
+      "Newsletter slot (70k+ subscribers)",
       "DevHunt is a launchpad for developer tools, built by developers.",
       "Show HN is for something you've made that other people can play with.",
       "Submitting is not scheduling.",
@@ -266,6 +273,22 @@ test("the alternatives post groups sites by fit, prices each one, and never list
   await expect(page.locator("article > div").first()).toContainText("LaunchLoop isn't a launch platform.");
 });
 
+test("the alternatives post links both free tools where they help, and no other /tools page", async ({ page, request }) => {
+  await page.goto("/blog/product-hunt-alternatives");
+  const body = page.locator("article > div").first();
+  const toolLinks = await body.locator('a[href^="/tools"]').evaluateAll((links) => links.map((a) => a.getAttribute("href")));
+  expect([...new Set(toolLinks)].sort()).toEqual([OG_PREVIEW.path, TAGLINE_CHECKER.path].sort());
+
+  const fazierSubmit = page.locator("h3#fazier ~ p", { hasText: "How to submit." }).first();
+  await expect(fazierSubmit.locator(`a[href="${TAGLINE_CHECKER.path}"]`)).toHaveText("Product Hunt tagline checker");
+  const sideProjectSubmit = page.locator("h3#sideproject ~ p", { hasText: "How to submit." }).first();
+  await expect(sideProjectSubmit.locator(`a[href="${OG_PREVIEW.path}"]`)).toHaveText("OG image preview");
+  const nextSteps = page.locator("h2#next + p");
+  for (const t of [TAGLINE_CHECKER, OG_PREVIEW]) await expect(nextSteps.locator(`a[href="${t.path}"]`)).toBeVisible();
+
+  for (const t of [TAGLINE_CHECKER, OG_PREVIEW]) expect((await request.get(t.path, { maxRedirects: 0 })).status(), t.path).toBe(200);
+});
+
 test("the alternatives post has Uneed's 21 October prices and wait, dates the table, and keeps the old ones out of the page and JSON-LD", async ({ page }) => {
   await page.goto("/blog/product-hunt-alternatives");
   const uneed = page.locator("#at-a-glance + p + div table tbody tr", { has: page.locator("td:first-child", { hasText: /^Uneed$/ }) });
@@ -283,6 +306,16 @@ test("the alternatives post has Uneed's 21 October prices and wait, dates the ta
   const visible = await page.locator("article #faq ~ div h3").allInnerTexts();
   expect(faq.mainEntity.map((q) => q.name)).toEqual(visible);
   for (const q of faq.mainEntity) await expect(body).toContainText(q.acceptedAnswer.text);
+});
+
+test("the alternatives post has BetaList's 24 October wording and none of its retired lines, in the page or the JSON-LD", async ({ page }) => {
+  await page.goto("/blog/product-hunt-alternatives");
+  const article = page.locator("article");
+  await expect(article.locator('a[href^="https://betalist.com/faq"], a[href^="https://betalist.com/support"]')).toHaveCount(0);
+  const OLD = /60k|Once pre-launch, and once during launch|weeks ago or longer|weeks old or more|recently launched or still be unreleased|not the right place to promote|BetaList FAQ|BetaList's FAQ|don't match/i;
+  await expect(article).not.toContainText(OLD);
+  for (const raw of await page.locator('script[type="application/ld+json"]').allTextContents()) expect(raw).not.toMatch(OLD);
+  await expect(page.locator("h3#betalist ~ p", { hasText: "Audience." }).first()).toContainText("70k+ subscribers");
 });
 
 test("the Product Hunt post hands the step-by-step to the checklist instead of repeating it", async ({ page }) => {

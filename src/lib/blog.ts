@@ -28,7 +28,7 @@ export const BLOG_POSTS: BlogPost[] = [
       "Sites like Product Hunt, from their own pages: who BetaList, Uneed, Peerlist, DevHunt, Show HN and others are for, what a launch costs and the rules.",
     published: "2026-10-24",
     updated: "2026-10-24",
-    readingMinutes: 19,
+    readingMinutes: 20,
   },
   {
     slug: "how-to-launch-on-product-hunt",

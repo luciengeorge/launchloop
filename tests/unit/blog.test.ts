@@ -8,6 +8,7 @@ import { llmsText } from "@/lib/llms";
 import { cardPages, indexablePages, PAGES, postPage } from "@/lib/pages";
 import { blogFeed } from "@/lib/rss";
 import { SITE } from "@/lib/site";
+import { TOOLS } from "@/lib/tools";
 
 const BASE = "https://launchloop.test";
 const DASHES = /[\u2013\u2014]/;
@@ -99,6 +100,18 @@ describe("Product Hunt alternatives post", () => {
       expect(text, file).toContain("$39.99");
       expect(text, file).toContain("at least 30 days out, at the back of the line.");
     }
+  });
+
+  it("links BetaList's Help page, not its retired /faq or /support URLs, and drops the 60k+ figure", () => {
+    const source = readFileSync(path.join(import.meta.dirname, "../../src/app/blog/product-hunt-alternatives/page.tsx"), "utf8");
+    expect(source).toContain('"https://betalist.com/help"');
+    expect(source).not.toMatch(/betalist\.com\/(faq|support)|60k/i);
+  });
+
+  it("links both free tools and no /tools path that doesn't exist", () => {
+    const source = readFileSync(path.join(import.meta.dirname, "../../src/app/blog/product-hunt-alternatives/page.tsx"), "utf8");
+    const hrefs = [...source.matchAll(/href="(\/tools[^"]*)"/g)].map((m) => m[1]);
+    expect([...new Set(hrefs)].sort()).toEqual(TOOLS.map((t) => t.path).sort());
   });
 });
 

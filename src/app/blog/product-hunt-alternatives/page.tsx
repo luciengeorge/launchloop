@@ -11,8 +11,9 @@ const p = post("product-hunt-alternatives");
 export const metadata: Metadata = blogPageMetadata(postPage(p));
 
 const SRC = {
-  betalistFaq: "https://betalist.com/faq",
+  betalistHelp: "https://betalist.com/help",
   betalistCriteria: "https://betalist.com/criteria",
+  betalistSubmit: "https://betalist.com/submit",
   betalistAdvertise: "https://betalist.com/advertise",
   betalistBoost: "https://betalist.com/boost",
   devhuntFaq: "https://devhunt.org/faq",
@@ -52,11 +53,11 @@ const FAQ: FaqItem[] = [
   },
   {
     q: "Is BetaList free?",
-    a: "No. BetaList's FAQ says all submissions are paid and there is no free submission option. Plans and prices are shown at the end of the submission form, and if your startup isn't selected the payment is refunded in full automatically. Lists that still describe BetaList as free are out of date.",
+    a: "No. BetaList's Help page says all submissions are paid and there is no free submission option. Plans and prices are shown at the end of the submission form, and if your startup isn't selected the payment is refunded in full automatically. Lists that still describe BetaList as free are out of date.",
   },
   {
     q: "Where can I launch a product that is still a waitlist?",
-    a: "BetaList is the one built for it: its guidelines accept products that are not available to anyone yet, as long as visitors can sign up. Most others want a working product. Uneed declines products behind a waitlist or an invite code, Show HN says not to post landing pages, and r/alphaandbetausers removes links to pages that only collect email addresses.",
+    a: "BetaList is the one built for it: its submission criteria welcome products that are not yet available to anyone, as long as visitors can sign up. Most others want a working product. Uneed declines products behind a waitlist or an invite code, Show HN says not to post landing pages, and r/alphaandbetausers removes links to pages that only collect email addresses.",
   },
   {
     q: "Do these sites give you a do-follow backlink?",
@@ -197,46 +198,51 @@ export default function ProductHuntAlternativesPostPage() {
       <h2 id="early-stage">If your product is pre-launch or in beta</h2>
       <h3 id="betalist">BetaList</h3>
       <p>
-        <strong>What it is.</strong> From the <a href={SRC.betalistFaq}>BetaList FAQ</a>:{" "}
+        <strong>What it is.</strong> From the <a href={SRC.betalistHelp}>BetaList Help page</a>:{" "}
         <q>BetaList is the place for early adopters to discover upcoming and recently launched internet startups, and for startup founders to share their startup with the world
-        and get early user feedback.</q> Its <a href={SRC.betalistCriteria}>submission guidelines</a> say <q>Your product should be recently launched or still be unreleased.</q>{" "}
-        They accept products that are not available to anyone yet, private betas and recent launches, and turn down products launched weeks ago or longer.
+        and get early user feedback.</q> Its <a href={SRC.betalistCriteria}>submission criteria</a> explain why it wants new products:{" "}
+        <q>BetaList readers come here to discover what&apos;s new. If your product has been live for a while or has already had significant press coverage, it&apos;s not really
+        news to them anymore.</q> Under <q>Aim for</q> they list <q>Not yet available to anyone (pre-launch landing page)</q>,{" "}
+        <q>Private beta accessible by invitation only</q> and <q>Recently launched</q>, ideally within the last few weeks. Under <q>Common pitfalls</q> they list{" "}
+        <q>Launched months or years ago</q>.
       </p>
       <p>
-        <strong>How to submit.</strong> Create an account and fill in the submission form. After payment, the editorial team reviews the startup and emails you the decision.
+        <strong>How to submit.</strong> The <a href={SRC.betalistSubmit}>submission page</a> asks for your website URL and email:{" "}
+        <q>New here? We create your account on the spot.</q> After payment, the editorial team reviews the startup and emails you the decision.
       </p>
       <p>
-        <strong>Free or paid.</strong> Paid only, and this is the line most worth checking, because some lists of Product Hunt alternatives still call BetaList free. The FAQ
-        now says: <q>All submissions are paid. There is no free submission option.</q> The prices aren&apos;t public: <q>Current plans and prices are shown at the end of the
+        <strong>Free or paid.</strong> Paid only, and this is the line most worth checking, because some lists of Product Hunt alternatives still call BetaList free. The Help
+        page now says: <q>All submissions are paid. There is no free submission option.</q> The prices aren&apos;t public: <q>Current plans and prices are shown at the end of the
         submission form.</q> <q>If your startup isn&apos;t selected, you get a full refund automatically.</q> The plans{" "}
         <q>differ mainly by how quickly your startup is featured and whether newsletter inclusion is guaranteed.</q> After you are featured, a{" "}
         <a href={SRC.betalistBoost}>Boost</a> keeps you on the homepage and in the newsletter for $99 a week or $199 a month.
       </p>
       <p>
-        <strong>Audience.</strong> The <a href={SRC.betalistAdvertise}>advertise page</a> says <q>Promote your product to startup founders and early adopters</q>. It gives two
-        newsletter figures that don&apos;t match: 60k+ subscribers on the plan cards, and 70,000+ elsewhere on the same pages.
+        <strong>Audience.</strong> The <a href={SRC.betalistAdvertise}>advertise page</a> says <q>Promote your product to startup founders and early adopters</q>, and its plan
+        cards offer a <q>Newsletter slot (70k+ subscribers)</q>.
       </p>
       <p>
         <strong>Rules.</strong>
       </p>
       <ul>
         <li>
-          <strong>Your own domain.</strong> <q>Your startup must have its own domain</q>, and the guidelines rule out free hosting subdomains like yourapp.vercel.app or
-          yourapp.netlify.app, and direct links to an app store. If you built with an AI app builder, put the app on a custom domain first.
+          <strong>Your own domain.</strong> <q>Your startup must have its own domain</q>, and the Help page rules out free hosting subdomains like vercel.app or
+          netlify.app, and direct links to app stores. If you built with an AI app builder, put the app on a custom domain first.
         </li>
         <li>
-          <strong>A real landing page.</strong> A free or paid template, default Bootstrap styling and hosted pages from services like LaunchRock or Unbounce are on the
-          guidelines&apos; not-accepted list. A heavily customised template that looks original is fine.
+          <strong>A real landing page.</strong> An untouched free or paid template, default Bootstrap styles and hosted builders like LaunchRock or Unbounce are on the
+          criteria&apos;s list of common pitfalls. A heavily customized template that no longer looks templated is fine.
         </li>
         <li>
-          <strong>Technology startups only.</strong> <q>It&apos;s not the right place to promote your blog, newsletter, online store, etc.</q>
+          <strong>Technology startups only.</strong> <q>Our audience comes to BetaList specifically to discover new technology startups.</q> Blogs, courses, books,
+          newsletters, online stores and agencies are on the pitfalls list.
         </li>
         <li>
-          <strong>Twice at most.</strong> <q>Each startup gets two opportunities to be featured. Once pre-launch, and once during launch.</q>
+          <strong>Twice at most.</strong> <q>Each startup gets up to two opportunities to be featured: once pre-launch and once at launch.</q>
         </li>
         <li>
           <strong>Visitors should be able to sign up or get access.</strong> A signup form, a download button or a social login all count. &ldquo;Follow us on X to get notified&rdquo;
-          doesn&apos;t.
+          as the only way to opt in doesn&apos;t.
         </li>
       </ul>
 
@@ -306,7 +312,9 @@ export default function ProductHuntAlternativesPostPage() {
         <q>Give your product the spotlight it deserves. Start free or go premium for maximum visibility.</q>
       </p>
       <p>
-        <strong>How to submit.</strong> Make an account, then fill in the launch form: name, tagline, description, category, thumbnail and gallery.
+        <strong>How to submit.</strong> Make an account, then fill in the launch form: name, tagline, description, category, thumbnail and gallery. To test a tagline before
+        you paste it in, the free <Link href="/tools/product-hunt-tagline-checker">Product Hunt tagline checker</Link> counts it against Product Hunt&apos;s limit and flags
+        hype words, emoji and, if you add your product name, a repeated name.
       </p>
       <p>
         <strong>Free or paid.</strong> A free tier and three paid tiers, each paid tier with a crossed-out price next to it:
@@ -449,7 +457,8 @@ export default function ProductHuntAlternativesPostPage() {
       </p>
       <p>
         <strong>How to submit.</strong> A link or text post, with a set title format:{" "}
-        <q>When submitting a link to a project or startup, please use this format: [Project name] - [Short description].</q>
+        <q>When submitting a link to a project or startup, please use this format: [Project name] - [Short description].</q> Before you post a link, check your
+        page&apos;s share image and tags with the free <Link href="/tools/og-preview">OG image preview</Link>.
       </p>
       <p>
         <strong>Free or paid.</strong> No fee or paid option is listed.
@@ -463,7 +472,8 @@ export default function ProductHuntAlternativesPostPage() {
       <ul>
         <li>
           <strong>Start from what you have.</strong> Only a waitlist: BetaList. A beta people can use: r/alphaandbetausers, Show HN or DevHunt if it is a developer tool, and
-          the general boards. A finished product: any of them, but BetaList turns down launches that are weeks old or more.
+          the general boards. A finished product: any of them, but BetaList&apos;s criteria list{" "}
+          <q>Launched months or years ago</q> as a common pitfall.
         </li>
         <li>
           <strong>Count the wait.</strong> Uneed&apos;s free line is at least 30 days away, Fazier&apos;s free tier reviews within 30 days, Microlaunch onboards between the
@@ -484,7 +494,9 @@ export default function ProductHuntAlternativesPostPage() {
         post</Link>, <Link href="/how-to-promote-on-reddit">how to promote your app on Reddit</Link>,{" "}
         <Link href={postPath({ slug: "how-to-launch-on-indie-hackers" })}>how to launch on Indie Hackers</Link>,{" "}
         <Link href={postPath({ slug: "how-to-launch-on-product-hunt" })}>how to launch on Product Hunt</Link> and the{" "}
-        <Link href="/product-hunt-launch-checklist">Product Hunt launch checklist</Link>.
+        <Link href="/product-hunt-launch-checklist">Product Hunt launch checklist</Link>. Before you submit, check your tagline with the{" "}
+        <Link href="/tools/product-hunt-tagline-checker">tagline checker</Link> and your link&apos;s share card with the <Link href="/tools/og-preview">OG image preview</Link>,
+        both free.
       </p>
       <p>
         LaunchLoop isn&apos;t a launch platform. It drafts your launch copy: a LaunchLoop kit writes your Product Hunt listing (name, tagline, description and maker comment),
@@ -497,14 +509,15 @@ export default function ProductHuntAlternativesPostPage() {
 
       <h2 id="sources">Sources</h2>
       <p>
-        Checked as of October 2026. Every quote on this page was read on 20 October 2026 from the site&apos;s own pages, except the two subreddits, which came from the
-        Internet Archive&apos;s copies of 24 and 28 August 2026 because Reddit blocked our requests. We checked every price and Uneed&apos;s pages again on 21 October 2026.
-        Prices and rules on these sites change often, so check each one before you submit or pay.
+        Checked as of October 2026. Quotes were read from each site&apos;s own pages on 20 October 2026, Uneed&apos;s again on 21 October 2026 and BetaList&apos;s on 24
+        October 2026 from Internet Archive copies saved that day, except the two subreddits, which came from the Internet Archive&apos;s copies of 24 and 28 August 2026
+        because Reddit blocked our requests. We also checked every price again on 21 October 2026, and used the Internet Archive for BetaList because its Cloudflare check
+        was blocking some of our requests. Prices and rules on these sites change often, so check each one before you submit or pay.
       </p>
       <ul>
         <li><a href={SRC.devhuntFaq}>DevHunt FAQ</a> and <a href={SRC.devhuntAdvertise}>Advertise on DevHunt</a></li>
         <li><a href={SRC.showHn}>Show HN guidelines</a>, Hacker News</li>
-        <li><a href={SRC.betalistFaq}>BetaList Support &amp; FAQ</a>, <a href={SRC.betalistCriteria}>Submission Guidelines</a>, <a href={SRC.betalistBoost}>Boost</a> and <a href={SRC.betalistAdvertise}>Advertise</a></li>
+        <li><a href={SRC.betalistHelp}>BetaList Help</a>, <a href={SRC.betalistCriteria}>Submission criteria</a>, <a href={SRC.betalistSubmit}>Submit your startup</a>, <a href={SRC.betalistBoost}>Boost</a> and <a href={SRC.betalistAdvertise}>Advertise</a></li>
         <li><a href={SRC.alphaBetaArchive}>Rules for r/alphaandbetausers</a> (Internet Archive copy, 24 August 2026), for <a href={SRC.alphaBeta}>r/alphaandbetausers</a></li>
         <li><a href={SRC.uneedHowItWorks}>How it works</a>, <a href={SRC.uneedPricing}>Pricing</a> and <a href={SRC.uneedAccept}>What we accept (and what we don&apos;t)</a>, Uneed</li>
         <li><a href={SRC.fazierSubmit}>Submit Product</a>, <a href={SRC.fazierFaqs}>Help Center FAQs</a> and <a href={SRC.fazierTerms}>Terms &amp; Conditions</a>, Fazier</li>
