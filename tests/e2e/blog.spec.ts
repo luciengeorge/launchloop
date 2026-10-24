@@ -32,8 +32,10 @@ const EXPECT: Record<string, { links: string[]; quotes: string[] }> = {
       "/how-to-promote-on-reddit",
       "/how-to-write-a-product-hunt-tagline",
       "/how-to-launch-a-vibe-coded-app",
-      "https://betalist.com/support",
+      "https://betalist.com/help",
       "https://betalist.com/criteria",
+      "https://betalist.com/help/submitting",
+      "https://betalist.com/agent",
       "https://betalist.com/terms/submissions",
       "https://betalist.com/boost",
       "https://guides.betalist.com/designing-your-landing-page",
@@ -41,7 +43,10 @@ const EXPECT: Record<string, { links: string[]; quotes: string[] }> = {
     quotes: [
       "All submissions are paid. There is no free submission option.",
       "Current plans and prices are shown at the end of the submission form.",
-      "Each startup gets two opportunities to be featured. Once pre-launch, and once during launch.",
+      "Each startup gets up to two opportunities to be featured: once pre-launch and once at launch.",
+      "We feature around 20 new startups every day.",
+      "Lite: featured within about 14 days. Standard: featured within about 3 days. Premium: featured within about 1 day.",
+      "Most submissions wait days or weeks before publishing",
       "Priority listing guarantees faster review, not acceptance or any specific results.",
       "your startup may be featured on any day including weekends and holidays.",
     ],
@@ -351,10 +356,10 @@ test("the BetaList post says submissions are paid, gives only BetaList's public 
     for (let el = h2.nextElementSibling; el && el.tagName !== "H2"; el = el.nextElementSibling) parts.push((el as HTMLElement).innerText);
     return parts.join("\n");
   });
-  expect(pricing).toContain("21 October 2026");
+  expect(pricing).toContain("24 October 2026");
   expect(pricing).toContain("$99 a week or $199 a month");
   expect(pricing).toContain("doesn't give a figure");
-  expect(pricing.match(/\$[\d,]+/g)).toEqual(["$99", "$199", "$4,999"]);
+  expect(pricing.match(/\$[\d,]+/g)).toEqual(["$99", "$199", "$4,999", "$9,999"]);
 
   await expect(body).toContainText("It doesn't submit anything for you");
   await expect(body).not.toContainText(/LaunchLoop (submits|will submit|posts it)/i);
