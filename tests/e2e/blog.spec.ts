@@ -23,6 +23,34 @@ const SELF = (path: string) => new RegExp(`^http://127\\.0\\.0\\.1:\\d+${path.re
 
 /** Per post: links the copy must make, and quotes that must appear verbatim. */
 const EXPECT: Record<string, { links: string[]; quotes: string[] }> = {
+  "how-to-launch-on-betalist": {
+    links: [
+      "/blog/how-to-launch-on-product-hunt",
+      "/blog/how-to-launch-on-indie-hackers",
+      "/product-hunt-launch-checklist",
+      "/how-to-write-a-show-hn-post",
+      "/how-to-promote-on-reddit",
+      "/how-to-write-a-product-hunt-tagline",
+      "/how-to-launch-a-vibe-coded-app",
+      "https://betalist.com/help",
+      "https://betalist.com/criteria",
+      "https://betalist.com/help/submitting",
+      "https://betalist.com/agent",
+      "https://betalist.com/terms/submissions",
+      "https://betalist.com/boost",
+      "https://guides.betalist.com/designing-your-landing-page",
+    ],
+    quotes: [
+      "All submissions are paid. There is no free submission option.",
+      "Current plans and prices are shown at the end of the submission form.",
+      "Each startup gets up to two opportunities to be featured: once pre-launch and once at launch.",
+      "We feature around 20 new startups every day.",
+      "Lite: featured within about 14 days. Standard: featured within about 3 days. Premium: featured within about 1 day.",
+      "Most submissions wait days or weeks before publishing",
+      "Priority listing guarantees faster review, not acceptance or any specific results.",
+      "your startup may be featured on any day including weekends and holidays.",
+    ],
+  },
   "how-to-launch-on-product-hunt": {
     links: [
       "/product-hunt-launch-checklist",
@@ -314,6 +342,29 @@ test("the Product Hunt post hands the step-by-step to the checklist instead of r
   await expect(page).not.toHaveTitle(/how it works/i);
   await expect(page.locator("h2#the-listing")).toBeVisible();
   await expect(page.locator("h2#images")).toBeVisible();
+});
+
+test("the BetaList post says submissions are paid, gives only BetaList's public prices and never claims LaunchLoop submits", async ({ page }) => {
+  await page.goto(postPath(BLOG_POSTS.find((p) => p.slug === "how-to-launch-on-betalist")!));
+  const body = page.locator("article > div").first();
+  for (const id of ["what-it-is", "what-qualifies", "landing-page", "how-to-submit", "pricing", "review", "featured-day", "after", "not-documented"]) {
+    await expect(page.locator(`h2#${id}`)).toBeVisible();
+  }
+
+  const pricing = await page.locator("h2#pricing").evaluate((h2) => {
+    const parts: string[] = [];
+    for (let el = h2.nextElementSibling; el && el.tagName !== "H2"; el = el.nextElementSibling) parts.push((el as HTMLElement).innerText);
+    return parts.join("\n");
+  });
+  expect(pricing).toContain("24 October 2026");
+  expect(pricing).toContain("$99 a week or $199 a month");
+  expect(pricing).toContain("doesn't give a figure");
+  expect(pricing.match(/\$[\d,]+/g)).toEqual(["$99", "$199", "$4,999", "$9,999"]);
+
+  await expect(body).toContainText("It doesn't submit anything for you");
+  await expect(body).not.toContainText(/LaunchLoop (submits|will submit|posts it)/i);
+  await expect(body.locator("q", { hasText: "Your startup must have its own domain" })).toBeVisible();
+  await expect(body.locator("q", { hasText: "We do not accept app store links or pages hosted on free subdomains." })).toBeVisible();
 });
 
 test("the Indie Hackers post dates old advice and quotes the terms as they read now", async ({ page }) => {

@@ -21,6 +21,16 @@ export const BLOG_FEED_PATH = "/blog/rss.xml";
 /** Newest first, so add new posts at the top. */
 export const BLOG_POSTS: BlogPost[] = [
   {
+    slug: "how-to-launch-on-betalist",
+    title: "How to launch on BetaList",
+    metaTitle: "How to launch on BetaList: submission guide",
+    description:
+      "How to launch on BetaList from its own pages: who it is for, what it rejects, how submission and paid plans work, review times and the day you are featured.",
+    published: "2026-10-25",
+    updated: "2026-10-25",
+    readingMinutes: 19,
+  },
+  {
     slug: "product-hunt-alternatives",
     title: "Product Hunt alternatives for indie makers",
     metaTitle: "Product Hunt alternatives: where to launch",
