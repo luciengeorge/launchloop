@@ -78,6 +78,10 @@ export default function PrivacyPage() {
       <p>
         We use Sentry to record errors so we can fix them. An error report includes what went wrong, the page and your browser and device type, and may include your IP address.
       </p>
+      <p>
+        The badges in our footer are images your browser loads from startupfa.me and twelve.tools, the directories that list LaunchLoop. Like any site your browser talks to,
+        they receive your IP address and browser type.
+      </p>
 
       <h2>Why we use it</h2>
       <ul className="list-disc space-y-2 pl-5">
