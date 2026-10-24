@@ -1,6 +1,7 @@
 import { expect, type Page, test } from "@playwright/test";
 import { BLOG_AUTHOR, BLOG_POSTS, blogPosts, postPath, type BlogPost } from "../../src/lib/blog";
 import { GUIDES, guidePath } from "../../src/lib/guides";
+import { OG_PREVIEW, TAGLINE_CHECKER } from "../../src/lib/tools";
 
 type JsonLdNode = { "@type": string; [key: string]: unknown };
 
@@ -67,6 +68,8 @@ const EXPECT: Record<string, { links: string[]; quotes: string[] }> = {
       "/blog/how-to-launch-on-indie-hackers",
       "/blog/how-to-launch-on-product-hunt",
       "/product-hunt-launch-checklist",
+      "/tools/product-hunt-tagline-checker",
+      "/tools/og-preview",
       "https://betalist.com/faq",
       "https://devhunt.org/faq",
       "https://news.ycombinator.com/showhn.html",
@@ -264,6 +267,22 @@ test("the alternatives post groups sites by fit, prices each one, and never list
   }
   await expect(page.locator("article h3", { hasText: "LaunchLoop" })).toHaveCount(0);
   await expect(page.locator("article > div").first()).toContainText("LaunchLoop isn't a launch platform.");
+});
+
+test("the alternatives post links both free tools where they help, and no other /tools page", async ({ page, request }) => {
+  await page.goto("/blog/product-hunt-alternatives");
+  const body = page.locator("article > div").first();
+  const toolLinks = await body.locator('a[href^="/tools"]').evaluateAll((links) => links.map((a) => a.getAttribute("href")));
+  expect([...new Set(toolLinks)].sort()).toEqual([OG_PREVIEW.path, TAGLINE_CHECKER.path].sort());
+
+  const fazierSubmit = page.locator("h3#fazier ~ p", { hasText: "How to submit." }).first();
+  await expect(fazierSubmit.locator(`a[href="${TAGLINE_CHECKER.path}"]`)).toHaveText("Product Hunt tagline checker");
+  const sideProjectSubmit = page.locator("h3#sideproject ~ p", { hasText: "How to submit." }).first();
+  await expect(sideProjectSubmit.locator(`a[href="${OG_PREVIEW.path}"]`)).toHaveText("OG image preview");
+  const nextSteps = page.locator("h2#next + p");
+  for (const t of [TAGLINE_CHECKER, OG_PREVIEW]) await expect(nextSteps.locator(`a[href="${t.path}"]`)).toBeVisible();
+
+  for (const t of [TAGLINE_CHECKER, OG_PREVIEW]) expect((await request.get(t.path, { maxRedirects: 0 })).status(), t.path).toBe(200);
 });
 
 test("the alternatives post has Uneed's 21 October prices and wait, dates the table, and keeps the old ones out of the page and JSON-LD", async ({ page }) => {

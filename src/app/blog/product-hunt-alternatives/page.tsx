@@ -306,7 +306,9 @@ export default function ProductHuntAlternativesPostPage() {
         <q>Give your product the spotlight it deserves. Start free or go premium for maximum visibility.</q>
       </p>
       <p>
-        <strong>How to submit.</strong> Make an account, then fill in the launch form: name, tagline, description, category, thumbnail and gallery.
+        <strong>How to submit.</strong> Make an account, then fill in the launch form: name, tagline, description, category, thumbnail and gallery. To test a tagline before
+        you paste it in, the free <Link href="/tools/product-hunt-tagline-checker">Product Hunt tagline checker</Link> flags hype words, emoji and a repeated product name,
+        and counts it against Product Hunt&apos;s limit.
       </p>
       <p>
         <strong>Free or paid.</strong> A free tier and three paid tiers, each paid tier with a crossed-out price next to it:
@@ -449,7 +451,8 @@ export default function ProductHuntAlternativesPostPage() {
       </p>
       <p>
         <strong>How to submit.</strong> A link or text post, with a set title format:{" "}
-        <q>When submitting a link to a project or startup, please use this format: [Project name] - [Short description].</q>
+        <q>When submitting a link to a project or startup, please use this format: [Project name] - [Short description].</q> A link post can show your page&apos;s Open
+        Graph image as its preview, so check what it will show with the free <Link href="/tools/og-preview">OG image preview</Link>.
       </p>
       <p>
         <strong>Free or paid.</strong> No fee or paid option is listed.
@@ -484,7 +487,9 @@ export default function ProductHuntAlternativesPostPage() {
         post</Link>, <Link href="/how-to-promote-on-reddit">how to promote your app on Reddit</Link>,{" "}
         <Link href={postPath({ slug: "how-to-launch-on-indie-hackers" })}>how to launch on Indie Hackers</Link>,{" "}
         <Link href={postPath({ slug: "how-to-launch-on-product-hunt" })}>how to launch on Product Hunt</Link> and the{" "}
-        <Link href="/product-hunt-launch-checklist">Product Hunt launch checklist</Link>.
+        <Link href="/product-hunt-launch-checklist">Product Hunt launch checklist</Link>. Before you submit, check your tagline with the{" "}
+        <Link href="/tools/product-hunt-tagline-checker">tagline checker</Link> and your link&apos;s share card with the <Link href="/tools/og-preview">OG image preview</Link>,
+        both free.
       </p>
       <p>
         LaunchLoop isn&apos;t a launch platform. It drafts your launch copy: a LaunchLoop kit writes your Product Hunt listing (name, tagline, description and maker comment),
