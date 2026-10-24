@@ -71,6 +71,23 @@ export interface SourceSummary {
   warnings: string[];
 }
 
+/** What Satori can draw. It renders WebP, GIF and AVIF as blank boxes, so those are never kept. */
+export type KitImageFormat = "png" | "jpeg" | "svg";
+
+/** An image found at ingest and checked for size and format. The bytes are fetched again (SSRF-guarded) when an image is rendered. */
+export interface KitImageRef {
+  url: string;
+  width: number;
+  height: number;
+  format: KitImageFormat;
+  source: "readme" | "repo" | "site" | "avatar";
+}
+
+export interface KitVisuals {
+  screenshot?: KitImageRef;
+  logo?: KitImageRef;
+}
+
 /** What Stripe charged: `amount_total` in minor units (pence) and its lowercase ISO currency. */
 export interface PaidAmount {
   amount: number;
@@ -84,6 +101,8 @@ export interface Kit {
   source: SourceSummary;
   brief: Brief;
   palette: Palette;
+  /** Product screenshot and logo for the kit images. Absent on kits made before they were collected. */
+  visuals?: KitVisuals;
   preview: Preview;
   /** Grounding text from ingest, reused when the full kit is generated after payment. */
   digest: string;

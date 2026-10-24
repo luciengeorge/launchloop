@@ -1,31 +1,45 @@
-/** PostHog multivariate flags (50/50, variants "control" and "treatment"). Pure: shared by browser and server. */
+/** PostHog multivariate flags (50/50, each independent), with the variants in VARIANTS. Pure: shared by browser and server. */
 export const EXPERIMENTS = {
   launchPromo: "exp_launch14_promo",
   shipLoopUpsell: "exp_shiploop_success_upsell",
+  heroHeadline: "exp_hero_headline",
+  heroSampleCta: "exp_hero_sample_cta",
 } as const;
 
 export type ExperimentKey = (typeof EXPERIMENTS)[keyof typeof EXPERIMENTS];
-export type Variant = "control" | "treatment";
+
+/** Each flag's variant keys, as set up in PostHog. Control is what every fallback serves; anything else PostHog returns is unassigned. */
+const VARIANTS = {
+  exp_launch14_promo: ["control", "treatment"],
+  exp_shiploop_success_upsell: ["control", "treatment"],
+  exp_hero_headline: ["control", "test"],
+  exp_hero_sample_cta: ["control", "test"],
+} as const satisfies Record<ExperimentKey, readonly ["control", ...string[]]>;
+
+export type Variant<K extends ExperimentKey = ExperimentKey> = (typeof VARIANTS)[K][number];
+
+export const isVariant = <K extends ExperimentKey>(key: K, value: unknown): value is Variant<K> => (VARIANTS[key] as readonly unknown[]).includes(value);
 /** The variant each experiment showed on the page that made the request. */
 export type Experiments = Partial<Record<ExperimentKey, Variant>>;
 
 /**
  * Why a page served control without a PostHog assignment: flags didn't arrive in time, the flags
- * request failed, or the flag is off (or not a variant) for this id.
+ * request failed, the flag is off (or not a variant) for this id, or the visitor used the experiment's
+ * area before the flag resolved (so what they saw can't change under them).
  */
-export type FallbackReason = "timeout" | "error" | "unassigned";
+export type FallbackReason = "timeout" | "error" | "unassigned" | "interacted";
 
 /**
  * What a page served for one experiment. A fallback is always control and is kept out of the
  * experiment: it gets a flag_fallback event instead of a $feature_flag_called exposure, so slow or
  * blocked flag loads can't pile un-bucketed visitors into the control arm.
  */
-export interface Served {
-  variant: Variant;
+export interface Served<V extends Variant = Variant> {
+  variant: V;
   fallback?: FallbackReason;
 }
 
-export const fallbackServed = (reason: FallbackReason): Served => ({ variant: "control", fallback: reason });
+export const fallbackServed = (reason: FallbackReason): Served<"control"> => ({ variant: "control", fallback: reason });
 
 /**
  * The id the kit paywall's experiments are bucketed on. PostHog hashes the flag on this rather
@@ -34,14 +48,14 @@ export const fallbackServed = (reason: FallbackReason): Served => ({ variant: "c
  */
 export const kitBucketingId = (kitId: string) => `kit:${kitId}`;
 
-const KEYS = new Set<string>(Object.values(EXPERIMENTS));
+const isExperimentKey = (key: string): key is ExperimentKey => Object.hasOwn(VARIANTS, key);
 
-/** Keeps only known experiments with a known variant; anything else in a request body is dropped. */
+/** Keeps only known experiments with one of their variants; anything else in a request body is dropped. */
 export function parseExperiments(value: unknown): Experiments {
   if (!value || typeof value !== "object") return {};
   const out: Experiments = {};
   for (const [key, variant] of Object.entries(value)) {
-    if (KEYS.has(key) && (variant === "control" || variant === "treatment")) out[key as ExperimentKey] = variant;
+    if (isExperimentKey(key) && isVariant(key, variant)) out[key] = variant;
   }
   return out;
 }
@@ -49,7 +63,7 @@ export function parseExperiments(value: unknown): Experiments {
 /** Known experiment keys from a request body (an array) or Stripe metadata (a comma-separated string). */
 export function parseFallbacks(value: unknown): ExperimentKey[] {
   const items = Array.isArray(value) ? value : typeof value === "string" ? value.split(",") : [];
-  return [...new Set(items.filter((k): k is ExperimentKey => typeof k === "string" && KEYS.has(k)))];
+  return [...new Set(items.filter((k): k is ExperimentKey => typeof k === "string" && isExperimentKey(k)))];
 }
 
 /**

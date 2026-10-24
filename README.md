@@ -16,7 +16,7 @@ Stack: Next.js 16 (App Router, Cache Components), TypeScript, Tailwind v4, shadc
 
 ## Run it locally
 
-Requires Node 20+.
+Requires Node 24.
 
 ```bash
 npm install
@@ -121,12 +121,12 @@ Stripe paid ─▶ recordPayment ─▶ fulfilKit: full copy (LLM + rubric + ret
 
 | Path | What it does |
 | --- | --- |
-| `src/lib/ingest/` | GitHub reader, live-page scraper, brand-colour extraction (hex/rgb/hsl/oklch), SSRF-safe fetch |
+| `src/lib/ingest/` | GitHub reader, live-page scraper, brand-colour extraction (hex/rgb/hsl/oklch), SSRF-safe fetch, screenshot and logo discovery (`visuals.ts`; PNG and JPEG, plus SVG logos, because Satori draws WebP and GIF as blank boxes) |
 | `src/lib/brief.ts` | Deterministic facts and the LLM product brief |
 | `src/lib/llm.ts` | **The only LLM module.** AI SDK `generateText` + `Output.object` through the AI Gateway provider, fallback models, rubric-driven retries |
 | `src/lib/copy.ts` | Prompts, mock writer, rubric (limits, vote-begging, hype words), final enforcement |
 | `src/lib/limits.ts` | Platform limits, X weighted length, vote-request stripping |
-| `src/lib/images.tsx` | The three OG images via `@vercel/og`, watermarked until paid |
+| `src/lib/images.tsx` | The three kit images via `@vercel/og`: laid out by `image-layout.ts` (one layout per size with the product screenshot, one without), Geist from `assets/fonts`, screenshot and logo re-fetched through safe-fetch by `image-assets.ts`, a corner-badge watermark until paid. `scripts/render-kit-images.tsx` renders them for real repos |
 | `src/lib/fulfil.ts` | Idempotent post-payment generation and email |
 | `src/lib/payments.ts` | Stripe Checkout (or the mock checkout URL) |
 | `src/lib/accounts.ts` | Accounts (emails that have logged in), and guest purchases waiting for their email's first login |
@@ -155,6 +155,7 @@ To switch models, change the env vars; no code changes are needed.
 - `/sitemap.xml` and `/robots.txt` (kits, checkout and API are disallowed; kit pages are `noindex`)
 - `/faq` with `FAQPage` JSON-LD; `SoftwareApplication` JSON-LD with offers on the home page
 - `/llms.txt`: a plain-language description for AI assistants
+- IndexNow: changed blog, guide and tool URLs are pinged after each production deploy (see `docs/seo/indexnow.md`)
 - Semantic HTML: one `h1` per page, landmarks, labelled forms, a skip link
 
 ## Analytics
@@ -166,8 +167,11 @@ Vercel Web Analytics and Speed Insights count page views and performance. PostHo
 | `preview_started` | Browser, kit form submit | `source` (github / site / sample), `plan` (free / kit intent), `isLoggedIn` |
 | `preview_completed` | Browser, preview stream done | the above plus `kitId`, `durationMs` |
 | `preview_failed` | Browser, preview error | the above plus `code` |
+| `repo_cta_shown` | Browser, a `site_no_content` error with its "Use my GitHub repo instead" button | `code` (site_no_content), `plan`, `isLoggedIn` |
+| `repo_cta_clicked` | Browser, that button: the form switches to a GitHub repo input | the above plus `prefill` (github: `https://github.com/`; github_pages: the repo named by a `*.github.io` address) |
+| `preview_resubmit_blocked` | Browser, submitting the link that just failed with `site_no_content` again (nothing is sent; focus moves to the repo button) | `code` (site_no_content), `plan`, `isLoggedIn` |
 | `kit_created` | Server, `/api/kits` once the preview kit is saved (streamed or not) | `kitId`, `source` (github / site / sample), `isLoggedIn`, `stream`, `reused` (same repo state within 24 h), `durationMs`, `client_disconnected` when the browser had gone, plus the kit's first-touch `utm_*`, `referring_domain` and `is_test` |
-| `newsletter_subscribed` | Browser, newsletter form success (no-JS posts aren't counted) | `placement` (footer / preview), `welcome` (sent / existing / skipped: whether this signup sent the welcome email) |
+| `newsletter_subscribed` | Server, `/api/newsletter` on every successful signup, from the form's fetch or a plain form post, including repeats | `placement` (footer / preview / blog), `welcome` (`sent`: new address, welcome email sent; `existing`: a repeat of an address already claimed; `skipped`: no email sent, see "Counting signups" below), `submitted` (js / form), `is_webdriver` (js only), `is_test` for QA traffic (a QA-tagged tab, a page with `?qa=1` or `utm_source=qa` in its Referer, or a `@resend.dev` address, on both paths). On the page's id for `js` (so it joins the page's `$pageview` and UTMs), a `server_` id for `form`. No email |
 | `checkout_started` | Server, `/api/checkout` once a session URL exists | `plan` (kit), `product_type` (kit / shiploop), `kitId`, `price_id`, `amount` in pence (after any discount), `currency`, `isLoggedIn`, `mock`, `promo_code` / `promo` when LAUNCH14 was due, `$feature/<flag>` for the variants the page showed (`fallback/<flag>` when it served a fallback) |
 | `checkout_completed` | Server, Stripe webhook (`checkout.session.completed` / `async_payment_succeeded` with `payment_status: paid`), or `/api/checkout/mock` in test mode | the above plus `stripeSessionId`. `amount` is Stripe's `amount_total`; `promo_code` is LAUNCH14 (kit only; Checkout has no promotion code field) |
 
@@ -197,7 +201,7 @@ Person properties like `$initial_utm_source` aren't useful here: anonymous visit
 
 ### Experiments
 
-Two PostHog multivariate flags (50/50, variants `control` and `treatment`). Until the variant is known the paywall price shows a placeholder. Each view records exactly what it served, once, on the page's anonymous id (the id its checkout events use):
+Three PostHog multivariate flags: `exp_launch14_promo` and `exp_shiploop_success_upsell` (50/50, variants `control` and `treatment`), and `exp_hero_headline` (variants `control` and `test`). Until the variant is known the paywall price shows a placeholder. Each view records exactly what it served, once, on the page's anonymous id (the id its preview and checkout events use):
 
 - **Assigned:** PostHog's `$feature_flag_called` exposure with `$feature_flag_response` = the variant shown. This is what PostHog experiments count.
 - **Fallback:** when flags take over 1.5 s (`reason: "timeout"`), the flags request fails (`"error"`), or the flag is off for this id (`"unassigned"`), the page serves control and records a `flag_fallback` event (`flag`, `variant: "control"`, `reason`, `fallback: true`) instead of an exposure. Fallbacks are deliberately kept out of the experiment: counting them as control exposures would pile slow or blocked visitors into the control arm. A fallback never flips to the variant once flags do arrive.
@@ -205,26 +209,38 @@ Two PostHog multivariate flags (50/50, variants `control` and `treatment`). Unti
 
 - **`exp_launch14_promo` is bucketed per kit.** The kit page asks PostHog from the server (`kitVariant` in `src/lib/analytics-server.ts`, posthog-node) with the distinct id `kit:<kitId>`, and streams the answer to the paywall (`useAssignedExperiment`), which sends the exposure. Hashing on the browser's id would re-roll the price on every reload, since that id lives in page memory only. Same kit, same price, on any reload or device, with no cookie or storage. The unit is the kit, so a visitor who reloads is counted as several exposed (anonymous) users in the same arm, as before.
 - **`exp_shiploop_success_upsell`** is evaluated in the browser by `useExperiment` (`src/lib/use-experiment.ts`) on the page's id. It shows once, straight back from Checkout, where `?aid=` keeps the buyer's id.
+- **`exp_hero_headline` is off unless the deploy sets `HERO_EXPERIMENT=1`.** Unset (the default everywhere), the home page is fully static with the original h1 and never asks PostHog, so it stays a CDN hit. The variable is read when the page is prerendered, so turning it on or off takes a redeploy.
+- **With `HERO_EXPERIMENT=1`, it's bucketed per home page view, on the server.** The h1 is the home page's LCP text, so it can't wait for posthog-js (loaded after the page) or swap once flags arrive. The h1 becomes the page's only per-request part: a Suspense boundary (`AssignedHeroHeadline` in `src/app/page.tsx`) makes one POST to PostHog's `/flags` (`lookupHeroHeadline` in `src/lib/hero-headline.ts`, not posthog-node) for a fresh distinct id `hero:<uuid>`, the same unit as the browser's per-page-load id, and streams the h1 into the otherwise static page. The request is aborted at 500 ms (`HERO_FLAG_TIMEOUT_MS`; the env override of that name is capped at 2.5 s) with no retries, so nothing keeps running after the page has its answer; a timeout serves control as a `timeout` fallback. A failed lookup goes to Sentry at most once a minute per server instance, so a PostHog outage isn't one event per page view.
+  - Until it arrives the control headline is held invisible, in a placeholder `div` with the heading role (the page's HTML also holds the streamed h1, hidden until React reveals it, so the placeholder isn't an h1 and the HTML has one). React reveals a streamed boundary no sooner than 300 ms after first paint, so the streamed h1 carries an inline script that shows it in that box as soon as it's parsed. If it hasn't arrived 700 ms after the placeholder is first styled (`HERO_FAILSAFE_MS`), CSS alone shows control, so a stalled render can't leave the headline blank; a variant arriving after that is discarded and the view is recorded as a `timeout` fallback. Without JavaScript the placeholder shows control and nothing is recorded.
+  - Every arm, and the placeholder, reserves the other arm's headline in the same grid cell (hidden generated content, not text), so the h1 is as tall as the taller headline at every width: the form and CTAs sit in the same place in both arms and nothing moves when the headline arrives. The chosen test copy wraps like control at every width, so neither arm leaves blank lines and the h1 is main's height.
+  - `HeroHeadline` (`useRenderedExperiment`) records the exposure on the page's own id once the SDK loads after the page, as before, so `preview_started` and `checkout_started` on that id count toward the experiment. A client-side return to `/` within the page load keeps the headline already shown. While the flag doesn't exist or is switched off (PostHog leaves it out of the flags response), the page shows control and records nothing.
 
-| Flag | Where | `control` | `treatment` |
+| Flag | Where | `control` | `treatment` / `test` |
 | --- | --- | --- | --- |
-| `exp_launch14_promo` | Kit paywall (`UnlockPanel`), and server-side on the header CTA, home, `/pricing`, `/faq`, `/ship-loop` and the kit form (`KitPrice`) | £19, and kit Checkout has no promotion code field | £19 struck through, £14 with `LAUNCH14`; kit Checkout gets `discounts: [{ promotion_code }]` |
-| `exp_shiploop_success_upsell` | Kit success page (`/account/kits/[id]?paid=1`, buyer only) | Unchanged | Soft Ship Loop card with the waitlist capture (no checkout) |
+| `exp_launch14_promo` | Kit paywall (`UnlockPanel`), and server-side on the header CTA, home, `/pricing`, `/faq`, `/ship-loop` and the kit form (`KitPrice`) | £19, and kit Checkout has no promotion code field | `treatment`: £19 struck through, £14 with `LAUNCH14`; kit Checkout gets `discounts: [{ promotion_code }]` |
+| `exp_shiploop_success_upsell` | Kit success page (`/account/kits/[id]?paid=1`, buyer only) | Unchanged | `treatment`: soft Ship Loop card with the waitlist capture (no checkout) |
+| `exp_hero_headline` | Home page h1 only | "Paste your repo. Get your whole launch." | `test`: `HERO_HEADLINE_TEST` in `src/lib/hero-headline.ts`, the same h1 with everything after the first sentence highlighted |
 
 - **LAUNCH14 lives in Stripe.** The code's terms (amount, kit only, first-time customers, redemption cap, expiry) are set on the coupon and promotion code in the dashboard; the app only sends the promotion code id (`STRIPE_PROMO_LAUNCH14`, else looked up by code). If Stripe turns the code down, or no active code exists, the buyer gets a £19 session and the paywall says so before redirecting. Turn the flag off (or roll it to 100% `control`) when the code expires.
 - **Marketing pages read the promo flag on the server.** `isLaunchPromoOn()` (`src/lib/launch-promo-server.ts`) evaluates `exp_launch14_promo` for one fixed id, so it's only meaningful at a 0% or 100% rollout. It's cached with a 60 s revalidate (the pages are static and pick up a flip within a minute or two, no deploy), and any error or a 1.5 s timeout shows the plain £19. Kit checkouts don't use it: they resolve the kit's own assignment (next point), which matches the marketing pages at a 0% or 100% rollout, so a £14 seen on home or `/pricing` is then the Stripe total. PostHog serves no flags to bot user agents (including `HeadlessChrome`), so browser-side checks with a headless browser see control unless they set a normal user agent.
 - **LAUNCH14 has a hard end.** From `LAUNCH_PROMO_ENDS_AT` (`src/lib/launch-promo.ts`, 22 Oct 2026 22:00 Paris) both `isLaunchPromoOn()` and `resolveKitPromo()` return off/control without reading `exp_launch14_promo`, so Checkout never applies £14 after it, whatever the flag says. A marketing page cached just before can show £14 for a few more minutes until it revalidates; Checkout still charges £19.
 - **The server decides LAUNCH14.** `/api/checkout` ignores any promo variant in the request and resolves `exp_launch14_promo` itself with `resolveKitPromo` (`src/lib/kit-promo.ts`), the same function the paywall uses, so page and checkout agree: PostHog on `kit:<kitId>`; if PostHog doesn't answer (error or 1.5 s timeout), the variant PostHog last assigned that kit, which the server keeps next to the kit (`kitpromo:<kitId>`, 30 days; nothing in the browser); otherwise control. Checkout logs a server-side `flag_fallback` (`source: "checkout"`, `remembered`) and a server warning when PostHog didn't answer. A flag switched off is control for every kit at once, never the remembered variant. If the paywall showed £14 but the session isn't discounted (the flag changed since, or Stripe turned the code down), the buyer is told before paying.
 - **Toggling.** In PostHog (project LaunchLoop EU): Feature flags → the flag → set the release condition's variant split (e.g. `control` 100% to stop the test, `treatment` 100% to ship it) or disable the flag (everyone sees control). Changes apply on the next page load; no deploy. Changing the split re-buckets some kits, as it would any flag. `exp_launch14_promo` can be set to evaluate on the server only, since the browser no longer reads it.
+- **Setting up `exp_hero_headline`.** Feature flags → New: key `exp_hero_headline`, served value "Multiple variants" with `control` 50% and `test` 50%, one release condition for 100% of users with no property filters (the ids are anonymous and fresh per view, so person properties never match), and it can evaluate on the server only. Then Experiments → New, using that flag, with primary metric `preview_started` and secondary metric `checkout_started`, set `HERO_EXPERIMENT=1` on the Production environment in Vercel and redeploy. Until both are done everyone sees control. To stop, remove the variable and redeploy (or switch the flag off).
 
 ## Newsletter
 
-"Weekly launch teardowns" has two signups: the footer, and a card under the free preview paywall (`src/components/kit/preview-newsletter.tsx`, hidden when the visitor arrives with `?unlock=1` on the way to checkout). Both post to `/api/newsletter`, which stores the contact with its `placement` (`footer` or `preview`; a repeat signup updates it) and adds it to the Resend segment. The lead magnet is the `/product-hunt-launch-checklist` guide: the success state links to it, and a new address gets one welcome email with the link (`src/emails/newsletter-welcome.tsx`).
+"Weekly launch teardowns" has three signups: the footer, a card under the free preview paywall (`src/components/kit/preview-newsletter.tsx`, hidden when the visitor arrives with `?unlock=1` on the way to checkout), and a block at the end of every blog post, between the free-preview CTA and the related links (`src/components/blog-newsletter.tsx`, rendered by `BlogPostLayout`, outline button). All post to `/api/newsletter`, which stores the contact with its `placement` (`footer`, `preview` or `blog`; a repeat signup updates it) and adds it to the Resend segment. The lead magnet is the `/product-hunt-launch-checklist` guide: the success state links to it, and a new address gets one welcome email with the link (`src/emails/newsletter-welcome.tsx`).
 
 - **One welcome email per address.** The send is claimed with an atomic `store().incr("newsletter:welcome:<email>")` before the response, so repeat or concurrent signups don't resend it. The response says what happened (`welcome`: `sent`, `existing` or `skipped`), and the success message only mentions an email when one was sent.
 - **Limits.** Signups are limited per IP through the shared store (`NEWSLETTER_RATE_LIMIT_PER_HOUR`), and welcome emails have a global daily cap (`NEWSLETTER_WELCOME_DAILY_CAP`). Past the cap the contact is still added; the skip is logged.
 - **Plain form posts** (no JS, or before hydration) are redirected back with `?subscribed=1`, or `?subscribed=0&error=<code>` and a `#hash` that reveals the message without JavaScript. `next` is only honoured as a same-origin path, checked after URL parsing in `newsletterReturnPath`, which builds every redirect.
 - On a page with the £19 unlock panel, the footer's Subscribe button is an outline button so the unlock button is the only primary one.
+- **Counting signups.** `newsletter_subscribed` is captured by the API, not the browser: posthog-js drops every event from automated browsers (`navigator.webdriver`, headless Chrome), which is how QA signs up, and a plain form post has no SDK at all. The event fires on every successful signup, so it is not a count of new subscribers on its own:
+  - `welcome = existing` is a repeat: the address had already claimed its welcome email (the claim lasts a year from the first signup, so an address that signs up again after that counts as `sent` once more).
+  - `welcome = skipped` is usually a new address past the daily welcome email cap, but it is also what a failed claim (the store erroring) returns, and then the address may be a repeat. Those are rare and logged in Sentry (`api.newsletter.welcomeClaim`), so `skipped` can slightly overcount.
+  - To count real new subscribers, filter `welcome != existing`, `is_test != true` and `env = production`; add `is_webdriver != true` to drop other automated signups. For QA, open the page with `?qa=1` (or use a `@resend.dev` address): JS and no-JS signups are both tagged `is_test`.
+- **Accessibility.** The success message renders into a `role="status"` region that is mounted (empty) from the start, so screen readers announce it, and focus moves to the checklist link when the form is replaced. The blog block's form is named by its heading, so a blog page doesn't have two forms called "Newsletter signup".
 
 ## Ship Loop waitlist
 
@@ -255,7 +271,7 @@ npm run test:e2e
 Playwright builds the app into `.next-test` and runs it on port 3418 in forced mock mode, alongside a fixture site on port 3419. The smoke tests cover:
 
 - the home page, validation and newsletter signup (desktop and mobile)
-- the newsletter signups in the footer and under the free preview (desktop and mobile): the checklist link on success, one welcome email per address, no-JS posts, safe redirects, and hidden on the way to checkout
+- the newsletter signups in the footer, under the free preview (desktop and mobile) and at the end of every blog post: the checklist link on success, one welcome email per address, no-JS posts, safe redirects, and hidden on the way to checkout
 - the free preview with no account: a fresh visitor previews a live site, and the kit link opens for anyone
 - analytics: UTMs on `$pageview` and later events, and one anonymous id from a landing page through to the server-side `checkout_completed` (the fixture server records what the fake PostHog receives at `/ph/_events`)
 - the full sample flow: preview → mock checkout → full kit, with every character counter within its limit, no "upvote" anywhere, ZIP download, all three images and the email in the outbox

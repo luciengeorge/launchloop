@@ -11,6 +11,8 @@ import "./globals.css";
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"], display: "swap" });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"], display: "swap" });
 
+const IMPACT_SITE_VERIFICATION = "0b7b3f21-3941-4494-bcc1-f28c3d5decf1";
+
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl()),
   title: { default: `${SITE.name}: ${SITE.tagline}`, template: `%s · ${SITE.name}` },
@@ -41,6 +43,10 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en-GB" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
+      <head>
+        {/* Impact matches the `value` attribute, which the Metadata API can't emit (it writes `content`) and React's meta typings omit. */}
+        <meta name="impact-site-verification" {...{ value: IMPACT_SITE_VERIFICATION }} />
+      </head>
       <body className="flex min-h-full flex-col">
         <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-background focus:px-3 focus:py-2">
           Skip to content

@@ -1,3 +1,4 @@
+import { EXAMPLE_KIT } from "@/lib/example-kit";
 import { isImageVariant } from "@/lib/image-variants";
 import { renderKitImage } from "@/lib/images";
 import { getKit } from "@/lib/kits";
@@ -8,11 +9,11 @@ export async function GET(req: Request, ctx: RouteContext<"/api/og/[id]/[variant
   const name = variant.replace(/\.png$/, "");
   if (!isImageVariant(name)) return Response.json({ error: "Unknown image size" }, { status: 404 });
 
-  const kit = await getKit(id);
+  const kit = id === EXAMPLE_KIT.id ? EXAMPLE_KIT : await getKit(id);
   if (!kit) return Response.json({ error: "Kit not found" }, { status: 404 });
 
   try {
-    const res = renderKitImage(kit, name, { watermark: !kit.paid });
+    const res = await renderKitImage(kit, name, { watermark: !kit.paid });
     // The paid URL asked for before payment: answer, but never let the watermarked image be cached under it.
     if (new URL(req.url).searchParams.get("v") === "paid" && !kit.paid) res.headers.set("Cache-Control", "no-store");
     return res;

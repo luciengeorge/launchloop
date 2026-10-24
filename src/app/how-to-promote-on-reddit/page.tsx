@@ -124,7 +124,8 @@ export default function RedditPromotionPage() {
       <ul>
         <li>
           <strong>r/startups:</strong> the <a href={SRC.startupsRules}>rules</a> ban direct sales, advertisements and promotional posts, with exceptions only in stickied
-          threads. You may share your startup in the Monthly Share Your Startup thread, which is stickied at the top of the subreddit. The rules count anything you have an
+          threads. You may share your startup in the Share Your Startup thread stickied at the top of the subreddit (the rules call it monthly). The rules count anything you
+          have an
           interest, stake or relationship with as self-promotion, including a friend&apos;s company.
         </li>
         <li>
@@ -134,8 +135,8 @@ export default function RedditPromotionPage() {
         </li>
         <li>
           <strong>r/indiehackers:</strong> rule 1 of the <a href={SRC.indieHackersRules}>rules</a> allows one promotional post per product: &ldquo;Users can self promote their
-          product 1 time using the Self Promotion flair.&rdquo; Posts that mention MRR must include proof, and without it the post is removed (&ldquo;no proof, no
-          post&rdquo;). A <a href={SRC.indieHackersSub}>moderator post</a> adds no fake questions to boost a product, zero tolerance for vote manipulation, and that new
+          product 1 time using the Self Promotion flair.&rdquo; It goes on: &ldquo;The purpose is for feedback and critique not advertisement.&rdquo; Rule 2 says posts with MRR info should have
+          proof: &ldquo;no proof, no post&rdquo;. A <a href={SRC.indieHackersSub}>moderator post</a> adds no fake questions to boost a product, zero tolerance for vote manipulation, and that new
           accounts have to wait and can only ask questions through modmail.
         </li>
         <li>

@@ -120,8 +120,12 @@ function ingestErrorCause(error: unknown): IngestError | undefined {
 interface SafeFetchOptions {
   accept?: string;
   headers?: Record<string, string>;
+  /** Sent to the first URL's origin only: a redirect to another origin drops them, as browsers drop Authorization. */
+  originHeaders?: Record<string, string>;
   maxBytes?: number;
   timeoutMs?: number;
+  /** Aborts the fetch early, as a timeout does. */
+  signal?: AbortSignal;
 }
 
 export interface SafeFetchResult {
@@ -152,6 +156,7 @@ export async function safeFetch(input: string, options: SafeFetchOptions = {}): 
 export async function safeFetchBytes(input: string, options: SafeFetchOptions = {}): Promise<SafeFetchBytesResult> {
   const { maxBytes = 1_500_000, timeoutMs = Number(process.env.SITE_FETCH_TIMEOUT_MS ?? 8000) } = options;
   let current = new URL(input);
+  const origin = current.origin;
   for (let hop = 0; hop < 4; hop++) {
     const dispatcher = await publicDispatcher(current);
     try {
@@ -159,8 +164,13 @@ export async function safeFetchBytes(input: string, options: SafeFetchOptions = 
       try {
         res = await fetch(current, {
           redirect: "manual",
-          signal: AbortSignal.timeout(timeoutMs),
-          headers: { "User-Agent": USER_AGENT, Accept: options.accept ?? "text/html,*/*;q=0.8", ...options.headers },
+          signal: options.signal ? AbortSignal.any([AbortSignal.timeout(timeoutMs), options.signal]) : AbortSignal.timeout(timeoutMs),
+          headers: {
+            "User-Agent": USER_AGENT,
+            Accept: options.accept ?? "text/html,*/*;q=0.8",
+            ...options.headers,
+            ...(current.origin === origin ? options.originHeaders : undefined),
+          },
           cache: "no-store",
           dispatcher,
         });

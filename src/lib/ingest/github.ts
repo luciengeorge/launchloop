@@ -1,5 +1,5 @@
 import "server-only";
-import { env } from "../env";
+import { env, forceMock } from "../env";
 import { mainLanguages, manifestsFor, type ManifestFile } from "../stack";
 import { IngestError, USER_AGENT } from "./safe-fetch";
 
@@ -22,6 +22,8 @@ export interface RepoData {
   commits: { message: string; date: string }[];
   /** Latest commit on the default branch, used to dedupe identical repo states. */
   headSha?: string;
+  /** The owner's avatar, only when the owner is an organisation (a person's avatar is their face, not a logo). */
+  orgAvatarUrl?: string;
 }
 
 export interface PackageJson {
@@ -48,14 +50,39 @@ export function parseGitHubUrl(input: string): { owner: string; name: string } |
   return { owner: m[1], name: m[2] };
 }
 
+export const githubApiUrl = (path: string) => `${process.env.GITHUB_API_URL ?? "https://api.github.com"}${path}`;
+export const githubAuthHeaders = (): Record<string, string> => (env.githubToken ? { Authorization: `Bearer ${env.githubToken}` } : {});
+
 export async function gh(path: string, accept = "application/vnd.github+json", signal: AbortSignal = AbortSignal.timeout(8000)): Promise<Response> {
   const headers: Record<string, string> = {
     Accept: accept,
     "User-Agent": USER_AGENT,
     "X-GitHub-Api-Version": "2022-11-28",
+    ...githubAuthHeaders(),
   };
-  if (env.githubToken) headers.Authorization = `Bearer ${env.githubToken}`;
-  return fetch(`${process.env.GITHUB_API_URL ?? "https://api.github.com"}${path}`, { headers, signal, cache: "no-store" });
+  return fetch(githubApiUrl(path), { headers, signal, cache: "no-store" });
+}
+
+const repoSlug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+/**
+ * The one public repo named exactly `name` (ignoring case and punctuation), for a live page that renders nothing
+ * without JavaScript. Null when there is no match or more than one, so a common name never picks a stranger's repo.
+ */
+export async function findRepoByName(name: string): Promise<{ owner: string; name: string } | null> {
+  const want = repoSlug(name);
+  // Mock mode only searches a fake GitHub (GITHUB_API_URL), never the real one.
+  if (want.length < 4 || (forceMock && !process.env.GITHUB_API_URL)) return null;
+  try {
+    const q = encodeURIComponent(`${name} in:name fork:false archived:false`);
+    const res = await gh(`/search/repositories?q=${q}&per_page=10`, undefined, AbortSignal.timeout(4000));
+    if (!res.ok) return null;
+    const { items = [] } = (await res.json()) as { items?: { name: string; owner: { login: string } }[] };
+    const hits = items.filter((r) => repoSlug(r.name) === want);
+    return hits.length === 1 ? { owner: hits[0].owner.login, name: hits[0].name } : null;
+  } catch {
+    return null;
+  }
 }
 
 async function raw(owner: string, name: string, file: string): Promise<string | undefined> {
@@ -116,8 +143,10 @@ export async function fetchRepo(owner: string, name: string, warnings: string[])
     language?: string | null;
     license?: { spdx_id?: string } | null;
     html_url: string;
+    owner?: { type?: string; avatar_url?: string };
   };
   repo.url = info.html_url;
+  if (info.owner?.type === "Organization" && info.owner.avatar_url) repo.orgAvatarUrl = info.owner.avatar_url;
   repo.description = info.description ?? undefined;
   repo.homepage = info.homepage || undefined;
   repo.stars = info.stargazers_count;

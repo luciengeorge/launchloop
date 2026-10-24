@@ -23,6 +23,19 @@ export function isQaLanding(search: string): boolean {
   return params.get(QA_PARAM) === "1" || isQaSource(params.get("utm_source"));
 }
 
+/**
+ * Whether a request came from a QA-tagged page of this site, judged by its Referer with the same rule as isQaLanding.
+ * A plain form post has no JavaScript to send isTest, but the browser still sends the page URL for a same-origin post.
+ */
+export function isQaReferer(req: Request): boolean {
+  const referer = req.headers.get("referer");
+  const page = referer ? URL.parse(referer) : null;
+  if (!page || !isQaLanding(page.search)) return false;
+  // This site's host as the request saw it, however the platform reports it.
+  const hosts = [URL.parse(req.url)?.host, req.headers.get("host"), req.headers.get("x-forwarded-host")?.split(",")[0]?.trim()];
+  return hosts.includes(page.host);
+}
+
 /** Comfortably inside Stripe's 500-character metadata values. */
 const MAX_UTM_LENGTH = 200;
 const HOSTNAME = /^(?=.{1,253}$)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*$/;

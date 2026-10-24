@@ -7,12 +7,14 @@ const FULL = PRODUCTS.kit.priceLabel;
 /**
  * The Launch Kit price on marketing pages. `promo` is isLaunchPromoOn() from the server: on, it's the
  * paywall's struck-through £19 then £14; off, the plain £19 string, exactly as before.
- * "display" is the big plan-card figure; "inline" sits in a sentence or a button.
+ * "display" is the big plan-card figure; "inline" sits in a sentence or a button. `placeholder`: an invisible layout
+ * copy (the signed-in header's), so it carries no test id.
  */
-export function KitPrice({ promo, size = "inline" }: { promo: boolean; size?: "inline" | "display" }) {
+export function KitPrice({ promo, size = "inline", placeholder = false }: { promo: boolean; size?: "inline" | "display"; placeholder?: boolean }) {
+  const testId = placeholder ? undefined : "kit-price-promo";
   if (size === "display") {
     return promo ? (
-      <span data-testid="kit-price-promo">
+      <span data-testid={testId}>
         <s className="mr-2 text-2xl text-muted-foreground">
           <span className="sr-only">Was </span>
           {FULL}
@@ -29,7 +31,7 @@ export function KitPrice({ promo, size = "inline" }: { promo: boolean; size?: "i
   if (!promo) return FULL;
   // Opacity rather than a muted colour so the struck price reads on light text and on primary buttons.
   return (
-    <span className="whitespace-nowrap" data-testid="kit-price-promo">
+    <span className="whitespace-nowrap" data-testid={testId}>
       <s className="opacity-60">
         <span className="sr-only">was </span>
         {FULL}

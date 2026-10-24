@@ -1,4 +1,5 @@
 import { type APIRequestContext, expect, type Page, test } from "@playwright/test";
+import { INDEXNOW_KEY } from "../../src/lib/indexnow";
 import { PRODUCTS } from "../../src/lib/products";
 
 test("home has title, description and Open Graph tags", async ({ page }) => {
@@ -9,6 +10,11 @@ test("home has title, description and Open Graph tags", async ({ page }) => {
   await expect(page.locator('meta[property="og:image"]').first()).toHaveAttribute("content", /opengraph-image/);
   await expect(page.locator('meta[name="twitter:card"]')).toHaveAttribute("content", "summary_large_image");
   await expect(page.locator('script[type="application/ld+json"]')).toHaveCount(1);
+});
+
+test("home's server HTML carries the Impact site verification meta tag with a value attribute", async ({ request }) => {
+  const html = await (await request.get("/")).text();
+  expect(html).toContain('<meta name="impact-site-verification" value="0b7b3f21-3941-4494-bcc1-f28c3d5decf1"/>');
 });
 
 test("robots, sitemap and llms.txt", async ({ request }) => {
@@ -26,6 +32,17 @@ test("robots, sitemap and llms.txt", async ({ request }) => {
   expect(text).toMatch(/^# LaunchLoop/);
   // The e2e build has the launch promo off, so the kit is at its list price.
   expect(text).toContain(`Launch Kit: ${PRODUCTS.kit.priceLabel} once`);
+});
+
+test("IndexNow key file is served at /<key>.txt with exactly the key", async ({ request }) => {
+  const res = await request.get(`/${INDEXNOW_KEY}.txt`, { maxRedirects: 0 });
+  expect(res.status()).toBe(200);
+  expect(res.headers()["content-type"]).toContain("text/plain");
+  expect(await res.text()).toBe(INDEXNOW_KEY);
+
+  const slash = await request.get(`/${INDEXNOW_KEY}.txt/`, { maxRedirects: 0 });
+  expect(slash.status()).toBe(308);
+  expect(new URL(slash.headers().location, "http://x").pathname).toBe(`/${INDEXNOW_KEY}.txt`);
 });
 
 type JsonLdNode = { "@type": string; [key: string]: unknown };
@@ -104,6 +121,7 @@ test("sitemap lists every indexable page once, with lastmod, and no redirecting 
     "/blog/how-to-launch-on-product-hunt",
     "/blog/how-to-launch-on-indie-hackers",
     "/blog/how-to-launch-on-betalist",
+    "/blog/product-hunt-alternatives",
     "/privacy",
     "/terms",
   ];
