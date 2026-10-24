@@ -91,7 +91,7 @@ export const PAGES = {
     title: "Privacy policy: what we collect and why",
     description:
       "What data LaunchLoop collects when you preview or buy a launch kit, why we need it, who we share it with, how long we keep it and how to use your rights.",
-    updated: "2026-10-18",
+    updated: "2026-10-24",
     card: { eyebrow: "Privacy", headline: "What we collect and why" },
   }),
   terms: core({

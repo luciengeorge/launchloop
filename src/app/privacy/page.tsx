@@ -12,7 +12,7 @@ export default function PrivacyPage() {
   return (
     <article className="mx-auto max-w-3xl space-y-6 px-4 py-16 leading-relaxed sm:px-6 [&_a]:font-medium [&_a]:text-foreground [&_a]:underline [&_a]:underline-offset-4 [&_h2]:mt-8 [&_h2]:text-xl [&_h2]:font-semibold [&_li]:text-muted-foreground [&_p]:text-muted-foreground [&_strong]:text-foreground">
       <h1 className="text-4xl font-semibold tracking-tight">Privacy policy</h1>
-      <p>Last updated 19 October 2026. This page explains what LaunchLoop does with your data, in plain English.</p>
+      <p>Last updated 24 October 2026. This page explains what LaunchLoop does with your data, in plain English.</p>
 
       <h2>Who we are</h2>
       <p>
