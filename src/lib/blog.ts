@@ -21,6 +21,16 @@ export const BLOG_FEED_PATH = "/blog/rss.xml";
 /** Newest first, so add new posts at the top. */
 export const BLOG_POSTS: BlogPost[] = [
   {
+    slug: "product-hunt-alternatives",
+    title: "Product Hunt alternatives for indie makers",
+    metaTitle: "Product Hunt alternatives: where to launch",
+    description:
+      "Sites like Product Hunt, from their own pages: who BetaList, Uneed, Peerlist, DevHunt, Show HN and others are for, what a launch costs and the rules.",
+    published: "2026-10-24",
+    updated: "2026-10-24",
+    readingMinutes: 19,
+  },
+  {
     slug: "how-to-launch-on-product-hunt",
     title: "How to launch on Product Hunt",
     metaTitle: "How to launch on Product Hunt: how it works",
