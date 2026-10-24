@@ -7,7 +7,7 @@ Blog post for `/blog`, requested on Tuesday 20 October 2026. Every source was re
 **URL:** `/blog/product-hunt-alternatives`
 **Title:** `Product Hunt alternatives: where to launch · LaunchLoop` (55 characters)
 **Description:** `Sites like Product Hunt, from their own pages: who BetaList, Uneed, Peerlist, DevHunt, Show HN and others are for, what a launch costs and the rules.` (149 characters)
-**H1:** Product Hunt alternatives for indie makers. **Published and updated:** 2026-10-24, moved from the brief's 2026-10-22 (bump both in `src/lib/blog.ts` if it merges on another day). **Byline:** Lucien George. **Reading time:** 19 minutes (3,745 words in the rendered body at 200 words a minute; the e2e suite recounts it).
+**H1:** Product Hunt alternatives for indie makers. **Published and updated:** 2026-10-24, moved from the brief's 2026-10-22 (bump both in `src/lib/blog.ts` if it merges on another day). **Byline:** Lucien George. **Reading time:** 20 minutes (3,823 words in the rendered body at 200 words a minute, 3,745 before the tool links below; the e2e suite recounts it).
 
 ## Target queries
 
@@ -103,6 +103,16 @@ QA found that Uneed's live pages no longer matched the 20 October read. Re-read 
 - **Every other price on the page is unchanged:** DevHunt $19 and $49; BetaList Boost $99 a week or $199 a month; Fazier Basic free, Lite $29 (crossed out $39), Premium $49 (crossed out $69), Super $99 (crossed out $139); Tiny Startups £29 on About and £69 for the submit form's "Instant listing + DR 71+ do-follow backlink"; Microlaunch Launch Pro $39 (crossed out $49) and Launch Plus $79 (crossed out $99), and "Pro Launch ($49)" in its FAQ. That is why the page now says "Prices checked on 21 October 2026." under the table, and the intro gives prices as of 21 October 2026.
 - **Not re-read on 21 October:** the non-price quotes from the other sites (DevHunt, Show HN, BetaList FAQ and criteria, Fazier, Tiny Startups, Microlaunch rules, Peerlist, Indie Hackers) and the two subreddit archive copies. They stay dated 20 October 2026 (24 and 28 August for the archives), and the Sources paragraph on the page says so. The FAQ answer about free routes still says "On 20 October 2026", because Microlaunch's signed-out launch window and Peerlist were not reopened.
 - **Dates:** published and updated are 2026-10-24 in `src/lib/blog.ts`, which feeds the byline, the BlogPosting JSON-LD, the sitemap and the RSS feed.
+
+## Tool links, 24 October 2026
+
+After publication, the post links LaunchLoop's two free tools, and no other `/tools` path:
+
+- `/tools/product-hunt-tagline-checker` in Fazier's "How to submit", where the launch form asks for a tagline. The copy says it counts against Product Hunt's limit, not Fazier's.
+- `/tools/og-preview` in r/SideProject's "How to submit", because a link post can show the page's Open Graph image.
+- Both in one sentence at the end of the first "Next steps" paragraph.
+
+No figures were added. `updated` stays 2026-10-24, the day of the change. `tests/e2e/blog.spec.ts` and `tests/unit/blog.test.ts` check both links, where they sit, and that no other `/tools` path is linked.
 
 ## Sources
 
