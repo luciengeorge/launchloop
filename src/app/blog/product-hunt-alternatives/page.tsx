@@ -509,9 +509,10 @@ export default function ProductHuntAlternativesPostPage() {
 
       <h2 id="sources">Sources</h2>
       <p>
-        Checked as of October 2026. Every quote on this page was read on 20 October 2026 from the site&apos;s own pages, except the two subreddits, which came from the
-        Internet Archive&apos;s copies of 24 and 28 August 2026 because Reddit blocked our requests. We checked every price and Uneed&apos;s pages again on 21 October 2026,
-        and BetaList&apos;s pages again on 24 October 2026, from copies the Internet Archive saved that day, because BetaList&apos;s Cloudflare check was blocking some of our requests. Prices and rules on these sites change often, so check each one before you submit or pay.
+        Checked as of October 2026. Quotes were read from each site&apos;s own pages on 20 October 2026, Uneed&apos;s again on 21 October 2026 and BetaList&apos;s on 24
+        October 2026 from Internet Archive copies saved that day, except the two subreddits, which came from the Internet Archive&apos;s copies of 24 and 28 August 2026
+        because Reddit blocked our requests. We also checked every price again on 21 October 2026, and used the Internet Archive for BetaList because its Cloudflare check
+        was blocking some of our requests. Prices and rules on these sites change often, so check each one before you submit or pay.
       </p>
       <ul>
         <li><a href={SRC.devhuntFaq}>DevHunt FAQ</a> and <a href={SRC.devhuntAdvertise}>Advertise on DevHunt</a></li>
