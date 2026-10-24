@@ -4,10 +4,18 @@ import { png } from "../unit/png";
 
 /** What each directory's listing requires on the home page: a followed link to it. Their bots reject these rel values. */
 const BADGES = [
-  { name: "Featured on Startup Fame", href: "https://startupfa.me", host: "startupfa.me", width: 126, height: 40 },
-  { name: "Featured on Twelve Tools", href: "https://twelve.tools", host: "twelve.tools", width: 148, height: 40 },
+  {
+    name: "Featured on Startup Fame",
+    href: "https://startupfa.me/s/launchloop-1?utm_source=launchloop.dev",
+    src: "https://startupfa.me/badges/featured-badge-small.webp",
+    host: "startupfa.me",
+    width: 224,
+    height: 36,
+  },
+  { name: "Featured on Twelve Tools", href: "https://twelve.tools", src: "https://twelve.tools/badge0-light.svg", host: "twelve.tools", width: 148, height: 40 },
 ];
-const NOT_FOLLOWED = /\b(nofollow|ugc|sponsored)\b/i;
+/** Exactly noopener: anything more (nofollow, ugc, sponsored) and the directories' bots stop counting the link. */
+const REL = "noopener";
 const isBadgeHost = (url: URL) => BADGES.some((b) => url.hostname === b.host);
 
 /**
@@ -23,6 +31,17 @@ async function stubBadgeImages(page: Page) {
   return requested;
 }
 
+async function recordLayoutShift(page: Page) {
+  await page.addInitScript(() => {
+    const w = window as unknown as { __cls: number };
+    w.__cls = 0;
+    new PerformanceObserver((list) => {
+      for (const entry of list.getEntries() as unknown as { value: number; hadRecentInput: boolean }[]) if (!entry.hadRecentInput) w.__cls += entry.value;
+    }).observe({ type: "layout-shift", buffered: true });
+  });
+  return () => page.evaluate(() => (window as unknown as { __cls: number }).__cls);
+}
+
 const badgeLink = (page: Page, name: string) => page.getByRole("contentinfo").getByRole("link", { name: new RegExp(`^${name}`) });
 
 test("/ serves both directory badges in the footer HTML, as followed links with sized, lazy images", async ({ request }) => {
@@ -30,11 +49,13 @@ test("/ serves both directory badges in the footer HTML, as followed links with 
   expect(res.status()).toBe(200);
   const footers = parse(await res.text()).querySelectorAll("footer");
   expect(footers).toHaveLength(1);
-  for (const { name, href, width, height } of BADGES) {
+  for (const { name, href, src, width, height } of BADGES) {
     const links = footers[0].querySelectorAll(`a[href="${href}"]`);
     expect(links, href).toHaveLength(1);
-    expect(links[0].getAttribute("rel") ?? "", `${href} rel`).not.toMatch(NOT_FOLLOWED);
+    expect(links[0].getAttribute("rel"), `${href} rel`).toBe(REL);
+    expect(links[0].getAttribute("target")).toBe("_blank");
     const img = links[0].querySelector("img")!;
+    expect(img.getAttribute("src")).toBe(src);
     expect(img.getAttribute("alt")).toBe(name);
     expect(img.getAttribute("width")).toBe(String(width));
     expect(img.getAttribute("height")).toBe(String(height));
@@ -57,7 +78,7 @@ for (const width of [375, 1280]) {
       const link = badgeLink(page, name);
       await expect(link).toBeVisible();
       await expect(link).toHaveAttribute("href", href);
-      expect((await link.getAttribute("rel")) ?? "").not.toMatch(NOT_FOLLOWED);
+      await expect(link).toHaveAttribute("rel", REL);
       const img = link.getByRole("img", { name, exact: true });
       await expect.poll(() => img.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth > 0), { message: `${name} loaded` }).toBe(true);
       const box = (await img.boundingBox())!;
@@ -70,13 +91,7 @@ for (const width of [375, 1280]) {
 
   test(`home has no layout shift at ${width}px when scrolled to the footer and the badges load`, async ({ page }) => {
     await stubBadgeImages(page);
-    await page.addInitScript(() => {
-      const w = window as unknown as { __cls: number };
-      w.__cls = 0;
-      new PerformanceObserver((list) => {
-        for (const entry of list.getEntries() as unknown as { value: number; hadRecentInput: boolean }[]) if (!entry.hadRecentInput) w.__cls += entry.value;
-      }).observe({ type: "layout-shift", buffered: true });
-    });
+    const cls = await recordLayoutShift(page);
     await page.setViewportSize({ width, height: 900 });
     await page.goto("/", { waitUntil: "load" });
     // Hydration removes the footer newsletter's no-JS error anchors, and the form above this row gets 8 px shorter.
@@ -88,9 +103,38 @@ for (const width of [375, 1280]) {
       await expect.poll(() => img.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth > 0), { message: `${name} loaded` }).toBe(true);
     }
     await page.waitForTimeout(500);
-    expect(await page.evaluate(() => (window as unknown as { __cls: number }).__cls)).toBe(0);
+    expect(await cls()).toBe(0);
+  });
+
+  test(`badge boxes keep their size at ${width}px when the badge images fail to load`, async ({ page }) => {
+    const failed: string[] = [];
+    await page.route(isBadgeHost, (route) => {
+      failed.push(route.request().url());
+      return route.abort();
+    });
+    const cls = await recordLayoutShift(page);
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/", { waitUntil: "load" });
+    await expect(page.locator("#newsletter-footer-invalid")).toHaveCount(0);
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    await expect.poll(() => failed.length, { message: "both badge images requested" }).toBeGreaterThanOrEqual(BADGES.length);
+    for (const { name, width: w, height: h } of BADGES) {
+      const img = badgeLink(page, name).getByRole("img", { name, exact: true });
+      await expect.poll(() => img.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth === 0), { message: `${name} failed` }).toBe(true);
+      const box = (await img.boundingBox())!;
+      expect([box.width, box.height], `${name} broken box at ${width}px`).toEqual([w, h]);
+    }
+    await page.waitForTimeout(500);
+    expect(await cls()).toBe(0);
   });
 }
+
+test("the privacy policy says the footer badge images load from the directories' hosts", async ({ page }) => {
+  await page.goto("/privacy");
+  await expect(page.getByRole("article").getByText(/footer are images your browser loads from startupfa\.me and twelve\.tools/)).toHaveText(
+    "The badges in our footer are images your browser loads from startupfa.me and twelve.tools, the directories that list LaunchLoop. Like any site your browser talks to, they receive your IP address and browser type.",
+  );
+});
 
 test("the badges' accessible names start with their alt text and say they open a new tab", async ({ page }) => {
   await stubBadgeImages(page);
