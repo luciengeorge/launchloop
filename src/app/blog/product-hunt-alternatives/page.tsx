@@ -313,8 +313,8 @@ export default function ProductHuntAlternativesPostPage() {
       </p>
       <p>
         <strong>How to submit.</strong> Make an account, then fill in the launch form: name, tagline, description, category, thumbnail and gallery. To test a tagline before
-        you paste it in, the free <Link href="/tools/product-hunt-tagline-checker">Product Hunt tagline checker</Link> flags hype words, emoji and a repeated product name,
-        and counts it against Product Hunt&apos;s limit.
+        you paste it in, the free <Link href="/tools/product-hunt-tagline-checker">Product Hunt tagline checker</Link> counts it against Product Hunt&apos;s limit and flags
+        hype words, emoji and, if you add your product name, a repeated name.
       </p>
       <p>
         <strong>Free or paid.</strong> A free tier and three paid tiers, each paid tier with a crossed-out price next to it:
@@ -457,8 +457,8 @@ export default function ProductHuntAlternativesPostPage() {
       </p>
       <p>
         <strong>How to submit.</strong> A link or text post, with a set title format:{" "}
-        <q>When submitting a link to a project or startup, please use this format: [Project name] - [Short description].</q> A link post can show your page&apos;s Open
-        Graph image as its preview, so check what it will show with the free <Link href="/tools/og-preview">OG image preview</Link>.
+        <q>When submitting a link to a project or startup, please use this format: [Project name] - [Short description].</q> Before you post a link, check your
+        page&apos;s share image and tags with the free <Link href="/tools/og-preview">OG image preview</Link>.
       </p>
       <p>
         <strong>Free or paid.</strong> No fee or paid option is listed.

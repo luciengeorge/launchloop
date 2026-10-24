@@ -7,7 +7,7 @@ Blog post for `/blog`, requested on Tuesday 20 October 2026. Every source was re
 **URL:** `/blog/product-hunt-alternatives`
 **Title:** `Product Hunt alternatives: where to launch · LaunchLoop` (55 characters)
 **Description:** `Sites like Product Hunt, from their own pages: who BetaList, Uneed, Peerlist, DevHunt, Show HN and others are for, what a launch costs and the rules.` (149 characters)
-**H1:** Product Hunt alternatives for indie makers. **Published and updated:** 2026-10-24, moved from the brief's 2026-10-22 (bump both in `src/lib/blog.ts` if it merges on another day). **Byline:** Lucien George. **Reading time:** 20 minutes (3,919 words in the rendered body at 200 words a minute after the BetaList corrections of 24 October, 3,823 before them and 3,745 before the tool links below; the e2e suite recounts it).
+**H1:** Product Hunt alternatives for indie makers. **Published and updated:** 2026-10-24, moved from the brief's 2026-10-22 (bump both in `src/lib/blog.ts` if it merges on another day). **Byline:** Lucien George. **Reading time:** 20 minutes (3,916 words in the rendered body at 200 words a minute after the BetaList corrections and copy fixes of 24 October, 3,823 before them and 3,745 before the tool links below; the e2e suite recounts it).
 
 ## Target queries
 
@@ -112,11 +112,16 @@ QA found that Uneed's live pages no longer matched the 20 October read. Re-read 
 
 After publication, the post links LaunchLoop's two free tools, and no other `/tools` path:
 
-- `/tools/product-hunt-tagline-checker` in Fazier's "How to submit", where the launch form asks for a tagline. The copy says it counts against Product Hunt's limit, not Fazier's.
-- `/tools/og-preview` in r/SideProject's "How to submit", because a link post can show the page's Open Graph image.
+- `/tools/product-hunt-tagline-checker` in Fazier's "How to submit", where the launch form asks for a tagline. The copy says it counts against Product Hunt's limit, not Fazier's, and that it flags a repeated name only if you add your product name: the name check is skipped when the optional Product name field is empty (`src/lib/tagline-check.ts`, "`name` is optional; without it the name check is skipped").
+- `/tools/og-preview` in r/SideProject's "How to submit", as a check of the page's share image and tags before posting a link. The post makes no claim about how Reddit shows link previews: the tool shows a generic large card (X, LinkedIn, Slack, Facebook and iMessage), not a Reddit preview, and no Reddit source for previews is in this log.
 - Both in one sentence at the end of the first "Next steps" paragraph.
 
 No figures were added. `updated` stays 2026-10-24, the day of the change. `tests/e2e/blog.spec.ts` and `tests/unit/blog.test.ts` check both links, where they sit, and that no other `/tools` path is linked.
+
+Copy fixes from QA, 24 October 2026:
+
+- Fazier, tagline checker. Old: "flags hype words, emoji and a repeated product name, and counts it against Product Hunt's limit." New: "counts it against Product Hunt's limit and flags hype words, emoji and, if you add your product name, a repeated name."
+- r/SideProject, OG image preview. Old: "A link post can show your page's Open Graph image as its preview, so check what it will show with the free OG image preview." New: "Before you post a link, check your page's share image and tags with the free OG image preview."
 
 ## BetaList corrections, 24 October 2026
 
