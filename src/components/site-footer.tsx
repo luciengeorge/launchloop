@@ -10,12 +10,19 @@ import { SHIP_LOOP_LINK_LABEL, SoonBadge } from "./soon-badge";
 /**
  * Directory badges, as each directory's embed gives them. Both listings are checked by a bot that loads the home page
  * and looks for a followed link to the directory, so these links must never carry rel="nofollow", "ugc" or "sponsored".
- * width and height are the rendered size, set in CSS too: the images' own aspect ratios aren't whole pixels at 40 px tall,
- * and with height: auto the box would resize slightly once each one loads.
+ * width and height are the rendered size, set in CSS too: the images' own aspect ratios aren't whole pixels at these
+ * sizes, and with height: auto the box would resize slightly once each one loads.
  */
 const FEATURED_ON = [
-  { name: "Startup Fame", href: "https://startupfa.me", src: "https://startupfa.me/badges/featured/default.webp", width: 126, height: 40 },
-  { name: "Twelve Tools", href: "https://twelve.tools", src: "https://twelve.tools/badge0-light.svg", width: 148, height: 40 },
+  {
+    href: "https://startupfa.me/s/launchloop-1?utm_source=launchloop.dev",
+    src: "https://startupfa.me/badges/featured-badge-small.webp",
+    // The embed's own alt, "LaunchLoop - Featured on Startup Fame", wraps to two lines and is cut off in this box if the image fails.
+    alt: "Featured on Startup Fame",
+    width: 224,
+    height: 36,
+  },
+  { href: "https://twelve.tools", src: "https://twelve.tools/badge0-light.svg", alt: "Featured on Twelve Tools", width: 148, height: 40 },
 ] as const;
 
 export function SiteFooter() {
@@ -71,9 +78,9 @@ export function SiteFooter() {
           <ul className="flex flex-wrap items-center gap-3">
             {FEATURED_ON.map((badge) => (
               <li key={badge.href}>
-                <a href={badge.href} target="_blank" className="block rounded-lg">
+                <a href={badge.href} target="_blank" rel="noopener" className="block rounded-lg">
                   {/* eslint-disable-next-line @next/next/no-img-element -- the directory's own badge image, as its embed uses it */}
-                  <img src={badge.src} alt={`Featured on ${badge.name}`} width={badge.width} height={badge.height} loading="lazy" decoding="async" style={{ width: badge.width, height: badge.height }} className="block max-w-none object-contain" />
+                  <img src={badge.src} alt={badge.alt} width={badge.width} height={badge.height} loading="lazy" decoding="async" style={{ width: badge.width, height: badge.height }} className="block max-w-none object-contain" />
                   <span className="sr-only"> (opens in a new tab)</span>
                 </a>
               </li>
