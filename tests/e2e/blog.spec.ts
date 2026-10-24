@@ -70,7 +70,8 @@ const EXPECT: Record<string, { links: string[]; quotes: string[] }> = {
       "/product-hunt-launch-checklist",
       "/tools/product-hunt-tagline-checker",
       "/tools/og-preview",
-      "https://betalist.com/faq",
+      "https://betalist.com/help",
+      "https://betalist.com/criteria",
       "https://devhunt.org/faq",
       "https://news.ycombinator.com/showhn.html",
       "https://www.uneed.best/how-it-works",
@@ -81,6 +82,9 @@ const EXPECT: Record<string, { links: string[]; quotes: string[] }> = {
     ],
     quotes: [
       "All submissions are paid. There is no free submission option.",
+      "Each startup gets up to two opportunities to be featured: once pre-launch and once at launch.",
+      "Launched months or years ago",
+      "Newsletter slot (70k+ subscribers)",
       "DevHunt is a launchpad for developer tools, built by developers.",
       "Show HN is for something you've made that other people can play with.",
       "Submitting is not scheduling.",
@@ -302,6 +306,16 @@ test("the alternatives post has Uneed's 21 October prices and wait, dates the ta
   const visible = await page.locator("article #faq ~ div h3").allInnerTexts();
   expect(faq.mainEntity.map((q) => q.name)).toEqual(visible);
   for (const q of faq.mainEntity) await expect(body).toContainText(q.acceptedAnswer.text);
+});
+
+test("the alternatives post has BetaList's 24 October wording and none of its retired lines, in the page or the JSON-LD", async ({ page }) => {
+  await page.goto("/blog/product-hunt-alternatives");
+  const article = page.locator("article");
+  await expect(article.locator('a[href^="https://betalist.com/faq"], a[href^="https://betalist.com/support"]')).toHaveCount(0);
+  const OLD = /60k|Once pre-launch, and once during launch|weeks ago or longer|weeks old or more|recently launched or still be unreleased|not the right place to promote|BetaList FAQ|BetaList's FAQ|don't match/i;
+  await expect(article).not.toContainText(OLD);
+  for (const raw of await page.locator('script[type="application/ld+json"]').allTextContents()) expect(raw).not.toMatch(OLD);
+  await expect(page.locator("h3#betalist ~ p", { hasText: "Audience." }).first()).toContainText("70k+ subscribers");
 });
 
 test("the Product Hunt post hands the step-by-step to the checklist instead of repeating it", async ({ page }) => {
