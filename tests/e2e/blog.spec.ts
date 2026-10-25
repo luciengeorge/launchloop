@@ -33,6 +33,8 @@ const EXPECT: Record<string, { links: string[]; quotes: string[] }> = {
       "/how-to-promote-on-reddit",
       "/how-to-write-a-product-hunt-tagline",
       "/how-to-launch-a-vibe-coded-app",
+      "/blog/product-hunt-alternatives",
+      "/tools/og-preview",
       "https://betalist.com/help",
       "https://betalist.com/criteria",
       "https://betalist.com/help/submitting",
@@ -40,6 +42,13 @@ const EXPECT: Record<string, { links: string[]; quotes: string[] }> = {
       "https://betalist.com/terms/submissions",
       "https://betalist.com/boost",
       "https://guides.betalist.com/designing-your-landing-page",
+      "https://help.producthunt.com/en/articles/484932-can-i-submit-an-unreleased-product",
+      "https://help.producthunt.com/en/articles/9883485-product-hunt-featuring-guidelines",
+      "https://help.producthunt.com/en/articles/2724119-how-to-schedule-a-post",
+      "https://www.producthunt.com/launch/how-product-hunt-works",
+      "https://www.uneed.best/how-it-works",
+      "https://help.uneed.best/common-questions-and-issues/what-we-accept",
+      "https://news.ycombinator.com/showhn.html",
     ],
     quotes: [
       "All submissions are paid. There is no free submission option.",
@@ -50,6 +59,12 @@ const EXPECT: Record<string, { links: string[]; quotes: string[] }> = {
       "Most submissions wait days or weeks before publishing",
       "Priority listing guarantees faster review, not acceptance or any specific results.",
       "your startup may be featured on any day including weekends and holidays.",
+      "All plans include a do-follow backlink if featured, and a full refund if not selected.",
+      "Products that only offer an email sign-up are not eligible for the homepage.",
+      "will not be indexed on the site, and no users will be able to upvote it until the scheduled time.",
+      "Product Hunt is free for everyone to use.",
+      "If it's behind a waitlist, an invite code, or a sales call, we can't review it",
+      "Don't post landing pages or fundraisers.",
     ],
   },
   "how-to-launch-on-product-hunt": {
@@ -398,6 +413,48 @@ test("the BetaList post says submissions are paid, gives only BetaList's public 
   await expect(body).not.toContainText(/LaunchLoop (submits|will submit|posts it)/i);
   await expect(body.locator("q", { hasText: "Your startup must have its own domain" })).toBeVisible();
   await expect(body.locator("q", { hasText: "We do not accept app store links or pages hosted on free subdomains." })).toBeVisible();
+});
+
+test("the BetaList post compares pre-launch options in a dated table, has a readiness checklist and leaves LaunchLoop out of the table", async ({ page, request }) => {
+  await page.goto(postPath(BLOG_POSTS.find((p) => p.slug === "how-to-launch-on-betalist")!));
+  const body = page.locator("article > div").first();
+  for (const id of ["checklist", "compared"]) await expect(page.locator(`h2#${id}`)).toBeVisible();
+
+  const table = page.locator("#compared ~ div table").first();
+  await expect(table.locator("thead th")).toHaveText(["Site", "Takes a pre-launch page?", "Price", "Wait", "Link to your site"]);
+  const rows = table.locator("tbody tr");
+  await expect(rows.locator("td:first-child")).toHaveText(["BetaList", "Product Hunt, scheduled launch", "Uneed", "Show HN"]);
+  await expect(rows.nth(0).locator("td")).toHaveText([
+    "BetaList",
+    "Yes, with a way to sign up",
+    "Paid only; prices shown at the end of the form; full refund if not selected",
+    "About 14, 3 or 1 days to be featured, by plan",
+    "Do-follow if featured, through a 301 redirect",
+  ]);
+  await expect(rows.nth(2).locator("td").nth(2)).toHaveText("Free line; Fast-track $14.99; Skip the waiting line $39.99");
+  await expect(table).not.toContainText("LaunchLoop");
+  await expect(page.locator("#compared ~ div + p").first()).toHaveText("Checked on 25 October 2026.");
+  const compared = await page.locator("h2#compared").evaluate((h2) => {
+    const parts: string[] = [];
+    const links: string[] = [];
+    for (let el = h2.nextElementSibling; el && el.tagName !== "H2"; el = el.nextElementSibling) {
+      parts.push((el as HTMLElement).innerText);
+      el.querySelectorAll("a").forEach((a) => links.push(a.getAttribute("href") ?? ""));
+    }
+    return { text: parts.join("\n"), links };
+  });
+  expect(compared.links).toContain("/blog/product-hunt-alternatives");
+  expect(compared.text).toContain("isn't a launch board");
+  expect(compared.text.match(/\$[\d.,]+/g)).toEqual(["$14.99", "$39.99"]);
+
+  const checklist = page.locator("h2#checklist + p + ul > li");
+  await expect(checklist).toHaveCount(11);
+  for (const item of await checklist.all()) await expect(item.locator("strong").first()).toBeVisible();
+  const og = page.locator(`h2#checklist + p + ul a[href="${OG_PREVIEW.path}"]`);
+  await expect(og).toHaveText("OG image preview");
+  expect((await request.get(OG_PREVIEW.path, { maxRedirects: 0 })).status()).toBe(200);
+  const toolLinks = await body.locator('a[href^="/tools"]').evaluateAll((links) => links.map((a) => a.getAttribute("href")));
+  expect([...new Set(toolLinks)]).toEqual([OG_PREVIEW.path]);
 });
 
 test("the Indie Hackers post dates old advice and quotes the terms as they read now", async ({ page }) => {

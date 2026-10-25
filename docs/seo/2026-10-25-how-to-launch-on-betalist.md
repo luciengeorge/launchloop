@@ -1,13 +1,13 @@
 # Source check: how to launch on BetaList, 25 October 2026
 
-Blog post requested on Wednesday 21 October 2026 and first sourced that day. QA found that BetaList had changed several pages after 21 October, so every source was read again on Saturday 24 October 2026 from about 06:58 to 07:13 UTC and the post was rewritten to match. Every quote on the page was copied from a page read that day, not from memory or a search snippet, and then checked again by script (see Method).
+Blog post requested on Wednesday 21 October 2026 and first sourced that day. QA found that BetaList had changed several pages after 21 October, so every source was read again on Saturday 24 October 2026 from about 06:58 to 07:13 UTC and the post was rewritten to match. Every quote on the page was copied from a page read that day, not from memory or a search snippet, and then checked again by script (see Method). On Sunday 25 October 2026 a comparison table and a readiness checklist were added, every BetaList page was read live again, and the table's other sites were read on their own pages (see "Comparison table and checklist, 25 October 2026").
 
 ## Page
 
 **URL:** `/blog/how-to-launch-on-betalist`
 **Title:** `How to launch on BetaList: submission guide · LaunchLoop` (56 characters)
 **Description:** `How to launch on BetaList from its own pages: who it is for, what it rejects, how submission and paid plans work, review times and the day you are featured.` (156 characters)
-**H1:** How to launch on BetaList. **Published and updated:** 2026-10-25, moved from the brief's 2026-10-23 (bump both in `src/lib/blog.ts` if it merges on another day). **Byline:** Lucien George. **Reading time:** 19 minutes (3,617 words in the rendered body at 200 words a minute, including the one-line link to the Product Hunt alternatives post; the e2e suite recounts it).
+**H1:** How to launch on BetaList. **Published and updated:** 2026-10-25, moved from the brief's 2026-10-23 (bump both in `src/lib/blog.ts` if it merges on another day). **Byline:** Lucien George. **Reading time:** 23 minutes (4,571 words in the rendered body at 200 words a minute after the comparison table and checklist of 25 October, 3,617 before them; the e2e suite recounts it). Published and updated stay 2026-10-25: the 25 October additions are on the publish day, so there is no later updated date to set.
 
 Target queries: "how to launch on betalist" and "betalist submission". No keyword lookups were made for this post.
 
@@ -50,6 +50,18 @@ Live pages, each with the Internet Archive capture made on 24 October 2026 that 
 - Designing your landing page, BetaList guides: https://guides.betalist.com/designing-your-landing-page (the listed capture `https://web.archive.org/web/20261024070656/https://guides.betalist.com/designing-your-landing-page` resolves to the 12 July 2026 copy, see the correction above; the current wording was read live on 25 October 2026)
 - Homepage: https://betalist.com/ (capture `https://web.archive.org/web/20261024065920/https://betalist.com/`)
 
+All of the above were read live again on 25 October 2026 (07:50 to 07:51 UTC, HTTP 200). For the comparison table, read on 25 October 2026:
+
+- Product Hunt Help Center, Can I submit an unreleased product? (February 10, 2025): https://help.producthunt.com/en/articles/484932-can-i-submit-an-unreleased-product
+- Product Hunt Help Center, Product Hunt Featuring Guidelines (March 10, 2026): https://help.producthunt.com/en/articles/9883485-product-hunt-featuring-guidelines
+- Product Hunt Help Center, How to schedule a post (February 2, 2026): https://help.producthunt.com/en/articles/2724119-how-to-schedule-a-post
+- Product Hunt Help Center, How to share a scheduled launch (June 30, 2026): https://help.producthunt.com/en/articles/15706445-how-to-share-a-scheduled-launch
+- Product Hunt, How Product Hunt works (undated): https://www.producthunt.com/launch/how-product-hunt-works
+- Product Hunt, `https://www.producthunt.com/upcoming` (404) and `https://www.producthunt.com/coming-soon` (the homepage), not linked from the post
+- Uneed, How it works: https://www.uneed.best/how-it-works
+- Uneed Help Center, What we accept (and what we don't): https://help.uneed.best/common-questions-and-issues/what-we-accept
+- Show HN guidelines, Hacker News: https://news.ycombinator.com/showhn.html
+
 ## Pricing, re-verified 24 October 2026
 
 - **Submissions are paid.** The Help page says "All submissions are paid. There is no free submission option." and "BetaList used to offer free submissions, but all submissions now require payment." Unchanged since 21 October.
@@ -58,6 +70,33 @@ Live pages, each with the Internet Archive capture made on 24 October 2026 that 
 - **Boost:** $99/week ("Billed weekly, cancel anytime") and $199/month ("Billed monthly, cancel anytime"), marked "Introductory pricing", on the Boost page and the Advertise page.
 - **Sponsorship:** $4,999/month, "One sponsor at a time", on the Advertise page.
 - **Advertising Premium (new):** $9,999/month on the Advertise page, "Everything in Sponsorship, made impossible to miss.", with "Prominent homepage placement above the fold, with image" and "One dedicated email to all 70k+ subscribers per month". Its three-month price ($25,000) is left out; the pricing section's dollar figures are $99, $199, $4,999 and $9,999, and the e2e test checks exactly those.
+
+## Comparison table and checklist, 25 October 2026
+
+Approved follow-up to PR #62. The post gains two sections, both on the publish day: "Before you submit: a readiness checklist" (`#checklist`, after the form section) and "BetaList vs other pre-launch options" (`#compared`, before Next steps), which links `/blog/product-hunt-alternatives`. The old one-line "Comparing BetaList with other launch sites?" link in Next steps was removed, since the new section links the alternatives post in its first sentence. The intro links both new sections.
+
+**Method.** On 25 October 2026 from 07:50 to 07:51 UTC, `curl` with a Chrome user agent got HTTP 200 from every BetaList page listed under Sources, from `www.uneed.best/how-it-works`, `www.uneed.best/pricing`, `help.uneed.best`'s What we accept and `news.ycombinator.com/showhn.html`, with no Cloudflare challenge. `betalist.com/agent` is now served as `text/markdown`, so its plan list reads "**Lite**: featured within about 14 days." and so on, one plan per list item; quote 79 joins the three items and each was found. Product Hunt's help center and producthunt.com returned HTTP 403 to `curl`, as on 20 October, so its pages were read with the remote fetcher (Cursor WebFetch) on 25 October 2026 between about 07:45 and 07:50 UTC. A script then took every `<q>` from the rendered article (124 quotes, 123 unique) and searched for each in plain-text copies of those reads (tags dropped, entities decoded, Markdown bold removed, whitespace normalised). All were found; the plan line as its three list items. All 115 earlier quotes still match BetaList's live pages, so nothing on BetaList changed between 24 and 25 October.
+
+**The table, row by row.** Every cell comes from the site's own pages, read on 25 October 2026. The page says "Checked on 25 October 2026." under the table.
+
+| Row | Takes a pre-launch page? | Price | Wait | Link to your site |
+| --- | --- | --- | --- | --- |
+| BetaList | "Yes, with a way to sign up": `/criteria` lists "Not yet available to anyone (pre-launch landing page)." under Aim for, and its last section asks for a signup path | "Paid only; prices shown at the end of the form; full refund if not selected": `/help` ("All submissions are paid. There is no free submission option.", "Current plans and prices are shown at the end of the submission form.", "If your startup isn't selected, you get a full refund automatically.") | "About 14, 3 or 1 days to be featured, by plan": `/agent` (Lite, Standard, Premium) | "Do-follow if featured, through a 301 redirect": `/help` ("All plans include a do-follow backlink if featured", "The "Visit Site" button on your featured listing is a do-follow link", "It routes through a 301 redirect to your website") |
+| Product Hunt, scheduled launch | "Occasionally; an email sign-up alone isn't eligible for the homepage": Can I submit an unreleased product? ("we occasionally allow pre-launch or crowdfunded products if they provide clear, detailed information", "Products that only offer an email sign-up are not eligible for the homepage.") | "Free": How Product Hunt works ("Product Hunt is free for everyone to use.") | "You pick a day within 30 days": How to schedule a post ("pick the day within 30 days of your current day for the post to go live") | "Not stated in its help center": help center searches for "nofollow" and "upcoming" returned no articles, and none of the articles above mentions link attributes |
+| Uneed | "No: not behind a waitlist or invite code, even on a paid launch": What we accept ("If it's behind a waitlist, an invite code, or a sales call, we can't review it"; "closed or invite-only products are refused whatever you paid, and we refund you.") | "Free line; Fast-track $14.99; Skip the waiting line $39.99": How it works ("Join the free waiting line (free)", "Fast-track ($14.99)", "Skip the waiting line ($39.99)"), unchanged since the alternatives post's 21 October re-check | "Free: at least 30 days; Fast-track: about 2 weeks; Skip: you pick the date": How it works ("at least 30 days out, at the back of the line.", "around 2 weeks out", "pick the exact date you want.") | "Free: do-follow from an upvote score of 20; Fast-track: from 10; Skip: always": How it works ("20 to keep a do-follow backlink", "its backlink is do-follow from an upvote score of 10", "Published with a do-follow backlink for life, no minimum upvote score.") |
+| Show HN | "No: no landing pages or sign-up pages": Show HN guidelines ("Don't post landing pages or fundraisers.", "Off topic: blog posts, sign-up pages, newsletters, lists, and other reading material.") | "No fee listed": the guidelines list none | "No review step described": the guidelines describe none ("Every Show HN appears on shownew.") | "Not stated in its guidelines" |
+
+**Product Hunt "upcoming" and "coming soon".** The brief suggested Product Hunt's upcoming or coming soon pages. Neither exists as a feature now: on 25 October 2026 `https://www.producthunt.com/upcoming` returned HTTP 404 to the remote fetcher (the Internet Archive's latest copy, 21 February 2026, is also a 404), `https://www.producthunt.com/coming-soon` returned the homepage ("Top Products Launching Today"), and the help center has no article for "upcoming". The row is Product Hunt's scheduled launch instead, which the help center says can be made public before launch day ("so that anyone with the link can view it", How to share a scheduled launch, June 30, 2026), and the notes under the table say so.
+
+**Sites considered and left out.**
+
+- **r/alphaandbetausers**, the other pre-launch site in the alternatives post's "If your product is pre-launch or in beta" group. Reddit returned "You've been blocked by network security" to `curl` (HTTP 403) and to the remote fetcher, old.reddit asked for a login, and the Internet Archive's Save Page Now failed twice ("Job failed", HTTP 520) on 25 October 2026. Its latest archive copy is from 24 August 2026, so it couldn't be checked now and isn't in the table. The post says Reddit blocked our requests.
+- **DevHunt, Fazier, Tiny Startups, Microlaunch, Peerlist Launchpad, Indie Hackers, r/SideProject** (also in the alternatives post). Not pre-launch options in that post's grouping, and not re-read for this table, so the table makes no claim about them.
+- **LaunchLoop.** Ours, and not a launch board, so not in the table. The post says "LaunchLoop, which publishes this post, isn't either: it isn't a launch board."
+
+**Figures.** The table adds only prices and day counts from the sites' own pages: $14.99, $39.99, 14, 3 and 1 days, 30 days, 2 weeks, and the upvote scores 10 and 20. No percentages. The BetaList pricing section's dollar figures are unchanged ($99, $199, $4,999, $9,999), and the e2e test checks the comparison section's only dollar figures are $14.99 and $39.99.
+
+**The checklist.** Eleven items, all paraphrasing BetaList pages already quoted in the post, so it adds no quotes: new and a technology startup (`/criteria`), featured at most once before and only pre-launch (`/criteria`, Help), own domain and no free subdomain or app store page (`/criteria`, Help, Submission Terms), a landing page that looks like yours and says what it is, who it's for and what it looks like (`/criteria`), an obvious way in with only an email asked for (`/criteria`, landing page guide), the form fields and their limits (`/agent`, `/help/submitting`), an icon (ideally 512 px or larger) and at least one screenshot at roughly 4:3, because "Paying requires an icon and a screenshot" (`/agent`, `/help/submitting`), the page's share card (a link to `/tools/og-preview`, with no claim about how BetaList or any site shows it), traffic on any day including weekends (Submission Terms), UTM and ref=betalist in analytics (Help), and that a plan buys faster review, not acceptance, with a refund if not selected and a prompt reply if BetaList writes (Submission Terms, Help). It is a `<ul>` of bold-led items under an `h2`, the way the Show HN and Product Hunt checklists render theirs.
 
 ## Every quote on the page
 
@@ -180,6 +219,14 @@ Numbered in order of first appearance. "Unchanged" means the same words were in 
 | 113 | "Most edits are approved automatically within minutes; the rest are reviewed by our team." | https://betalist.com/help | unchanged |
 | 114 | "The one rule for moving to a new domain is that your old URL must redirect to your new one" | https://betalist.com/help | unchanged |
 | 115 | "We generally only feature each startup once, with one exception" | https://betalist.com/help | unchanged |
+| 116 | "All plans include a do-follow backlink if featured, and a full refund if not selected." | https://betalist.com/help (live, 25 October 2026) | new on 25 Oct, the first sentence of quote 81 |
+| 117 | "will not be indexed on the site, and no users will be able to upvote it until the scheduled time." | https://help.producthunt.com/en/articles/2724119-how-to-schedule-a-post (live, 25 October 2026) | new on 25 Oct |
+| 118 | "We prioritize fully launched products that users can explore and engage with immediately." | https://help.producthunt.com/en/articles/484932-can-i-submit-an-unreleased-product (live, 25 October 2026) | new on 25 Oct |
+| 119 | "Products that only offer an email sign-up are not eligible for the homepage." | https://help.producthunt.com/en/articles/484932-can-i-submit-an-unreleased-product (live, 25 October 2026; the source starts the line with a 🚫 emoji) | new on 25 Oct |
+| 120 | "Waitlisted products (unless immediate access is provided)" | https://help.producthunt.com/en/articles/9883485-product-hunt-featuring-guidelines (live, 25 October 2026) | new on 25 Oct |
+| 121 | "Product Hunt is free for everyone to use." | https://www.producthunt.com/launch/how-product-hunt-works (live, 25 October 2026) | new on 25 Oct |
+| 122 | "If it's behind a waitlist, an invite code, or a sales call, we can't review it" | https://help.uneed.best/common-questions-and-issues/what-we-accept (live, 25 October 2026; stops where the list item ends) | new on 25 Oct |
+| 123 | "Don't post landing pages or fundraisers." | https://news.ycombinator.com/showhn.html (live, 25 October 2026) | new on 25 Oct |
 
 ## Paraphrased claims and their sources
 
@@ -205,11 +252,14 @@ Numbered in order of first appearance. "Unchanged" means the same words were in 
 - Look for the source "betalist" in your analytics: Help ("Check your analytics dashboard for traffic from source "betalist".").
 - Share your BetaList post on the day: our reading of the Trending answer ("the more engagement your startup post receives, the higher its chances of getting trending").
 - None of BetaList's pages above sets upvote or launch-day conduct rules: checked on Help, the criteria, the submission guide, the Agent API page, the Submission Terms, the Terms of Service, Boost and Advertise.
+- Comparison notes, 25 October 2026. A scheduled Product Hunt launch is private until you make it public: How to share a scheduled launch ("By default, all scheduled launches are only visible by the Makers and product team members associated with the launch."). We found no help center article on review times or link attributes: help center searches on 25 October. On Uneed's free line a score of 10 to 19 keeps the product published with a nofollow link: How it works ("From 10 to 19, it stays published with a nofollow link."). Closed or invite-only products are refused even on a paid launch, with a refund: What we accept ("closed or invite-only products are refused whatever you paid, and we refund you"). Show HN lists no fee, describes no review step and says nothing about links: the whole guidelines page, read on 25 October.
 - Site QA nit (21 October 2026): the refund paragraph quotes the Submission Terms' "If your priority listing submission is not accepted for featuring, you are generally eligible for a refund." before the two discretion clauses, each in its own sentence. All three refund quotes still match on 24 October.
 
 ## LaunchLoop mention
 
 "A LaunchLoop kit drafts a tagline, a description and launch images from your repo and live page, which you can adapt for your BetaList listing. It doesn't submit anything for you: you still create your BetaList account, fill in the form and choose a plan yourself." The shared preview CTA is rendered by `BlogPostLayout`.
+
+Under the comparison table (25 October 2026): "LaunchLoop, which publishes this post, isn't either: it isn't a launch board." LaunchLoop has no row, and the e2e test fails if the table mentions it. The checklist links LaunchLoop's free `/tools/og-preview` and no other `/tools` page.
 
 ## Left out, and why
 

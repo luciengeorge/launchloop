@@ -84,6 +84,39 @@ describe("BetaList post", () => {
     expect(p.description).toMatch(/^How to launch on BetaList/);
     expect(p).toMatchObject({ published: "2026-10-25", updated: "2026-10-25" });
   });
+
+  it("links the OG image preview and no /tools path that doesn't exist", () => {
+    const source = readFileSync(path.join(import.meta.dirname, "../../src/app/blog/how-to-launch-on-betalist/page.tsx"), "utf8");
+    expect(source).toContain("<Link href={OG_PREVIEW.path}>");
+    const tools = TOOLS.map((t) => t.path);
+    for (const m of source.matchAll(/href="(\/tools[^"]*)"/g)) expect(tools).toContain(m[1]);
+  });
+
+  it("its quote log counts 28 old quotes that no longer matched, and lists the 25 October comparison sources", () => {
+    const log = readFileSync(path.join(import.meta.dirname, "../../docs/seo/2026-10-25-how-to-launch-on-betalist.md"), "utf8");
+    expect(log).toContain("28 old quotes no longer matched, 27 from the old guidelines and 1 from the landing page guide");
+    expect(log).not.toContain("27 old guideline quotes no longer matched");
+    expect(log).toContain("## Comparison table and checklist, 25 October 2026");
+    for (const url of ["https://help.producthunt.com/en/articles/484932-can-i-submit-an-unreleased-product", "https://www.uneed.best/how-it-works", "https://news.ycombinator.com/showhn.html"]) {
+      expect(log).toContain(url);
+    }
+  });
+});
+
+describe("quote logs", () => {
+  const LOGS: Record<string, string> = {
+    "how-to-launch-on-betalist": "docs/seo/2026-10-25-how-to-launch-on-betalist.md",
+    "product-hunt-alternatives": "docs/seo/2026-10-24-product-hunt-alternatives.md",
+  };
+
+  it.each(Object.entries(LOGS))("%s states the registry's reading time and a word count that rounds to it", (slug, file) => {
+    const log = readFileSync(path.join(import.meta.dirname, "../..", file), "utf8");
+    const match = log.match(/\*\*Reading time:\*\* (\d+) minutes \(([\d,]+) words/);
+    expect(match, file).toBeTruthy();
+    const [minutes, words] = [Number(match![1]), Number(match![2].replace(/,/g, ""))];
+    expect(minutes).toBe(post(slug).readingMinutes);
+    expect(Math.ceil(words / 200)).toBe(minutes);
+  });
 });
 
 describe("Product Hunt alternatives post", () => {
