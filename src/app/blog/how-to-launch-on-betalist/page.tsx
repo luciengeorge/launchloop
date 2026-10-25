@@ -2,9 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { BlogPostLayout } from "@/components/blog-post-layout";
 import { Faq, type FaqItem } from "@/components/guide-faq";
-import { BLOG_POSTS, post, postPath } from "@/lib/blog";
+import { post, postPath } from "@/lib/blog";
 import { postPage } from "@/lib/pages";
 import { blogPageMetadata } from "@/lib/seo";
+import { OG_PREVIEW } from "@/lib/tools";
 
 const p = post("how-to-launch-on-betalist");
 
@@ -25,7 +26,18 @@ const SRC = {
   landingGuide: "https://guides.betalist.com/designing-your-landing-page",
 } as const;
 
-const ALTERNATIVES = BLOG_POSTS.find((b) => b.slug === "product-hunt-alternatives");
+const OTHERS = {
+  phUnreleased: "https://help.producthunt.com/en/articles/484932-can-i-submit-an-unreleased-product",
+  phFeaturing: "https://help.producthunt.com/en/articles/9883485-product-hunt-featuring-guidelines",
+  phSchedule: "https://help.producthunt.com/en/articles/2724119-how-to-schedule-a-post",
+  phShareScheduled: "https://help.producthunt.com/en/articles/15706445-how-to-share-a-scheduled-launch",
+  phHowItWorks: "https://www.producthunt.com/launch/how-product-hunt-works",
+  uneedHowItWorks: "https://www.uneed.best/how-it-works",
+  uneedAccept: "https://help.uneed.best/common-questions-and-issues/what-we-accept",
+  showHn: "https://news.ycombinator.com/showhn.html",
+} as const;
+
+const ALTERNATIVES = postPath({ slug: "product-hunt-alternatives" });
 
 const FAQ: FaqItem[] = [
   {
@@ -58,7 +70,8 @@ export default function BetaListLaunchPostPage() {
         editor to accept or reject it. This post explains how that works using only BetaList&apos;s own pages: its <a href={SRC.help}>Help page</a>,{" "}
         <a href={SRC.criteria}>submission criteria</a>, <a href={SRC.submitting}>submission guide</a>, <a href={SRC.agent}>Agent API page</a>,{" "}
         <a href={SRC.submissionTerms}>Submission Terms</a> and landing page guide. Every rule is quoted and linked, and where BetaList doesn&apos;t say something publicly,
-        this post says so instead of guessing.
+        this post says so instead of guessing. There is a <a href="#checklist">checklist</a> to run through before you submit, and a{" "}
+        <a href="#compared">table comparing BetaList with other pre-launch options</a>, also from each site&apos;s own pages.
       </p>
 
       <h2 id="what-it-is">What BetaList is and who it&apos;s for</h2>
@@ -270,6 +283,51 @@ export default function BetaListLaunchPostPage() {
         we see fit.</q> They add <q>You retain ownership of your content.</q>
       </p>
 
+      <h2 id="checklist">Before you submit: a readiness checklist</h2>
+      <p>Everything on this list comes from the BetaList pages quoted above. Tick each one off before you pay.</p>
+      <ul>
+        <li>
+          <strong>It is new and it is a technology startup.</strong> Pre-launch, in private beta or launched in the last few weeks, and software or hardware rather than a
+          blog, course, store or agency. See <a href="#what-qualifies">what qualifies</a>.
+        </li>
+        <li>
+          <strong>It hasn&apos;t been featured, or this is the launch listing.</strong> A startup featured before launch can come back once, at launch.
+        </li>
+        <li>
+          <strong>It is on its own domain.</strong> Not a free subdomain like vercel.app or netlify.app, and not an app store or Kickstarter page.
+        </li>
+        <li>
+          <strong>The landing page looks like yours.</strong> No untouched template, default Bootstrap or hosted builder page, and it says what the product is, who it&apos;s
+          for and what it looks like.
+        </li>
+        <li>
+          <strong>There is an obvious way in.</strong> A signup form front and center that asks only for an email, a download button or a social login. &ldquo;Follow us
+          on X to get notified&rdquo; on its own doesn&apos;t count.
+        </li>
+        <li>
+          <strong>The form fields are written.</strong> The product name on its own, a one-sentence pitch of 75 characters or fewer, a plain-text description of 700 or
+          fewer, and up to 5 specific topics. See <a href="#how-to-submit">the form</a>.
+        </li>
+        <li>
+          <strong>You have an icon and at least one screenshot.</strong> A square icon, ideally 512 px or larger, and screenshots at roughly 4:3. BetaList won&apos;t take
+          payment without an icon and a screenshot.
+        </li>
+        <li>
+          <strong>Your page&apos;s share card is right.</strong> Check your page&apos;s share image and tags with the free{" "}
+          <Link href={OG_PREVIEW.path}>OG image preview</Link> before you submit, so your link looks right wherever you share it on the day.
+        </li>
+        <li>
+          <strong>The site can take traffic on any day.</strong> Unless your plan lets you pick a date, you won&apos;t know the day in advance, and it can be a weekend.
+        </li>
+        <li>
+          <strong>Analytics can see BetaList.</strong> BetaList adds UTM parameters and ref=betalist to its links, so check that your analytics records the source.
+        </li>
+        <li>
+          <strong>You know what the plan buys.</strong> Paying buys a faster review, not acceptance, and if you aren&apos;t selected the Help page says you get a full
+          refund. Then watch your inbox, because BetaList expects a prompt reply if it contacts you.
+        </li>
+      </ul>
+
       <h2 id="pricing">What it costs</h2>
       <p>
         Submitting to BetaList is paid. On 24 October 2026 the Help page said <q>All submissions are paid. There is no free submission option.</q> and{" "}
@@ -406,6 +464,86 @@ export default function BetaListLaunchPostPage() {
         featured each day in the <a href={SRC.criteria}>submission criteria</a>.
       </p>
 
+      <h2 id="compared">BetaList vs other pre-launch options</h2>
+      <p>
+        BetaList is built for products that aren&apos;t public yet. Here is how it compares with Product Hunt&apos;s scheduled launches and with two sites from our{" "}
+        <Link href={ALTERNATIVES}>Product Hunt alternatives</Link> post, Uneed and Show HN, that founders often try early. Each cell comes from that site&apos;s own pages.
+      </p>
+      <div className="overflow-x-auto">
+        <table className="w-full text-left text-sm text-muted-foreground">
+          <thead>
+            <tr className="border-b border-border text-foreground">
+              <th className="py-2 pr-4 font-medium">Site</th>
+              <th className="py-2 pr-4 font-medium">Takes a pre-launch page?</th>
+              <th className="py-2 pr-4 font-medium">Price</th>
+              <th className="py-2 pr-4 font-medium">Wait</th>
+              <th className="py-2 font-medium">Link to your site</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr className="border-b border-border">
+              <td className="py-2 pr-4 align-top">BetaList</td>
+              <td className="py-2 pr-4 align-top">Yes, with a way to sign up</td>
+              <td className="py-2 pr-4 align-top">Paid only; prices shown at the end of the form; full refund if not selected</td>
+              <td className="py-2 pr-4 align-top">About 14, 3 or 1 days to be featured, by plan</td>
+              <td className="py-2 align-top">Do-follow if featured, through a 301 redirect</td>
+            </tr>
+            <tr className="border-b border-border">
+              <td className="py-2 pr-4 align-top">Product Hunt, scheduled launch</td>
+              <td className="py-2 pr-4 align-top">Occasionally; an email sign-up alone isn&apos;t eligible for the homepage</td>
+              <td className="py-2 pr-4 align-top">Free</td>
+              <td className="py-2 pr-4 align-top">You pick a day within 30 days</td>
+              <td className="py-2 align-top">Not stated in its help center</td>
+            </tr>
+            <tr className="border-b border-border">
+              <td className="py-2 pr-4 align-top">Uneed</td>
+              <td className="py-2 pr-4 align-top">No: not behind a waitlist or invite code, even on a paid launch</td>
+              <td className="py-2 pr-4 align-top">Free line; Fast-track $14.99; Skip the waiting line $39.99</td>
+              <td className="py-2 pr-4 align-top">Free: at least 30 days; Fast-track: about 2 weeks; Skip: you pick the date</td>
+              <td className="py-2 align-top">Free: do-follow from an upvote score of 20; Fast-track: from 10; Skip: always</td>
+            </tr>
+            <tr>
+              <td className="py-2 pr-4 align-top">Show HN</td>
+              <td className="py-2 pr-4 align-top">No: no landing pages or sign-up pages</td>
+              <td className="py-2 pr-4 align-top">No fee listed</td>
+              <td className="py-2 pr-4 align-top">No review step described</td>
+              <td className="py-2 align-top">Not stated in its guidelines</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Checked on 25 October 2026.</p>
+      <ul>
+        <li>
+          <strong>BetaList.</strong> The sources are quoted above: the <a href="#what-qualifies">criteria</a>, the plans under <a href="#pricing">pricing</a>, and the Help
+          page&apos;s <q>All plans include a do-follow backlink if featured, and a full refund if not selected.</q>
+        </li>
+        <li>
+          <strong>Product Hunt.</strong> It has no coming soon or upcoming page: on 25 October 2026 producthunt.com/upcoming returned a 404 and /coming-soon showed the
+          homepage. What it has is a <a href={OTHERS.phSchedule}>scheduled launch</a>, for a day within 30 days, which{" "}
+          <q>will not be indexed on the site, and no users will be able to upvote it until the scheduled time.</q> It is private until you{" "}
+          <a href={OTHERS.phShareScheduled}>make it public</a>. On <a href={OTHERS.phUnreleased}>unreleased products</a>:{" "}
+          <q>We prioritize fully launched products that users can explore and engage with immediately.</q> and{" "}
+          <q>Products that only offer an email sign-up are not eligible for the homepage.</q> The <a href={OTHERS.phFeaturing}>Featuring Guidelines</a> don&apos;t feature{" "}
+          <q>Waitlisted products (unless immediate access is provided)</q>, and <a href={OTHERS.phHowItWorks}>How Product Hunt works</a> says{" "}
+          <q>Product Hunt is free for everyone to use.</q> We found no help center article on review times or link attributes.
+        </li>
+        <li>
+          <strong>Uneed.</strong> Prices, waits and link rules are from its <a href={OTHERS.uneedHowItWorks}>how it works</a> page; on the free line, a score of 10 to 19
+          keeps the product published with a nofollow link. Its page on <a href={OTHERS.uneedAccept}>what it accepts</a> says{" "}
+          <q>If it&apos;s behind a waitlist, an invite code, or a sales call, we can&apos;t review it</q>, and closed or invite-only products are refused even on a paid
+          launch, with a refund.
+        </li>
+        <li>
+          <strong>Show HN.</strong> The <a href={OTHERS.showHn}>guidelines</a> say <q>Don&apos;t post landing pages or fundraisers.</q> They list no fee, describe no
+          review step and say nothing about links.
+        </li>
+      </ul>
+      <p>
+        The alternatives post also covers r/alphaandbetausers, a subreddit for beta testers, but Reddit blocked our requests on 25 October 2026, so it isn&apos;t in the
+        table. LaunchLoop, which publishes this post, isn&apos;t either: it isn&apos;t a launch board.
+      </p>
+
       <h2 id="next">Next steps</h2>
       <p>
         Planning the public launch after BetaList? Start with <Link href={postPath({ slug: "how-to-launch-on-product-hunt" })}>how to launch on Product Hunt</Link> and the{" "}
@@ -414,11 +552,6 @@ export default function BetaListLaunchPostPage() {
         <Link href="/how-to-promote-on-reddit">how to promote your app on Reddit</Link> and{" "}
         <Link href={postPath({ slug: "how-to-launch-on-indie-hackers" })}>how to launch on Indie Hackers</Link>.
       </p>
-      {ALTERNATIVES ? (
-        <p>
-          Comparing BetaList with other launch sites? See <Link href={postPath(ALTERNATIVES)}>Product Hunt alternatives</Link>.
-        </p>
-      ) : null}
       <p>
         A LaunchLoop kit drafts a tagline, a description and launch images from your repo and live page, which you can adapt for your BetaList listing. It doesn&apos;t submit
         anything for you: you still create your BetaList account, fill in the form and choose a plan yourself. Start with a <Link href="/#start">free preview</Link> or see{" "}
@@ -429,8 +562,9 @@ export default function BetaListLaunchPostPage() {
 
       <h2 id="sources">Sources</h2>
       <p>
-        Checked as of October 2026. Every quote and price on this page was read on BetaList&apos;s own pages on 24 October 2026. BetaList changes its plans and pages without
-        notice, so check the links before you submit.
+        Checked as of October 2026. Every BetaList quote and price on this page was read on BetaList&apos;s own pages on 24 October 2026 and found unchanged on 25 October
+        2026. The comparison table&apos;s Product Hunt, Uneed and Show HN facts were read on those sites&apos; own pages on 25 October 2026. These sites change their plans
+        and pages without notice, so check the links before you submit.
       </p>
       <ul>
         <li><a href={SRC.help}>Help</a>, BetaList (betalist.com/support and betalist.com/faq redirect here)</li>
@@ -443,6 +577,13 @@ export default function BetaListLaunchPostPage() {
         <li><a href={SRC.advertise}>Advertise on BetaList</a></li>
         <li><a href={SRC.landingGuide}>Designing your landing page</a>, BetaList guides</li>
         <li><a href={SRC.home}>BetaList homepage</a></li>
+        <li>
+          <a href={OTHERS.phUnreleased}>Can I submit an unreleased product?</a>, <a href={OTHERS.phFeaturing}>Featuring Guidelines</a>,{" "}
+          <a href={OTHERS.phSchedule}>How to schedule a post</a> and <a href={OTHERS.phShareScheduled}>How to share a scheduled launch</a>, Product Hunt Help Center, and{" "}
+          <a href={OTHERS.phHowItWorks}>How Product Hunt works</a>
+        </li>
+        <li><a href={OTHERS.uneedHowItWorks}>How it works</a> and <a href={OTHERS.uneedAccept}>What we accept (and what we don&apos;t)</a>, Uneed</li>
+        <li><a href={OTHERS.showHn}>Show HN guidelines</a>, Hacker News</li>
       </ul>
     </BlogPostLayout>
   );

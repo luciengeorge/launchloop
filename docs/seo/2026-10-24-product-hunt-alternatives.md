@@ -7,7 +7,7 @@ Blog post for `/blog`, requested on Tuesday 20 October 2026. Every source was re
 **URL:** `/blog/product-hunt-alternatives`
 **Title:** `Product Hunt alternatives: where to launch · LaunchLoop` (55 characters)
 **Description:** `Sites like Product Hunt, from their own pages: who BetaList, Uneed, Peerlist, DevHunt, Show HN and others are for, what a launch costs and the rules.` (149 characters)
-**H1:** Product Hunt alternatives for indie makers. **Published and updated:** 2026-10-24, moved from the brief's 2026-10-22 (bump both in `src/lib/blog.ts` if it merges on another day). **Byline:** Lucien George. **Reading time:** 20 minutes (3,916 words in the rendered body at 200 words a minute after the BetaList corrections and copy fixes of 24 October, 3,823 before them and 3,745 before the tool links below; the e2e suite recounts it).
+**H1:** Product Hunt alternatives for indie makers. **Published and updated:** 2026-10-24, moved from the brief's 2026-10-22 (bump both in `src/lib/blog.ts` if it merges on another day). **Byline:** Lucien George. **Reading time:** 20 minutes (3,920 words in the rendered body at 200 words a minute after the BetaList corrections, copy fixes and Sources sentence nit of 24 October, 3,916 before the Sources nit, 3,823 before the corrections and 3,745 before the tool links below; the e2e suite recounts it). Recounted on 25 October 2026 from the rendered post the way `tests/e2e/blog.spec.ts` counts (the innerText of `article > div`, split on whitespace): 3,920.
 
 ## Target queries
 
