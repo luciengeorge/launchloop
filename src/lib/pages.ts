@@ -74,7 +74,7 @@ export const PAGES = {
     path: "/blog",
     title: "Blog: sourced launch how-tos for indie makers",
     description:
-      "Launch how-tos for indie makers, built on each platform's own rules and guidance and quoted with links, starting with Product Hunt and Indie Hackers.",
+      "Launch how-tos for indie makers, built on each platform's own rules and guidance, with every rule quoted and linked to its source, so you can check it.",
     updated: blogUpdated(),
     card: { eyebrow: "Blog", headline: "Launch how-tos from each platform's own pages" },
   }),

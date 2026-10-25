@@ -35,6 +35,7 @@ describe("blog registry", () => {
     expect(PAGES.blog.description.length).toBeGreaterThanOrEqual(138);
     expect(PAGES.blog.description.length).toBeLessThanOrEqual(158);
     expect(`${PAGES.blog.title} ${PAGES.blog.description}`).not.toMatch(DASHES);
+    expect(PAGES.blog.description, "names no individual posts, so it stays true as posts are added").not.toMatch(/Product Hunt|Indie Hackers|BetaList|starting with/);
     expect(PAGES.blog.updated).toBe(BLOG_POSTS.map((p) => p.updated).sort().at(-1));
   });
 
@@ -72,6 +73,16 @@ describe("Product Hunt post", () => {
     }
     expect(p.metaTitle).not.toBe(checklist.metaTitle);
     expect(p.description).not.toBe(checklist.description);
+  });
+});
+
+describe("BetaList post", () => {
+  const p = post("how-to-launch-on-betalist");
+
+  it("targets launching on BetaList and BetaList submission, dated 25 October 2026", () => {
+    expect(fullTitle(p.metaTitle)).toBe("How to launch on BetaList: submission guide · LaunchLoop");
+    expect(p.description).toMatch(/^How to launch on BetaList/);
+    expect(p).toMatchObject({ published: "2026-10-25", updated: "2026-10-25" });
   });
 });
 
