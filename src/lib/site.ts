@@ -22,6 +22,10 @@ export const SITE = {
   email: "hello@launchloop.dev",
 } as const;
 
+/** The default share image (/opengraph-image), used by the home page and every page without its own: its two headline lines and alt text. */
+export const DEFAULT_SHARE_HEADLINE = ["Your repo in.", "All your launch posts out."] as const;
+export const DEFAULT_SHARE_IMAGE = { url: "/opengraph-image", alt: `${SITE.name}: ${DEFAULT_SHARE_HEADLINE.join(" ")}` };
+
 /** What an unpaid kit page actually shows. Keep every free-tier mention in sync with this. */
 export const FREE_PREVIEW = ["Product brief from your repo", "Product Hunt tagline", "First post of your X thread", "3 watermarked images"] as const;
 

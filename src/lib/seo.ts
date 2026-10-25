@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { BLOG_FEED_PATH } from "@/lib/blog";
 import type { SitePage } from "@/lib/pages";
-import { SITE } from "@/lib/site";
+import { DEFAULT_SHARE_IMAGE, SITE } from "@/lib/site";
 
 /** For the opengraph-image routes that never change between deploys: cached at the edge for a day, then served stale while revalidating for a week. */
 export const STATIC_OG_HEADERS = { "Cache-Control": "public, s-maxage=86400, stale-while-revalidate=604800" };
@@ -13,7 +13,7 @@ export function pageMetadata({
   description,
   path,
   type = "website",
-  image = { url: "/opengraph-image", alt: `${SITE.name}: ${SITE.tagline}` },
+  image = DEFAULT_SHARE_IMAGE,
 }: Pick<SitePage, "title" | "description" | "path"> & Partial<Pick<SitePage, "absoluteTitle" | "type" | "image">>): Metadata {
   const fullTitle = absoluteTitle ? title : `${title} · ${SITE.name}`;
   return {

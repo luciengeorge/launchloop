@@ -5,7 +5,7 @@ import { SiteHeader } from "@/components/site-header";
 import { LazyToaster } from "@/components/lazy-toaster";
 import { VercelInsights } from "@/components/vercel-insights";
 import { siteUrl } from "@/lib/env";
-import { SITE } from "@/lib/site";
+import { DEFAULT_SHARE_IMAGE, SITE } from "@/lib/site";
 import "./globals.css";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"], display: "swap" });
@@ -27,9 +27,9 @@ export const metadata: Metadata = {
     title: `${SITE.name}: ${SITE.tagline}`,
     description: SITE.description,
     locale: "en_GB",
-    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: `${SITE.name}: ${SITE.tagline}` }],
+    images: [{ ...DEFAULT_SHARE_IMAGE, width: 1200, height: 630 }],
   },
-  twitter: { card: "summary_large_image", site: SITE.twitter, title: `${SITE.name}: ${SITE.tagline}`, description: SITE.shortDescription, images: ["/opengraph-image"] },
+  twitter: { card: "summary_large_image", site: SITE.twitter, title: `${SITE.name}: ${SITE.tagline}`, description: SITE.shortDescription, images: [DEFAULT_SHARE_IMAGE] },
   manifest: "/manifest.webmanifest",
   formatDetection: { telephone: false },
   category: "technology",

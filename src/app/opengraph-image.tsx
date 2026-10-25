@@ -1,8 +1,8 @@
 import { ImageResponse } from "@vercel/og";
 import { STATIC_OG_HEADERS } from "@/lib/seo";
-import { SITE } from "@/lib/site";
+import { DEFAULT_SHARE_HEADLINE, DEFAULT_SHARE_IMAGE } from "@/lib/site";
 
-export const alt = `${SITE.name}: ${SITE.tagline}`;
+export const alt = DEFAULT_SHARE_IMAGE.alt;
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -30,8 +30,8 @@ export default function OpengraphImage() {
           LaunchLoop
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-          <div style={{ display: "flex", fontSize: 76, fontWeight: 700, letterSpacing: -2, lineHeight: 1.05 }}>Paste your repo.</div>
-          <div style={{ display: "flex", fontSize: 76, fontWeight: 700, letterSpacing: -2, lineHeight: 1.05, color: "#f2541b" }}>Get your whole launch.</div>
+          <div style={{ display: "flex", fontSize: 76, fontWeight: 700, letterSpacing: -2, lineHeight: 1.05 }}>{DEFAULT_SHARE_HEADLINE[0]}</div>
+          <div style={{ display: "flex", fontSize: 76, fontWeight: 700, letterSpacing: -2, lineHeight: 1.05, color: "#f2541b" }}>{DEFAULT_SHARE_HEADLINE[1]}</div>
         </div>
         <div style={{ display: "flex", fontSize: 30, color: "#52525b" }}>Landing copy · Product Hunt post · X thread · LinkedIn · OG images</div>
       </div>

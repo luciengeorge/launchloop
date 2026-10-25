@@ -1,7 +1,7 @@
 import { BLOG_POSTS, blogUpdated, postPath, type BlogPost } from "@/lib/blog";
 import { GUIDES, guidePath, type Guide } from "@/lib/guides";
 import type { ShareCard } from "@/lib/og-card";
-import { SITE } from "@/lib/site";
+import { DEFAULT_SHARE_IMAGE, SITE } from "@/lib/site";
 import { TOOLS, type Tool } from "@/lib/tools";
 
 /**
@@ -37,7 +37,7 @@ export const PAGES = {
       "Paste your GitHub repo or live URL and LaunchLoop drafts your landing page copy, Product Hunt post, X thread, LinkedIn post and on-brand images. Free preview.",
     updated: "2026-10-15",
     type: "website",
-    image: { url: "/opengraph-image", alt: `${SITE.name}: ${SITE.tagline}` },
+    image: DEFAULT_SHARE_IMAGE,
   },
   pricing: core({
     path: "/pricing",
