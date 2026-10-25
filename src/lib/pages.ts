@@ -74,7 +74,7 @@ export const PAGES = {
     path: "/blog",
     title: "Blog: sourced launch how-tos for indie makers",
     description:
-      "Launch how-tos for indie makers, built on each platform's own rules and guidance and quoted with links, starting with Product Hunt and Indie Hackers.",
+      "Launch how-tos for indie makers, built on each platform's own rules and guidance, with every rule quoted and linked to its source, so you can check it.",
     updated: blogUpdated(),
     card: { eyebrow: "Blog", headline: "Launch how-tos from each platform's own pages" },
   }),
@@ -91,7 +91,7 @@ export const PAGES = {
     title: "Privacy policy: what we collect and why",
     description:
       "What data LaunchLoop collects when you preview or buy a launch kit, why we need it, who we share it with, how long we keep it and how to use your rights.",
-    updated: "2026-10-18",
+    updated: "2026-10-24",
     card: { eyebrow: "Privacy", headline: "What we collect and why" },
   }),
   terms: core({

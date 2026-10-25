@@ -7,6 +7,7 @@ import { env } from "./env";
 import { fallbackServed, isAnalyticsId, kitBucketingId, type ExperimentKey, type FallbackReason, type FeatureProperties, type Served, type Variant } from "./experiments";
 import type { PreviewSource } from "./kit-tracing";
 import { LAUNCH_PROMO_TIMEOUT_MS } from "./launch-promo";
+import type { NewsletterPlacement, WelcomeOutcome } from "./newsletter";
 import { captureException } from "./observability";
 import { posthogHost } from "./posthog-config";
 import { productType, type ProductId } from "./products";
@@ -54,6 +55,18 @@ export interface ServerEvents {
   checkout_fulfilment_failed: { plan: ProductId; kitId?: string; stripeSessionId: string; stripeEventId: string; stage: "record" | "fulfil"; errorName: string; mock: boolean } & TestTraffic;
   /** A paid kit failed every automatic attempt and needs a manual delivery or refund. */
   kit_generation_failed: { plan: "kit"; kitId: string; attempts: number; refund_needed: true; reason: string } & TestTraffic;
+  /**
+   * Every successful signup, from /api/newsletter rather than the browser, because posthog-js drops all events from
+   * automated browsers and no-JS posts have no SDK. `welcome` says whether this one was new (`sent` / `skipped`) or a repeat (`existing`).
+   */
+  newsletter_subscribed: {
+    placement: NewsletterPlacement;
+    welcome: WelcomeOutcome;
+    /** "js" from the form's fetch, "form" from a plain form post (no JavaScript, or before hydration). */
+    submitted: "js" | "form";
+    /** What the browser reported as navigator.webdriver; only known for "js". */
+    is_webdriver?: boolean;
+  } & TestTraffic;
 }
 
 let client: PostHog | null = null;

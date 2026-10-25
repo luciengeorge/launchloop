@@ -3,7 +3,41 @@ import { SERVER_LOG } from "./tests/e2e/server-log";
 
 const PORT = 3418;
 const FIXTURE_PORT = 3419;
+/**
+ * A second build with HERO_EXPERIMENT=1 for exp_hero_headline's specs; everything else runs with it unset, as in
+ * production. Its flag lookup gets 2.5 s instead of 500 ms, so a slow fake PostHog can outlast the 700 ms CSS failsafe.
+ */
+const HERO_PORT = 3420;
 const baseURL = `http://127.0.0.1:${PORT}`;
+const heroURL = `http://127.0.0.1:${HERO_PORT}`;
+const HERO_SPEC = /hero-(headline|2x2)\.spec\.ts/;
+
+const serverEnv = {
+  MOCK_MODE: "true",
+  STRIPE_SECRET_KEY: "",
+  RESEND_API_KEY: "",
+  LLM_PROVIDER: "mock",
+  AI_GATEWAY_API_KEY: "",
+  VERCEL_OIDC_TOKEN: "",
+  KV_REST_API_URL: "",
+  KV_REST_API_TOKEN: "",
+  INGEST_ALLOW_PRIVATE: "true",
+  PREVIEW_RATE_LIMIT_PER_HOUR: "40",
+  PREVIEW_RATE_LIMIT_PER_DAY: "60",
+  MAGIC_LINK_RATE_LIMIT_PER_IP: "500",
+  CHECKOUT_RATE_LIMIT_PER_HOUR: "500",
+  AUTH_SECRET: "playwright-test-secret",
+  MOCK_LLM_FAILURES: "true",
+  KIT_RETRY_BACKOFF_MS: "200,400",
+  SITE_FETCH_TIMEOUT_MS: "1500",
+  GITHUB_API_URL: `http://127.0.0.1:${FIXTURE_PORT}/gh`,
+  NEXT_PUBLIC_POSTHOG_KEY: "phc_playwright",
+  NEXT_PUBLIC_POSTHOG_HOST: `http://127.0.0.1:${FIXTURE_PORT}/ph`,
+  // Server errors go to the fixture's fake Sentry; the browser SDK stays off.
+  SENTRY_DSN: `http://public@127.0.0.1:${FIXTURE_PORT}/sentry/1`,
+  NEXT_PUBLIC_SENTRY_DSN: "",
+  SENTRY_TEST_TOKEN: "playwright-sentry-token",
+};
 
 /**
  * Smoke tests run against a production build in full mock mode: no Stripe,
@@ -24,8 +58,10 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
   projects: [
-    { name: "desktop", use: { ...devices["Desktop Chrome"] }, testIgnore: /newsletter-mobile\.spec\.ts/ },
+    { name: "desktop", use: { ...devices["Desktop Chrome"] }, testIgnore: [/newsletter-mobile\.spec\.ts/, HERO_SPEC] },
     { name: "mobile", use: { ...devices["Pixel 7"] }, testMatch: /(home|tagline-checker|og-preview|newsletter-mobile)\.spec\.ts/ },
+    { name: "hero-desktop", use: { ...devices["Desktop Chrome"], baseURL: heroURL }, testMatch: HERO_SPEC },
+    { name: "hero-mobile", use: { ...devices["Pixel 7"], baseURL: heroURL }, testMatch: HERO_SPEC },
   ],
   webServer: [
     {
@@ -39,35 +75,14 @@ export default defineConfig({
       url: baseURL,
       timeout: 240_000,
       reuseExistingServer: !process.env.CI,
-      env: {
-        NEXT_DIST_DIR: ".next-test",
-        MOCK_MODE: "true",
-        STRIPE_SECRET_KEY: "",
-        RESEND_API_KEY: "",
-        LLM_PROVIDER: "mock",
-        AI_GATEWAY_API_KEY: "",
-        VERCEL_OIDC_TOKEN: "",
-        KV_REST_API_URL: "",
-        KV_REST_API_TOKEN: "",
-        DATA_DIR: ".data-test",
-        INGEST_ALLOW_PRIVATE: "true",
-        PREVIEW_RATE_LIMIT_PER_HOUR: "40",
-        PREVIEW_RATE_LIMIT_PER_DAY: "60",
-        MAGIC_LINK_RATE_LIMIT_PER_IP: "500",
-        CHECKOUT_RATE_LIMIT_PER_HOUR: "500",
-        AUTH_SECRET: "playwright-test-secret",
-        MOCK_LLM_FAILURES: "true",
-        KIT_RETRY_BACKOFF_MS: "200,400",
-        SITE_FETCH_TIMEOUT_MS: "1500",
-        GITHUB_API_URL: `http://127.0.0.1:${FIXTURE_PORT}/gh`,
-        NEXT_PUBLIC_SITE_URL: baseURL,
-        NEXT_PUBLIC_POSTHOG_KEY: "phc_playwright",
-        NEXT_PUBLIC_POSTHOG_HOST: `http://127.0.0.1:${FIXTURE_PORT}/ph`,
-        // Server errors go to the fixture's fake Sentry; the browser SDK stays off.
-        SENTRY_DSN: `http://public@127.0.0.1:${FIXTURE_PORT}/sentry/1`,
-        NEXT_PUBLIC_SENTRY_DSN: "",
-        SENTRY_TEST_TOKEN: "playwright-sentry-token",
-      },
+      env: { ...serverEnv, NEXT_DIST_DIR: ".next-test", DATA_DIR: ".data-test", NEXT_PUBLIC_SITE_URL: baseURL },
+    },
+    {
+      command: `rm -rf .data-test-hero && npx next build && npx next start -p ${HERO_PORT}`,
+      url: heroURL,
+      timeout: 240_000,
+      reuseExistingServer: !process.env.CI,
+      env: { ...serverEnv, NEXT_DIST_DIR: ".next-test-hero", DATA_DIR: ".data-test-hero", NEXT_PUBLIC_SITE_URL: heroURL, HERO_EXPERIMENT: "1", HERO_FLAG_TIMEOUT_MS: "2500" },
     },
   ],
 });

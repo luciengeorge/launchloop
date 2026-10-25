@@ -1,4 +1,4 @@
-import { expect, test, type Page, type Request } from "@playwright/test";
+import { expect, test, type Locator, type Page, type Request } from "@playwright/test";
 import { makeSampleKit, uniqueEmail } from "./helpers";
 
 const FIXTURE = "http://127.0.0.1:3419";
@@ -43,11 +43,11 @@ async function campaignEvent(page: Page, campaign: string, event: string): Promi
   return found!;
 }
 
-async function serverEvent(page: Page, id: string, event: string): Promise<PhEvent> {
+async function serverEvent(page: Page, id: string, event: string, match: (e: PhEvent) => boolean = () => true): Promise<PhEvent> {
   let found: PhEvent | undefined;
   await expect
     .poll(async () => {
-      found = (await phEvents(page)).find((e) => e.event === event && distinctId(e) === id);
+      found = (await phEvents(page)).find((e) => e.event === event && distinctId(e) === id && match(e));
       return found;
     })
     .toBeTruthy();
@@ -76,24 +76,72 @@ test("$pageview carries utm_source / utm_medium / utm_campaign, and later events
   expect((await campaignEvent(page, campaign, "preview_completed")).properties.utm_source).toBe("x");
 });
 
-test("newsletter_subscribed says which signup it came from: footer or post-preview", async ({ page }) => {
-  const campaign = `news-${Date.now()}`;
-  await page.goto(`/?utm_source=newsletter-test&utm_campaign=${campaign}`);
-  await page.waitForLoadState("networkidle");
-  await page.getByRole("contentinfo").getByLabel("Weekly launch teardowns").fill(uniqueEmail("ph-footer"));
-  await page.getByRole("contentinfo").getByRole("button", { name: "Subscribe" }).click();
-  expect((await campaignEvent(page, campaign, "newsletter_subscribed")).properties).toMatchObject({ placement: "footer", welcome: "sent" });
+/** Submits a newsletter form and returns the page id the browser sent with it. */
+async function subscribe(page: Page, scope: Locator, label: string, button: string, tag: string) {
+  const request = page.waitForRequest((r) => r.url().endsWith("/api/newsletter") && r.method() === "POST");
+  await scope.getByLabel(label).fill(uniqueEmail(tag));
+  await scope.getByRole("button", { name: button }).click();
+  await expect(scope.getByRole("status")).toContainText("You're subscribed");
+  const { analyticsId } = (await request).postDataJSON() as { analyticsId?: string };
+  expect(analyticsId).toBeTruthy();
+  return analyticsId!;
+}
 
-  const previewCampaign = `${campaign}-preview`;
-  await page.goto(`/?utm_source=newsletter-test&utm_campaign=${previewCampaign}`);
+test("newsletter_subscribed comes from the server, once per signup, on the page's id, for footer, post-preview and blog post", async ({ page }) => {
+  const campaign = `news-${Date.now()}`;
+  const ids: Record<string, string> = {};
+
+  await page.goto(`/?utm_source=newsletter-test&utm_campaign=${campaign}`);
+  ids.footer = await subscribe(page, page.getByRole("contentinfo"), "Weekly launch teardowns", "Subscribe", "ph-footer");
+
+  await page.goto(`/?utm_source=newsletter-test&utm_campaign=${campaign}-preview`);
   await page.getByRole("button", { name: "Try a sample app" }).click();
   await page.waitForURL(/\/kit\/[\w-]+$/);
-  const signup = page.getByTestId("preview-newsletter");
-  await signup.getByLabel("Email for the launch-day checklist").fill(uniqueEmail("ph-preview"));
-  await signup.getByRole("button", { name: "Send me the checklist" }).click();
-  const event = await campaignEvent(page, previewCampaign, "newsletter_subscribed");
-  expect(event.properties).toMatchObject({ placement: "preview", welcome: "sent" });
-  expect(JSON.stringify(event)).not.toContain("@example.com");
+  ids.preview = await subscribe(page, page.getByTestId("preview-newsletter"), "Email for the launch-day checklist", "Send me the checklist", "ph-preview");
+
+  await page.goto(`/blog/how-to-launch-on-product-hunt?utm_source=newsletter-test&utm_campaign=${campaign}-blog`);
+  ids.blog = await subscribe(page, page.getByTestId("blog-newsletter"), "Email for the launch-day checklist", "Send me the checklist", "ph-blog");
+  // Leaving flushes anything the browser SDK still had queued, so a browser-side copy would show up below.
+  await page.goto("/pricing");
+
+  for (const [placement, id] of Object.entries(ids)) {
+    const event = await serverEvent(page, id, "newsletter_subscribed");
+    expect(event.properties).toMatchObject({ placement, welcome: "sent", submitted: "js", is_webdriver: false, env: "development", $lib: "posthog-node" });
+    expect(JSON.stringify(event)).not.toContain("@example.com");
+    // UTMs aren't copied onto the server event: they join through the same id, from the page's own $pageview.
+    expect((await serverEvent(page, id, "$pageview")).properties.utm_source).toBe("newsletter-test");
+  }
+  // Give the unload beacon from the last page time to land before checking there is no second copy.
+  await page.waitForTimeout(1500);
+  const all = (await phEvents(page)).filter((e) => e.event === "newsletter_subscribed" && Object.values(ids).includes(distinctId(e)!));
+  expect(all).toHaveLength(3);
+  expect(all.filter((e) => e.properties.$lib === "web")).toEqual([]);
+});
+
+test("site_no_content's repo button: shown, blocked resend and click are tracked, never with the link", async ({ page }) => {
+  const campaign = `no-content-${Date.now()}`;
+  await page.goto(`/?utm_source=errors&utm_campaign=${campaign}`);
+  const input = page.getByLabel("GitHub repo or live site URL");
+  await input.fill(`${FIXTURE}/spa-no-repo`);
+  await page.getByRole("button", { name: "Get my free preview" }).first().click();
+  const cta = page.getByRole("button", { name: "Use my GitHub repo instead" });
+  await expect(cta).toBeVisible({ timeout: 15_000 });
+  await input.press("Enter");
+  await expect(cta).toBeFocused();
+  await cta.click();
+  await expect(page.getByLabel("GitHub repo URL", { exact: true })).toBeFocused();
+
+  const context = { code: "site_no_content", plan: "free", isLoggedIn: false, utm_source: "errors" };
+  const shown = await campaignEvent(page, campaign, "repo_cta_shown");
+  const blocked = await campaignEvent(page, campaign, "preview_resubmit_blocked");
+  const clicked = await campaignEvent(page, campaign, "repo_cta_clicked");
+  expect(shown.properties).toMatchObject(context);
+  expect(blocked.properties).toMatchObject(context);
+  expect(clicked.properties).toMatchObject({ ...context, prefill: "github" });
+  for (const e of [shown, blocked, clicked]) expect(JSON.stringify(e)).not.toContain("spa-no-repo");
+  // The blocked resend never became a preview attempt.
+  const attempts = (await phEvents(page)).filter((e) => e.properties.utm_campaign === campaign && e.event === "preview_started");
+  expect(attempts).toHaveLength(1);
 });
 
 test("header CTA from another page keeps the visitor's id and UTMs, through to the server-side purchase event", async ({ page }) => {
@@ -269,6 +317,50 @@ test("a guest checkout started before the PostHog SDK loads waits for it and joi
   expect(pageview.properties.$pathname).toBe("/kit/[id]");
 });
 
+test("clicks are captured in the hero only, never what's typed; leaving the page sends $pageleave; no session replay", async ({ page }) => {
+  const campaign = `clicks-${Date.now()}`;
+  const replayRequests: string[] = [];
+  page.on("request", (r) => {
+    if (/\/lp-relay\/(s|ses)\//.test(new URL(r.url()).pathname)) replayRequests.push(r.url());
+  });
+  await page.goto(`/?utm_campaign=${campaign}`);
+  await campaignEvent(page, campaign, "$pageview");
+
+  const secret = `secret-owner-${Date.now()}/private-repo`;
+  const input = page.getByLabel("GitHub repo or live site URL");
+  await input.click();
+  await input.fill(`github.com/${secret}`);
+  // Outside the hero: an FAQ question (a button) and the footer's newsletter field.
+  await page.getByTestId("faq-question").first().click();
+  await page.getByRole("contentinfo").getByLabel("Weekly launch teardowns").click();
+  await page.getByRole("button", { name: "Try a sample app" }).click();
+  await page.waitForURL(/\/kit\/[\w-]+$/);
+
+  await campaignEvent(page, campaign, "preview_started");
+  await expect
+    .poll(async () =>
+      (await phEvents(page))
+        .filter((e) => e.properties.utm_campaign === campaign && (e.event === "hero_clicked" || e.event === "$autocapture"))
+        .map((e) => ({ event: e.event, element: e.properties.element, label: e.properties.label })),
+    )
+    .toEqual([
+      { event: "hero_clicked", element: "input", label: "GitHub repo or live site URL" },
+      { event: "hero_clicked", element: "button", label: "Try a sample app" },
+    ]);
+
+  // Leaving the home page (pagehide: closing the tab or a full page load) sends $pageleave for it by beacon. Headless
+  // Chromium drops beacons sent while page.goto unloads the page, so fire the event the browser would.
+  const leaving = `${campaign}-leave`;
+  await page.goto(`/?utm_campaign=${leaving}`);
+  await campaignEvent(page, leaving, "$pageview");
+  await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent("pagehide", { persisted: false })));
+  expect((await campaignEvent(page, leaving, "$pageleave")).properties.$pathname).toBe("/");
+
+  const everything = JSON.stringify(await phEvents(page));
+  expect(everything).not.toContain(secret);
+  expect(replayRequests).toEqual([]);
+});
+
 test("QA traffic: every browser and server event carries is_test, through client navigations, a reload and checkout", async ({ page }) => {
   const campaign = `qa-${Date.now()}`;
   await page.goto(`/?utm_source=qa&utm_medium=internal&utm_campaign=${campaign}&qa=1`);
@@ -282,7 +374,7 @@ test("QA traffic: every browser and server event carries is_test, through client
   await page.waitForURL(/\/kit\/[\w-]+$/);
   for (const name of ["preview_started", "preview_completed"]) expect((await campaignEvent(page, campaign, name)).properties.is_test).toBe(true);
   const firstView = distinctId(landing)!;
-  const served = await serverEvent(page, firstView, "flag_fallback");
+  const served = await serverEvent(page, firstView, "flag_fallback", (e) => e.properties.flag === "exp_launch14_promo");
   expect(served.properties).toMatchObject({ flag: "exp_launch14_promo", is_test: true });
 
   // A full reload drops the tag from the URL and gets a new anonymous id; the tab still remembers it's QA.

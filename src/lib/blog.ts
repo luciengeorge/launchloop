@@ -31,6 +31,26 @@ export const BLOG_POSTS: BlogPost[] = [
     readingMinutes: 15,
   },
   {
+    slug: "how-to-launch-on-betalist",
+    title: "How to launch on BetaList",
+    metaTitle: "How to launch on BetaList: submission guide",
+    description:
+      "How to launch on BetaList from its own pages: who it is for, what it rejects, how submission and paid plans work, review times and the day you are featured.",
+    published: "2026-10-25",
+    updated: "2026-10-25",
+    readingMinutes: 19,
+  },
+  {
+    slug: "product-hunt-alternatives",
+    title: "Product Hunt alternatives for indie makers",
+    metaTitle: "Product Hunt alternatives: where to launch",
+    description:
+      "Sites like Product Hunt, from their own pages: who BetaList, Uneed, Peerlist, DevHunt, Show HN and others are for, what a launch costs and the rules.",
+    published: "2026-10-24",
+    updated: "2026-10-24",
+    readingMinutes: 20,
+  },
+  {
     slug: "how-to-launch-on-product-hunt",
     title: "How to launch on Product Hunt",
     metaTitle: "How to launch on Product Hunt: how it works",

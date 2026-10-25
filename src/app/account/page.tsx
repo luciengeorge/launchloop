@@ -4,6 +4,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { BillingFlash } from "@/components/billing-flash";
+import { HideFooterWhileLoading } from "@/components/hide-footer-while-loading";
 import { KitForm } from "@/components/kit-form";
 import { StartLink } from "@/components/start-link";
 import { Badge } from "@/components/ui/badge";
@@ -24,7 +25,14 @@ export const metadata: Metadata = { title: "My kits", robots: { index: false, fo
 export default function AccountPage() {
   return (
     <div className="mx-auto min-h-[calc(100svh-3.5rem)] max-w-4xl px-4 py-10 sm:px-6">
-      <Suspense fallback={<Skeleton className="h-96 rounded-2xl" />}>
+      <Suspense
+        fallback={
+          <>
+            <HideFooterWhileLoading />
+            <Skeleton className="h-96 rounded-2xl" />
+          </>
+        }
+      >
         <Dashboard />
       </Suspense>
     </div>

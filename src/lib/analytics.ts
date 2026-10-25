@@ -1,14 +1,18 @@
 import type { CaptureResult, PostHog, PostHogInterface } from "posthog-js";
 import { type Attribution, QA_PARAM, readLandingAttribution } from "./attribution";
-import { ANALYTICS_ID_PARAM, EXPERIMENTS, isAnalyticsId, type ExperimentKey, type FallbackReason, type Served, type Variant } from "./experiments";
-import type { NewsletterPlacement, WelcomeOutcome } from "./newsletter";
+import { ANALYTICS_ID_PARAM, EXPERIMENTS, featureProperties, isAnalyticsId, type ExperimentKey, type FallbackReason, type Served, type Variant } from "./experiments";
 import { POSTHOG_PROXY_PATH, posthogUiHost } from "./posthog-config";
+import type { RepoPrefill } from "./repo-cta";
 import { scrubProperties } from "./scrub-url";
+import { pendingMarkers, readServedMarker } from "./served-marker";
 import type { StartPlan } from "./start-intent";
 
 export type PreviewSource = "github" | "site" | "sample";
 
-/** Browser events. Checkout events are captured server-side (see analytics-server.ts) so they carry the Stripe price. */
+/**
+ * Browser events. Checkout events are captured server-side (see analytics-server.ts) so they carry the Stripe price,
+ * and newsletter_subscribed so automated browsers and no-JS posts count.
+ */
 export interface ClientEvents {
   preview_started: { source: PreviewSource; plan: StartPlan; isLoggedIn: boolean };
   preview_completed: { kitId: string; source: PreviewSource; plan: StartPlan; isLoggedIn: boolean; durationMs: number };
@@ -26,7 +30,16 @@ export interface ClientEvents {
     /** The server had accepted the preview, so the form sent the visitor to /kit/[id] instead of showing an error. */
     recovered?: boolean;
   };
-  newsletter_subscribed: { placement: NewsletterPlacement; welcome: WelcomeOutcome };
+  /** site_no_content's "Use my GitHub repo instead" button, shown with the error. Never carries the link. */
+  repo_cta_shown: { code: "site_no_content"; plan: StartPlan; isLoggedIn: boolean };
+  repo_cta_clicked: { code: "site_no_content"; plan: StartPlan; isLoggedIn: boolean; prefill: RepoPrefill };
+  /** The visitor tried to send the link that just failed with site_no_content again; the form pointed them at the button. */
+  preview_resubmit_blocked: { code: "site_no_content"; plan: StartPlan; isLoggedIn: boolean };
+  /**
+   * A click on a link, a button or the URL field in the home hero (HomeHero). `label` is the visible text, or the
+   * field's label: never what was typed. `link_url` is scrubbed like every URL.
+   */
+  hero_clicked: { element: "a" | "button" | "input"; label: string; link_url?: string };
   /** Control served without a PostHog assignment (see Served). Not an exposure, so it stays out of the experiment. */
   flag_fallback: { flag: ExperimentKey; variant: Variant; reason: FallbackReason; fallback: true };
 }
@@ -74,6 +87,21 @@ export const firstTouch = (): Attribution | undefined => landing;
 export const isTestVisit = (): boolean => landing?.is_test === true;
 
 let client: Promise<PostHog | undefined> | undefined;
+let pageLoad: Promise<void> | undefined;
+
+/** Resolves once the window has loaded and the browser has had an idle moment: when the SDKs load unless something needs them sooner. */
+export function afterPageLoad(): Promise<void> {
+  pageLoad ??= new Promise((resolve) => {
+    const idle = () => ("requestIdleCallback" in window ? requestIdleCallback(() => resolve(), { timeout: 2000 }) : setTimeout(resolve, 1));
+    if (document.readyState === "complete") idle();
+    else window.addEventListener("load", idle, { once: true });
+  });
+  return pageLoad;
+}
+
+let markRequested!: () => void;
+/** Settles the first time anything asks for the SDK, without asking for it itself. */
+const requested = new Promise<void>((resolve) => (markRequested = resolve));
 
 /**
  * The SDK is ~100 KB gzipped, so it isn't in the page's initial scripts: instrumentation-client loads it once the
@@ -81,6 +109,7 @@ let client: Promise<PostHog | undefined> | undefined;
  * Resolves undefined when analytics is off or the SDK fails to load.
  */
 export function loadAnalytics(): Promise<PostHog | undefined> {
+  markRequested();
   if (!key || !pageStart) return Promise.resolve(undefined);
   client ??= import("posthog-js").then(
     ({ default: posthog }) => {
@@ -125,7 +154,9 @@ function initAnalytics(posthog: PostHog, token: string, start: { url: string; at
     persistence: "memory",
     person_profiles: "identified_only",
     capture_pageview: "history_change",
-    capture_pageleave: false,
+    capture_pageleave: true,
+    // Clicks are sent explicitly, from the home hero only (hero_clicked). posthog-js autocaptures only once the
+    // project's remote config allows it, so an allowlist here could silently capture nothing.
     autocapture: false,
     capture_exceptions: false,
     capture_heatmaps: false,
@@ -159,23 +190,70 @@ function recordLanding(posthog: PostHogInterface, start: { url: string; at: Date
   posthog.capture("$pageview", { $current_url: start.url, $pathname: url.pathname, $host: url.host }, { timestamp: start.at });
 }
 
+/** What useExperiment served on this page load, for experiments posthog-js buckets on this page's own id. */
+const servedOnPage = new Map<ExperimentKey, Served>();
+
+export function rememberServed(key: ExperimentKey, served: Served) {
+  servedOnPage.set(key, served);
+}
+
+export const servedEarlier = (key: ExperimentKey): Served | undefined => servedOnPage.get(key);
+
+/**
+ * What the page shows for `key`: what it recorded, else the server-rendered marker (see servedMarker), which is in the
+ * HTML before the element hydrates and records it. null: not running; undefined: not known yet.
+ */
+const servedInPage = (key: ExperimentKey): Served | null | undefined => servedOnPage.get(key) ?? readServedMarker(key);
+
+/** Longest an exposure waits for another experiment the page is still rendering, before it goes with what's known. */
+export const EXPOSURE_WAIT_MS = 1500;
+const EXPOSURE_POLL_MS = 50;
+
+/** Resolves once no Suspense fallback is waiting on an experiment other than `own` (see pendingMarkers), or after `timeoutMs`. */
+function untilRendered(own: ExperimentKey, timeoutMs = EXPOSURE_WAIT_MS): Promise<void> {
+  const waiting = () => pendingMarkers().some((key) => key !== own && servedInPage(key) === undefined);
+  if (!waiting()) return Promise.resolve();
+  const deadline = Date.now() + timeoutMs;
+  return new Promise((resolve) => {
+    const check = () => (!waiting() || Date.now() >= deadline ? resolve() : setTimeout(check, EXPOSURE_POLL_MS));
+    setTimeout(check, EXPOSURE_POLL_MS);
+  });
+}
+
 /**
  * posthog-js tags every event with `$feature/<key>` from its own flag evaluation for this page's id,
  * which needn't be what the page served (the promo is bucketed on the kit; a timeout serves control).
- * Experiment variants travel only on exposures and the server's checkout events, which set them explicitly.
+ * So those are replaced with what this page did serve through useExperiment (`fallback/<key>` for a
+ * fallback, as on the server's checkout events): preview_started can be split by the hero variant shown.
+ * Experiments the page didn't serve travel only on exposures and the server's events, which set them explicitly.
+ * An exposure keeps its own flag as sent; the other experiments on it are what this page served too (the
+ * headline is assigned on the server, so posthog-js's guess for this page's id can say test while control
+ * showed), and only those the page didn't serve keep posthog-js's value. What the page served includes a
+ * server-rendered experiment whose element hasn't hydrated yet (servedInPage).
  */
-function withoutAutoExperimentProperties(event: CaptureResult): CaptureResult["properties"] {
-  if (event.event === "$feature_flag_called") return event.properties;
+function withServedExperiments(event: CaptureResult): CaptureResult["properties"] {
   const properties = { ...event.properties };
-  for (const key of Object.values(EXPERIMENTS)) delete properties[`$feature/${key}`];
-  return properties;
+  const exposure = event.event === "$feature_flag_called";
+  const own = exposure ? properties.$feature_flag : undefined;
+  const served = Object.values(EXPERIMENTS)
+    .filter((key) => key !== own)
+    .flatMap((key): [ExperimentKey, Served][] => {
+      const s = servedInPage(key);
+      return s ? [[key, s]] : [];
+    });
+  const servedKeys = new Set(served.map(([key]) => key));
+  for (const key of Object.values(EXPERIMENTS)) {
+    if (key !== own && (!exposure || servedKeys.has(key))) delete properties[`$feature/${key}`];
+  }
+  const variants = Object.fromEntries(served.map(([key, s]) => [key, s.variant]));
+  return { ...properties, ...featureProperties(variants, served.filter(([, s]) => s.fallback).map(([key]) => key)) };
 }
 
 function scrubEvent(event: CaptureResult | null): CaptureResult | null {
   if (!event) return event;
   return {
     ...event,
-    properties: scrubProperties(withoutAutoExperimentProperties(event)),
+    properties: scrubProperties(withServedExperiments(event)),
     ...(event.$set ? { $set: scrubProperties(event.$set) } : {}),
     ...(event.$set_once ? { $set_once: scrubProperties(event.$set_once) } : {}),
   };
@@ -188,13 +266,19 @@ export function track<E extends keyof ClientEvents>(event: E, properties: Client
 /**
  * Records what an experiment served on this page, once per view, always with the variant shown:
  * PostHog's $feature_flag_called exposure for an assignment, or flag_fallback for control served
- * without one, which keeps the view out of the experiment.
+ * without one, which keeps the view out of the experiment. `whenLoaded` waits for the SDK to load as it
+ * normally would (after the load event, or sooner for an event) instead of loading it now. An exposure also
+ * waits, up to EXPOSURE_WAIT_MS, for another experiment the page is still rendering, so it carries what that shows.
  */
-export function trackServed(key: ExperimentKey, served: Served) {
-  if (served.fallback) return track("flag_fallback", { flag: key, variant: served.variant, reason: served.fallback, fallback: true });
-  void loadAnalytics().then((posthog) =>
-    posthog?.capture("$feature_flag_called", { $feature_flag: key, $feature_flag_response: served.variant, [`$feature/${key}`]: served.variant }),
-  );
+export function trackServed(key: ExperimentKey, served: Served, { whenLoaded = false }: { whenLoaded?: boolean } = {}) {
+  const send = () => {
+    if (served.fallback) return track("flag_fallback", { flag: key, variant: served.variant, reason: served.fallback, fallback: true });
+    void Promise.all([loadAnalytics(), untilRendered(key)]).then(([posthog]) =>
+      posthog?.capture("$feature_flag_called", { $feature_flag: key, $feature_flag_response: served.variant, [`$feature/${key}`]: served.variant }),
+    );
+  };
+  if (whenLoaded) void requested.then(send);
+  else send();
 }
 
 /** This page's anonymous PostHog id, sent with checkout so server events join the same funnel. */

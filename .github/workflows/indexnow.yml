@@ -1,0 +1,67 @@
+name: IndexNow
+
+# Vercel's GitHub integration posts a deployment_status for every deploy; this runs once a Production one succeeds,
+# when the new URLs are live. See docs/seo/indexnow.md.
+on:
+  deployment_status:
+  workflow_dispatch:
+    inputs:
+      urls:
+        description: "URLs or paths to ping, separated by spaces, commas or new lines (ignored when 'all' is ticked)"
+        required: false
+        default: ""
+      all:
+        description: "Ping every URL in the live sitemap"
+        type: boolean
+        default: false
+      dry_run:
+        description: "Dry run: list the URLs without sending them"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  deployments: read
+
+jobs:
+  ping:
+    name: Ping IndexNow
+    # startsWith ignores case, so this matches "Production" (this repo's name) and suffixed monorepo names alike.
+    if: github.event_name == 'workflow_dispatch' || (github.event.deployment_status.state == 'success' && startsWith(github.event.deployment.environment, 'production'))
+    runs-on: ubuntu-latest
+    # On the job, keyed by environment: a skipped Preview event never joins, so it can't cancel a waiting production run.
+    concurrency:
+      group: indexnow-${{ github.event.deployment.environment || 'manual' }}
+      cancel-in-progress: false
+    # Best effort. A failed ping step shows only inside the run. A failed checkout or setup-node still fails this job,
+    # though the workflow run itself is not marked failed.
+    continue-on-error: true
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The diff reaches back to the previous production commit.
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: package.json
+          check-latest: true
+      - name: Ping changed URLs
+        if: github.event_name == 'deployment_status'
+        continue-on-error: true
+        run: npm run indexnow -- deploy --sha "$SHA" --deployment-id "$DEPLOYMENT_ID" --environment "$ENVIRONMENT" --wait 120
+        env:
+          SHA: ${{ github.event.deployment.sha }}
+          DEPLOYMENT_ID: ${{ github.event.deployment.id }}
+          ENVIRONMENT: ${{ github.event.deployment.environment }}
+          GITHUB_TOKEN: ${{ github.token }}
+      - name: Ping the whole sitemap
+        if: github.event_name == 'workflow_dispatch' && inputs.all
+        continue-on-error: true
+        run: npm run indexnow -- all ${{ inputs.dry_run && '--dry-run' || '' }}
+      - name: Ping the given URLs
+        if: github.event_name == 'workflow_dispatch' && !inputs.all
+        continue-on-error: true
+        run: npm run indexnow -- urls "$URLS" ${{ inputs.dry_run && '--dry-run' || '' }}
+        env:
+          URLS: ${{ inputs.urls }}

@@ -10,6 +10,7 @@
     "skipLibCheck": true,
     "strict": true,
     "noEmit": true,
+    "allowImportingTsExtensions": true,
     "esModuleInterop": true,
     "module": "esnext",
     "moduleResolution": "bundler",
@@ -36,10 +37,13 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts",
     ".next-test/types/**/*.ts",
-    ".next-test/dev/types/**/*.ts"
+    ".next-test/dev/types/**/*.ts",
+    ".next-test-hero/types/**/*.ts",
+    ".next-test-hero/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",
-    ".next-test"
+    ".next-test",
+    ".next-test-hero"
   ]
 }

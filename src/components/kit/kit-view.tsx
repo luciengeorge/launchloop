@@ -87,7 +87,8 @@ async function PaidKit({ kit, session, query }: Props) {
   return (
     <div className="space-y-6">
       {ready ? (
-        <div className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-5 sm:flex-row sm:items-center sm:justify-between">
+        // Same min heights as the GenerationPoller this replaces, so the checklist below doesn't move.
+        <div className="flex min-h-48 flex-col justify-center gap-4 rounded-2xl border border-border bg-card p-5 sm:min-h-29 sm:flex-row sm:items-center sm:justify-between lg:min-h-24">
           <div>
             <h2 className="text-lg font-semibold">Your launch kit is ready</h2>
             <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">

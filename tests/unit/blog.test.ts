@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import sitemap from "@/app/sitemap";
 import { BLOG_AUTHOR, BLOG_POSTS, blogPosts, post, postPath, rssDate } from "@/lib/blog";
@@ -6,7 +8,7 @@ import { llmsText } from "@/lib/llms";
 import { cardPages, indexablePages, PAGES, postPage } from "@/lib/pages";
 import { blogFeed } from "@/lib/rss";
 import { SITE } from "@/lib/site";
-import { OG_FAQ, OG_PREVIEW } from "@/lib/tools";
+import { OG_FAQ, OG_PREVIEW, TOOLS } from "@/lib/tools";
 
 const BASE = "https://launchloop.test";
 const DASHES = /[\u2013\u2014]/;
@@ -33,6 +35,7 @@ describe("blog registry", () => {
     expect(PAGES.blog.description.length).toBeGreaterThanOrEqual(138);
     expect(PAGES.blog.description.length).toBeLessThanOrEqual(158);
     expect(`${PAGES.blog.title} ${PAGES.blog.description}`).not.toMatch(DASHES);
+    expect(PAGES.blog.description, "names no individual posts, so it stays true as posts are added").not.toMatch(/Product Hunt|Indie Hackers|BetaList|starting with/);
     expect(PAGES.blog.updated).toBe(BLOG_POSTS.map((p) => p.updated).sort().at(-1));
   });
 
@@ -70,6 +73,56 @@ describe("Product Hunt post", () => {
     }
     expect(p.metaTitle).not.toBe(checklist.metaTitle);
     expect(p.description).not.toBe(checklist.description);
+  });
+});
+
+describe("BetaList post", () => {
+  const p = post("how-to-launch-on-betalist");
+
+  it("targets launching on BetaList and BetaList submission, dated 25 October 2026", () => {
+    expect(fullTitle(p.metaTitle)).toBe("How to launch on BetaList: submission guide · LaunchLoop");
+    expect(p.description).toMatch(/^How to launch on BetaList/);
+    expect(p).toMatchObject({ published: "2026-10-25", updated: "2026-10-25" });
+  });
+});
+
+describe("Product Hunt alternatives post", () => {
+  const p = post("product-hunt-alternatives");
+
+  it("targets both queries, is dated 24 October 2026 and doesn't echo the Product Hunt how-to", () => {
+    expect(fullTitle(p.metaTitle)).toBe("Product Hunt alternatives: where to launch · LaunchLoop");
+    expect(p.description).toMatch(/^Sites like Product Hunt/);
+    expect(p).toMatchObject({ published: "2026-10-24", updated: "2026-10-24" });
+    const listed = blogPosts();
+    expect(listed.map((x) => x.slug)).toContain(p.slug);
+    const dates = listed.map((x) => x.published);
+    expect(dates).toEqual([...dates].sort().reverse());
+    const howTo = post("how-to-launch-on-product-hunt");
+    expect(p.metaTitle).not.toBe(howTo.metaTitle);
+    expect(p.description).not.toBe(howTo.description);
+  });
+
+  it("keeps Uneed's retired $29.99 price and its old 5 month wait out of the post and its quote log", () => {
+    const root = path.join(import.meta.dirname, "../..");
+    const files = ["src/app/blog/product-hunt-alternatives/page.tsx", "docs/seo/2026-10-24-product-hunt-alternatives.md"];
+    for (const file of files) {
+      const text = readFileSync(path.join(root, file), "utf8");
+      expect(text, file).not.toMatch(/29\.99|5 months out|up to 5 months|30 days to 5 months|between 30 days and/i);
+      expect(text, file).toContain("$39.99");
+      expect(text, file).toContain("at least 30 days out, at the back of the line.");
+    }
+  });
+
+  it("links BetaList's Help page, not its retired /faq or /support URLs, and drops the 60k+ figure", () => {
+    const source = readFileSync(path.join(import.meta.dirname, "../../src/app/blog/product-hunt-alternatives/page.tsx"), "utf8");
+    expect(source).toContain('"https://betalist.com/help"');
+    expect(source).not.toMatch(/betalist\.com\/(faq|support)|60k/i);
+  });
+
+  it("links both free tools and no /tools path that doesn't exist", () => {
+    const source = readFileSync(path.join(import.meta.dirname, "../../src/app/blog/product-hunt-alternatives/page.tsx"), "utf8");
+    const hrefs = [...source.matchAll(/href="(\/tools[^"]*)"/g)].map((m) => m[1]);
+    expect([...new Set(hrefs)].sort()).toEqual(TOOLS.map((t) => t.path).sort());
   });
 });
 

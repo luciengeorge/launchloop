@@ -41,6 +41,37 @@ const png = (w, h) => {
   const raw = Buffer.concat(Array.from({ length: h }, () => row));
   return Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), pngChunk("IHDR", ihdr), pngChunk("IDAT", deflateSync(raw)), pngChunk("IEND", Buffer.alloc(0))]);
 };
+/** A VP8X WebP header: enough for a size reader, and a format Satori draws as a blank box. */
+const webp = (w, h) => {
+  const b = Buffer.alloc(30);
+  b.write("RIFF", 0);
+  b.writeUInt32LE(22, 4);
+  b.write("WEBPVP8X", 8);
+  b.writeUInt32LE(10, 16);
+  b.writeUIntLE(w - 1, 24, 3);
+  b.writeUIntLE(h - 1, 27, 3);
+  return b;
+};
+/**
+ * Picks WebP or PNG the way a CDN like Framer's does: by q value (the most specific matching range
+ * wins), WebP on a tie.
+ */
+const negotiateImage = (accept) => {
+  const ranges = accept.split(",").map((part) => {
+    const [range, ...params] = part.trim().toLowerCase().split(";");
+    const q = params.map((p) => p.trim()).find((p) => p.startsWith("q="));
+    return { range: range.trim(), q: q ? Number(q.slice(2)) : 1 };
+  });
+  const qOf = (type) => (ranges.find((r) => r.range === type) ?? ranges.find((r) => r.range === "image/*") ?? ranges.find((r) => r.range === "*/*"))?.q ?? 0;
+  return qOf("image/png") > qOf("image/webp") ? "png" : "webp";
+};
+const gif = (w, h) => {
+  const b = Buffer.alloc(13);
+  b.write("GIF89a", 0);
+  b.writeUInt16LE(w, 6);
+  b.writeUInt16LE(h, 8);
+  return b;
+};
 
 const origin = `http://127.0.0.1:${port}`;
 const ogPage = (head) => (_req, res) => {
@@ -69,6 +100,25 @@ const routes = {
     <meta property="og:image" content="${origin}/og/img-1200x1200.png" />`),
   "/og/broken-image": ogPage(`<meta property="og:title" content="Brokenpic" /><meta property="og:image" content="${origin}/og/missing.png" />`),
   "/og/none": ogPage(""),
+  // A product page with a landscape share image (the kit images' screenshot) and an apple-touch-icon (their logo).
+  "/visual": (_req, res) => {
+    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+    res.end(`<!doctype html><html><head><title>Framewise</title>
+      <meta name="description" content="Framewise turns screen recordings into step-by-step product docs your team can edit.">
+      <meta property="og:image" content="${origin}/og/img-1600x1000.png">
+      <link rel="apple-touch-icon" sizes="180x180" href="/og/img-180x180.png">
+      </head><body><h1>Framewise</h1><p>Framewise turns screen recordings into step-by-step product docs your team can edit.</p></body></html>`);
+  },
+  // A share image that is always WebP (even to a low-q */*), a GIF icon, and an icon that, like Framer's CDN, is WebP unless Accept ranks PNG higher.
+  "/visual-webp": (_req, res) => {
+    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+    res.end(`<!doctype html><html><head><title>Cadence</title>
+      <meta name="description" content="Cadence books meetings across every calendar your team uses, without the back and forth.">
+      <meta property="og:image" content="${origin}/og/webp-1600x1000.png">
+      <link rel="apple-touch-icon" sizes="180x180" href="/og/gif-180x180.png">
+      <link rel="apple-touch-icon" sizes="152x152" href="/og/negotiated-152x152.png">
+      </head><body><h1>Cadence</h1><p>Cadence books meetings across every calendar your team uses, without the back and forth.</p></body></html>`);
+  },
   "/slow": (_req, res) => setTimeout(() => res.end("<title>Too late</title>"), 5000),
   // Slow but inside SITE_FETCH_TIMEOUT_MS, so a preview is still being written for a moment after it's accepted.
   "/slowish": (_req, res) =>
@@ -84,6 +134,11 @@ const routes = {
     res.writeHead(200, { "Content-Type": "text/html" });
     res.end('<!doctype html><html><head></head><body><div id="root"></div><script src="/app.js"></script></body></html>');
   },
+  // A Vite shell like tool4boxology.service.tib.eu: the repo search for its <title> finds nothing, so it's site_no_content.
+  "/spa-no-repo": (_req, res) => {
+    res.writeHead(200, { "Content-Type": "text/html" });
+    res.end('<!doctype html><html><head><title>Nomatchly</title></head><body><div id="root"></div><script type="module" src="/assets/index.js"></script></body></html>');
+  },
   "/llmfail": (_req, res) => {
     res.writeHead(200, { "Content-Type": "text/html" });
     res.end(html({ title: "Outagely LLMFAIL", description: "Outagely monitors your uptime and pages you when your app goes down for real." }));
@@ -96,6 +151,8 @@ const routes = {
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ hello: "world" }));
   },
+  // Repo-name search for pages with no readable text: no repo matches, so those still fail with site_no_content.
+  "/gh/search/repositories": json({ total_count: 0, items: [] }),
   "/gh/users/real-owner": (_req, res) => {
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ login: "real-owner" }));
@@ -153,8 +210,18 @@ function recordPosthog(body) {
   }
 }
 
-/** Flag variants per distinct id, and an optional delay before answering, set by tests through POST /ph/_flags. Everyone else gets no flags. */
+/**
+ * Flag variants per distinct id, and an optional delay before answering, set by tests through POST /ph/_flags.
+ * An id ending in `*` covers every id with that prefix (the home headline is bucketed on a fresh `hero:<uuid>`
+ * per view); an exact id wins. Everyone else gets no flags.
+ */
 const flagOverrides = new Map();
+const overrideFor = (distinctId) => {
+  if (typeof distinctId !== "string") return undefined;
+  if (flagOverrides.has(distinctId)) return flagOverrides.get(distinctId);
+  for (const [pattern, override] of flagOverrides) if (pattern.endsWith("*") && distinctId.startsWith(pattern.slice(0, -1))) return override;
+  return undefined;
+};
 
 /** The distinct_id in a flags request: posthog-node sends JSON; posthog-js may gzip it. */
 function flagsDistinctId(body) {
@@ -219,6 +286,13 @@ createServer(async (req, res) => {
     res.writeHead(200, { "Content-Type": "image/png" });
     return res.end(png(Number(img[1]), Number(img[2])));
   }
+  const other = /^\/og\/(webp|gif|negotiated)-(\d{1,4})x(\d{1,4})\.png$/.exec(req.url);
+  if (other) {
+    const [w, h] = [Number(other[2]), Number(other[3])];
+    const format = other[1] === "negotiated" ? negotiateImage(req.headers.accept ?? "*/*") : other[1];
+    res.writeHead(200, { "Content-Type": `image/${format}` });
+    return res.end(format === "webp" ? webp(w, h) : format === "gif" ? gif(w, h) : png(w, h));
+  }
   // Fake PostHog (NEXT_PUBLIC_POSTHOG_HOST in the test build): no flags for anyone, so every
   // experiment is control unless a test sets variants for a distinct id (POST /ph/_flags
   // { distinctId, flags, delayMs }) or intercepts /lp-relay/flags in the browser.
@@ -234,7 +308,7 @@ createServer(async (req, res) => {
       return res.end("{}");
     }
     if (pathname.startsWith("/ph/flags")) {
-      const override = flagOverrides.get(flagsDistinctId(body));
+      const override = overrideFor(flagsDistinctId(body));
       if (override?.delayMs) await new Promise((resolve) => setTimeout(resolve, override.delayMs));
       if (res.destroyed) return;
       res.writeHead(200, { "Content-Type": "application/json" });

@@ -25,8 +25,28 @@ export function imageSize(bytes: Uint8Array, contentType = ""): ImageSize {
   if (b.length >= 4 && b[0] === 0xff && b[1] === 0xd8) return { format: "jpeg", ...jpegSize(b) };
   if (b.length >= 12 && ascii(b, 4, 8) === "ftyp" && /^avi[fs]$/.test(ascii(b, 8, 12))) return { format: "avif" };
   const head = new TextDecoder().decode(b.subarray(0, 512)).trimStart().toLowerCase();
-  if (/svg/i.test(contentType) || head.startsWith("<svg") || (head.startsWith("<?xml") && head.includes("<svg"))) return { format: "svg" };
+  if (/svg/i.test(contentType) || head.startsWith("<svg") || (head.startsWith("<?xml") && head.includes("<svg"))) {
+    return { format: "svg", ...svgSize(new TextDecoder().decode(b.subarray(0, 8192))) };
+  }
   return { format: "unknown" };
+}
+
+const svgLength = (value: string | undefined) => {
+  const m = value?.trim().match(/^(\d+(?:\.\d+)?)(px)?$/);
+  return m ? Number(m[1]) : undefined;
+};
+
+/** From the root element's width/height (plain or px lengths), else its viewBox. */
+export function svgSize(text: string): { width?: number; height?: number } {
+  const tag = text.match(/<svg\b[^>]*>/i)?.[0];
+  if (!tag) return {};
+  const attr = (name: string) => tag.match(new RegExp(`\\s${name}\\s*=\\s*["']([^"']*)["']`, "i"))?.[1];
+  const width = svgLength(attr("width"));
+  const height = svgLength(attr("height"));
+  if (width && height) return { width, height };
+  const box = attr("viewBox")?.trim().split(/[\s,]+/).map(Number);
+  if (box?.length === 4 && box[2] > 0 && box[3] > 0) return { width: box[2], height: box[3] };
+  return {};
 }
 
 function webpSize(b: Uint8Array): { width?: number; height?: number } {

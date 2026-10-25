@@ -1,6 +1,7 @@
 import { expect, type Page, test } from "@playwright/test";
 import { BLOG_AUTHOR, BLOG_POSTS, blogPosts, postPath, type BlogPost } from "../../src/lib/blog";
 import { GUIDES, guidePath } from "../../src/lib/guides";
+import { OG_PREVIEW, TAGLINE_CHECKER } from "../../src/lib/tools";
 
 type JsonLdNode = { "@type": string; [key: string]: unknown };
 
@@ -23,6 +24,34 @@ const SELF = (path: string) => new RegExp(`^http://127\\.0\\.0\\.1:\\d+${path.re
 
 /** Per post: links the copy must make, and quotes that must appear verbatim. */
 const EXPECT: Record<string, { links: string[]; quotes: string[] }> = {
+  "how-to-launch-on-betalist": {
+    links: [
+      "/blog/how-to-launch-on-product-hunt",
+      "/blog/how-to-launch-on-indie-hackers",
+      "/product-hunt-launch-checklist",
+      "/how-to-write-a-show-hn-post",
+      "/how-to-promote-on-reddit",
+      "/how-to-write-a-product-hunt-tagline",
+      "/how-to-launch-a-vibe-coded-app",
+      "https://betalist.com/help",
+      "https://betalist.com/criteria",
+      "https://betalist.com/help/submitting",
+      "https://betalist.com/agent",
+      "https://betalist.com/terms/submissions",
+      "https://betalist.com/boost",
+      "https://guides.betalist.com/designing-your-landing-page",
+    ],
+    quotes: [
+      "All submissions are paid. There is no free submission option.",
+      "Current plans and prices are shown at the end of the submission form.",
+      "Each startup gets up to two opportunities to be featured: once pre-launch and once at launch.",
+      "We feature around 20 new startups every day.",
+      "Lite: featured within about 14 days. Standard: featured within about 3 days. Premium: featured within about 1 day.",
+      "Most submissions wait days or weeks before publishing",
+      "Priority listing guarantees faster review, not acceptance or any specific results.",
+      "your startup may be featured on any day including weekends and holidays.",
+    ],
+  },
   "how-to-launch-on-product-hunt": {
     links: [
       "/product-hunt-launch-checklist",
@@ -79,6 +108,42 @@ const EXPECT: Record<string, { links: string[]; quotes: string[] }> = {
       "Images for this Card support an aspect ratio of 2:1 with minimum dimensions of 300x157 or maximum of 4096x4096 pixels.",
       "Slack crawls the URL, looks for common OpenGraph and X (formerly known as Twitter) Card metadata, and renders some micro-approximation of the content.",
       "If the page specifies an og:image it should specify og:image:alt.",
+    ],
+  },
+  "product-hunt-alternatives": {
+    links: [
+      "/how-to-write-a-show-hn-post",
+      "/show-hn-launch-checklist",
+      "/how-to-promote-on-reddit",
+      "/blog/how-to-launch-on-indie-hackers",
+      "/blog/how-to-launch-on-product-hunt",
+      "/product-hunt-launch-checklist",
+      "/tools/product-hunt-tagline-checker",
+      "/tools/og-preview",
+      "https://betalist.com/help",
+      "https://betalist.com/criteria",
+      "https://devhunt.org/faq",
+      "https://news.ycombinator.com/showhn.html",
+      "https://www.uneed.best/how-it-works",
+      "https://help.peerlist.io/individual/launchpad/guidelines-faqs",
+      "https://fazier.com/submit",
+      "https://www.tinystartups.com/terms",
+      "https://microlaunch.net/premium",
+    ],
+    quotes: [
+      "All submissions are paid. There is no free submission option.",
+      "Each startup gets up to two opportunities to be featured: once pre-launch and once at launch.",
+      "Launched months or years ago",
+      "Newsletter slot (70k+ subscribers)",
+      "DevHunt is a launchpad for developer tools, built by developers.",
+      "Show HN is for something you've made that other people can play with.",
+      "Submitting is not scheduling.",
+      "at least 30 days out, at the back of the line.",
+      "pick the exact date you want. Published with a do-follow backlink for life, no minimum upvote score.",
+      "Anyone with a Verified Peerlist profile can launch their products on Peerlist Launchpad.",
+      "Products rank over 1 month",
+      "Launching is free; Skip the queue (£29) puts you in the next Monday batch",
+      "All sales are final. We do not offer refunds.",
     ],
   },
 };
@@ -245,6 +310,64 @@ for (const p of BLOG_POSTS) {
   });
 }
 
+test("the alternatives post groups sites by fit, prices each one, and never lists LaunchLoop as a platform", async ({ page }) => {
+  await page.goto("/blog/product-hunt-alternatives");
+  for (const id of ["at-a-glance", "dev-tools", "early-stage", "general", "communities", "choosing"]) await expect(page.locator(`h2#${id}`)).toBeVisible();
+  const sites = ["DevHunt", "Show HN", "BetaList", "r/alphaandbetausers", "Uneed", "Fazier", "Tiny Startups", "Microlaunch", "Peerlist Launchpad", "Indie Hackers", "r/SideProject"];
+  const rows = page.locator("#at-a-glance + p + div table tbody tr");
+  await expect(rows.locator("td:first-child")).toHaveText(sites);
+  for (const id of ["devhunt", "show-hn", "betalist", "alphaandbetausers", "uneed", "fazier", "tiny-startups", "microlaunch", "peerlist", "indie-hackers", "sideproject"]) {
+    await expect(page.locator(`h3#${id}`)).toBeVisible();
+  }
+  await expect(page.locator("article h3", { hasText: "LaunchLoop" })).toHaveCount(0);
+  await expect(page.locator("article > div").first()).toContainText("LaunchLoop isn't a launch platform.");
+});
+
+test("the alternatives post links both free tools where they help, and no other /tools page", async ({ page, request }) => {
+  await page.goto("/blog/product-hunt-alternatives");
+  const body = page.locator("article > div").first();
+  const toolLinks = await body.locator('a[href^="/tools"]').evaluateAll((links) => links.map((a) => a.getAttribute("href")));
+  expect([...new Set(toolLinks)].sort()).toEqual([OG_PREVIEW.path, TAGLINE_CHECKER.path].sort());
+
+  const fazierSubmit = page.locator("h3#fazier ~ p", { hasText: "How to submit." }).first();
+  await expect(fazierSubmit.locator(`a[href="${TAGLINE_CHECKER.path}"]`)).toHaveText("Product Hunt tagline checker");
+  const sideProjectSubmit = page.locator("h3#sideproject ~ p", { hasText: "How to submit." }).first();
+  await expect(sideProjectSubmit.locator(`a[href="${OG_PREVIEW.path}"]`)).toHaveText("OG image preview");
+  const nextSteps = page.locator("h2#next + p");
+  for (const t of [TAGLINE_CHECKER, OG_PREVIEW]) await expect(nextSteps.locator(`a[href="${t.path}"]`)).toBeVisible();
+
+  for (const t of [TAGLINE_CHECKER, OG_PREVIEW]) expect((await request.get(t.path, { maxRedirects: 0 })).status(), t.path).toBe(200);
+});
+
+test("the alternatives post has Uneed's 21 October prices and wait, dates the table, and keeps the old ones out of the page and JSON-LD", async ({ page }) => {
+  await page.goto("/blog/product-hunt-alternatives");
+  const uneed = page.locator("#at-a-glance + p + div table tbody tr", { has: page.locator("td:first-child", { hasText: /^Uneed$/ }) });
+  await expect(uneed.locator("td")).toHaveText(["Uneed", "Free waiting line, at least 30 days out", "Fast-track $14.99, Skip the waiting line $39.99, Relaunch $15"]);
+  await expect(page.locator("#at-a-glance + p + div + p")).toHaveText("Prices checked on 21 October 2026.");
+
+  const body = page.locator("article > div").first();
+  await expect(body.locator("li", { hasText: "Skip the waiting line, $39.99." })).toBeVisible();
+  await expect(body.locator("li", { hasText: "Count the wait." })).toContainText("Uneed's free line is at least 30 days away");
+  const OLD = /29\.99|5 months|between 30 days and/i;
+  await expect(page.locator("article")).not.toContainText(OLD);
+  for (const raw of await page.locator('script[type="application/ld+json"]').allTextContents()) expect(raw).not.toMatch(OLD);
+
+  const faq = findNode<{ mainEntity: { name: string; acceptedAnswer: { text: string } }[] }>(await jsonLdNodes(page), "FAQPage");
+  const visible = await page.locator("article #faq ~ div h3").allInnerTexts();
+  expect(faq.mainEntity.map((q) => q.name)).toEqual(visible);
+  for (const q of faq.mainEntity) await expect(body).toContainText(q.acceptedAnswer.text);
+});
+
+test("the alternatives post has BetaList's 24 October wording and none of its retired lines, in the page or the JSON-LD", async ({ page }) => {
+  await page.goto("/blog/product-hunt-alternatives");
+  const article = page.locator("article");
+  await expect(article.locator('a[href^="https://betalist.com/faq"], a[href^="https://betalist.com/support"]')).toHaveCount(0);
+  const OLD = /60k|Once pre-launch, and once during launch|weeks ago or longer|weeks old or more|recently launched or still be unreleased|not the right place to promote|BetaList FAQ|BetaList's FAQ|don't match/i;
+  await expect(article).not.toContainText(OLD);
+  for (const raw of await page.locator('script[type="application/ld+json"]').allTextContents()) expect(raw).not.toMatch(OLD);
+  await expect(page.locator("h3#betalist ~ p", { hasText: "Audience." }).first()).toContainText("70k+ subscribers");
+});
+
 test("the Product Hunt post hands the step-by-step to the checklist instead of repeating it", async ({ page }) => {
   const ph: BlogPost = BLOG_POSTS.find((p) => p.slug === "how-to-launch-on-product-hunt")!;
   await page.goto(postPath(ph));
@@ -274,6 +397,29 @@ test("the Product Hunt post hands the step-by-step to the checklist instead of r
   await expect(page).not.toHaveTitle(/how it works/i);
   await expect(page.locator("h2#the-listing")).toBeVisible();
   await expect(page.locator("h2#images")).toBeVisible();
+});
+
+test("the BetaList post says submissions are paid, gives only BetaList's public prices and never claims LaunchLoop submits", async ({ page }) => {
+  await page.goto(postPath(BLOG_POSTS.find((p) => p.slug === "how-to-launch-on-betalist")!));
+  const body = page.locator("article > div").first();
+  for (const id of ["what-it-is", "what-qualifies", "landing-page", "how-to-submit", "pricing", "review", "featured-day", "after", "not-documented"]) {
+    await expect(page.locator(`h2#${id}`)).toBeVisible();
+  }
+
+  const pricing = await page.locator("h2#pricing").evaluate((h2) => {
+    const parts: string[] = [];
+    for (let el = h2.nextElementSibling; el && el.tagName !== "H2"; el = el.nextElementSibling) parts.push((el as HTMLElement).innerText);
+    return parts.join("\n");
+  });
+  expect(pricing).toContain("24 October 2026");
+  expect(pricing).toContain("$99 a week or $199 a month");
+  expect(pricing).toContain("doesn't give a figure");
+  expect(pricing.match(/\$[\d,]+/g)).toEqual(["$99", "$199", "$4,999", "$9,999"]);
+
+  await expect(body).toContainText("It doesn't submit anything for you");
+  await expect(body).not.toContainText(/LaunchLoop (submits|will submit|posts it)/i);
+  await expect(body.locator("q", { hasText: "Your startup must have its own domain" })).toBeVisible();
+  await expect(body.locator("q", { hasText: "We do not accept app store links or pages hosted on free subdomains." })).toBeVisible();
 });
 
 test("the Indie Hackers post dates old advice and quotes the terms as they read now", async ({ page }) => {

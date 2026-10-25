@@ -20,6 +20,10 @@ export interface SiteData {
   themeColor?: string;
   githubUrl?: string;
   css: string;
+  /** Absolute og:image (or twitter:image) URL. */
+  ogImage?: string;
+  /** Absolute icon URLs, best logo candidate first. */
+  icons?: string[];
 }
 
 const clean = (s: string | undefined) => s?.replace(/\s+/g, " ").trim() || undefined;
@@ -61,18 +65,18 @@ export async function fetchSite(url: string, warnings: string[]): Promise<SiteDa
     }),
   );
 
-  // Pricing links usually live in the nav, so find them before stripping it.
+  // Pricing and repo links usually live in the nav or footer, so find them before stripping those.
   const pricingUrl = findPricingLink(root, page.url);
+  const githubUrl = root
+    .querySelectorAll("a[href]")
+    .map((a) => a.getAttribute("href") ?? "")
+    .find((href) => /^https?:\/\/(www\.)?github\.com\/[\w.-]+\/[\w.-]+\/?$/i.test(href));
+  const images = pageImages(root, page.url);
   root.querySelectorAll("script, style, noscript, svg, nav, header, footer, [role=navigation]").forEach((el) => el.remove());
   const body = root.querySelector("body") ?? root;
   const text = (sel: string, max: number) => unique(body.querySelectorAll(sel).map((el) => clean(el.text)), max);
 
   const prices = await extractPrices(body, page.url, pricingUrl);
-
-  const githubUrl = root
-    .querySelectorAll("a[href]")
-    .map((a) => a.getAttribute("href") ?? "")
-    .find((href) => /^https?:\/\/(www\.)?github\.com\/[\w.-]+\/[\w.-]+\/?$/i.test(href));
 
   const paragraphs = text("p", 12).filter((p) => p.length > 30);
   if (paragraphs.length === 0 && !clean(body.text)) {
@@ -93,7 +97,41 @@ export async function fetchSite(url: string, warnings: string[]): Promise<SiteDa
     themeColor: meta(root, "theme-color"),
     githubUrl,
     css: [inlineCss, ...sheets].join("\n").slice(0, 900_000),
+    ...images,
   };
+}
+
+const absolute = (href: string | undefined, base: string) => {
+  if (!href) return undefined;
+  try {
+    const url = new URL(href.trim(), base);
+    return url.protocol === "https:" || url.protocol === "http:" ? url.toString() : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
+/**
+ * The page's share image and its icons as logo candidates: apple-touch-icons first (opaque by
+ * convention, so they read on any background), then SVG icons, then PNG icons of 64px or more.
+ * ICO files are skipped because the image renderer can't draw them.
+ */
+export function pageImages(root: HTMLElement, pageUrl: string): Pick<SiteData, "ogImage" | "icons"> {
+  const ogImage = absolute(meta(root, "og:image") ?? meta(root, "og:image:url") ?? meta(root, "twitter:image") ?? meta(root, "twitter:image:src"), pageUrl);
+  const ranked: { url: string; rank: number }[] = [];
+  for (const link of root.querySelectorAll("link[rel][href]")) {
+    const rel = (link.getAttribute("rel") ?? "").toLowerCase().split(/\s+/);
+    const url = absolute(link.getAttribute("href"), pageUrl);
+    if (!url || /\.ico(\?|#|$)/i.test(url)) continue;
+    const type = (link.getAttribute("type") ?? "").toLowerCase();
+    const size = Math.max(0, ...(link.getAttribute("sizes") ?? "").split(/\s+/).map((s) => Number(s.split("x")[0]) || 0));
+    const svg = type.includes("svg") || /\.svg(\?|#|$)/i.test(url);
+    if (rel.includes("apple-touch-icon") || rel.includes("apple-touch-icon-precomposed")) ranked.push({ url, rank: 1000 - Math.min(size || 180, 999) });
+    else if (rel.includes("icon") && svg) ranked.push({ url, rank: 2000 });
+    else if (rel.includes("icon") && (size === 0 || size >= 64)) ranked.push({ url, rank: 3000 - Math.min(size, 999) });
+  }
+  const icons = [...new Set(ranked.sort((a, b) => a.rank - b.rank).map((r) => r.url))].slice(0, 4);
+  return { ogImage, icons };
 }
 
 const PRICING_WORD = /^(pricing|plans|prices)$/i;

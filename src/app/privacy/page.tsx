@@ -12,7 +12,7 @@ export default function PrivacyPage() {
   return (
     <article className="mx-auto max-w-3xl space-y-6 px-4 py-16 leading-relaxed sm:px-6 [&_a]:font-medium [&_a]:text-foreground [&_a]:underline [&_a]:underline-offset-4 [&_h2]:mt-8 [&_h2]:text-xl [&_h2]:font-semibold [&_li]:text-muted-foreground [&_p]:text-muted-foreground [&_strong]:text-foreground">
       <h1 className="text-4xl font-semibold tracking-tight">Privacy policy</h1>
-      <p>Last updated 19 October 2026. This page explains what LaunchLoop does with your data, in plain English.</p>
+      <p>Last updated 24 October 2026. This page explains what LaunchLoop does with your data, in plain English.</p>
 
       <h2>Who we are</h2>
       <p>
@@ -77,6 +77,10 @@ export default function PrivacyPage() {
       </p>
       <p>
         We use Sentry to record errors so we can fix them. An error report includes what went wrong, the page and your browser and device type, and may include your IP address.
+      </p>
+      <p>
+        The badges in our footer are images your browser loads from startupfa.me and twelve.tools, the directories that list LaunchLoop. Like any site your browser talks to,
+        they receive your IP address and browser type.
       </p>
 
       <h2>Why we use it</h2>
