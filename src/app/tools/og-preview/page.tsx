@@ -12,7 +12,7 @@ import { isLaunchPromoOn } from "@/lib/launch-promo-server";
 import { pageMetadata } from "@/lib/seo";
 import { SITE, kitPriceText } from "@/lib/site";
 import { breadcrumbs, faqPage } from "@/lib/structured-data";
-import { OG_FAQ, OG_PREVIEW as tool, TAGLINE_CHECKER } from "@/lib/tools";
+import { OG_FAQ, OG_PREVIEW as tool, TAGLINE_CHECKER, type ToolFaqItem } from "@/lib/tools";
 
 export const metadata: Metadata = pageMetadata(toolPage(tool));
 
@@ -27,14 +27,93 @@ const TAGS = `<meta property="og:title" content="Turn your GitHub repo into a la
 <meta property="og:url" content="https://your-app.com/" />
 <meta name="twitter:card" content="summary_large_image" />`;
 
-const PITFALLS = [
-  { title: "Tags added by JavaScript", body: "Link previewers don't run JavaScript. If your app sets its title and og:image in the browser, which many AI-built single-page apps do, crawlers see an empty page. Put the tags in the HTML the server sends." },
-  { title: "A relative image URL", body: "og:image=\"/og.png\" works in a browser and fails in most crawlers. Use the full https:// address." },
-  { title: "SVG or a tiny logo", body: `SVGs aren't shown by Facebook, X or LinkedIn, and anything under ${OG_MIN.width}×${OG_MIN.height} becomes a thumbnail. Export a PNG or JPG at ${SIZE}.` },
-  { title: "Text too close to the edges", body: "Some apps crop a few pixels, and the card is often shown around 500px wide. Keep the headline large, centred and well inside the frame." },
-  { title: "A login wall or a blocked crawler", body: "If the page or the image needs a login, redirects to one, or is blocked in robots.txt, the preview is blank. The image has to be publicly reachable too." },
-  { title: "An old cached card", body: "Apps cache the first card they see, sometimes for days. After fixing your tags, refresh it with the Facebook Sharing Debugger or LinkedIn Post Inspector, and share a fresh link to test." },
-] as const;
+const SRC = {
+  xCard: "https://web.archive.org/web/20260112050218/https://developer.x.com/en/docs/x-for-websites/cards/overview/summary-card-with-large-image",
+  xTroubleshooting: "https://web.archive.org/web/20260104011518/https://developer.x.com/en/docs/x-for-websites/cards/guides/troubleshooting-cards",
+  facebookImages: "https://developers.facebook.com/documentation/sharing/webmasters/images",
+  linkedinShareable: "https://www.linkedin.com/help/linkedin/answer/a521928",
+  linkedinPostInspector: "https://www.linkedin.com/help/linkedin/answer/a6233775",
+  slackRobots: "https://api.slack.com/robots",
+  discordLinkPreviews: "https://docs.discord.com/developers/link-previews/overview",
+  ogp: "https://ogp.me/",
+  appleRichPreviews: "https://developer.apple.com/documentation/technotes/tn3156-create-rich-previews-for-messages",
+} as const;
+
+const LINK = "font-medium text-foreground underline underline-offset-4";
+
+const PITFALLS: { title: string; body: React.ReactNode }[] = [
+  {
+    title: "Tags added by JavaScript",
+    body: (
+      <>
+        If your app sets its title and og:image in the browser, check that they&apos;re also in the HTML the server sends.{" "}
+        <a href={SRC.discordLinkPreviews} className={LINK}>Discord&apos;s doc</a> says <q>No code is executed, so tags added by a client-side script after load are never
+        seen.</q>, and Apple&apos;s <a href={SRC.appleRichPreviews} className={LINK}>TN3156</a> says{" "}
+        <q>Link previews do not follow meta redirects, nor run JavaScript; metadata must be available directly on the linked page.</q>
+      </>
+    ),
+  },
+  {
+    title: "A relative image URL",
+    body: (
+      <>
+        Check that og:image is a full https:// address, not a path like /og.png. The <a href={SRC.ogp} className={LINK}>Open Graph protocol</a> defines it as an image
+        URL, and every example it gives is a full URL. Facebook&apos;s, LinkedIn&apos;s, Slack&apos;s and X&apos;s archived docs don&apos;t say they resolve a relative path,
+        so a full URL is the safe form.
+      </>
+    ),
+  },
+  {
+    title: "SVG or a tiny logo",
+    body: (
+      <>
+        Some platforms don&apos;t accept SVG: X&apos;s <a href={SRC.xCard} className={LINK}>archived card docs</a> say <q>SVG is not supported.</q> Use a PNG or JPG at {SIZE}.
+        Small images shrink too: <a href={SRC.facebookImages} className={LINK}>Facebook</a> says an image under 600 x 315{" "}
+        <q>will still display in the link page post, but the size will be much smaller.</q>
+      </>
+    ),
+  },
+  {
+    title: "Text too close to the edges",
+    body: (
+      <>
+        Keep the headline large, centred and well inside the frame. An image that doesn&apos;t match a platform&apos;s ratio can be cropped:{" "}
+        <a href={SRC.facebookImages} className={LINK}>Facebook</a> asks for images{" "}
+        <q>as close to 1.91:1 aspect ratio as possible to display the full image in Feed without any cropping.</q>
+      </>
+    ),
+  },
+  {
+    title: "A login wall or a blocked crawler",
+    body: (
+      <>
+        Check that the page and the image both load without a login. X&apos;s <a href={SRC.xTroubleshooting} className={LINK}>archived troubleshooting docs</a> say that
+        when an image isn&apos;t shown,{" "}
+        <q>The most common cause is that the image specified via the twitter:image tag is not publicly accessible on the web.</q> Rules in robots.txt depend on the
+        platform: the same docs list <q>Your website has a robots.txt file that is blocking Twitter from getting your Card metadata.</q> as a cause, while{" "}
+        <a href={SRC.slackRobots} className={LINK}>Slack</a> says <q>We do not currently honor robots.txt files.</q>
+      </>
+    ),
+  },
+  {
+    title: "An old cached card",
+    body: (
+      <>
+        Platforms keep what they fetched for a while. X&apos;s <a href={SRC.xTroubleshooting} className={LINK}>archived docs</a> say its crawler re-indexes card tags{" "}
+        <q>roughly every seven days</q>, and <a href={SRC.slackRobots} className={LINK}>Slack</a> caches responses <q>for around 30 minutes</q>. To refresh a card after
+        fixing your tags, <a href={SRC.facebookImages} className={LINK}>Facebook</a> says its Sharing Debugger{" "}
+        <q>can also be used to update the image for a piece of content</q>, and <a href={SRC.linkedinPostInspector} className={LINK}>LinkedIn</a> says{" "}
+        <q>You can use the Post Inspector as a tool to refresh the URL.</q>
+      </>
+    ),
+  },
+];
+
+/** The FAQPage answer for an item: the visible text, with its "more" link as an <a>, which Google allows in Answer text. */
+function faqAnswerHtml(base: string, item: ToolFaqItem, promo: boolean): string {
+  const text = kitPriceText(item.a, promo);
+  return item.more ? `${text} <a href="${base}${item.more.href}">${item.more.label}</a>` : text;
+}
 
 const prose =
   "space-y-5 leading-relaxed [&_h2]:mt-14 [&_h2]:scroll-mt-20 [&_h2]:text-2xl [&_h2]:font-semibold [&_h2]:tracking-tight [&_h3]:mt-6 [&_h3]:font-semibold [&_li]:text-muted-foreground [&_ul]:list-disc [&_ul]:space-y-2 [&_ul]:pl-5 [&_p]:text-muted-foreground [&_a]:font-medium [&_a]:text-foreground [&_a]:underline [&_a]:underline-offset-4 [&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-sm [&_code]:text-foreground";
@@ -72,7 +151,7 @@ export default async function OgPreviewPage() {
             },
             faqPage(
               `${url}#faq`,
-              OG_FAQ.map((item) => ({ q: item.q, a: kitPriceText(item.a, promo) })),
+              OG_FAQ.map((item) => ({ q: item.q, a: faqAnswerHtml(base, item, promo) })),
             ),
             breadcrumbs(base, [
               { name: "Tools", path: PAGES.tools.path },
@@ -91,9 +170,13 @@ export default async function OgPreviewPage() {
       <header className="mt-4 max-w-3xl space-y-4">
         <Badge variant="outline" className="bg-background px-3 py-1 text-xs">Free · No sign-up</Badge>
         <h1 className="text-balance text-4xl font-semibold tracking-tight sm:text-5xl">{tool.title}</h1>
-        <p className="text-pretty text-lg text-muted-foreground">
-          Paste a live URL to see the card people get when you share it on X, LinkedIn, Slack or iMessage. We read your Open Graph tags, measure the real share image against{" "}
+        <p className="text-pretty text-lg text-muted-foreground" data-testid="og-intro">
+          Paste a live URL to preview a generic link card built from the Open Graph tags that X, LinkedIn, Slack and iMessage read. We measure the real share image against{" "}
           {SIZE} and tell you exactly what to fix before launch day.
+        </p>
+        <p className="text-pretty text-sm text-muted-foreground" data-testid="og-imessage-source">
+          For iMessage, Apple&apos;s <a href={SRC.appleRichPreviews} className={LINK}>TN3156: Create rich previews for Messages</a> says{" "}
+          <q>Use the og:image property to include an image in your link preview.</q> and <q>Use the og:title property to specify the title of your link preview.</q>
         </p>
       </header>
 
@@ -111,21 +194,24 @@ export default async function OgPreviewPage() {
         <h2 id="size">The {SIZE} rule</h2>
         <ul>
           <li>
-            <strong>{SIZE} pixels, a 1.91:1 ratio.</strong> It&apos;s the size Facebook, LinkedIn, X and Slack all design their large card around, so one image works
-            everywhere.
+            <strong>{SIZE} pixels, a 1.91:1 ratio.</strong> It&apos;s the size Facebook recommends and it meets LinkedIn&apos;s 1200×627 minimum. X&apos;s archived docs
+            describe a 2:1 image and Slack publishes no size, so it&apos;s the safest single size rather than an exact match everywhere.
           </li>
           <li>
-            <strong>PNG or JPG, ideally under 1 MB.</strong> X skips images over 5 MB, and smaller files load before the person scrolls past.
+            <strong>PNG or JPG, under 5 MB.</strong> X&apos;s <a href={SRC.xCard}>archived docs</a> say images must be less than 5MB, and{" "}
+            <a href={SRC.linkedinShareable}>LinkedIn&apos;s limit</a> for shared images is 5 MB. Smaller is better, so aim for under 1 MB if you can.
           </li>
           <li>
-            <strong>Never below {OG_MIN.width}×{OG_MIN.height}.</strong> Smaller images are shown as a little thumbnail beside the text, or dropped.
+            <strong>Never below {OG_MIN.width}×{OG_MIN.height}.</strong> <a href={SRC.facebookImages}>Facebook says</a> smaller images still display in the post, but
+            much smaller.
           </li>
           <li>
-            <strong>One idea, big type.</strong> Your product name and a short headline, readable when the card is about 500px wide on a phone. Keep it away from the
-            edges.
+            <strong>One idea, big type.</strong> Your product name and a short headline, large enough to read on a phone. Keep it away from the edges. iMessage is the
+            exception: Apple&apos;s <a href={SRC.appleRichPreviews}>TN3156</a> says <q>Avoid text in preview images.</q> and suggests using the other metadata tags for
+            text instead.
           </li>
           <li>
-            <strong>A full https:// URL.</strong> Relative paths and http images fail in more apps than you&apos;d expect.
+            <strong>A full https:// URL.</strong> Use the full address rather than a relative path: every example in the Open Graph protocol is a full URL.
           </li>
         </ul>
 
@@ -137,8 +223,8 @@ export default async function OgPreviewPage() {
       </pre>
       <div className={`max-w-3xl ${prose}`}>
         <p>
-          The width, height and alt tags are optional but worth it: with the size declared, Facebook and LinkedIn can show the image on the very first share instead of
-          waiting to download it.
+          The width, height and alt tags are optional but worth it: with the size declared, <a href={SRC.facebookImages}>Facebook</a> can show the image on the very first
+          share instead of waiting to download it.
         </p>
 
         <h2 id="pitfalls">Common pitfalls</h2>
@@ -175,6 +261,12 @@ export default async function OgPreviewPage() {
               <h3>{item.q}</h3>
               <p className="mt-2">
                 <PricedText text={item.a} promo={promo} />
+                {item.more ? (
+                  <>
+                    {" "}
+                    <Link href={item.more.href}>{item.more.label}</Link>
+                  </>
+                ) : null}
               </p>
             </section>
           ))}
