@@ -39,7 +39,7 @@ for (const c of CASES) {
 
 /** Errors about the link itself: each offers a site URL or the sample app instead of leaving the visitor stuck. */
 const WAY_FORWARD = [
-  { code: "invalid_url", input: "not a url" },
+  { code: "invalid_url", input: "https://github.com/sindresorhus/" },
   { code: "repo_not_found", input: "github.com/real-owner/secret-repo" },
   { code: "repo_private", input: "github.com/fixture-labs/private-app" },
 ] as const;
@@ -91,6 +91,24 @@ for (const c of WAY_FORWARD) {
     await alert.getByRole("button", { name: "Try a sample app", exact: true }).click();
     await page.waitForURL(/\/kit\/[\w-]+/, { timeout: 30_000 });
     expect(sent).toEqual([c.input, "sample"]);
+  });
+}
+
+for (const input of ["not a url", "myapp"]) {
+  test(`invalid_url from a site URL (${input}): only "Try a sample app", which previews the sample`, async ({ page }) => {
+    await page.goto("/");
+    const field = page.getByLabel("GitHub repo or live site URL");
+    await field.fill(input);
+    await page.getByRole("button", { name: "Get my free preview" }).first().click();
+    const alert = page.getByTestId("kit-error");
+    await expect(alert).toHaveAttribute("data-code", "invalid_url", { timeout: 15_000 });
+    // It was already a site URL, so there's no site URL to switch to.
+    await expect(alert.getByRole("button", { name: "Try your site URL instead" })).toHaveCount(0);
+    const sample = alert.getByRole("button", { name: "Try a sample app", exact: true });
+    await expect(sample).toBeVisible();
+    await sample.focus();
+    await page.keyboard.press("Enter");
+    await page.waitForURL(/\/kit\/[\w-]+/, { timeout: 30_000 });
   });
 }
 

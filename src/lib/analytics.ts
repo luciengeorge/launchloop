@@ -13,6 +13,9 @@ export type PreviewSource = "github" | "site" | "sample";
  * Browser events. Checkout events are captured server-side (see analytics-server.ts) so they carry the Stripe price,
  * and newsletter_subscribed so automated browsers and no-JS posts count.
  */
+/** Errors about the link itself, whose alert offers a site URL or the sample app instead. */
+export type ErrorCtaCode = "invalid_url" | "repo_not_found" | "repo_private";
+
 export interface ClientEvents {
   preview_started: { source: PreviewSource; plan: StartPlan; isLoggedIn: boolean };
   preview_completed: { kitId: string; source: PreviewSource; plan: StartPlan; isLoggedIn: boolean; durationMs: number };
@@ -33,6 +36,8 @@ export interface ClientEvents {
   /** site_no_content's "Use my GitHub repo instead" button, shown with the error. Never carries the link. */
   repo_cta_shown: { code: "site_no_content"; plan: StartPlan; isLoggedIn: boolean };
   repo_cta_clicked: { code: "site_no_content"; plan: StartPlan; isLoggedIn: boolean; prefill: RepoPrefill };
+  /** A button on an invalid_url, repo_not_found or repo_private error: "Try your site URL instead" or "Try a sample app". Never carries the link. */
+  error_cta_clicked: { cta: "site_url" | "sample_app"; error_code: ErrorCtaCode; plan: StartPlan; isLoggedIn: boolean };
   /** The visitor tried to send the link that just failed with site_no_content again; the form pointed them at the button. */
   preview_resubmit_blocked: { code: "site_no_content"; plan: StartPlan; isLoggedIn: boolean };
   /**
