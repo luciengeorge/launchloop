@@ -30,7 +30,7 @@ export async function KitView({ kit, session, query }: Props) {
   return (
     <div className="space-y-8">
       <header className="space-y-2">
-        <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Launch kit · {kit.source.repoUrl ?? kit.source.siteUrl ?? "sample app"}</p>
+        <p className="break-words font-mono text-xs uppercase tracking-widest text-muted-foreground">Launch kit · {kit.source.repoUrl ?? kit.source.siteUrl ?? "sample app"}</p>
         <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">{kit.brief.name}</h1>
       </header>
       {!kit.paid && kit.preview.tagline ? <FreeTagline tagline={kit.preview.tagline} /> : null}
