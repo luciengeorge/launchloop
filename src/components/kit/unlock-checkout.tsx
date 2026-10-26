@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { track } from "@/lib/analytics";
-import { PAYWALL_EARLY_CTA_FLAG, type PaywallEarlyCta } from "@/lib/paywall-cta";
+import { PAYWALL_EARLY_CTA_FLAG, SITE_HEADER_PX, type PaywallEarlyCta } from "@/lib/paywall-cta";
 import { runCheckout, trackUnlockClicked, trackUnlockShown, type CheckoutFailure, type CheckoutOutcome, type UnlockContext, type UnlockCtaPosition } from "@/lib/unlock-checkout";
 
 interface CheckoutState {
@@ -95,7 +95,7 @@ export function useUnlockCheckout(): UnlockCheckout {
 
 /**
  * A ref for an unlock button that logs unlock_cta_shown the first time it's at least half in view, once per mount.
- * Off-screen, `display: none` (the sticky bar from lg) or slid out of view, it isn't in view.
+ * Off-screen, under the sticky site header, `display: none` (the sticky bar from lg) or slid out of view, it isn't in view.
  */
 export function useShownOnce(context: UnlockContext) {
   const seen = useRef(false);
@@ -112,7 +112,7 @@ export function useShownOnce(context: UnlockContext) {
         observer.disconnect();
         trackUnlockShown(latest.current);
       },
-      { threshold: 0.5 },
+      { threshold: 0.5, rootMargin: `-${SITE_HEADER_PX}px 0px 0px 0px` },
     );
     observer.observe(element);
     return () => observer.disconnect();

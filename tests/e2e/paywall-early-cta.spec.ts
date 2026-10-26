@@ -248,6 +248,22 @@ test.describe("errors always carry a CTA (flag off too)", () => {
     await page.waitForURL(/\/checkout\/mock\?product=kit/);
   });
 
+  test("checkout offline (/api/checkout's 503 without Stripe in production): its message, Try again, and email us for a payment link", async ({ page }) => {
+    await makeSampleKit(page);
+    const offline = "Checkout is offline for a few minutes. Your preview is saved: try again shortly, or email hello@launchloop.dev and we'll send you a payment link.";
+    await failCheckoutOnce(page, (route) => route.fulfill({ status: 503, json: { error: offline, code: "checkout_unavailable" } }));
+    await panelButton(page).click();
+    const error = page.getByTestId("unlock-panel").getByRole("alert");
+    await expect(error).toHaveAttribute("data-code", "checkout_unavailable");
+    await expect(error.locator("p")).toHaveText(offline);
+    await expect(error.getByRole("link", { name: "Email us for a payment link" })).toHaveAttribute("href", "mailto:hello@launchloop.dev?subject=Payment%20link%20for%20my%20launch%20kit");
+    await expect(error.getByRole("button", { name: "Email me a link instead" })).toBeVisible();
+    // The panel keeps its unlock button, as #92 expects, and Try again runs the same checkout.
+    await expect(panelButton(page)).toBeEnabled();
+    await error.getByRole("button", { name: "Try again" }).click();
+    await page.waitForURL(/\/checkout\/mock\?product=kit/);
+  });
+
   test("a kit that's gone: no pointless retry, a way to a new preview", async ({ page }) => {
     await makeSampleKit(page);
     await failCheckoutOnce(page, (route) => route.fulfill({ status: 404, json: { error: "That kit doesn't exist any more. Generate a new preview." } }));
@@ -356,6 +372,31 @@ test.describe("events", () => {
     expect((await phEvents(page.request)).filter((e) => e.event === "$feature_flag_called" && e.properties.$feature_flag === FLAG)).toEqual([]);
     // PostHog answered, so the kill switch wasn't a fallback either.
     expect(await fallbacks()).toBe(fallbacksBefore);
+  });
+
+  test("a button under the 56px sticky header isn't shown: unlock_cta_shown waits until it's below the header", async ({ page }) => {
+    await page.setViewportSize(DESKTOP);
+    const kitId = await earlyCtaKit(page);
+    const header = page.getByRole("banner");
+    expect(await header.evaluate((el) => getComputedStyle(el).position)).toBe("sticky");
+    expect(await header.evaluate((el) => el.getBoundingClientRect().height)).toBeGreaterThanOrEqual(56);
+    // Below the fold at load (button top about 1,066px at 935px tall), so nothing is seen yet.
+    const button = earlyButton(page);
+    const buttonTop = await top(button);
+    expect(buttonTop).toBeGreaterThan(DESKTOP.height);
+
+    // Jump so the whole 44px button sits behind the header, at 6px from the top of the viewport: in the viewport, not in view.
+    await page.evaluate((y) => window.scrollTo(0, y), buttonTop - 6);
+    expect(await button.evaluate((el) => [Math.round(el.getBoundingClientRect().top), Math.round(el.getBoundingClientRect().bottom)])).toEqual([6, 50]);
+    const shownTop = async () => (await forKit(kitId, "unlock_cta_shown")(page.request)).filter((e) => e.properties.position === "top");
+    // The panel's button is in view below the header at the same time, so its event shows the page is reporting.
+    await expect.poll(async () => (await forKit(kitId, "unlock_cta_shown")(page.request)).map((e) => e.properties.position)).toContain("panel");
+    await page.waitForTimeout(1500);
+    expect(await shownTop()).toEqual([]);
+
+    // Below the header, it's seen.
+    await page.evaluate((y) => window.scrollTo(0, y), buttonTop - 200);
+    await expect.poll(async () => (await shownTop()).length).toBe(1);
   });
 
   test("mobile: the sticky bar's unlock_cta_shown is sent once however often it comes back", async ({ page }) => {

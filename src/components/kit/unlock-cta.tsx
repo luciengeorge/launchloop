@@ -5,7 +5,7 @@ import { Loader2, Lock } from "lucide-react";
 import { useEffect, useState, type Ref } from "react";
 import { Button } from "@/components/ui/button";
 import type { Served } from "@/lib/experiments";
-import { UNLOCK_ZONE_ATTRIBUTE } from "@/lib/paywall-cta";
+import { SITE_HEADER_PX, UNLOCK_ZONE_ATTRIBUTE } from "@/lib/paywall-cta";
 import { LAUNCH_PROMO } from "@/lib/products";
 import type { UnlockContext, UnlockCtaPosition } from "@/lib/unlock-checkout";
 import { useShownOnce, useUnlockCheckout } from "./unlock-checkout";
@@ -102,9 +102,6 @@ export function UnlockCtaPlaceholder() {
   );
 }
 
-/** The site header is sticky over the top 3.5rem: a button under it isn't in view. */
-const HEADER_PX = 56;
-
 /**
  * Visible once the visitor has scrolled past an unlock button while the paywall is still on screen and no unlock
  * button is (the locked sections and the free sample between the early CTA and the panel), and never while checkout is
@@ -122,9 +119,9 @@ function useStickyVisible(): boolean {
     let frame = 0;
     const update = () => {
       frame = 0;
-      const inView = (r: DOMRect) => r.bottom > HEADER_PX && r.top < window.innerHeight;
+      const inView = (r: DOMRect) => r.bottom > SITE_HEADER_PX && r.top < window.innerHeight;
       const rects = zones.map((zone) => zone.getBoundingClientRect());
-      setVisible(inView(paywall.getBoundingClientRect()) && !rects.some(inView) && rects.some((r) => r.bottom <= HEADER_PX));
+      setVisible(inView(paywall.getBoundingClientRect()) && !rects.some(inView) && rects.some((r) => r.bottom <= SITE_HEADER_PX));
     };
     const schedule = () => {
       frame ||= requestAnimationFrame(update);

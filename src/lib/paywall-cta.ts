@@ -10,6 +10,9 @@ export const PAYWALL_EARLY_CTA_FLAG = "exp_paywall_early_cta";
 /** Past this, the paywall renders without the early CTA rather than hold the kit page for a slow flags request. */
 export const PAYWALL_EARLY_CTA_TIMEOUT_MS = 800;
 
+/** The sticky site header covers the top 3.5rem: an unlock button under it isn't in view. */
+export const SITE_HEADER_PX = 56;
+
 /**
  * Marks the server-rendered element around an unlock button and its errors (the early CTA, the panel's column), with
  * the early CTA on: the sticky bar stays out of the way while one is in view.
