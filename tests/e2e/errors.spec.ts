@@ -39,7 +39,7 @@ for (const c of CASES) {
 
 /** Errors about the link itself: each offers a site URL or the sample app instead of leaving the visitor stuck. */
 const WAY_FORWARD = [
-  { code: "invalid_url", input: "not a url" },
+  { code: "invalid_url", input: "https://github.com/sindresorhus/" },
   { code: "repo_not_found", input: "github.com/real-owner/secret-repo" },
   { code: "repo_private", input: "github.com/fixture-labs/private-app" },
 ] as const;
@@ -57,6 +57,8 @@ for (const c of WAY_FORWARD) {
     await expect(site).toBeVisible();
     await expect(sample).toBeVisible();
     await expect(alert).not.toContainText("\u2014");
+    // The error's button replaces the one under the form: one "Try a sample app" on the page, not two.
+    await expect(page.getByRole("button", { name: "Try a sample app" })).toHaveCount(1);
 
     // Real buttons in tab order: Tab moves from the site button to the sample button, and Enter activates.
     await site.focus();
@@ -73,6 +75,9 @@ for (const c of WAY_FORWARD) {
     await expect(input).toHaveAttribute("placeholder", "github.com/you/your-app or your-app.com");
     await input.pressSequentially("myapp.dev");
     await expect(input).toHaveValue("myapp.dev");
+    // With the error gone, the sample button under the form is back.
+    await expect(page.getByRole("button", { name: "Try a sample app" })).toHaveCount(1);
+    await expect(page.getByTestId("kit-sample-cta")).toHaveCount(0);
   });
 
   test(`${c.code}: "Try a sample app" previews the sample app`, async ({ page }) => {
@@ -91,6 +96,49 @@ for (const c of WAY_FORWARD) {
     await alert.getByRole("button", { name: "Try a sample app", exact: true }).click();
     await page.waitForURL(/\/kit\/[\w-]+/, { timeout: 30_000 });
     expect(sent).toEqual([c.input, "sample"]);
+  });
+}
+
+test('a mouse click on "Try your site URL instead" leaves a visible focus ring on the URL field', async ({ page }) => {
+  await page.route("**/api/kits", (route) => route.fulfill({ status: 404, json: kitErrorBody("repo_not_found") }));
+  await page.goto("/");
+  const form = page.getByRole("form", { name: "Generate a launch kit" });
+  const input = page.getByLabel("GitHub repo or live site URL");
+  const ring = () => form.evaluate((el) => ({ shadow: getComputedStyle(el).boxShadow, border: getComputedStyle(el).borderTopColor }));
+  await input.fill("github.com/real-owner/secret-repo");
+  await page.getByRole("button", { name: "Get my free preview" }).first().click();
+  const alert = page.getByTestId("kit-error");
+  await expect(alert).toHaveAttribute("data-code", "repo_not_found");
+  // The form puts focus back in the field after an error; start from a blurred field to see the ring appear.
+  await expect(input).toBeFocused();
+  await input.blur();
+  await expect.poll(() => input.evaluate((el) => el.matches(":focus"))).toBe(false);
+  const unfocused = await ring();
+
+  await alert.getByRole("button", { name: "Try your site URL instead" }).click();
+  await expect(input).toBeFocused();
+  expect(await input.evaluate((el) => el.matches(":focus-visible"))).toBe(true);
+  await expect.poll(ring).not.toEqual(unfocused);
+  const focused = await ring();
+  expect(focused.border).not.toBe(unfocused.border);
+  expect(focused.shadow).not.toBe(unfocused.shadow);
+});
+
+for (const input of ["not a url", "myapp"]) {
+  test(`invalid_url from a site URL (${input}): only "Try a sample app", which previews the sample`, async ({ page }) => {
+    await page.goto("/");
+    const field = page.getByLabel("GitHub repo or live site URL");
+    await field.fill(input);
+    await page.getByRole("button", { name: "Get my free preview" }).first().click();
+    const alert = page.getByTestId("kit-error");
+    await expect(alert).toHaveAttribute("data-code", "invalid_url", { timeout: 15_000 });
+    // It was already a site URL, so there's no site URL to switch to.
+    await expect(alert.getByRole("button", { name: "Try your site URL instead" })).toHaveCount(0);
+    const sample = alert.getByRole("button", { name: "Try a sample app", exact: true });
+    await expect(sample).toBeVisible();
+    await sample.focus();
+    await page.keyboard.press("Enter");
+    await page.waitForURL(/\/kit\/[\w-]+/, { timeout: 30_000 });
   });
 }
 

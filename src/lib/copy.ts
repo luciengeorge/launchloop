@@ -1,6 +1,6 @@
 import "server-only";
 import { LIMITS, charLength, containsVoteBegging, fitToLimit, stripVoteBegging, xLength } from "./limits";
-import { LlmError, OUTPUT_TOKENS, generateStructured } from "./llm";
+import { LlmError, NO_DASHES_RULE, OUTPUT_TOKENS, generateStructured } from "./llm";
 import { z } from "zod";
 import { kitContentSchema, previewSchema, type Brief, type KitContent, type KitSection, type Preview } from "./schema";
 import { checkTagline, taglineProblems } from "./tagline-check";
@@ -27,6 +27,7 @@ Hard rules:
 - Never ask for upvotes, votes, or "support on Product Hunt". Product Hunt and Hacker News ban vote solicitation. Asking for feedback is fine.
 - No hashtags, except at most two at the very end of the LinkedIn post.
 - Avoid hype words: ${BANNED_PHRASES.join(", ")}.
+- ${NO_DASHES_RULE}
 - Respect every character limit exactly. X posts are measured with X's weighting (links count as 23).
 Return JSON only.`;
 

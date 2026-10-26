@@ -361,6 +361,57 @@ test("clicks are captured in the hero only, never what's typed; leaving the page
   expect(replayRequests).toEqual([]);
 });
 
+/** Every error_cta_clicked this test's campaign sent, once there are `count` of them. */
+async function errorCtaClicks(page: Page, campaign: string, count: number): Promise<PhEvent[]> {
+  let found: PhEvent[] = [];
+  await expect
+    .poll(async () => {
+      found = (await phEvents(page)).filter((e) => e.event === "error_cta_clicked" && e.properties.utm_campaign === campaign);
+      return found.length;
+    })
+    .toBe(count);
+  return found;
+}
+
+test("the link-error buttons send error_cta_clicked with the error code, tagged is_test on a QA visit, never with the link", async ({ page }) => {
+  const campaign = `error-cta-qa-${Date.now()}`;
+  await page.goto(`/?utm_source=qa&utm_campaign=${campaign}&qa=1`);
+  const input = page.getByLabel("GitHub repo or live site URL");
+  const submit = page.getByRole("button", { name: "Get my free preview" }).first();
+  const alert = page.getByTestId("kit-error");
+
+  await input.fill("https://github.com/sindresorhus/");
+  await submit.click();
+  await expect(alert).toHaveAttribute("data-code", "invalid_url", { timeout: 15_000 });
+  await alert.getByRole("button", { name: "Try your site URL instead" }).click();
+  await expect(input).toBeFocused();
+
+  await input.fill("github.com/fixture-labs/private-app");
+  await submit.click();
+  await expect(alert).toHaveAttribute("data-code", "repo_private", { timeout: 15_000 });
+  await alert.getByRole("button", { name: "Try a sample app" }).click();
+  await page.waitForURL(/\/kit\/[\w-]+$/);
+
+  const [siteUrl, sampleApp] = await errorCtaClicks(page, campaign, 2);
+  expect(siteUrl.properties).toMatchObject({ cta: "site_url", error_code: "invalid_url", plan: "free", isLoggedIn: false, is_test: true });
+  expect(sampleApp.properties).toMatchObject({ cta: "sample_app", error_code: "repo_private", plan: "free", isLoggedIn: false, is_test: true });
+  for (const e of [siteUrl, sampleApp]) expect(JSON.stringify(e)).not.toMatch(/sindresorhus|private-app/);
+});
+
+test("on a real visit error_cta_clicked carries no is_test", async ({ page }) => {
+  const campaign = `error-cta-real-${Date.now()}`;
+  await page.route("**/api/kits", (route) => route.fulfill({ status: 404, json: { error: "This repo is private or doesn't exist.", code: "repo_not_found", fix: "Paste your live site URL instead." } }));
+  await page.goto(`/?utm_source=errors&utm_campaign=${campaign}`);
+  await page.getByLabel("GitHub repo or live site URL").fill("github.com/real-owner/secret-repo");
+  await page.getByRole("button", { name: "Get my free preview" }).first().click();
+  const alert = page.getByTestId("kit-error");
+  await expect(alert).toHaveAttribute("data-code", "repo_not_found");
+  await alert.getByRole("button", { name: "Try your site URL instead" }).click();
+  const [clicked] = await errorCtaClicks(page, campaign, 1);
+  expect(clicked.properties).toMatchObject({ cta: "site_url", error_code: "repo_not_found", utm_source: "errors" });
+  expect(clicked.properties).not.toHaveProperty("is_test");
+});
+
 test("QA traffic: every browser and server event carries is_test, through client navigations, a reload and checkout", async ({ page }) => {
   const campaign = `qa-${Date.now()}`;
   await page.goto(`/?utm_source=qa&utm_medium=internal&utm_campaign=${campaign}&qa=1`);

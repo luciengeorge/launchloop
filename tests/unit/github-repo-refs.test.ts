@@ -100,6 +100,31 @@ describe("parseGitHubUrl", () => {
     expect(parseGitHubUrl(input)).toEqual({ owner, name });
   });
 
+  it.each([
+    ["github.com/o/r/blob/main/caf\u00e9.md", "o", "r"],
+    ["https://github.com/vercel/next.js/tree/canary/docs/\u65e5\u672c\u8a9e", "vercel", "next.js"],
+    ["https://github.com/acme/app/blob/main/docs/\uff0e\uff0e/notes.md", "acme", "app"],
+    ["https://github.com/acme/app?ref=caf\u00e9", "acme", "app"],
+  ])("non-ASCII after the repo (%s) is only a file path: %s/%s", (input, owner, name) => {
+    expect(parseGitHubUrl(input)).toEqual({ owner, name });
+    expect(() => normaliseKitInput(input)).not.toThrow();
+  });
+
+  it.each([
+    "https://github.com/caf\u00e9/repo",
+    "https://github.com/acme/r\u00e9po",
+    "https://github.com/acme/app\uff0e/blob/main/x.md",
+    "https://github\uff0ecom/acme/app/blob/main/caf\u00e9.md",
+    "https://///github\uff0ecom/a/b",
+    "https:\\\\github\uff0ecom/a/b",
+    "///github\uff0ecom/a/b",
+    "https:/github.com/caf\u00e9/repo",
+  ])("non-ASCII in the host or the owner/repo (%s) is refused everywhere", (input) => {
+    expect(parseGitHubUrl(input)).toBeNull();
+    expect(githubRepoLink(input)).toBeUndefined();
+    expect(() => normaliseKitInput(input)).toThrow(IngestError);
+  });
+
   it.each(["https://github.com/-bad/repo", "https://github.com/a--b/repo", "https://github.com/a_b/repo", "https://gitlab.com/a/b", "https://evilgithub.com/a/b", "https://github.com.evil.dev/a/b"])(
     "refuses %s",
     (input) => {

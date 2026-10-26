@@ -8,9 +8,15 @@ import { isStripeMock } from "@/lib/env";
 import { getKit } from "@/lib/kits";
 import { LAUNCH_PROMO, PRODUCTS, chargedPence, isProductId } from "@/lib/products";
 
-export const metadata: Metadata = { title: "Test checkout", robots: { index: false, follow: false } };
+/** proxy.ts answers 404 for this page in production; the title must not say "Test checkout" there either. */
+export function generateMetadata(): Metadata {
+  const robots = { index: false, follow: false };
+  return deployEnv() === "production" ? { title: "Page not found", robots } : { title: "Test checkout", robots };
+}
 
 export default function MockCheckoutPage({ searchParams }: PageProps<"/checkout/mock">) {
+  // Before any Suspense boundary, so a production build prerenders this as a real 404, not a 200 shell.
+  if (deployEnv() === "production") notFound();
   return (
     <div className="mx-auto max-w-md px-4 py-12 sm:px-6">
       <Suspense fallback={<Skeleton className="h-96 rounded-2xl" />}>

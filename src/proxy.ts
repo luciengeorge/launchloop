@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { deployEnv } from "@/lib/deploy-env";
 import { POSTHOG_PROXY_PATH } from "@/lib/posthog-config";
 import { SESSION_COOKIE } from "@/lib/session-cookie";
 
@@ -6,6 +7,13 @@ const BACKSLASH = /%5c|\\/i;
 
 /** skipTrailingSlashRedirect is on for PostHog's slash-terminated API paths, so strip the slash ourselves everywhere else. */
 const KEEPS_TRAILING_SLASH = [`${POSTHOG_PROXY_PATH}/`, "/api/"];
+
+/**
+ * Production has no mock checkout. The page's own notFound() runs inside its Suspense boundary, after the cached shell
+ * has gone out with a 200, so the proxy rewrites to a path no route matches: Next renders the not-found page with a 404.
+ * A folder starting with "_" is private in the app router, so this path can never become a route.
+ */
+const NOT_FOUND_PATH = "/_not-found-checkout-mock";
 
 /**
  * Bots probe paths ending in an encoded backslash (`/opengraph-image%5C`). Next.js resolves those to a module
@@ -29,11 +37,12 @@ export function proxy(request: NextRequest) {
   if ((pathname === "/account" || pathname.startsWith("/account/")) && !request.cookies.get(SESSION_COOKIE)?.value) {
     return NextResponse.redirect(new URL(`/login?next=${encodeURIComponent(pathname + search)}`, request.url), 307);
   }
+  if (pathname === "/checkout/mock" && deployEnv() === "production") return NextResponse.rewrite(new URL(NOT_FOUND_PATH, request.url));
 }
 
 // Only these requests reach the proxy, so normal pages pay nothing. Backslashes in both spellings, as the matcher may see
 // the path encoded or decoded, any path with a trailing slash outside the PostHog relay, the API and Next's assets,
-// and the signed-in /account pages.
+// the signed-in /account pages and the mock checkout.
 export const config = {
-  matcher: ["/(.*(?:%5[cC]|\\\\).*)", "/((?!lp-relay/|api/|_next/).+/)", "/account", "/account/:path*"],
+  matcher: ["/(.*(?:%5[cC]|\\\\).*)", "/((?!lp-relay/|api/|_next/).+/)", "/account", "/account/:path*", "/checkout/mock"],
 };

@@ -7,6 +7,7 @@ import type { KitErrorBody } from "./errors";
 import { ingest } from "./ingest";
 import { phase } from "./kit-tracing";
 import type { Brief, Kit, KitVisuals, Palette } from "./schema";
+import { sanitizeGenerated } from "./dashes";
 import { copyDraft } from "./generation";
 import { store } from "./store";
 
@@ -23,10 +24,25 @@ function kitTtlSeconds(kit: Kit): number | undefined {
 export const newId = () => randomBytes(16).toString("base64url");
 export const isValidKitId = (id: string) => /^[A-Za-z0-9_-]{16,32}$/.test(id);
 
+/**
+ * The kit with its generated copy cleaned of dash punctuation (withCleanCopy). Reading never writes, but any
+ * read-modify-write (updateKit, from fulfilment and recordPayment) saves the cleaned copy back, so stored kits
+ * migrate lazily as they are touched. The cleaning must therefore only change dashes, never other text.
+ */
 export async function getKit(id: string): Promise<Kit | null> {
   if (!isValidKitId(id)) return null;
-  return store().get<Kit>(key(id));
+  const kit = await store().get<Kit>(key(id));
+  return kit && withCleanCopy(kit);
 }
+
+/** Kits saved before dash punctuation was cleaned from generated copy are fixed as they are read. */
+const withCleanCopy = (kit: Kit): Kit => ({
+  ...kit,
+  brief: sanitizeGenerated(kit.brief),
+  preview: sanitizeGenerated(kit.preview),
+  ...(kit.content ? { content: sanitizeGenerated(kit.content) } : {}),
+  ...(kit.checklist ? { checklist: sanitizeGenerated(kit.checklist) } : {}),
+});
 
 export async function saveKit(kit: Kit): Promise<void> {
   await phase("db.kit.save", "db", { "kit.paid": kit.paid }, () => store().set(key(kit.id), kit, kitTtlSeconds(kit)));

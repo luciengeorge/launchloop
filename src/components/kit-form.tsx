@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { type PreviewSource, track } from "@/lib/analytics";
+import { type ErrorCtaCode, type PreviewSource, track } from "@/lib/analytics";
 import { type KitFailureDetails, KitRequestError, createKitWithProgress } from "@/lib/client";
 import { previewAllowance } from "@/lib/errors";
 import { SAMPLE_INPUT } from "@/lib/ingest/sample";
@@ -26,7 +26,11 @@ const previewSource = (value: string): PreviewSource => (value === SAMPLE_INPUT 
 const CAPACITY_CODES = new Set(["ai_busy", "busy"]);
 
 /** The link can't be read as sent (a bad link, or a repo we can't or won't read), so the alert offers two ways forward. */
-const WAY_FORWARD_CODES = new Set(["invalid_url", "repo_not_found", "repo_private"]);
+const WAY_FORWARD_CODES = new Set<string>(["invalid_url", "repo_not_found", "repo_private"] satisfies ErrorCtaCode[]);
+const isWayForwardCode = (code: string): code is ErrorCtaCode => WAY_FORWARD_CODES.has(code);
+
+/** "Try your site URL instead" only helps when a GitHub link failed: a bad site URL was already a site URL. */
+const offersSiteUrl = (error: FormError) => error.code !== "invalid_url" || looksLikeGitHubUrl(error.input ?? "");
 
 const STEPS = [
   { id: "repo", label: "Reading repo" },
@@ -36,7 +40,8 @@ const STEPS = [
   { id: "images", label: "Drawing images" },
 ] as const;
 
-type FormError = { message: string; fix?: string; code: string; limit?: { retryAt: number; limits?: PreviewLimits; kitId?: string } };
+/** `input` is what was sent, to tell a failed GitHub link from a failed site URL. Never sent to analytics. */
+type FormError = { message: string; fix?: string; code: string; input?: string; limit?: { retryAt: number; limits?: PreviewLimits; kitId?: string } };
 
 /** `promo` is isLaunchPromoOn() from the page: the Launch Kit price shown when the kit plan is picked. */
 export function KitForm({ promo }: { promo: boolean }) {
@@ -121,7 +126,9 @@ export function KitForm({ promo }: { promo: boolean }) {
         return;
       }
       const limit = known?.rateLimit && { retryAt: Date.now() + known.rateLimit.retryAfterSeconds * 1000, limits: known.rateLimit.limits, kitId: known.rateLimit.kitId };
-      const failure: FormError = known ? { message: known.message, fix: known.fix, code: known.code, limit } : { message: "Something went wrong.", fix: "Try again in a moment.", code: "unknown" };
+      const failure: FormError = known
+        ? { message: known.message, fix: known.fix, code: known.code, input: value, limit }
+        : { message: "Something went wrong.", fix: "Try again in a moment.", code: "unknown", input: value };
       setError(failure);
       if (failure.code === "site_no_content") {
         setNoContent({ input: value, error: failure });
@@ -137,8 +144,13 @@ export function KitForm({ promo }: { promo: boolean }) {
   // Typing the failed link back in brings its error, and the way out, back with it.
   const shownError = error ?? blockedBy?.error ?? null;
 
+  const trackErrorCta = (cta: "site_url" | "sample_app") => {
+    if (shownError && isWayForwardCode(shownError.code)) track("error_cta_clicked", { cta, error_code: shownError.code, plan, isLoggedIn: hasSessionHint() });
+  };
+
   /** Empties the input and leaves repo-only mode, so the placeholder's site URL hint shows and the next paste can be a site. */
   const switchToSite = () => {
+    trackErrorCta("site_url");
     setRepoMode(false);
     setUrl("");
     setError(null);
@@ -169,7 +181,8 @@ export function KitForm({ promo }: { promo: boolean }) {
           }
           void submit(url);
         }}
-        className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-2 shadow-lg shadow-primary/5 sm:flex-row"
+        // The borderless input draws no ring of its own, so the form shows it, also when focus is moved there by a button.
+        className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-2 shadow-lg shadow-primary/5 transition-shadow has-[input:focus-visible]:border-ring has-[input:focus-visible]:ring-3 has-[input:focus-visible]:ring-ring/50 sm:flex-row"
         aria-label="Generate a launch kit"
       >
         <label htmlFor="app-url" className="sr-only">
@@ -249,10 +262,15 @@ export function KitForm({ promo }: { promo: boolean }) {
                 "Free preview · No sign-up · Public repos only"
               )}
             </span>
-            <span aria-hidden="true" className={sampleRow.separator}>·</span>
-            <button type="button" className={sampleRow.button} data-variant={sampleCta ?? undefined} onClick={() => void submit(SAMPLE_INPUT)}>
-              Try a sample app
-            </button>
+            {/* The error's own "Try a sample app" replaces this one, so the page never has two buttons with one name. */}
+            {shownError && isWayForwardCode(shownError.code) ? null : (
+              <>
+                <span aria-hidden="true" className={sampleRow.separator}>·</span>
+                <button type="button" className={sampleRow.button} data-variant={sampleCta ?? undefined} onClick={() => void submit(SAMPLE_INPUT)}>
+                  Try a sample app
+                </button>
+              </>
+            )}
           </>
         )}
       </div>
@@ -276,11 +294,22 @@ export function KitForm({ promo }: { promo: boolean }) {
             ) : null}
             {WAY_FORWARD_CODES.has(shownError.code) ? (
               <div className="mt-3 flex flex-wrap gap-2" data-testid="kit-error-actions">
-                <Button type="button" onClick={switchToSite} className="h-11 px-4 text-sm sm:h-10" data-testid="kit-site-cta">
-                  Try your site URL instead
-                  <ArrowRight />
-                </Button>
-                <Button type="button" variant="outline" onClick={() => void submit(SAMPLE_INPUT)} className="h-11 px-4 text-sm sm:h-10" data-testid="kit-sample-cta">
+                {offersSiteUrl(shownError) ? (
+                  <Button type="button" onClick={switchToSite} className="h-11 px-4 text-sm sm:h-10" data-testid="kit-site-cta">
+                    Try your site URL instead
+                    <ArrowRight />
+                  </Button>
+                ) : null}
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    trackErrorCta("sample_app");
+                    void submit(SAMPLE_INPUT);
+                  }}
+                  className="h-11 px-4 text-sm sm:h-10"
+                  data-testid="kit-sample-cta"
+                >
                   Try a sample app
                 </Button>
               </div>
