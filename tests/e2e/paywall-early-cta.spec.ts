@@ -669,6 +669,73 @@ test.describe("events", () => {
   test.use({ userAgent });
   test.beforeEach(({ context }) => notABot(context));
 
+  /** Holds every checkout POST until the next `answer`, counting them. */
+  async function heldCheckouts(page: Page) {
+    const gates: ReturnType<typeof held>[] = [];
+    await page.route("**/api/checkout", (route, request) => {
+      if (request.method() !== "POST") return route.continue();
+      const gate = held();
+      gates.push(gate);
+      return gate.answer(route);
+    });
+    return { posts: () => gates.length, answer: (answer: CheckoutAnswer) => gates.at(-1)!.release(answer) };
+  }
+  const doubleClick = (button: Locator) =>
+    button.evaluate((el: HTMLButtonElement) => {
+      el.click();
+      el.click();
+    });
+
+  test("a double click on the panel's button: one POST and one unlock_cta_clicked; each real start after logs once", async ({ page }) => {
+    await page.setViewportSize(DESKTOP);
+    const kitId = await makeSampleKit(page);
+    const checkouts = await heldCheckouts(page);
+    const clicked = forKit(kitId, "unlock_cta_clicked");
+    await expect(panelButton(page)).toBeEnabled();
+    await doubleClick(panelButton(page));
+
+    await expect.poll(async () => (await clicked(page.request)).length).toBe(1);
+    // Room for a late duplicate to arrive before checking there isn't one.
+    await page.waitForTimeout(1500);
+    expect(checkouts.posts()).toBe(1);
+    const events = await clicked(page.request);
+    expect(events).toHaveLength(1);
+    expect(events[0].properties).toMatchObject({ kitId, position: "panel", earlyCta: false, retry: false });
+
+    // Once that checkout fails, the next real start is logged once more, with the same properties.
+    checkouts.answer(plain500);
+    const error = page.getByTestId("unlock-panel").getByRole("alert");
+    await expect(error).toBeVisible();
+    await doubleClick(panelButton(page));
+    await expect.poll(() => checkouts.posts()).toBe(2);
+    await expect.poll(async () => (await clicked(page.request)).length).toBe(2);
+    await page.waitForTimeout(1000);
+    expect(checkouts.posts()).toBe(2);
+    expect((await clicked(page.request)).map((e) => e.properties.retry)).toEqual([false, false]);
+
+    checkouts.answer(plain500);
+    await expect(error).toBeVisible();
+    await error.getByRole("button", { name: "Try again" }).click();
+    await expect.poll(async () => (await clicked(page.request)).map((e) => e.properties.retry)).toEqual([false, false, true]);
+    expect(checkouts.posts()).toBe(3);
+    checkouts.answer((route) => route.continue());
+    await page.waitForURL(/\/checkout\/mock\?product=kit/);
+  });
+
+  test("a double click on the early CTA: one POST and one unlock_cta_clicked", async ({ page }) => {
+    await page.setViewportSize(DESKTOP);
+    const kitId = await earlyCtaKit(page);
+    const checkouts = await heldCheckouts(page);
+    const clicked = forKit(kitId, "unlock_cta_clicked");
+    await doubleClick(earlyButton(page));
+    await expect.poll(async () => (await clicked(page.request)).length).toBe(1);
+    await page.waitForTimeout(1500);
+    expect(checkouts.posts()).toBe(1);
+    expect((await clicked(page.request)).map((e) => [e.properties.position, e.properties.earlyCta, e.properties.retry])).toEqual([["top", true, false]]);
+    checkouts.answer((route) => route.continue());
+    await page.waitForURL(/\/checkout\/mock\?product=kit/);
+  });
+
   test("desktop, QA visit: unlock_cta_shown once per position, unlock_cta_clicked and checkout_failed, all with is_test; no exposure", async ({ page }) => {
     await page.setViewportSize(DESKTOP);
     const kitId = await makeSampleKit(page);

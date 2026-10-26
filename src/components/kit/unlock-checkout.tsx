@@ -26,6 +26,11 @@ export interface UnlockCheckout extends CheckoutState {
   start: (context: UnlockContext, options: { promo: boolean; retry: boolean }) => Promise<CheckoutOutcome["kind"]>;
   /** A click on an unlock button (or its error's "Try again"): logged, then checkout, or the full-price session if there is one. */
   click: (context: UnlockContext, options: { promo: boolean; retry: boolean }) => void;
+  /**
+   * A checkout is already under way (set synchronously by `start`, before React re-renders the buttons as busy). A click
+   * now would be one `start` turns away, so it isn't one to log either.
+   */
+  inFlight: () => boolean;
 }
 
 function useCheckoutState(earlyCta: boolean, autoCheckout: boolean): UnlockCheckout {
@@ -84,19 +89,21 @@ function useCheckoutState(earlyCta: boolean, autoCheckout: boolean): UnlockCheck
     setState((s) => ({ ...s, redirecting: false, pending: null }));
   });
 
+  const inFlight = useCallback(() => guard.current?.inFlight() ?? false, []);
+
   const { fullPriceUrl } = state;
   const click = useCallback<UnlockCheckout["click"]>(
     (context, options) => {
       // A second click before the buttons re-render as busy: neither a second click event nor a second checkout.
-      if (guard.current?.inFlight()) return;
+      if (inFlight()) return;
       trackUnlockClicked(context, options.retry);
       if (fullPriceUrl) window.location.assign(fullPriceUrl);
       else void start(context, options);
     },
-    [fullPriceUrl, start],
+    [fullPriceUrl, inFlight, start],
   );
 
-  return { ...state, earlyCta, start, click };
+  return { ...state, earlyCta, start, click, inFlight };
 }
 
 /**

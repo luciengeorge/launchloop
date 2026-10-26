@@ -123,6 +123,8 @@ export function UnlockPanel({ kitId, priceLabel, launchPromo, email, autoCheckou
   }
 
   function unlockClicked(retry: boolean) {
+    // A second click in the same task (before the button re-renders away) starts nothing, so it's no click to log.
+    if (unlock.inFlight()) return;
     trackUnlockClicked(context, retry);
     if (fullPriceUrl) return window.location.assign(fullPriceUrl);
     focusStatus.current = true;
