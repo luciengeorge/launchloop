@@ -4,19 +4,25 @@ type Sdk = typeof SentryBrowser;
 
 const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN;
 
+/** Only errors thrown by our own scripts, on the live site or a Vercel deployment, are worth an event. */
+export const SENTRY_ALLOW_URLS = [/^https:\/\/(www\.)?launchloop\.dev\//, /^https:\/\/[^/]+\.vercel\.app\//];
+
+const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
+const onLocalHost = () => typeof location !== "undefined" && LOCAL_HOSTS.has(location.hostname);
+
 let sdk: Promise<Sdk | undefined> | undefined;
 let ready: Sdk | undefined;
 
 /**
  * The browser SDK isn't in the page's initial scripts: instrumentation-client loads it once the page has loaded,
- * and an error loads it early.
+ * and an error loads it early. A local dev or test server never reports.
  */
 export function loadSentry(): Promise<Sdk | undefined> {
-  if (!dsn) return Promise.resolve(undefined);
+  if (!dsn || onLocalHost()) return Promise.resolve(undefined);
   sdk ??= import("./sentry-browser").then(
     (Sentry) => {
       // Errors only: Sentry's global handlers catch uncaught errors and rejections from here on.
-      Sentry.init({ dsn, environment: process.env.NEXT_PUBLIC_VERCEL_ENV ?? process.env.NODE_ENV, tracesSampleRate: 0.1 });
+      Sentry.init({ dsn, environment: process.env.NEXT_PUBLIC_VERCEL_ENV ?? process.env.NODE_ENV, tracesSampleRate: 0.1, allowUrls: SENTRY_ALLOW_URLS });
       ready = Sentry;
       return Sentry;
     },
