@@ -1,5 +1,6 @@
 import "server-only";
 import { KIT_SECTIONS, generateKitSection } from "./copy";
+import { sanitizeGenerated } from "./dashes";
 import type { Kit, KitContent, KitSection } from "./schema";
 import { store } from "./store";
 
@@ -32,7 +33,8 @@ export interface Draft {
 
 export async function getDraft(id: string): Promise<Draft> {
   const [meta, ...values] = await Promise.all([store().get<DraftMeta>(metaKey(id)), ...KIT_SECTIONS.map((s) => store().get<Partial<KitContent>>(sectionKey(id, s)))]);
-  const sections: Partial<KitContent> = Object.assign({}, ...values.filter(Boolean));
+  // Sections drafted before dash punctuation was cleaned from generated copy are fixed as they are read.
+  const sections: Partial<KitContent> = sanitizeGenerated(Object.assign({}, ...values.filter(Boolean)));
   return { meta, sections, complete: KIT_SECTIONS.every((s) => sections[s] !== undefined) };
 }
 
