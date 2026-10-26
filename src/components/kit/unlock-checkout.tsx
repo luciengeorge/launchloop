@@ -55,6 +55,8 @@ function useCheckoutState(earlyCta: boolean, autoCheckout: boolean): UnlockCheck
         break;
       }
       case "cancelled":
+        // Unmounted mid-checkout: nothing to show, but never left busy should the paywall mount again.
+        setState((s) => ({ ...s, redirecting: false, pending: null }));
         break;
       default: {
         const unhandled: never = outcome;
@@ -76,6 +78,12 @@ function useCheckoutState(earlyCta: boolean, autoCheckout: boolean): UnlockCheck
     [run],
   );
 
+  // Back (or forward) to this page from the bfcache: the redirect it was waiting on is over, so it's idle again.
+  usePageRestored(() => {
+    guard.current?.reset();
+    setState((s) => ({ ...s, redirecting: false, pending: null }));
+  });
+
   const { fullPriceUrl } = state;
   const click = useCallback<UnlockCheckout["click"]>(
     (context, options) => {
@@ -89,6 +97,25 @@ function useCheckoutState(earlyCta: boolean, autoCheckout: boolean): UnlockCheck
   );
 
   return { ...state, earlyCta, start, click };
+}
+
+/**
+ * Calls `onRestore` when the page is shown again from the back/forward cache (pageshow with `persisted`). The page
+ * comes back exactly as it left, so anything that was waiting on the navigation away ("Taking you to secure checkout…",
+ * busy buttons) would otherwise wait forever.
+ */
+export function usePageRestored(onRestore: () => void) {
+  const latest = useRef(onRestore);
+  useEffect(() => {
+    latest.current = onRestore;
+  });
+  useEffect(() => {
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) latest.current();
+    };
+    window.addEventListener("pageshow", onPageShow);
+    return () => window.removeEventListener("pageshow", onPageShow);
+  }, []);
 }
 
 const UnlockCheckoutContext = createContext<UnlockCheckout | null>(null);

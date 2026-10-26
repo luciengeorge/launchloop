@@ -355,6 +355,105 @@ for (const [label, viewport] of [
   });
 }
 
+test.describe("back to the paywall mid-checkout (bfcache)", () => {
+  const BUSY = "Taking you to secure checkout…";
+  const isCheckoutPost = (r: { method(): string; url(): string }) => r.method() === "POST" && new URL(r.url()).pathname === "/api/checkout";
+
+  /** Counts checkout POSTs from here on. */
+  function countPosts(page: Page) {
+    let posts = 0;
+    page.on("request", (r) => {
+      if (isCheckoutPost(r)) posts += 1;
+    });
+    return () => posts;
+  }
+
+  /**
+   * Leaves the page exactly as a bfcache restore brings it back: the checkout answered and the page started its
+   * redirect, but the navigation is aborted (ERR_ABORTED keeps the page), so it's left waiting on a navigation that
+   * isn't coming. Then the browser's own signal for a restore: pageshow with `persisted`.
+   */
+  async function stuckThenRestored(page: Page, click: () => Promise<void>) {
+    await page.route("**/checkout/mock**", (route) => route.abort("aborted"));
+    const answered = page.waitForResponse((r) => isCheckoutPost(r.request()));
+    await click();
+    await answered;
+    const panel = page.getByTestId("unlock-panel");
+    // The bug, reproduced: stuck on the busy copy with no unlock button to press.
+    await expect(panel).toHaveAttribute("data-step", "redirecting");
+    await expect(panel.getByText(BUSY)).toBeVisible();
+    await page.waitForTimeout(500);
+    await expect(panel).toHaveAttribute("data-step", "redirecting");
+    await page.unroute("**/checkout/mock**");
+    await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent("pageshow", { persisted: true })));
+  }
+
+  test("desktop: the early CTA and the panel are usable again, the busy copy is gone, and one click sends one POST", async ({ page }) => {
+    await page.setViewportSize(DESKTOP);
+    await earlyCtaKit(page);
+    await stuckThenRestored(page, () => earlyButton(page).click());
+
+    const panel = page.getByTestId("unlock-panel");
+    await expect(panel).toHaveAttribute("data-step", "cta");
+    await expect(page.getByText(BUSY)).toHaveCount(0);
+    for (const button of [earlyButton(page), panelButton(page)]) {
+      await expect(button).toBeEnabled();
+      await expect(button).not.toHaveAttribute("aria-disabled", "true");
+    }
+    // No error: nothing failed, the buyer just came back.
+    await expect(page.getByTestId("preview-paywall").getByRole("alert")).toHaveCount(0);
+
+    const posts = countPosts(page);
+    await earlyButton(page).click();
+    await page.waitForURL(/\/checkout\/mock\?product=kit/);
+    expect(posts()).toBe(1);
+  });
+
+  test("375px: the sticky bar's own checkout, restored: its button works again with one POST", async ({ page }) => {
+    await page.setViewportSize(MOBILE);
+    await earlyCtaKit(page);
+    await toLockedSections(page);
+    await expect(stickyBar(page)).toHaveAttribute("data-visible", "true");
+    const sticky = stickyBar(page).getByRole("button", { name: "Unlock the full kit, £19" });
+    await stuckThenRestored(page, () => sticky.click());
+
+    await expect(page.getByText(BUSY)).toHaveCount(0);
+    await toLockedSections(page);
+    await expect(stickyBar(page)).toHaveAttribute("data-visible", "true");
+    await expect(sticky).toBeEnabled();
+    await expect(sticky).not.toHaveAttribute("aria-disabled", "true");
+    const posts = countPosts(page);
+    await sticky.click();
+    await page.waitForURL(/\/checkout\/mock\?product=kit/);
+    expect(posts()).toBe(1);
+  });
+
+  test("a real Back from checkout (bfcache restore when the browser does one, else a reload): unlock works, one POST", async ({ page }) => {
+    await page.setViewportSize(DESKTOP);
+    await page.addInitScript(() => {
+      (window as unknown as { restored: boolean }).restored = false;
+      window.addEventListener("pageshow", (e) => {
+        if (e.persisted) (window as unknown as { restored: boolean }).restored = true;
+      });
+    });
+    await earlyCtaKit(page);
+    await earlyButton(page).click();
+    await page.waitForURL(/\/checkout\/mock\?product=kit/);
+    await page.goBack();
+    await page.waitForURL(/\/kit\/[\w-]+$/);
+    const restored = await page.evaluate(() => (window as unknown as { restored: boolean }).restored);
+    test.info().annotations.push({ type: "bfcache", description: restored ? "restored from the bfcache" : "not restored (reloaded)" });
+
+    await expect(page.getByText(BUSY)).toHaveCount(0);
+    await expect(earlyButton(page)).toBeEnabled();
+    await expect(panelButton(page)).toBeEnabled();
+    const posts = countPosts(page);
+    await earlyButton(page).click();
+    await page.waitForURL(/\/checkout\/mock\?product=kit/);
+    expect(posts()).toBe(1);
+  });
+});
+
 test.describe("one checkout at a time", () => {
   /** Counts the page's checkout POSTs, holding them all until `release` lets them through. */
   async function countCheckouts(page: Page) {
