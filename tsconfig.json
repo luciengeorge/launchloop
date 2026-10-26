@@ -46,6 +46,7 @@
   "exclude": [
     "node_modules",
     ".next-test",
-    ".next-test-hero"
+    ".next-test-hero",
+    ".next-test-inline"
   ]
 }
