@@ -3,9 +3,9 @@ import type { Kit } from "@/lib/schema";
 
 function SourceChip({ ok, children }: { ok: boolean; children: React.ReactNode }) {
   return (
-    <li className="flex items-center gap-1.5 rounded-full border border-border bg-background px-2.5 py-1 text-xs" data-testid="source-chip" data-ok={ok}>
-      {ok ? <Check className="size-3.5 text-emerald-600" aria-hidden="true" /> : <X className="size-3.5 text-muted-foreground" aria-hidden="true" />}
-      <span className={ok ? "" : "text-muted-foreground"}>{children}</span>
+    <li className="flex min-w-0 max-w-full items-center gap-1.5 rounded-full border border-border bg-background px-2.5 py-1 text-xs" data-testid="source-chip" data-ok={ok}>
+      {ok ? <Check className="size-3.5 shrink-0 text-emerald-600" aria-hidden="true" /> : <X className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />}
+      <span className={`min-w-0 break-words ${ok ? "" : "text-muted-foreground"}`}>{children}</span>
     </li>
   );
 }
@@ -13,13 +13,14 @@ function SourceChip({ ok, children }: { ok: boolean; children: React.ReactNode }
 export function KitOverview({ kit }: { kit: Kit }) {
   const { brief, source, palette } = kit;
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-      <section className="space-y-5 rounded-2xl border border-border bg-card p-6" aria-labelledby="brief-heading">
+    // minmax(0, 1fr) and min-w-0: a long unbroken word (a repo path, a commit title) wraps instead of widening the page.
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+      <section className="min-w-0 space-y-5 break-words rounded-2xl border border-border bg-card p-6" aria-labelledby="brief-heading">
         <div>
           <p className="font-mono text-xs uppercase tracking-widest text-primary">Product brief</p>
           <h2 id="brief-heading" className="mt-1 text-xl font-semibold">{brief.oneLiner}</h2>
         </div>
-        <dl className="grid gap-4 text-sm sm:grid-cols-2">
+        <dl className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
           <div>
             <dt className="font-medium">Who it&apos;s for</dt>
             <dd className="mt-1 text-muted-foreground">{brief.audience}</dd>
@@ -60,7 +61,7 @@ export function KitOverview({ kit }: { kit: Kit }) {
         ) : null}
       </section>
 
-      <aside className="space-y-5 rounded-2xl border border-border bg-card p-6" aria-label="What we read">
+      <aside className="min-w-0 space-y-5 break-words rounded-2xl border border-border bg-card p-6" aria-label="What we read">
         <div>
           <h2 className="text-sm font-medium">What we read</h2>
           <ul className="mt-3 flex flex-wrap gap-2">
@@ -73,7 +74,7 @@ export function KitOverview({ kit }: { kit: Kit }) {
         </div>
         <div>
           <h2 className="text-sm font-medium">Brand colours {palette.source === "default" ? "(defaults)" : palette.source === "repo" ? "(from your repo)" : "(from your site)"}</h2>
-          <ul className="mt-3 flex gap-2" aria-label="Palette">
+          <ul className="mt-3 flex flex-wrap gap-2" aria-label="Palette">
             {[palette.background, palette.accent, palette.foreground, palette.muted].map((c, i) => (
               <li key={`${c}-${i}`} className="flex flex-col items-center gap-1">
                 <span className="size-9 rounded-lg border border-border" style={{ backgroundColor: c }} />

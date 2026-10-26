@@ -28,10 +28,11 @@ interface Props {
 /** Shared by /kit/[id] (private link) and /account/kits/[id]. */
 export async function KitView({ kit, session, query }: Props) {
   return (
-    <div className="space-y-8">
+    // The kit's name, URLs and copy come from the repo or site and can hold long unbroken words: any of them may wrap mid-word.
+    <div className="space-y-8 [overflow-wrap:anywhere]">
       <header className="space-y-2">
         <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Launch kit · {kit.source.repoUrl ?? kit.source.siteUrl ?? "sample app"}</p>
-        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">{kit.brief.name}</h1>
+        <h1 className="text-3xl font-semibold tracking-tight [overflow-wrap:anywhere] sm:text-4xl">{kit.brief.name}</h1>
       </header>
       {!kit.paid && kit.preview.tagline ? <FreeTagline tagline={kit.preview.tagline} /> : null}
       <KitOverview kit={kit} />
