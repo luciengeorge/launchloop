@@ -98,6 +98,14 @@ Approved follow-up to PR #62. The post gains two sections, both on the publish d
 
 **The checklist.** Eleven items, all paraphrasing BetaList pages already quoted in the post, so it adds no quotes: new and a technology startup (`/criteria`), featured at most once before and only pre-launch (`/criteria`, Help), own domain and no free subdomain or app store page (`/criteria`, Help, Submission Terms), a landing page that looks like yours and says what it is, who it's for and what it looks like (`/criteria`), an obvious way in with only an email asked for (`/criteria`, landing page guide), the form fields and their limits (`/agent`, `/help/submitting`), an icon (ideally 512 px or larger) and at least one screenshot at roughly 4:3, because "Paying requires an icon and a screenshot" (`/agent`, `/help/submitting`), the page's share card (a link to `/tools/og-preview`, with no claim about how BetaList or any site shows it), traffic on any day including weekends (Submission Terms), UTM and ref=betalist in analytics (Help), and that a plan buys faster review, not acceptance, with a refund if not selected and a prompt reply if BetaList writes (Submission Terms, Help). It is a `<ul>` of bold-led items under an `h2`, the way the Show HN and Product Hunt checklists render theirs.
 
+## Pitch quote, 26 October 2026
+
+We were told the submission guide now says "A packed-in pitch is the single most common edit we make". The post had paraphrased the start of that sentence as "A pitch packed with several clauses is" and quoted only "the single most common edit we make" (quote 68).
+
+- **Read live on 26 October 2026.** `curl` with a Chrome user agent got HTTP 403 with `cf-mitigated: challenge` from `/help/submitting` and `/help/submitting.md` at 08:49 UTC. The remote fetcher (Cursor WebFetch) read `/help/submitting`, and Save Page Now captured both pages from BetaList: `https://web.archive.org/web/20261026085204/https://betalist.com/help/submitting` and `https://web.archive.org/web/20261026085017/https://betalist.com/help/submitting.md`. The raw HTML and Markdown of those captures carry the same sentence under Pitch, Common pitfalls: "A packed-in pitch is the single most common edit we make, and it's hard to fairly distill back to one sentence", then an em dash and "please write a real single sentence from the start." The apostrophe is straight and "packed-in" uses an ASCII hyphen.
+- **Not a change on BetaList's side.** The 24 October capture of `/help/submitting.md` (listed under Sources) has the same sentence word for word.
+- **The fix.** Quote 68 now quotes the clause "A packed-in pitch is the single most common edit we make", stopping at the comma before the em dash, and the paraphrase is gone. The Sources section adds "The submission guide was read again on 26 October 2026." The rendered body gains 7 words (3 fewer in the pitch line, 10 more in Sources), so the reading time stays 23 minutes. Published and updated dates are untouched.
+
 ## Every quote on the page
 
 Numbered in order of first appearance. "Unchanged" means the same words were in the 21 October log; for Help quotes the source moved from `/support` to `/help`.
@@ -171,7 +179,7 @@ Numbered in order of first appearance. "Unchanged" means the same words were in 
 | 65 | "Your home page on your own domain." | https://betalist.com/help/submitting | new on 24 Oct |
 | 66 | "Just the product name as it appears on your homepage" | https://betalist.com/help/submitting | new on 24 Oct |
 | 67 | "A single, plain sentence that makes it immediately obvious what your product does." | https://betalist.com/help/submitting | new on 24 Oct |
-| 68 | "the single most common edit we make" | https://betalist.com/help/submitting | new on 24 Oct |
+| 68 | "A packed-in pitch is the single most common edit we make" | https://betalist.com/help/submitting (live, accessed 2026-10-26; stops at the comma where the sentence goes on) | new on 24 Oct, widened on 26 Oct from "the single most common edit we make" |
 | 69 | "One or two short paragraphs of plain prose describing your product, who it's for, and why it's worth their time." | https://betalist.com/help/submitting | new on 24 Oct |
 | 70 | "Specific almost always beats generic." | https://betalist.com/help/submitting | new on 24 Oct |
 | 71 | "Square app icon, ideally 512 px or larger." | https://betalist.com/agent | new on 24 Oct |
@@ -240,7 +248,6 @@ Numbered in order of first appearance. "Unchanged" means the same words were in 
 - You still open the agent's link, review the draft, choose a plan and pay yourself: Agent API page ("It brings back a claim link: open it to review the draft, pick a plan and pay.").
 - Field limits (website URL and name 255 characters, pitch 75 characters and one sentence, description 700 characters and plain text, up to 5 topics, one icon, up to 5 screenshots, promotion details about 500 characters) and the optional YouTube video, TestFlight link and signup URL: Agent API page, Fields table.
 - No tagline or extra keywords in the name: `/help/submitting` ("Tacking on a tagline or extra keywords after the name.").
-- A pitch packed with several clauses: `/help/submitting` ("Cramming multiple sentences into one with an em dash, semicolon, or ...").
 - The FAQ sends you to your dashboard to check a submission's status: Help, "How can I see the status of my startup submission? Visit your dashboard."
 - No public page says which plans guarantee newsletter inclusion: Help says it "depends on the plan you chose"; the Agent API page's plan list gives only featuring times.
 - Refunds can take 5 to 10 business days to reach your statement: Help, "How long does a refund take?" (source uses an en dash).
