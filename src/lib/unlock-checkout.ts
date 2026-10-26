@@ -1,4 +1,5 @@
 import { track } from "./analytics";
+import { CHECKOUT_UNAVAILABLE_MESSAGE } from "./checkout-session";
 import { ApiError, startCheckout } from "./client";
 
 /** Where an unlock button sits on the kit paywall: under its heading, the sticky bar below lg, or the panel beside it. */
@@ -27,7 +28,7 @@ export function trackUnlockClicked(context: UnlockContext, retry: boolean) {
   track("unlock_cta_clicked", { ...context, viewport: paywallViewport(), retry });
 }
 
-/** `checkout_unavailable`: /api/checkout's 503 when payments can't be taken at all (production without Stripe). */
+/** `checkout_unavailable`: any 503, /api/checkout's own (production without Stripe) or a gateway's in front of it. */
 export type CheckoutFailureCode = "network" | "rate_limited" | "kit_missing" | "checkout_unavailable" | "server" | "unknown";
 
 /** A checkout that didn't start, as the visitor sees it. `message` is ours or the API's, never a raw browser error. */
@@ -48,15 +49,23 @@ class CheckoutTimeoutError extends Error {
 
 const NETWORK_MESSAGE = "We couldn't reach checkout. Check your connection and try again.";
 const SERVER_MESSAGE = "Couldn't start checkout. Please try again.";
+const RATE_LIMITED_MESSAGE = "Too many checkout attempts. Try again in a few minutes.";
+const KIT_MISSING_MESSAGE = "That kit doesn't exist any more. Generate a new preview.";
 
+/**
+ * Only the API's own words (`serverMessage`) or ours are ever shown: never a raw browser error or "Request failed
+ * (500)" from a body that wasn't our JSON. Any 503 is checkout being unavailable, ours (`checkout_unavailable`) or a
+ * gateway's in front of it, so it always offers the email-us link.
+ */
 export function checkoutFailure(error: unknown): CheckoutFailure {
   if (error instanceof CheckoutTimeoutError) return { code: "network", message: NETWORK_MESSAGE };
   if (!(error instanceof ApiError)) return error instanceof TypeError ? { code: "network", message: NETWORK_MESSAGE } : { code: "unknown", message: SERVER_MESSAGE };
-  if (error.status === 429 || error.code === "rate_limited") return { code: "rate_limited", message: error.message };
-  if (error.status === 404) return { code: "kit_missing", message: error.message };
-  if (error.code === "checkout_unavailable") return { code: "checkout_unavailable", message: error.message || SERVER_MESSAGE };
-  if (error.status >= 500) return { code: "server", message: error.message || SERVER_MESSAGE };
-  return { code: "unknown", message: error.message || SERVER_MESSAGE };
+  const said = error.serverMessage;
+  if (error.status === 503 || error.code === "checkout_unavailable") return { code: "checkout_unavailable", message: said ?? CHECKOUT_UNAVAILABLE_MESSAGE };
+  if (error.status === 429 || error.code === "rate_limited") return { code: "rate_limited", message: said ?? RATE_LIMITED_MESSAGE };
+  if (error.status === 404) return { code: "kit_missing", message: said ?? KIT_MISSING_MESSAGE };
+  if (error.status >= 500) return { code: "server", message: said ?? SERVER_MESSAGE };
+  return { code: "unknown", message: said ?? SERVER_MESSAGE };
 }
 
 /**

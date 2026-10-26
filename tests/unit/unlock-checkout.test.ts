@@ -143,6 +143,78 @@ describe("runCheckout", () => {
     expect(posthog.capture).not.toHaveBeenCalledWith("checkout_failed", expect.anything());
   });
 
+  /** runCheckout against one /api/checkout answer: the outcome, and every checkout_failed the page logged for it. */
+  async function checkoutAnswering(response: () => Response, isLoggedIn = false) {
+    const { unlock } = await landOn("https://launchloop.dev/kit/kit_0123456789abcdef");
+    vi.stubGlobal("fetch", vi.fn(async () => response()));
+    const outcome = await unlock.runCheckout({ ...top, isLoggedIn }, { promo: false, retry: false });
+    const failed = (await captured()).filter((e) => e.event === "checkout_failed");
+    return { unlock, outcome, failed };
+  }
+  const OFFLINE = "Checkout is offline for a few minutes. Your preview is saved: try again shortly, or email hello@launchloop.dev and we'll send you a payment link.";
+
+  it("a non-JSON 500 (plain text) never shows 'Request failed (500)': a friendly message, Try again, checkout_failed once as server", async () => {
+    const { unlock, outcome, failed } = await checkoutAnswering(() => new Response("Internal Server Error", { status: 500, headers: { "Content-Type": "text/plain" } }));
+    expect(outcome).toEqual({ kind: "failed", failure: { code: "server", message: "Couldn't start checkout. Please try again." } });
+    expect(JSON.stringify(outcome)).not.toMatch(/Request failed|500|Internal Server Error/);
+    expect(unlock.checkoutRecovery("server", false)).toEqual(["retry", "save"]);
+    expect(failed).toHaveLength(1);
+    expect(failed[0].properties).toMatchObject({ code: "server", position: "top", retry: false });
+  });
+
+  it("a gateway 503 without our code (an HTML page) is checkout being unavailable: the offline message and the email-us link", async () => {
+    const { unlock, outcome, failed } = await checkoutAnswering(
+      () => new Response("<html><body><h1>503 Service Temporarily Unavailable</h1></body></html>", { status: 503, headers: { "Content-Type": "text/html" } }),
+    );
+    expect(outcome).toEqual({ kind: "failed", failure: { code: "checkout_unavailable", message: OFFLINE } });
+    expect(unlock.checkoutRecovery("checkout_unavailable", false)).toEqual(["retry", "email_us", "save"]);
+    expect(unlock.checkoutRecovery("checkout_unavailable", true)).toEqual(["retry", "email_us"]);
+    expect(failed).toHaveLength(1);
+    expect(failed[0].properties).toMatchObject({ code: "checkout_unavailable" });
+  });
+
+  it("a JSON 503 with a code other than ours is still unavailable, with the offline message (not its own wording)", async () => {
+    const { outcome } = await checkoutAnswering(() => Response.json({ code: "upstream_down" }, { status: 503 }));
+    expect(outcome).toEqual({ kind: "failed", failure: { code: "checkout_unavailable", message: OFFLINE } });
+  });
+
+  it("our JSON 503 (checkout_unavailable) keeps the route's own message, with the email-us link", async () => {
+    const { outcome, failed } = await checkoutAnswering(() => Response.json({ error: OFFLINE, code: "checkout_unavailable" }, { status: 503 }), true);
+    expect(outcome).toEqual({ kind: "failed", failure: { code: "checkout_unavailable", message: OFFLINE } });
+    expect(failed).toHaveLength(1);
+    expect(failed[0].properties).toMatchObject({ code: "checkout_unavailable", isLoggedIn: true });
+  });
+
+  it("a JSON error's own message is shown; a non-JSON 429 or 404 gets ours, never the raw status", async () => {
+    expect((await checkoutAnswering(() => Response.json({ error: "Too many checkout attempts. Try again in a few minutes.", code: "rate_limited" }, { status: 429 }))).outcome).toEqual({
+      kind: "failed",
+      failure: { code: "rate_limited", message: "Too many checkout attempts. Try again in a few minutes." },
+    });
+    expect((await checkoutAnswering(() => new Response("Too Many Requests", { status: 429 }))).outcome).toEqual({
+      kind: "failed",
+      failure: { code: "rate_limited", message: "Too many checkout attempts. Try again in a few minutes." },
+    });
+    expect((await checkoutAnswering(() => new Response("Not Found", { status: 404 }))).outcome).toEqual({
+      kind: "failed",
+      failure: { code: "kit_missing", message: "That kit doesn't exist any more. Generate a new preview." },
+    });
+  });
+
+  it("shownError: the API's message when it sent one, else the fallback, for the panel's login and save errors", async () => {
+    const { client } = await landOn("https://launchloop.dev/kit/kit_0123456789abcdef");
+    const { ApiError, shownError } = client;
+    expect(shownError(new ApiError("Too many login links requested. Try again in an hour.", 429, "rate", "Too many login links requested. Try again in an hour."), "fallback")).toBe(
+      "Too many login links requested. Try again in an hour.",
+    );
+    expect(shownError(new ApiError("Request failed (500)", 500), "We couldn't send your login link. Please try again.")).toBe("We couldn't send your login link. Please try again.");
+    expect(shownError(new TypeError("Failed to fetch"), "fallback")).toBe("fallback");
+    // postJson itself: a plain-text error carries no server message, so nothing raw reaches the screen.
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("Bad Gateway", { status: 502 })));
+    const error = await client.postJson("/api/auth/request", {}).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error).toMatchObject({ status: 502, serverMessage: undefined });
+  });
+
   it("an answer without a URL is a failure, not a navigation to /undefined", async () => {
     const { unlock } = await landOn("https://launchloop.dev/kit/kit_0123456789abcdef");
     vi.stubGlobal("fetch", vi.fn(async () => Response.json({})));
