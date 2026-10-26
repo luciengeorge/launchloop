@@ -44,8 +44,8 @@ export function AdviceSources() {
           <Link href="/product-hunt-launch-checklist#rules">Product Hunt launch checklist</Link>.
         </li>
         <li>
-          <strong>X posts: {LIMITS.xPost} characters.</strong> Counted the way X&apos;s developer docs on <a href={SRC.xCounting}>counting characters</a> describe, with links
-          that include http:// or https:// counted as 23 characters. Each post in your thread is checked and fitted to that.
+          <strong>X posts: {LIMITS.xPost} characters.</strong> Counted the way X&apos;s developer docs on <a href={SRC.xCounting}>counting characters</a> describe, with every
+          link counted as 23 characters. Each post in your thread is checked and fitted to that.
         </li>
         <li>
           <strong>LinkedIn post: {n(LIMITS.linkedin)} characters.</strong> The limit in LinkedIn Help&apos;s page on <a href={SRC.linkedinPosts}>posting updates</a>.
