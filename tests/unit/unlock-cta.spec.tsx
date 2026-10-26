@@ -94,6 +94,18 @@ test("every checkout error is an alert with an action: Try again, the save link 
   }
 });
 
+test("the error's link actions are outlined like its buttons: border-border, not the base's border-transparent", () => {
+  for (const code of ["kit_missing", "checkout_unavailable"] as const) {
+    const html = renderToStaticMarkup(<CheckoutError failure={{ code, message: "Checkout is offline." }} isLoggedIn onRetry={() => {}} />);
+    const links = html.match(/<a [^>]*>/g) ?? [];
+    expect(links.length, code).toBeGreaterThan(0);
+    for (const link of links) {
+      expect(link).toContain("border-border");
+      expect(link).not.toContain("border-transparent");
+    }
+  }
+});
+
 /** WCAG 2 contrast of two `oklch(L C h)` colours, via OKLab to linear sRGB. */
 function contrast(a: string, b: string) {
   const luminance = (oklch: string) => {

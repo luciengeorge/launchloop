@@ -32,7 +32,8 @@ export function ActionableError({ message, actions, className, size = "sm", test
       <div className="mt-2 flex flex-wrap gap-2">
         {actions.map((action) =>
           action.href ? (
-            <a key={action.label} href={action.href} className={buttonVariants({ variant: "outline" })} data-testid={action.testId}>
+            // cva only concatenates, so the base's border-transparent stays beside outline's border-border and hides it; cn() drops it.
+            <a key={action.label} href={action.href} className={cn(buttonVariants({ variant: "outline" }))} data-testid={action.testId}>
               {action.label}
             </a>
           ) : (

@@ -81,6 +81,68 @@ describe("runCheckout", () => {
     expect(await unlock.runCheckout(top, { promo: true, retry: false })).toEqual({ kind: "full_price", url: "/checkout/full" });
   });
 
+  /** A fetch that never answers, as a hung /api/checkout, but rejects like the real one when its signal aborts. */
+  const hungFetch = () =>
+    vi.fn(
+      (_url: string, init: RequestInit) =>
+        new Promise<Response>((_, reject) => init.signal?.addEventListener("abort", () => reject(new DOMException("The operation was aborted.", "AbortError")))),
+    );
+
+  it("a checkout that never answers is aborted after CHECKOUT_TIMEOUT_MS: a network failure, logged once", async () => {
+    const { unlock } = await landOn("https://launchloop.dev/kit/kit_0123456789abcdef");
+    const fetch = hungFetch();
+    vi.stubGlobal("fetch", fetch);
+    vi.useFakeTimers();
+    try {
+      const outcome = unlock.runCheckout(top, { promo: false, retry: false });
+      await vi.advanceTimersByTimeAsync(unlock.CHECKOUT_TIMEOUT_MS - 1);
+      expect(fetch).toHaveBeenCalledTimes(1);
+      expect((fetch.mock.calls[0][1] as RequestInit).signal?.aborted).toBe(false);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(await outcome).toEqual({ kind: "failed", failure: { code: "network", message: "We couldn't reach checkout. Check your connection and try again." } });
+      expect((fetch.mock.calls[0][1] as RequestInit).signal?.aborted).toBe(true);
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+    const failed = (await captured()).filter((e) => e.event === "checkout_failed");
+    expect(failed).toHaveLength(1);
+    expect(failed[0].properties).toMatchObject({ ...top, code: "network", retry: false });
+    expect(unlock.CHECKOUT_TIMEOUT_MS).toBe(15_000);
+  });
+
+  it("an answer in time clears the timeout", async () => {
+    const { unlock } = await landOn("https://launchloop.dev/kit/kit_0123456789abcdef");
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ url: "/checkout/mock?product=kit", promo: "none" })));
+    vi.useFakeTimers();
+    try {
+      expect(await unlock.runCheckout(top, { promo: false, retry: false })).toMatchObject({ kind: "redirect" });
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("the caller unmounting cancels it: request aborted, timer cleared, nothing shown or logged", async () => {
+    const { unlock } = await landOn("https://launchloop.dev/kit/kit_0123456789abcdef");
+    const fetch = hungFetch();
+    vi.stubGlobal("fetch", fetch);
+    vi.useFakeTimers();
+    const unmount = new AbortController();
+    try {
+      const outcome = unlock.runCheckout(top, { promo: false, retry: false }, { signal: unmount.signal });
+      await vi.advanceTimersByTimeAsync(1000);
+      unmount.abort();
+      expect(await outcome).toEqual({ kind: "cancelled" });
+      expect((fetch.mock.calls[0][1] as RequestInit).signal?.aborted).toBe(true);
+      expect(vi.getTimerCount()).toBe(0);
+      await vi.advanceTimersByTimeAsync(unlock.CHECKOUT_TIMEOUT_MS);
+    } finally {
+      vi.useRealTimers();
+    }
+    expect(posthog.capture).not.toHaveBeenCalledWith("checkout_failed", expect.anything());
+  });
+
   it("an answer without a URL is a failure, not a navigation to /undefined", async () => {
     const { unlock } = await landOn("https://launchloop.dev/kit/kit_0123456789abcdef");
     vi.stubGlobal("fetch", vi.fn(async () => Response.json({})));

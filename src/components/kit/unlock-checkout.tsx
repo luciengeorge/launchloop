@@ -25,10 +25,17 @@ export interface UnlockCheckout extends CheckoutState {
 
 function useCheckoutState(earlyCta: boolean, autoCheckout: boolean): UnlockCheckout {
   const [state, setState] = useState<CheckoutState>({ redirecting: autoCheckout, failed: null, fullPriceUrl: null });
+  // Aborted on unmount: a checkout still waiting then stops, with its timeout timer, and logs nothing.
+  const mounted = useRef<AbortController | null>(null);
+  useEffect(() => {
+    const controller = new AbortController();
+    mounted.current = controller;
+    return () => controller.abort();
+  }, []);
 
   const start = useCallback<UnlockCheckout["start"]>(async (context, options) => {
     setState((s) => ({ ...s, redirecting: true, failed: null }));
-    const outcome = await runCheckout(context, options);
+    const outcome = await runCheckout(context, options, { signal: mounted.current?.signal });
     switch (outcome.kind) {
       case "redirect":
         window.location.assign(outcome.url);
@@ -38,6 +45,8 @@ function useCheckoutState(earlyCta: boolean, autoCheckout: boolean): UnlockCheck
         break;
       case "failed":
         setState((s) => ({ ...s, redirecting: false, failed: { position: context.position, failure: outcome.failure } }));
+        break;
+      case "cancelled":
         break;
       default: {
         const unhandled: never = outcome;

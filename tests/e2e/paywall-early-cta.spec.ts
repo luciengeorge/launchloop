@@ -1,4 +1,5 @@
 import { expect, test, type APIRequestContext, type BrowserContext, type Locator, type Page } from "@playwright/test";
+import { CHECKOUT_TIMEOUT_MS } from "@/lib/unlock-checkout";
 import { makeSampleKit, uniqueEmail } from "./helpers";
 
 const FIXTURE = "http://127.0.0.1:3419";
@@ -249,6 +250,7 @@ test.describe("errors always carry a CTA (flag off too)", () => {
   });
 
   test("checkout offline (/api/checkout's 503 without Stripe in production): its message, Try again, and email us for a payment link", async ({ page }) => {
+    await page.setViewportSize(MOBILE);
     await makeSampleKit(page);
     const offline = "Checkout is offline for a few minutes. Your preview is saved: try again shortly, or email hello@launchloop.dev and we'll send you a payment link.";
     await failCheckoutOnce(page, (route) => route.fulfill({ status: 503, json: { error: offline, code: "checkout_unavailable" } }));
@@ -256,8 +258,15 @@ test.describe("errors always carry a CTA (flag off too)", () => {
     const error = page.getByTestId("unlock-panel").getByRole("alert");
     await expect(error).toHaveAttribute("data-code", "checkout_unavailable");
     await expect(error.locator("p")).toHaveText(offline);
-    await expect(error.getByRole("link", { name: "Email us for a payment link" })).toHaveAttribute("href", "mailto:hello@launchloop.dev?subject=Payment%20link%20for%20my%20launch%20kit");
+    const emailUs = error.getByRole("link", { name: "Email us for a payment link" });
+    await expect(emailUs).toHaveAttribute("href", "mailto:hello@launchloop.dev?subject=Payment%20link%20for%20my%20launch%20kit");
     await expect(error.getByRole("button", { name: "Email me a link instead" })).toBeVisible();
+    // The link is outlined exactly like the Try again button beside it.
+    const border = (locator: Locator) => locator.evaluate((el) => ({ width: getComputedStyle(el).borderTopWidth, color: getComputedStyle(el).borderTopColor }));
+    const linkBorder = await border(emailUs);
+    expect(linkBorder.width).toBe("1px");
+    expect(linkBorder.color).not.toMatch(/^(transparent|rgba\(0, 0, 0, 0\))$/);
+    expect(linkBorder).toEqual(await border(error.getByRole("button", { name: "Try again" })));
     // The panel keeps its unlock button, as #92 expects, and Try again runs the same checkout.
     await expect(panelButton(page)).toBeEnabled();
     await error.getByRole("button", { name: "Try again" }).click();
@@ -372,6 +381,47 @@ test.describe("events", () => {
     expect((await phEvents(page.request)).filter((e) => e.event === "$feature_flag_called" && e.properties.$feature_flag === FLAG)).toEqual([]);
     // PostHog answered, so the kill switch wasn't a fallback either.
     expect(await fallbacks()).toBe(fallbacksBefore);
+  });
+
+  test("a checkout that never answers: after the timeout, the network error with Try again, the buttons back, and one checkout_failed", async ({ page }) => {
+    const kitId = await makeSampleKit(page);
+    // Fake timers in the page, still flowing in real time, so the 15s timeout can be jumped over.
+    await page.clock.install();
+    await page.goto(`/kit/${kitId}`);
+    await page.route("**/api/checkout", () => {});
+    await expect(panelButton(page)).toBeEnabled();
+    const sent = page.waitForRequest((r) => r.method() === "POST" && new URL(r.url()).pathname === "/api/checkout");
+    await panelButton(page).click();
+    await sent;
+    const panel = page.getByTestId("unlock-panel");
+    await expect(panel).toHaveAttribute("data-step", "redirecting");
+    await expect(panel.getByText("Taking you to secure checkout…")).toBeVisible();
+
+    // Not yet: the request is still pending.
+    await page.clock.fastForward(CHECKOUT_TIMEOUT_MS - 2000);
+    await expect(panel).toHaveAttribute("data-step", "redirecting");
+    await expect(panel.getByRole("alert")).toHaveCount(0);
+
+    await page.clock.fastForward(2000);
+    const error = panel.getByRole("alert");
+    await expect(error).toHaveAttribute("data-code", "network");
+    await expect(error.locator("p")).toHaveText("We couldn't reach checkout. Check your connection and try again.");
+    await expect(error.getByRole("button", { name: "Try again" })).toBeEnabled();
+    await expect(panel).toHaveAttribute("data-step", "cta");
+    await expect(panelButton(page)).toBeEnabled();
+
+    const failed = forKit(kitId, "checkout_failed");
+    await expect.poll(async () => (await failed(page.request)).length).toBe(1);
+    expect((await failed(page.request))[0].properties).toMatchObject({ position: "panel", code: "network", retry: false, earlyCta: false });
+    // Still exactly one, however long it's left.
+    await page.clock.fastForward(CHECKOUT_TIMEOUT_MS * 2);
+    await page.waitForTimeout(1000);
+    expect(await failed(page.request)).toHaveLength(1);
+
+    // Checkout answers again: Try again goes through.
+    await page.unroute("**/api/checkout");
+    await error.getByRole("button", { name: "Try again" }).click();
+    await page.waitForURL(/\/checkout\/mock\?product=kit/);
   });
 
   test("a button under the 56px sticky header isn't shown: unlock_cta_shown waits until it's below the header", async ({ page }) => {
