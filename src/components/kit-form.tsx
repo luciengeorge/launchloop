@@ -181,7 +181,8 @@ export function KitForm({ promo }: { promo: boolean }) {
           }
           void submit(url);
         }}
-        className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-2 shadow-lg shadow-primary/5 sm:flex-row"
+        // The borderless input draws no ring of its own, so the form shows it, also when focus is moved there by a button.
+        className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-2 shadow-lg shadow-primary/5 transition-shadow has-[input:focus-visible]:border-ring has-[input:focus-visible]:ring-3 has-[input:focus-visible]:ring-ring/50 sm:flex-row"
         aria-label="Generate a launch kit"
       >
         <label htmlFor="app-url" className="sr-only">
@@ -261,10 +262,15 @@ export function KitForm({ promo }: { promo: boolean }) {
                 "Free preview · No sign-up · Public repos only"
               )}
             </span>
-            <span aria-hidden="true" className={sampleRow.separator}>·</span>
-            <button type="button" className={sampleRow.button} data-variant={sampleCta ?? undefined} onClick={() => void submit(SAMPLE_INPUT)}>
-              Try a sample app
-            </button>
+            {/* The error's own "Try a sample app" replaces this one, so the page never has two buttons with one name. */}
+            {shownError && isWayForwardCode(shownError.code) ? null : (
+              <>
+                <span aria-hidden="true" className={sampleRow.separator}>·</span>
+                <button type="button" className={sampleRow.button} data-variant={sampleCta ?? undefined} onClick={() => void submit(SAMPLE_INPUT)}>
+                  Try a sample app
+                </button>
+              </>
+            )}
           </>
         )}
       </div>
