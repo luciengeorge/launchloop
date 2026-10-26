@@ -157,6 +157,8 @@ const routes = {
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ login: "real-owner" }));
   },
+  // A repo the token can see but that is private: ingest stops at this metadata with repo_private.
+  "/gh/repos/fixture-labs/private-app": json({ private: true, html_url: "https://github.com/fixture-labs/private-app", description: "Not for your eyes" }),
   // An Elixir/Phoenix repo shaped like plausible/analytics: no homepage, no root package.json, stack in mix.exs.
   "/gh/repos/fixture-labs/pulse": json({
     html_url: "https://github.com/fixture-labs/pulse",

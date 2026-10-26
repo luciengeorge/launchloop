@@ -37,6 +37,73 @@ for (const c of CASES) {
   });
 }
 
+/** Errors about the link itself: each offers a site URL or the sample app instead of leaving the visitor stuck. */
+const WAY_FORWARD = [
+  { code: "invalid_url", input: "not a url" },
+  { code: "repo_not_found", input: "github.com/real-owner/secret-repo" },
+  { code: "repo_private", input: "github.com/fixture-labs/private-app" },
+] as const;
+
+for (const c of WAY_FORWARD) {
+  test(`${c.code}: "Try your site URL instead" empties and focuses the input for a site URL`, async ({ page }) => {
+    await page.goto("/");
+    const input = page.getByLabel("GitHub repo or live site URL");
+    await input.fill(c.input);
+    await page.getByRole("button", { name: "Get my free preview" }).first().click();
+    const alert = page.getByTestId("kit-error");
+    await expect(alert).toHaveAttribute("data-code", c.code, { timeout: 15_000 });
+    const site = alert.getByRole("button", { name: "Try your site URL instead", exact: true });
+    const sample = alert.getByRole("button", { name: "Try a sample app", exact: true });
+    await expect(site).toBeVisible();
+    await expect(sample).toBeVisible();
+    await expect(alert).not.toContainText("\u2014");
+
+    // Real buttons in tab order: Tab moves from the site button to the sample button, and Enter activates.
+    await site.focus();
+    await expect(site).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect(sample).toBeFocused();
+    await page.keyboard.press("Shift+Tab");
+    await expect(site).toBeFocused();
+    await page.keyboard.press("Enter");
+
+    await expect(alert).toHaveCount(0);
+    await expect(input).toHaveValue("");
+    await expect(input).toBeFocused();
+    await expect(input).toHaveAttribute("placeholder", "github.com/you/your-app or your-app.com");
+    await input.pressSequentially("myapp.dev");
+    await expect(input).toHaveValue("myapp.dev");
+  });
+
+  test(`${c.code}: "Try a sample app" previews the sample app`, async ({ page }) => {
+    const sent: string[] = [];
+    // The error is replayed here (the real one is covered above); the sample request goes to the real server.
+    await page.route("**/api/kits", (route) => {
+      const { url } = route.request().postDataJSON() as { url: string };
+      sent.push(url);
+      return url === "sample" ? route.fallback() : route.fulfill({ status: 422, json: kitErrorBody(c.code) });
+    });
+    await page.goto("/");
+    await page.getByLabel("GitHub repo or live site URL").fill(c.input);
+    await page.getByRole("button", { name: "Get my free preview" }).first().click();
+    const alert = page.getByTestId("kit-error");
+    await expect(alert).toHaveAttribute("data-code", c.code);
+    await alert.getByRole("button", { name: "Try a sample app", exact: true }).click();
+    await page.waitForURL(/\/kit\/[\w-]+/, { timeout: 30_000 });
+    expect(sent).toEqual([c.input, "sample"]);
+  });
+}
+
+test("errors that aren't about the link don't offer the site or sample buttons", async ({ page }) => {
+  await page.route("**/api/kits", (route) => route.fulfill({ status: 422, json: kitErrorBody("site_unreachable") }));
+  await page.goto("/");
+  await page.getByLabel("GitHub repo or live site URL").fill("https://myapp.dev");
+  await page.getByRole("button", { name: "Get my free preview" }).first().click();
+  const alert = page.getByTestId("kit-error");
+  await expect(alert).toHaveAttribute("data-code", "site_unreachable");
+  await expect(alert.getByTestId("kit-error-actions")).toHaveCount(0);
+});
+
 /** Clipboard events dispatched in the page reach React's onPaste without clipboard permissions. */
 const paste = (input: Locator, text: string) =>
   input.evaluate((el, value) => {

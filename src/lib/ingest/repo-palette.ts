@@ -68,12 +68,12 @@ export function paletteFromRepoFiles(files: { path: string; text: string }[]): P
   return extractPalette({ css: css.join("\n"), themeColor }, "repo");
 }
 
-/** Best effort: any GitHub error, timeout or missing file just means the default palette. */
-export async function fetchRepoPalette(owner: string, name: string): Promise<Palette> {
+/** Best effort: any GitHub error, timeout or missing file just means the default palette. `authenticated: false` reads without the token. */
+export async function fetchRepoPalette(owner: string, name: string, authenticated = true): Promise<Palette> {
   const signal = AbortSignal.timeout(REPO_PALETTE_BUDGET_MS);
   try {
     const repo = repoApiPath(owner, name);
-    const treeRes = await gh(`${repo}/git/trees/HEAD?recursive=1`, undefined, signal);
+    const treeRes = await gh(`${repo}/git/trees/HEAD?recursive=1`, undefined, signal, authenticated);
     if (!treeRes.ok) return DEFAULT_PALETTE;
     // A listing cut off at the cap isn't valid JSON, but its complete entries still are.
     const { text, truncated } = await readCappedText(treeRes, TREE_BYTES);
@@ -83,7 +83,7 @@ export async function fetchRepoPalette(owner: string, name: string): Promise<Pal
     const files = await Promise.all(
       paths.map(async (path) => {
         try {
-          const res = await gh(`${repo}/contents/${encodeRepoFile(path)}`, "application/vnd.github.raw+json", signal);
+          const res = await gh(`${repo}/contents/${encodeRepoFile(path)}`, "application/vnd.github.raw+json", signal, authenticated);
           return res.ok ? { path, text: await cappedText(res, FILE_CAP) } : null;
         } catch {
           return null;

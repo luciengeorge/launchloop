@@ -192,7 +192,7 @@ async function repoTree(repo: RepoData, signal: AbortSignal): Promise<string[]> 
     const res = await safeFetch(githubApiUrl(`${repoApiPath(repo.owner, repo.name)}/git/trees/HEAD?recursive=1`), {
       accept: "application/vnd.github+json",
       headers: { "X-GitHub-Api-Version": "2022-11-28" },
-      originHeaders: githubAuthHeaders(),
+      originHeaders: repo.visibilityUnverified ? undefined : githubAuthHeaders(),
       maxBytes: TREE_BYTES,
       timeoutMs: 2500,
       signal,

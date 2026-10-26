@@ -24,6 +24,11 @@ export interface RepoData {
   headSha?: string;
   /** The owner's avatar, only when the owner is an organisation (a person's avatar is their face, not a logo). */
   orgAvatarUrl?: string;
+  /**
+   * GitHub's API was rate limited, so the repo's visibility was never checked and it was read from public raw files.
+   * Anything that follows must not send the token, or it could read a private repo.
+   */
+  visibilityUnverified?: boolean;
 }
 
 export interface PackageJson {
@@ -58,7 +63,8 @@ const DOT_SEGMENT = /(?:^|[/\\])(?:\.|%2e){1,2}(?=[/\\]|$)/i;
 export function parseGitHubUrl(input: string): { owner: string; name: string } | null {
   // URL parsing drops tabs and newlines, so ".\t." would become ".." after the check.
   const raw = input.trim().replace(/^git\+/i, "").replace(/[\t\n\r]/g, "");
-  if (DOT_SEGMENT.test(raw.split(/[?#]/)[0])) return null;
+  // Printable ASCII only: URL parsing maps lookalikes such as the fullwidth dot in "github．com" onto real characters.
+  if (/[^\x21-\x7e]/.test(raw) || DOT_SEGMENT.test(raw.split(/[?#]/)[0])) return null;
   let url: URL;
   try {
     url = new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`);
@@ -121,12 +127,13 @@ export async function ghJson<T>(res: Response): Promise<T | undefined> {
 export const githubApiUrl = (path: string) => `${process.env.GITHUB_API_URL ?? "https://api.github.com"}${path}`;
 export const githubAuthHeaders = (): Record<string, string> => (env.githubToken ? { Authorization: `Bearer ${env.githubToken}` } : {});
 
-export async function gh(path: string, accept = "application/vnd.github+json", signal: AbortSignal = AbortSignal.timeout(8000)): Promise<Response> {
+/** `authenticated: false` leaves the token off, for a repo whose visibility is unverified. */
+export async function gh(path: string, accept = "application/vnd.github+json", signal: AbortSignal = AbortSignal.timeout(8000), authenticated = true): Promise<Response> {
   const headers: Record<string, string> = {
     Accept: accept,
     "User-Agent": USER_AGENT,
     "X-GitHub-Api-Version": "2022-11-28",
-    ...githubAuthHeaders(),
+    ...(authenticated ? githubAuthHeaders() : {}),
   };
   return fetch(githubApiUrl(path), { headers, signal, cache: "no-store" });
 }
@@ -199,6 +206,7 @@ export async function fetchRepo(owner: string, name: string, warnings: string[])
     }
     repo.readme = readme;
     repo.packageJson = parsePackageJson(pkg, warnings);
+    repo.visibilityUnverified = true;
     return repo;
   }
 
