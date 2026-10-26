@@ -1,5 +1,6 @@
 import { NewsletterForm } from "@/components/newsletter-form";
 import { postPath, type BlogPost } from "@/lib/blog";
+import { InlineNewsletterClaim } from "@/lib/inline-newsletter-claim";
 import { PREVIEW_NEWSLETTER_ANCHOR } from "@/lib/newsletter";
 
 const LABEL = "Email for the launch-day checklist";
@@ -7,8 +8,8 @@ const BUTTON = "Send me the checklist";
 
 /**
  * The early signups behind `newsletter-inline-signup`: after a post's intro (`post`) and under the home hero (`home`).
- * Outline buttons, so the page's filled orange button stays its product call to action. `data-inline-newsletter` is what
- * swaps the footer form for a link to this block (see globals.css).
+ * Outline buttons, so the page's filled orange button stays its product call to action. `data-inline-newsletter` (before
+ * hydration, see globals.css) and InlineNewsletterClaim (after) swap the footer form for a link to this block.
  */
 export function InlineNewsletter(props: { variant: "post"; post: BlogPost } | { variant: "home" }) {
   if (props.variant === "home") {
@@ -20,6 +21,7 @@ export function InlineNewsletter(props: { variant: "post"; post: BlogPost } | { 
         data-testid="inline-newsletter-home"
         data-inline-newsletter
       >
+        <InlineNewsletterClaim />
         <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-6 sm:flex-row sm:items-center sm:justify-between sm:gap-8 sm:px-6">
           <div className="max-w-xl">
             <h2 id="home-newsletter-heading" className="text-base font-semibold">
@@ -46,6 +48,7 @@ export function InlineNewsletter(props: { variant: "post"; post: BlogPost } | { 
       data-testid="inline-newsletter-post"
       data-inline-newsletter
     >
+      <InlineNewsletterClaim />
       <p id="inline-newsletter-heading" className="text-base font-semibold text-foreground!">
         Get my launch-day checklist
       </p>

@@ -173,7 +173,7 @@ test.describe("newsletter_form_viewed", () => {
     await expect.poll(async () => (await viewed(page.request, campaign)).length).toBe(1);
     const [footer] = await viewed(page.request, campaign);
     expect(footer.properties).toMatchObject({ placement: "footer", path: "/pricing", utm_source: "devhunt", utm_medium: "directory", utm_campaign: campaign });
-    expect(footer.properties).not.toHaveProperty("utm_term");
+    // posthog-js adds every utm_* from the URL itself; the event adds nothing else of the attribution.
     expect(footer.properties).not.toHaveProperty("referring_domain");
     // Scrolling away and back on the same page doesn't send it again.
     await page.mouse.wheel(0, -5000);

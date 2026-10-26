@@ -135,18 +135,34 @@ test("pages without an inline signup keep the footer form: kit pages, tools, gui
     await expect(page.locator('[id="newsletter"]')).toHaveCount(0);
     await expect(page.locator("[data-inline-newsletter]")).toHaveCount(0);
   }
+  // makeSampleKit starts on / and moves to the kit client-side, and Next keeps / in the DOM, hidden, with its band.
   await makeSampleKit(page);
   await expectFooterForm(page);
-  await expect(page.locator('[id="newsletter"]')).toHaveCount(1);
+  await expect(page.locator('[id="newsletter"]:visible')).toHaveCount(1);
   await expect(page.getByTestId("preview-newsletter")).toHaveAttribute("id", "newsletter");
 });
 
-test("the footer swaps back to its form after a client navigation away from a page with an inline signup", async ({ page }) => {
-  await page.goto("/blog/og-image-size");
+test("client navigations: the footer follows the page shown, though Next keeps visited pages in the DOM, and its link goes to the visible block", async ({ page }) => {
+  await page.goto("/");
   await expectFooterLink(page);
   await footer(page).getByRole("link", { name: "Pricing" }).click();
   await page.waitForURL((u) => u.pathname === "/pricing");
   await expectFooterForm(page);
+  await page.goBack();
+  await page.waitForURL((u) => u.pathname === "/");
+  await expectFooterLink(page);
+
+  await footer(page).getByRole("link", { name: "Blog", exact: true }).click();
+  await page.waitForURL((u) => u.pathname === "/blog");
+  await expectFooterForm(page);
+  await page.getByRole("main").getByRole("link", { name: blogPosts()[0].title }).first().click();
+  await page.waitForURL((u) => u.pathname === postPath(blogPosts()[0]));
+  await expectFooterLink(page);
+  await hydrated(page);
+  await footer(page).getByTestId("footer-newsletter-link").click();
+  const field = page.getByTestId("inline-newsletter-post").getByLabel(COPY.label);
+  await expect(field).toBeFocused();
+  await expect(field).toBeInViewport();
 });
 
 for (const [placement, path, testId] of [
