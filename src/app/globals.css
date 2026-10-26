@@ -151,6 +151,23 @@
     pointer-events: none;
     z-index: 1;
   }
+  /*
+   * With newsletter-inline-signup on, the footer renders both its form and a link to the page's inline signup, and CSS
+   * picks one: the root layout can't know the route, and usePathname() there would suspend on pages with dynamic params.
+   * Until hydration (and without JS) the HTML decides. After it, `data-inline-shown` does: Next keeps pages visited
+   * client-side in the DOM, hidden, so :has() would still find their inline signup.
+   */
+  [data-footer-newsletter-link] {
+    display: none;
+  }
+  body:has([data-inline-newsletter]) [data-footer-newsletter]:not([data-inline-shown]) [data-footer-newsletter-link],
+  [data-inline-shown="true"] [data-footer-newsletter-link] {
+    display: block;
+  }
+  body:has([data-inline-newsletter]) [data-footer-newsletter]:not([data-inline-shown]) [data-footer-newsletter-form],
+  [data-inline-shown="true"] [data-footer-newsletter-form] {
+    display: none;
+  }
   .bg-grid {
     background-image:
       linear-gradient(to right, color-mix(in oklch, var(--foreground) 6%, transparent) 1px, transparent 1px),

@@ -11,6 +11,7 @@ import { type KitFailureDetails, KitRequestError, createKitWithProgress } from "
 import { previewAllowance } from "@/lib/errors";
 import { SAMPLE_INPUT } from "@/lib/ingest/sample";
 import type { PreviewLimits } from "@/lib/site";
+import { ON_PRIMARY_TEXT } from "@/lib/primary-cta";
 import { LAUNCH_PROMO } from "@/lib/products";
 import { looksLikeGitHubUrl, replacesPrefix, repoPrefill, sameInput } from "@/lib/repo-cta";
 import { hasSessionHint } from "@/lib/session-hint";
@@ -220,7 +221,7 @@ export function KitForm({ promo }: { promo: boolean }) {
           disabled={loading}
           aria-disabled={blockedBy ? true : undefined}
           aria-describedby={blockedBy ? "kit-form-resubmit-hint" : undefined}
-          className="h-12 px-5 text-base aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
+          className={`h-12 px-5 text-base aria-disabled:cursor-not-allowed aria-disabled:opacity-50 ${ON_PRIMARY_TEXT}`}
         >
           {loading ? <Loader2 className="animate-spin" /> : null}
           {loading ? (

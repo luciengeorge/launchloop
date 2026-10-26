@@ -1,5 +1,37 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import { makeSampleKit, uniqueEmail } from "./helpers";
+
+/** At 375px every newsletter form stacks: a full-width field over the button, both 44px tall, the field's text 16px. */
+async function expectStacked(page: Page, form: Locator, label: string, button: string) {
+  const field = form.getByLabel(label);
+  await field.scrollIntoViewIfNeeded();
+  const [fieldBox, buttonBox] = await Promise.all([field.boundingBox(), form.getByRole("button", { name: button }).boundingBox()]);
+  expect(fieldBox!.height).toBeGreaterThanOrEqual(44);
+  expect(buttonBox!.height).toBeGreaterThanOrEqual(44);
+  expect(buttonBox!.y).toBeGreaterThanOrEqual(fieldBox!.y + fieldBox!.height);
+  expect(fieldBox!.width).toBeGreaterThanOrEqual(300);
+  expect(buttonBox!.x + buttonBox!.width).toBeLessThanOrEqual(page.viewportSize()!.width);
+  expect(await field.evaluate((el) => parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(16);
+}
+
+test.describe("at 375px", () => {
+  test.use({ viewport: { width: 375, height: 812 } });
+
+  test("the footer form on / stacks, with 44px targets and 16px text", async ({ page }) => {
+    await page.goto("/");
+    await expectStacked(page, page.getByRole("contentinfo"), "Weekly launch teardowns", "Subscribe");
+  });
+
+  test("the post-preview form stacks", async ({ page }) => {
+    await makeSampleKit(page);
+    await expectStacked(page, page.getByTestId("preview-newsletter"), "Email for the launch-day checklist", "Send me the checklist");
+  });
+
+  test("a blog post's form stacks", async ({ page }) => {
+    await page.goto("/blog/how-to-launch-on-product-hunt");
+    await expectStacked(page, page.getByTestId("blog-newsletter"), "Email for the launch-day checklist", "Send me the checklist");
+  });
+});
 
 // Runs in the mobile project (Pixel 7); the desktop project covers the same card in newsletter.spec.ts.
 test.skip(({ isMobile }) => !isMobile, "mobile viewport only");
@@ -27,7 +59,10 @@ test("post-preview signup on mobile: stacked under the paywall, outline button, 
   const [fieldBox, buttonBox] = await Promise.all([field.boundingBox(), button.boundingBox()]);
   expect(fieldBox!.y).toBeGreaterThan(copy!.y + copy!.height);
   expect(buttonBox!.x + buttonBox!.width).toBeLessThanOrEqual(viewport.width);
-  expect(buttonBox!.height).toBeGreaterThanOrEqual(32);
+  expect(buttonBox!.height).toBeGreaterThanOrEqual(44);
+  expect(fieldBox!.height).toBeGreaterThanOrEqual(44);
+  // 16px or more, or iOS zooms the page in when the field takes focus.
+  expect(await field.evaluate((el) => parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(16);
 
   // Outline, so the £19 unlock button stays the only primary one (the footer steps down too).
   await expect(button).not.toHaveClass(/\bbg-primary\b/);

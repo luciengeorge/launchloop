@@ -1,6 +1,7 @@
 import type { CaptureResult, PostHog, PostHogInterface } from "posthog-js";
 import { type Attribution, QA_PARAM, readLandingAttribution } from "./attribution";
 import { ANALYTICS_ID_PARAM, EXPERIMENTS, featureProperties, isAnalyticsId, type ExperimentKey, type FallbackReason, type Served, type Variant } from "./experiments";
+import type { NewsletterPlacement } from "./newsletter";
 import { POSTHOG_PROXY_PATH, posthogUiHost } from "./posthog-config";
 import type { RepoPrefill } from "./repo-cta";
 import { scrubProperties } from "./scrub-url";
@@ -47,6 +48,11 @@ export interface ClientEvents {
   hero_clicked: { element: "a" | "button" | "input"; label: string; link_url?: string };
   /** Control served without a PostHog assignment (see Served). Not an exposure, so it stays out of the experiment. */
   flag_fallback: { flag: ExperimentKey; variant: Variant; reason: FallbackReason; fallback: true };
+  /**
+   * A newsletter form at least half on screen, once per placement per page (useFormViewed). `path` is scrubbed like
+   * every URL; the UTMs are the landing's. Never anything typed. The submit is the server's newsletter_subscribed.
+   */
+  newsletter_form_viewed: { placement: NewsletterPlacement; path: string; utm_source?: string; utm_medium?: string; utm_campaign?: string };
 }
 
 const key = process.env.NEXT_PUBLIC_POSTHOG_KEY;

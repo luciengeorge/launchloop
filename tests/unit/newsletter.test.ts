@@ -1,14 +1,90 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { isQaReferer } from "@/lib/attribution";
-import { isResendTestAddress, newsletterErrorAnchor, newsletterReturnPath, parsePlacement, PREVIEW_NEWSLETTER_ANCHOR } from "@/lib/newsletter";
+import type { DeployEnv } from "@/lib/deploy-env";
+import { evaluateFlag } from "@/lib/launch-promo";
+import {
+  isResendTestAddress,
+  NEWSLETTER_PLACEMENTS,
+  newsletterErrorAnchor,
+  newsletterReturnPath,
+  parsePlacement,
+  PREVIEW_NEWSLETTER_ANCHOR,
+  resolveInlineFlag,
+} from "@/lib/newsletter";
 
 describe("parsePlacement", () => {
-  it.each(["footer", "preview", "blog"] as const)("keeps %s", (placement) => {
+  it("knows all five placements", () => {
+    expect(NEWSLETTER_PLACEMENTS).toEqual(["footer", "preview", "blog", "blog_inline", "home_inline"]);
+  });
+
+  it.each(NEWSLETTER_PLACEMENTS)("keeps %s", (placement) => {
     expect(parsePlacement(placement)).toBe(placement);
   });
 
-  it.each([undefined, null, "", "Blog", "blog ", "guide", "kit", 1, ["blog"], { placement: "blog" }])("turns %j into footer", (value) => {
+  it.each([undefined, null, "", "Blog", "blog ", "guide", "kit", "blog-inline", "Home_inline", "home", "inline", 1, ["blog"], { placement: "blog" }])("turns %j into footer", (value) => {
     expect(parsePlacement(value)).toBe("footer");
+  });
+});
+
+describe("newsletterReturnPath for the inline signups", () => {
+  const post = "/blog/how-to-launch-on-product-hunt";
+
+  it("comes back to the inline block (the page's #newsletter) on success", () => {
+    expect(newsletterReturnPath(post, "blog_inline", { ok: true, welcome: "sent" })).toBe(`${post}?subscribed=1&from=blog_inline#newsletter`);
+    expect(newsletterReturnPath(post, "blog_inline", { ok: true, welcome: "existing" })).toBe(`${post}?subscribed=1&welcome=existing&from=blog_inline#newsletter`);
+    expect(newsletterReturnPath("/", "home_inline", { ok: true, welcome: "sent" })).toBe("/?subscribed=1&from=home_inline#newsletter");
+    expect(newsletterReturnPath("/", "home_inline", { ok: true, welcome: "skipped" })).toBe("/?subscribed=1&welcome=skipped&from=home_inline#newsletter");
+  });
+
+  it.each(["invalid", "reserved", "rate", "server"] as const)("points a %s error at the inline form's own message", (error) => {
+    expect(newsletterReturnPath(post, "blog_inline", { ok: false, error })).toBe(`${post}?subscribed=0&error=${error}&from=blog_inline#newsletter-blog_inline-${error}`);
+    expect(newsletterReturnPath("/", "home_inline", { ok: false, error })).toBe(`/?subscribed=0&error=${error}&from=home_inline#newsletter-home_inline-${error}`);
+  });
+});
+
+describe("resolveInlineFlag (newsletter-inline-signup)", () => {
+  const ENVS: DeployEnv[] = ["production", "preview", "development"];
+  const run = (override: string | undefined, env: DeployEnv, value: unknown) => {
+    const flag = vi.fn(async () => value);
+    return { result: resolveInlineFlag({ override, env, flag }), flag };
+  };
+
+  it.each(ENVS)("only a flag value of exactly true is on (%s, no override)", async (env) => {
+    expect(await run(undefined, env, true).result).toBe(true);
+    for (const value of [false, undefined, null, "true", "on", "control", "treatment", 1, {}]) expect(await run(undefined, env, value).result, String(value)).toBe(false);
+    expect(await run("", env, true).result).toBe(true);
+  });
+
+  it.each(ENVS)("NEWSLETTER_INLINE=off is off without asking PostHog (%s)", async (env) => {
+    for (const override of ["off", "OFF", " off "]) {
+      const { result, flag } = run(override, env, true);
+      expect(await result).toBe(false);
+      expect(flag).not.toHaveBeenCalled();
+    }
+  });
+
+  it("NEWSLETTER_INLINE=on forces it on outside production only, and there it doesn't ask PostHog", async () => {
+    for (const env of ["preview", "development"] as const) {
+      const { result, flag } = run("on", env, false);
+      expect(await result).toBe(true);
+      expect(flag).not.toHaveBeenCalled();
+    }
+    expect(await run("on", "production", false).result).toBe(false);
+    expect(await run("on", "production", true).result).toBe(true);
+  });
+
+  it("an unknown override is ignored", async () => {
+    expect(await run("yes", "development", false).result).toBe(false);
+    expect(await run("1", "development", true).result).toBe(true);
+  });
+
+  it("a PostHog error or a timeout is off, and the error is reported", async () => {
+    const onError = vi.fn();
+    const failing = () => evaluateFlag(async () => Promise.reject(new Error("flags down")), { onError });
+    expect(await resolveInlineFlag({ override: undefined, env: "production", flag: failing })).toBe(false);
+    expect(onError).toHaveBeenCalledOnce();
+    const hanging = () => evaluateFlag(() => new Promise(() => {}), { timeoutMs: 20 });
+    expect(await resolveInlineFlag({ override: undefined, env: "production", flag: hanging })).toBe(false);
   });
 });
 

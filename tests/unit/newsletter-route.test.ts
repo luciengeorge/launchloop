@@ -98,6 +98,21 @@ describe("POST /api/newsletter records newsletter_subscribed on the server", () 
     expect(JSON.stringify(captured())).not.toMatch(/resend|delivered|bounced|@/i);
   });
 
+  it.each(["blog_inline", "home_inline"] as const)("the inline placement %s is stored on the contact and recorded as itself, on both paths", async (placement) => {
+    const store = kv.store as MemoryStore;
+    const email = `${placement}@launchloop.dev`;
+    await postJson({ email, placement, analyticsId: PAGE_ID });
+    expect(await store.get(`contact:newsletter:${email}`)).toMatchObject({ placement });
+    const next = placement === "home_inline" ? "/" : "/blog/og-image-size";
+    const res = await postForm({ email: `form-${email}`, placement, next });
+    expect(res.headers.get("location")).toBe(`${next}?subscribed=1&from=${placement}#newsletter`);
+    expect(await store.get(`contact:newsletter:form-${email}`)).toMatchObject({ placement });
+    expect(captured().map((c) => c.properties)).toEqual([
+      { placement, welcome: "sent", submitted: "js", is_webdriver: false },
+      { placement, welcome: "sent", submitted: "form" },
+    ]);
+  });
+
   it("an unknown placement is recorded as footer, like the stored contact", async () => {
     await postJson({ email: "c@launchloop.dev", placement: "sidebar", analyticsId: PAGE_ID });
     expect(captured()[0].properties.placement).toBe("footer");
