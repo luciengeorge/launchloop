@@ -24,6 +24,11 @@ function kitTtlSeconds(kit: Kit): number | undefined {
 export const newId = () => randomBytes(16).toString("base64url");
 export const isValidKitId = (id: string) => /^[A-Za-z0-9_-]{16,32}$/.test(id);
 
+/**
+ * The kit with its generated copy cleaned of dash punctuation (withCleanCopy). Reading never writes, but any
+ * read-modify-write (updateKit, from fulfilment and recordPayment) saves the cleaned copy back, so stored kits
+ * migrate lazily as they are touched. The cleaning must therefore only change dashes, never other text.
+ */
 export async function getKit(id: string): Promise<Kit | null> {
   if (!isValidKitId(id)) return null;
   const kit = await store().get<Kit>(key(id));

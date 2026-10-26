@@ -31,9 +31,12 @@ export interface Draft {
   complete: boolean;
 }
 
+/**
+ * The draft, its sections cleaned of dash punctuation. Reading never writes, but copyDraft and fulfilment save what
+ * they read, so stored drafts migrate lazily as they are touched. The cleaning must therefore only change dashes.
+ */
 export async function getDraft(id: string): Promise<Draft> {
   const [meta, ...values] = await Promise.all([store().get<DraftMeta>(metaKey(id)), ...KIT_SECTIONS.map((s) => store().get<Partial<KitContent>>(sectionKey(id, s)))]);
-  // Sections drafted before dash punctuation was cleaned from generated copy are fixed as they are read.
   const sections: Partial<KitContent> = sanitizeGenerated(Object.assign({}, ...values.filter(Boolean)));
   return { meta, sections, complete: KIT_SECTIONS.every((s) => sections[s] !== undefined) };
 }

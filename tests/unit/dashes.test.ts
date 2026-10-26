@@ -32,8 +32,68 @@ describe("sanitizeDashes", () => {
     expect(sanitizeDashes(input)).toBe(expected);
   });
 
-  it("a spaced em dash between numbers is punctuation, not a range", () => {
-    expect(sanitizeDashes("Version 2 \u2014 3 new features in one release")).toBe("Version 2: 3 new features in one release");
+  it.each([
+    ["Jan 5 \u2013 Feb 3", "Jan 5 - Feb 3"],
+    ["9am \u2013 5pm", "9am - 5pm"],
+    ["5 Jan \u2013 3 Feb 2026", "5 Jan - 3 Feb 2026"],
+    ["Open 9am\u20135pm daily", "Open 9am-5pm daily"],
+    ["COVID\u201319 safe", "COVID-19 safe"],
+    ["Mon\u2012Fri 9\u20125", "Mon-Fri 9-5"],
+  ])("an en or figure dash next to a token with a digit is a range and keeps its spacing: %s", (input, expected) => {
+    expect(sanitizeDashes(input)).toBe(expected);
+  });
+
+  it.each([
+    ["Day 1\u2014shipped it", "Day 1, shipped it"],
+    ["Version 2 \u2014 3 new features in one release", "Version 2: 3 new features in one release"],
+  ])("an em dash next to a digit is still punctuation: %s", (input, expected) => {
+    expect(sanitizeDashes(input)).toBe(expected);
+  });
+
+  it.each([
+    ["horizontal bar U+2015", "Notes\u2015fast and simple to use", "Notes: fast and simple to use"],
+    ["figure dash U+2012 in a number", "Call 555\u20121234 today", "Call 555-1234 today"],
+    ["figure dash U+2012 as punctuation", "Small \u2012 but complete", "Small, but complete"],
+  ])("%s", (_name, input, expected) => {
+    expect(sanitizeDashes(input)).toBe(expected);
+  });
+
+  it("leaves the minus sign (U+2212) alone", () => {
+    for (const text of ["\u22125\u00b0C at night", "2 \u2212 3 = \u22121", "Fast \u2014 \u22125\u00b0C"]) expect(sanitizeDashes(text)).toContain("\u2212");
+    expect(sanitizeDashes("2 \u2212 3 = \u22121")).toBe("2 \u2212 3 = \u22121");
+  });
+
+  it("only collapses the spaces the dash itself leaves: indentation and aligned text keep theirs", () => {
+    expect(sanitizeDashes("a \u2014 b\n    x")).toBe("a, b\n    x");
+    expect(sanitizeDashes("  \u2014 item\n    code   block")).toBe("  - item\n    code   block");
+    expect(sanitizeDashes("Ship it  now   \u2014   and   later")).toBe("Ship it  now, and   later");
+    expect(sanitizeDashes("Col A    Col B\nx \u2014 y")).toBe("Col A    Col B\nx, y");
+  });
+
+  it("a run of dashes is one dash, at the start of a line and inside it", () => {
+    expect(sanitizeDashes("\u2014\u2014double")).toBe("- double");
+    expect(sanitizeDashes("  \u2013\u2014 item")).toBe("  - item");
+    expect(sanitizeDashes("Wait\u2014\u2014this is the good part")).toBe("Wait: this is the good part");
+  });
+
+  it("URLs and code spans are left exactly as they are", () => {
+    expect(sanitizeDashes("https://ex.com/c\u2014d")).toBe("https://ex.com/c\u2014d");
+    expect(sanitizeDashes("Docs at https://ex.com/a\u2013b \u2014 it explains everything")).toBe("Docs at https://ex.com/a\u2013b: it explains everything");
+    expect(sanitizeDashes("Run `npm run a\u2014b` \u2014 then ship it")).toBe("Run `npm run a\u2014b`, then ship it");
+    expect(sanitizeDashes("`x\u2014y` and `z\u2013w`\u2014both work fine here")).toBe("`x\u2014y` and `z\u2013w`: both work fine here");
+  });
+
+  it.each([
+    ["50k digits then a dash", `${"1".repeat(50_000)}\u2014`],
+    ["50k digits, a dash, a digit", `${"1".repeat(50_000)}\u20132`],
+    ["50k digits with commas", `${"1,".repeat(25_000)}\u2013`],
+    ["50k spaces then a dash", `${" ".repeat(50_000)}\u2014x`],
+    ["a 50k-letter word then a dash", `${"a".repeat(50_000)} \u2014 b`],
+  ])("stays linear on hostile input: %s", (_name, input) => {
+    const started = performance.now();
+    const out = sanitizeDashes(input);
+    expect(performance.now() - started).toBeLessThan(100);
+    expect(out).not.toMatch(/[\u2012-\u2015]/);
   });
 
   it("an unspaced en dash between words is a compound and becomes a hyphen", () => {

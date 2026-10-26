@@ -17,7 +17,27 @@ const { NO_DASHES_RULE } = await import("@/lib/llm");
 const { getKit, saveKit } = await import("@/lib/kits");
 const { getDraft } = await import("@/lib/generation");
 
-const DASHES = /[\u2013\u2014]/;
+const DASHES = /[\u2012-\u2015]/;
+
+/** Stored copy that exercises every rule a lazy migration must get right: spacing, runs, ranges, bars, URLs and code. */
+const STORED_LINKEDIN = [
+  "Launch day\u2014finally.",
+  "  \u2014 item",
+  "    code   block",
+  "\u2014\u2014double",
+  "Open 9am \u2013 5pm, Jan 5 \u2013 Feb 3",
+  "Notes\u2015fast and simple to use",
+  "Docs: https://ex.com/c\u2014d and `a\u2014b`",
+].join("\n");
+const CLEAN_LINKEDIN = [
+  "Launch day, finally.",
+  "  - item",
+  "    code   block",
+  "- double",
+  "Open 9am - 5pm, Jan 5 - Feb 3",
+  "Notes: fast and simple to use",
+  "Docs: https://ex.com/c\u2014d and `a\u2014b`",
+].join("\n");
 const ok = (output: unknown) => ({ output, response: { modelId: "anthropic/claude-sonnet-4.5" } });
 
 /** A model that puts an em or en dash in every single field it writes, picked by what the prompt asks for. */
@@ -101,13 +121,21 @@ describe("dash punctuation in generated copy", () => {
       digest: "",
       llm: "gateway:x",
       checklist: ["Post it\u2014today"],
+      content: { linkedin: STORED_LINKEDIN },
     } as never);
     const kit = (await getKit(id))!;
     expect(JSON.stringify({ brief: kit.brief, preview: kit.preview, checklist: kit.checklist })).not.toMatch(DASHES);
     expect(kit.preview.tagline).toBe("Docs and examples: no permission needed");
     expect(kit.brief.url).toBe("https://example.com");
+    expect(kit.content?.linkedin).toBe(CLEAN_LINKEDIN);
 
-    await (kv.store as MemoryStore).set(`kitdraft:${id}:linkedin`, { linkedin: "Launch day\u2014finally" });
-    expect((await getDraft(id)).sections.linkedin).toBe("Launch day, finally");
+    // Reading never writes: the stored record still has its dashes until something saves the kit.
+    const raw = await (kv.store as MemoryStore).get<{ preview: { tagline: string }; content: { linkedin: string } }>(`kit:${id}`);
+    expect(raw?.preview.tagline).toBe("Docs and examples\u2014no permission needed");
+    expect(raw?.content.linkedin).toBe(STORED_LINKEDIN);
+
+    await (kv.store as MemoryStore).set(`kitdraft:${id}:linkedin`, { linkedin: STORED_LINKEDIN });
+    expect((await getDraft(id)).sections.linkedin).toBe(CLEAN_LINKEDIN);
+    expect((await (kv.store as MemoryStore).get<{ linkedin: string }>(`kitdraft:${id}:linkedin`))?.linkedin).toBe(STORED_LINKEDIN);
   });
 });

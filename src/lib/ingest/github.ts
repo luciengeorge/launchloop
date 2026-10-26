@@ -65,7 +65,8 @@ export function parseGitHubUrl(input: string): { owner: string; name: string } |
   const raw = input.trim().replace(/^git\+/i, "").replace(/[\t\n\r]/g, "");
   // The host and the owner/repo segments must be printable ASCII: URL parsing maps lookalikes such as the fullwidth dot
   // in "github．com" onto real characters. Later segments are only a file path (blob/main/café.md) and can be anything.
-  const [rawHost = "", rawOwner = "", rawRepo = ""] = raw.replace(/^https?:\/\//i, "").split(/[?#]/)[0].split(/[/\\]/);
+  // URL parsing skips any run of slashes after the scheme (https://///host), so they are skipped here too.
+  const [rawHost = "", rawOwner = "", rawRepo = ""] = raw.replace(/^(?:https?:)?[\\/]*/i, "").split(/[?#]/)[0].split(/[/\\]/);
   if ([rawHost, rawOwner, rawRepo].some((part) => /[^\x21-\x7e]/.test(part)) || DOT_SEGMENT.test(raw.split(/[?#]/)[0])) return null;
   let url: URL;
   try {

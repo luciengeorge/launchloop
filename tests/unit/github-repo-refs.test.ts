@@ -115,6 +115,10 @@ describe("parseGitHubUrl", () => {
     "https://github.com/acme/r\u00e9po",
     "https://github.com/acme/app\uff0e/blob/main/x.md",
     "https://github\uff0ecom/acme/app/blob/main/caf\u00e9.md",
+    "https://///github\uff0ecom/a/b",
+    "https:\\\\github\uff0ecom/a/b",
+    "///github\uff0ecom/a/b",
+    "https:/github.com/caf\u00e9/repo",
   ])("non-ASCII in the host or the owner/repo (%s) is refused everywhere", (input) => {
     expect(parseGitHubUrl(input)).toBeNull();
     expect(githubRepoLink(input)).toBeUndefined();
