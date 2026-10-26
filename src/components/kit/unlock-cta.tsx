@@ -2,13 +2,13 @@
 
 import { cn } from "cn";
 import { Loader2, Lock } from "lucide-react";
-import { useEffect, useState, type Ref } from "react";
+import { useEffect, useId, useState, type Ref } from "react";
 import { Button } from "@/components/ui/button";
 import type { Served } from "@/lib/experiments";
 import { SITE_HEADER_PX, UNLOCK_ZONE_ATTRIBUTE } from "@/lib/paywall-cta";
 import { LAUNCH_PROMO } from "@/lib/products";
 import type { UnlockContext, UnlockCtaPosition } from "@/lib/unlock-checkout";
-import { useShownOnce, useUnlockCheckout } from "./unlock-checkout";
+import { useUnlockButtonRef, useUnlockCheckout } from "./unlock-checkout";
 import { CheckoutError } from "./unlock-error";
 
 /** Every unlock button with the early CTA on: the brand orange darkened to >= 4.5:1 behind its white label. */
@@ -28,20 +28,50 @@ function useUnlockButton({ kitId, priceLabel, launchPromo, email }: Props, posit
   const checkout = useUnlockCheckout();
   const promo = launchPromo.variant === "treatment" && !checkout.fullPriceUrl;
   const context: UnlockContext = { kitId, position, earlyCta: checkout.earlyCta, isLoggedIn: !!email };
-  const failure = checkout.failed?.position === position ? checkout.failed.failure : null;
+  const failed = checkout.failed?.position === position ? checkout.failed : null;
+  const errorId = useId();
+  const buttonId = useId();
   return {
     checkout,
     context,
-    failure,
+    failure: failed?.failure ?? null,
+    failedAttempt: failed?.attempt,
+    errorId,
+    buttonId,
     price: promo ? LAUNCH_PROMO.priceLabel : priceLabel,
     struck: promo ? priceLabel : null,
-    click: (retry: boolean) => checkout.click(context, { promo, retry }),
+    click: (retry: boolean) => {
+      // "Try again" is about to disappear with its error: focus waits on the unlock button, which stays focusable while busy.
+      if (retry) document.getElementById(buttonId)?.focus();
+      checkout.click(context, { promo, retry });
+    },
   };
 }
 
-function UnlockButton({ price, busy, onClick, className, ref }: { price?: string; busy: boolean; onClick?: () => void; className?: string; ref?: Ref<HTMLButtonElement> }) {
+interface UnlockButtonProps {
+  id?: string;
+  price?: string;
+  busy: boolean;
+  onClick?: () => void;
+  className?: string;
+  ref?: Ref<HTMLButtonElement>;
+  /** The id of this button's checkout error, while it has one. */
+  describedBy?: string;
+}
+
+/** Busy, it's aria-disabled but keeps focus (focusableWhenDisabled), so focus doesn't drop to the page while checkout starts. */
+function UnlockButton({ id, price, busy, onClick, className, ref, describedBy }: UnlockButtonProps) {
   return (
-    <Button ref={ref} type="button" className={cn("h-11 text-base", UNLOCK_BUTTON_CLASS, className)} onClick={onClick} disabled={busy || !onClick}>
+    <Button
+      ref={ref}
+      id={id}
+      type="button"
+      className={cn("h-11 text-base aria-disabled:pointer-events-none aria-disabled:opacity-50", UNLOCK_BUTTON_CLASS, className)}
+      onClick={onClick}
+      disabled={busy || !onClick}
+      focusableWhenDisabled={!!onClick}
+      aria-describedby={describedBy}
+    >
       {busy ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Lock aria-hidden="true" />}
       {price ? `Unlock the full kit, ${price}` : "Unlock the full kit"}
     </Button>
@@ -70,7 +100,7 @@ const TOP_BUTTON = "w-full sm:w-64";
 /** The early unlock CTA, right under the paywall heading on every viewport: the price and the same checkout as the panel's button. */
 export function UnlockCta(props: Props) {
   const button = useUnlockButton(props, "top");
-  const shownRef = useShownOnce(button.context);
+  const ref = useUnlockButtonRef(button.context, button.failedAttempt);
   return (
     <div className="rounded-xl border border-border bg-background p-4" data-testid="early-unlock-cta">
       <div className={ROW}>
@@ -78,9 +108,17 @@ export function UnlockCta(props: Props) {
           <Price price={button.price} struck={button.struck} className="text-2xl font-semibold tracking-tight" />
           <span className="ml-1.5 text-sm text-muted-foreground">once, no subscription</span>
         </p>
-        <UnlockButton ref={shownRef} price={button.price} busy={button.checkout.redirecting} onClick={() => button.click(false)} className={TOP_BUTTON} />
+        <UnlockButton
+          ref={ref}
+          id={button.buttonId}
+          price={button.price}
+          busy={button.checkout.redirecting}
+          onClick={() => button.click(false)}
+          className={TOP_BUTTON}
+          describedBy={button.failure ? button.errorId : undefined}
+        />
       </div>
-      {button.failure ? <CheckoutError failure={button.failure} isLoggedIn={button.context.isLoggedIn} onRetry={() => button.click(true)} /> : null}
+      {button.failure ? <CheckoutError failure={button.failure} isLoggedIn={button.context.isLoggedIn} onRetry={() => button.click(true)} messageId={button.errorId} /> : null}
     </div>
   );
 }
@@ -104,8 +142,7 @@ export function UnlockCtaPlaceholder() {
 
 /**
  * Visible once the visitor has scrolled past an unlock button while the paywall is still on screen and no unlock
- * button is (the locked sections and the free sample between the early CTA and the panel), and never while checkout is
- * starting. It slides in and out over the page without moving anything, and is gone before the panel (with the
+ * button is (the locked sections and the free sample between the early CTA and the panel). It slides in and out over the page without moving anything, and is gone before the panel (with the
  * save-preview form) or anything after the paywall, like the footer, scrolls up behind it.
  */
 function useStickyVisible(): boolean {
@@ -141,8 +178,10 @@ function useStickyVisible(): boolean {
 /** Below lg only: a fixed bottom bar with the price and the same unlock button, for the long one-column paywall. */
 export function StickyUnlockBar(props: Props) {
   const button = useUnlockButton(props, "sticky");
-  const visible = useStickyVisible() && !button.checkout.redirecting;
-  const shownRef = useShownOnce(button.context);
+  const ref = useUnlockButtonRef(button.context, button.failedAttempt);
+  // Out of the way of a checkout another button started; its own stays up, so focus stays on its button meanwhile.
+  const startedElsewhere = button.checkout.redirecting && button.checkout.pending !== "sticky";
+  const visible = useStickyVisible() && !startedElsewhere;
   return (
     <aside
       aria-label="Unlock the full kit"
@@ -159,11 +198,19 @@ export function StickyUnlockBar(props: Props) {
           <span className="ml-1 text-xs text-muted-foreground">once</span>
           <span className="block text-xs text-muted-foreground">No subscription</span>
         </p>
-        <UnlockButton ref={shownRef} price={button.price} busy={button.checkout.redirecting} onClick={() => button.click(false)} className="px-3.5" />
+        <UnlockButton
+          ref={ref}
+          id={button.buttonId}
+          price={button.price}
+          busy={button.checkout.redirecting}
+          onClick={() => button.click(false)}
+          className="px-3.5"
+          describedBy={button.failure ? button.errorId : undefined}
+        />
       </div>
       {button.failure ? (
         <div className="mx-auto max-w-6xl px-3 pb-3 sm:px-6">
-          <CheckoutError failure={button.failure} isLoggedIn={button.context.isLoggedIn} onRetry={() => button.click(true)} className="mt-0" />
+          <CheckoutError failure={button.failure} isLoggedIn={button.context.isLoggedIn} onRetry={() => button.click(true)} className="mt-0" messageId={button.errorId} />
         </div>
       ) : null}
     </aside>

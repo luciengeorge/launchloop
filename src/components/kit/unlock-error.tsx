@@ -22,13 +22,20 @@ interface ActionableErrorProps {
   size?: "sm" | "xs";
   testId?: string;
   code?: string;
+  /** The message's id, for the button that failed to point at with aria-describedby once focus is back on it. */
+  messageId?: string;
 }
 
-/** An error with what to do about it, right next to the message and announced with it. */
-export function ActionableError({ message, actions, className, size = "sm", testId, code }: ActionableErrorProps) {
+/**
+ * An error with what to do about it, right next to the message. role="alert" announces it as it appears; the button
+ * that failed also describes itself with the message (messageId), so it's read again when focus lands there.
+ */
+export function ActionableError({ message, actions, className, size = "sm", testId, code, messageId }: ActionableErrorProps) {
   return (
     <div role="alert" className={cn("mt-3", className)} data-testid={testId} data-code={code}>
-      <p className={cn("text-destructive", size === "sm" ? "text-sm" : "text-xs")}>{message}</p>
+      <p id={messageId} className={cn("text-destructive", size === "sm" ? "text-sm" : "text-xs")}>
+        {message}
+      </p>
       <div className="mt-2 flex flex-wrap gap-2">
         {actions.map((action) =>
           action.href ? (
@@ -76,7 +83,19 @@ function recoveryAction(recovery: CheckoutRecovery, onRetry: () => void): ErrorA
 }
 
 /** A failed checkout from one unlock button, with "Try again" (which runs the same checkout) and/or another way on. */
-export function CheckoutError({ failure, isLoggedIn, onRetry, className }: { failure: CheckoutFailure; isLoggedIn: boolean; onRetry: () => void; className?: string }) {
+export function CheckoutError({
+  failure,
+  isLoggedIn,
+  onRetry,
+  className,
+  messageId,
+}: {
+  failure: CheckoutFailure;
+  isLoggedIn: boolean;
+  onRetry: () => void;
+  className?: string;
+  messageId?: string;
+}) {
   const [first, ...rest] = checkoutRecovery(failure.code, isLoggedIn);
   return (
     <ActionableError
@@ -85,6 +104,7 @@ export function CheckoutError({ failure, isLoggedIn, onRetry, className }: { fai
       className={className}
       testId="checkout-error"
       code={failure.code}
+      messageId={messageId}
     />
   );
 }

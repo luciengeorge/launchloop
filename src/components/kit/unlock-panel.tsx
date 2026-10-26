@@ -2,18 +2,19 @@
 
 import { cn } from "cn";
 import { ArrowRight, BookmarkCheck, Check, Loader2, Lock, Mail } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState, type Ref } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { analyticsId } from "@/lib/analytics";
-import { postJson } from "@/lib/client";
+import { postJson, shownError } from "@/lib/client";
 import { EXPERIMENTS, type Served } from "@/lib/experiments";
+import { LOGIN_ERRORS } from "@/lib/login-errors";
 import { useClaimPrimaryCta } from "@/lib/primary-cta";
 import { LAUNCH_PROMO } from "@/lib/products";
 import { trackUnlockClicked, type UnlockContext } from "@/lib/unlock-checkout";
 import { useServerAssignment } from "@/lib/use-experiment";
-import { useShownOnce, useUnlockCheckout } from "./unlock-checkout";
+import { useUnlockButtonRef, useUnlockCheckout } from "./unlock-checkout";
 import { UNLOCK_BUTTON_CLASS } from "./unlock-cta";
 import { ActionableError, CheckoutError, SAVE_PREVIEW_FIELD_ID } from "./unlock-error";
 
@@ -68,8 +69,17 @@ export function UnlockPanel({ kitId, priceLabel, launchPromo, email, autoCheckou
   // Checkout started from the early CTA or the sticky bar shows here too.
   const step: Step = unlock.redirecting ? "redirecting" : ownStep;
   const context: UnlockContext = { kitId, position: "panel", earlyCta: unlock.earlyCta, isLoggedIn: !!signedIn };
-  const shownRef = useShownOnce(context);
-  const checkoutFailure = unlock.failed?.position === "panel" ? unlock.failed.failure : null;
+  const failed = unlock.failed?.position === "panel" ? unlock.failed : null;
+  const checkoutFailure = failed?.failure ?? null;
+  const unlockRef = useUnlockButtonRef(context, failed?.attempt);
+  const errorId = useId();
+  /** Set by a click: the button and its error leave while checkout starts, so focus waits on the status line instead. */
+  const focusStatus = useRef(false);
+  const statusRef = useCallback((element: HTMLParagraphElement | null) => {
+    if (!element || !focusStatus.current) return;
+    focusStatus.current = false;
+    element.focus({ preventScroll: true });
+  }, []);
 
   useEffect(() => {
     if (email) return;
@@ -111,8 +121,9 @@ export function UnlockPanel({ kitId, priceLabel, launchPromo, email, autoCheckou
 
   function unlockClicked(retry: boolean) {
     trackUnlockClicked(context, retry);
-    if (fullPriceUrl) window.location.assign(fullPriceUrl);
-    else void checkout(retry);
+    if (fullPriceUrl) return window.location.assign(fullPriceUrl);
+    focusStatus.current = true;
+    void checkout(retry);
   }
 
   useEffect(() => {
@@ -137,7 +148,7 @@ export function UnlockPanel({ kitId, priceLabel, launchPromo, email, autoCheckou
         window.location.assign(next);
       }
     } catch (err) {
-      setError({ kind: "code", message: (err as Error).message });
+      setError({ kind: "code", message: shownError(err, LOGIN_ERRORS.code) });
       setLoading(false);
     }
   }
@@ -152,7 +163,7 @@ export function UnlockPanel({ kitId, priceLabel, launchPromo, email, autoCheckou
       setCode("");
       setStep("sent");
     } catch (err) {
-      setError({ kind: "link", message: (err as Error).message });
+      setError({ kind: "link", message: shownError(err, LOGIN_ERRORS.send) });
     } finally {
       setLoading(false);
     }
@@ -176,7 +187,7 @@ export function UnlockPanel({ kitId, priceLabel, launchPromo, email, autoCheckou
       await postJson("/api/auth/request", { email: address, intent: { type: "save", kitId, aid: await analyticsId() } });
       setSave("sent");
     } catch (err) {
-      setSaveError((err as Error).message);
+      setSaveError(shownError(err, LOGIN_ERRORS.send));
       setSave("idle");
     }
   }
@@ -220,7 +231,8 @@ export function UnlockPanel({ kitId, priceLabel, launchPromo, email, autoCheckou
 
       {step === "cta" ? (
         <Button
-          ref={shownRef}
+          ref={unlockRef}
+          aria-describedby={checkoutFailure ? errorId : undefined}
           type="button"
           className={cn("mt-6 h-11 w-full text-base", unlock.earlyCta && UNLOCK_BUTTON_CLASS)}
           onClick={() => unlockClicked(false)}
@@ -282,9 +294,9 @@ export function UnlockPanel({ kitId, priceLabel, launchPromo, email, autoCheckou
         </div>
       ) : null}
 
-      {step === "redirecting" ? <Redirecting /> : null}
+      {step === "redirecting" ? <Redirecting ref={statusRef} /> : null}
 
-      {checkoutFailure ? <CheckoutError failure={checkoutFailure} isLoggedIn={!!signedIn} onRetry={() => unlockClicked(true)} /> : null}
+      {checkoutFailure ? <CheckoutError failure={checkoutFailure} isLoggedIn={!!signedIn} onRetry={() => unlockClicked(true)} messageId={errorId} /> : null}
       {error?.kind === "link" ? (
         <ActionableError
           message={error.message}
@@ -460,9 +472,10 @@ function LoginFirst({ onClick }: { onClick?: () => void }) {
   );
 }
 
-function Redirecting() {
+/** Focusable from script only (tabIndex -1), to hold focus in place of the unlock button while checkout starts. */
+function Redirecting({ ref }: { ref?: Ref<HTMLParagraphElement> }) {
   return (
-    <p className="mt-6 flex items-center justify-center gap-2 text-sm font-medium" role="status">
+    <p ref={ref} tabIndex={-1} className="mt-6 flex items-center justify-center gap-2 text-sm font-medium outline-none" role="status" data-testid="checkout-redirecting">
       <Loader2 className="size-4 animate-spin" aria-hidden="true" /> Taking you to secure checkout…
     </p>
   );
