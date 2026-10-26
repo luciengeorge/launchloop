@@ -63,7 +63,7 @@ export default defineConfig({
   },
   projects: [
     { name: "desktop", use: { ...devices["Desktop Chrome"] }, testIgnore: [/newsletter-mobile\.spec\.ts/, HERO_SPEC, INLINE_SPEC] },
-    { name: "mobile", use: { ...devices["Pixel 7"] }, testMatch: /(home|tagline-checker|og-preview|newsletter-mobile)\.spec\.ts/ },
+    { name: "mobile", use: { ...devices["Pixel 7"] }, testMatch: /(home|tagline-checker|og-preview|newsletter-mobile|orange-cta)\.spec\.ts/ },
     { name: "hero-desktop", use: { ...devices["Desktop Chrome"], baseURL: heroURL }, testMatch: HERO_SPEC },
     { name: "hero-mobile", use: { ...devices["Pixel 7"], baseURL: heroURL }, testMatch: HERO_SPEC },
     { name: "inline-desktop", use: { ...devices["Desktop Chrome"], baseURL: inlineURL }, testMatch: INLINE_SPEC },

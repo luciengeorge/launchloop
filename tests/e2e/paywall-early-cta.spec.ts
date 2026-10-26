@@ -1,6 +1,6 @@
 import { expect, test, type APIRequestContext, type BrowserContext, type Locator, type Page, type Route } from "@playwright/test";
 import { CHECKOUT_TIMEOUT_MS } from "@/lib/unlock-checkout";
-import { makeSampleKit, uniqueEmail } from "./helpers";
+import { contrast, makeSampleKit, uniqueEmail } from "./helpers";
 
 const FIXTURE = "http://127.0.0.1:3419";
 const FLAG = "exp_paywall_early_cta";
@@ -42,6 +42,21 @@ async function failCheckoutOnce(page: Page, fail: Parameters<Page["route"]>[1]) 
     return fail(route, request);
   });
 }
+
+/** The label is at least 4.5:1 on the button, at rest and hovered (the button has transition-all). */
+async function expectReadable(page: Page, button: Locator, name: string) {
+  await button.scrollIntoViewIfNeeded();
+  const rest = await contrast(button);
+  expect(rest, name).toBeGreaterThanOrEqual(4.5);
+  await button.hover();
+  await page.waitForTimeout(300);
+  const hovered = await contrast(button);
+  expect(hovered, `${name} (hovered)`).toBeGreaterThanOrEqual(4.5);
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(300);
+  console.log(`contrast ${name}: ${rest.toFixed(2)} at rest, ${hovered.toFixed(2)} hovered`);
+}
+
 const serverError = { status: 502, json: { error: "Couldn't start checkout. Please try again." } };
 
 type CheckoutAnswer = (route: Route) => Promise<void>;
@@ -138,26 +153,13 @@ test.describe("flag on, desktop", () => {
     await page.waitForURL(/\/checkout\/mock\?product=kit/);
   });
 
-  test("the unlock buttons' labels are at least 4.5:1 on their background", async ({ page }) => {
+  test("the early CTA and the panel's button: the shared orange with a dark label, at least 4.5:1 at rest and hovered", async ({ page }) => {
     await earlyCtaKit(page);
-    for (const button of [earlyButton(page), panelButton(page)]) {
-      const ratio = await button.evaluate((el) => {
-        const rgb = (color: string) => {
-          const ctx = document.createElement("canvas").getContext("2d")!;
-          ctx.fillStyle = color;
-          ctx.fillRect(0, 0, 1, 1);
-          return [...ctx.getImageData(0, 0, 1, 1).data].slice(0, 3);
-        };
-        const lum = (color: string) => {
-          const [r, g, b] = rgb(color).map((v) => (v / 255 <= 0.04045 ? v / 255 / 12.92 : ((v / 255 + 0.055) / 1.055) ** 2.4));
-          return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-        };
-        const style = getComputedStyle(el);
-        const [a, b] = [lum(style.color), lum(style.backgroundColor)].sort((x, y) => y - x);
-        return (a + 0.05) / (b + 0.05);
-      });
-      expect(ratio).toBeGreaterThanOrEqual(4.5);
+    for (const [name, button] of [["early CTA", earlyButton(page)], ["panel", panelButton(page)]] as const) {
+      await expectReadable(page, button, name);
     }
+    const fill = (button: Locator) => button.evaluate((el) => getComputedStyle(el).backgroundColor);
+    await expect.poll(async () => (await fill(earlyButton(page))) === (await fill(panelButton(page)))).toBe(true);
   });
 });
 
@@ -332,6 +334,18 @@ for (const [label, viewport] of [
     });
   });
 }
+
+test.describe("flag on, narrow window with a mouse", () => {
+  // Not a touch device, so :hover applies (Tailwind's hover only matches where the pointer can hover).
+  test.use({ viewport: MOBILE });
+
+  test("the sticky bar's button: the shared orange with a dark label, at least 4.5:1 at rest and hovered", async ({ page }) => {
+    await earlyCtaKit(page);
+    await toLockedSections(page);
+    await expect(stickyBar(page)).toHaveAttribute("data-visible", "true");
+    await expectReadable(page, stickyBar(page).getByRole("button", { name: "Unlock the full kit, £19" }), "sticky bar");
+  });
+});
 
 test.describe("errors always carry a CTA (flag off too)", () => {
   test("panel checkout failure: Try again starts checkout", async ({ page }) => {
