@@ -221,7 +221,7 @@ export function store(): KeyValueStore {
   if (env.kvUrl && env.kvToken) {
     instance = new RedisRestStore(env.kvUrl, env.kvToken);
   } else {
-    if (kvMissingInProduction(env)) throw new Error("KV_REST_API_URL and KV_REST_API_TOKEN must be set in production");
+    if (kvMissingInProduction(env)) throw new Error("KV_REST_API_URL and KV_REST_API_TOKEN (or UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN) must be set in production");
     const dir = env.dataDir ?? (process.env.VERCEL ? "/tmp/launchloop" : path.join(process.cwd(), ".data"));
     instance = new FileStore(dir);
   }

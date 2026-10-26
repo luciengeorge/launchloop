@@ -68,7 +68,7 @@ describe("store() without KV", () => {
   it("throws in production instead of falling back to files in /tmp", async () => {
     deployment("production");
     const { store } = await import("@/lib/store");
-    expect(() => store()).toThrow("KV_REST_API_URL and KV_REST_API_TOKEN must be set in production");
+    expect(() => store()).toThrow("KV_REST_API_URL and KV_REST_API_TOKEN (or UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN) must be set in production");
   });
 
   it.each(["preview", ""])("VERCEL_ENV=%j still uses the file store", async (vercelEnv) => {
