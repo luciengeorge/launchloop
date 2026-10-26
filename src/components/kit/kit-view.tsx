@@ -6,6 +6,7 @@ import { launchChecklist, mockContent } from "@/lib/copy";
 import { MAX_ATTEMPTS } from "@/lib/fulfil";
 import { resolveKitPromo } from "@/lib/kit-promo";
 import { getDraft } from "@/lib/generation";
+import { resolvePaywallEarlyCta } from "@/lib/paywall-cta-server";
 import { getProgress, isOwner } from "@/lib/progress";
 import type { Kit } from "@/lib/schema";
 import { buildTasks, mask, maskContent } from "@/lib/tasks";
@@ -46,7 +47,8 @@ export async function KitView({ kit, session, query }: Props) {
  * masked placeholder text shaped like the real copy. Only the free pieces are real.
  */
 async function LockedKit({ kit, session, query }: Props) {
-  const draft = await getDraft(kit.id);
+  // The kill switch is read with the draft, not streamed in after, so turning the early CTA on can't move the page.
+  const [draft, earlyCta] = await Promise.all([getDraft(kit.id), resolvePaywallEarlyCta(kit.id)]);
   const shape = draft.complete ? { ...mockContent(kit.brief, kit.preview), ...draft.sections } : mockContent(kit.brief, kit.preview);
   const checklist = launchChecklist(kit.brief);
   const tasks = buildTasks({
@@ -64,6 +66,7 @@ async function LockedKit({ kit, session, query }: Props) {
         counts={{ features: shape.landing.features.length, xPosts: shape.xThread.length, checklistSteps: checklist.length }}
         free={{ tagline: kit.preview.tagline, xPost: kit.preview.xPost }}
         launchPromo={resolveKitPromo(kit.id)}
+        earlyCta={earlyCta}
         email={session?.email}
         query={query}
       />

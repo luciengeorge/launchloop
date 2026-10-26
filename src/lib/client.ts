@@ -2,10 +2,22 @@ import { analyticsId, firstTouch, isTestVisit, pageAnalyticsId } from "./analyti
 import type { ExperimentKey, Served } from "./experiments";
 import type { PreviewLimits } from "./site";
 
-export async function postJson<T>(url: string, body: unknown): Promise<T> {
-  const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-  const data = (await res.json().catch(() => ({}))) as T & { error?: string };
-  if (!res.ok) throw new Error(data.error ?? `Request failed (${res.status})`);
+/** A JSON API answered with an error: its message, the HTTP status, and its `code` when it sent one. */
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number,
+    public readonly code?: string,
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
+export async function postJson<T>(url: string, body: unknown, { signal }: { signal?: AbortSignal } = {}): Promise<T> {
+  const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal });
+  const data = (await res.json().catch(() => ({}))) as T & { error?: string; code?: unknown };
+  if (!res.ok) throw new ApiError(data.error ?? `Request failed (${res.status})`, res.status, typeof data.code === "string" ? data.code : undefined);
   return data;
 }
 
@@ -19,18 +31,27 @@ export interface CheckoutStart {
  * Creates a Checkout session (the server records checkout_started) and returns where to send the buyer.
  * `served` is what this page showed for other experiments, logged as is. The kit promo
  * (exp_launch14_promo) is never sent: the server resolves it and decides LAUNCH14.
- * Kit only: Ship Loop is a free waitlist, and /api/checkout rejects anything else.
+ * Kit only: Ship Loop is a free waitlist, and /api/checkout rejects anything else. `signal` aborts the request.
  */
-export async function startCheckout(product: "kit", kitId: string, served: Partial<Record<ExperimentKey, Served>> = {}): Promise<CheckoutStart> {
+export async function startCheckout(
+  product: "kit",
+  kitId: string,
+  served: Partial<Record<ExperimentKey, Served>> = {},
+  { signal }: { signal?: AbortSignal } = {},
+): Promise<CheckoutStart> {
   const entries = Object.entries(served) as [ExperimentKey, Served][];
-  return postJson<CheckoutStart>("/api/checkout", {
-    product,
-    kitId,
-    analyticsId: await analyticsId(),
-    experiments: Object.fromEntries(entries.map(([key, s]) => [key, s.variant])),
-    fallbacks: entries.filter(([, s]) => s.fallback).map(([key]) => key),
-    ...(isTestVisit() ? { isTest: true } : {}),
-  });
+  return postJson<CheckoutStart>(
+    "/api/checkout",
+    {
+      product,
+      kitId,
+      analyticsId: await analyticsId(),
+      experiments: Object.fromEntries(entries.map(([key, s]) => [key, s.variant])),
+      fallbacks: entries.filter(([, s]) => s.fallback).map(([key]) => key),
+      ...(isTestVisit() ? { isTest: true } : {}),
+    },
+    { signal },
+  );
 }
 
 
