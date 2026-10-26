@@ -141,6 +141,27 @@ describe("the /checkout/mock page", () => {
     await expect(renderMockCheckout()).rejects.toMatchObject({ digest: expect.stringContaining("404") });
   });
 
+  it("in production the page calls notFound() at its top level, before any Suspense boundary streams a 200 shell", async () => {
+    deployment("production");
+    vi.doMock("@/components/mock-checkout-form", () => ({ MockCheckoutForm: () => null }));
+    const { default: MockCheckoutPage } = await import("@/app/checkout/mock/page");
+    expect(() => MockCheckoutPage({ searchParams: Promise.resolve({ product: "kit" }) } as never)).toThrow(expect.objectContaining({ digest: expect.stringContaining("404") }));
+  });
+
+  it("the title never says 'Test checkout' in production", async () => {
+    deployment("production");
+    vi.doMock("@/components/mock-checkout-form", () => ({ MockCheckoutForm: () => null }));
+    const { generateMetadata } = await import("@/app/checkout/mock/page");
+    expect(generateMetadata()).toEqual({ title: "Page not found", robots: { index: false, follow: false } });
+  });
+
+  it.each(["preview", ""])("VERCEL_ENV=%j keeps the 'Test checkout' title", async (vercelEnv) => {
+    deployment(vercelEnv);
+    vi.doMock("@/components/mock-checkout-form", () => ({ MockCheckoutForm: () => null }));
+    const { generateMetadata } = await import("@/app/checkout/mock/page");
+    expect(generateMetadata()).toMatchObject({ title: "Test checkout" });
+  });
+
   it.each(["preview", ""])("still renders with VERCEL_ENV=%j and no Stripe key", async (vercelEnv) => {
     deployment(vercelEnv);
     await expect(renderMockCheckout()).resolves.toBeTruthy();

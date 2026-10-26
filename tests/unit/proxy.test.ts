@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { unstable_doesMiddlewareMatch } from "next/experimental/testing/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { SESSION_COOKIE } from "@/lib/auth";
 import { config, proxy } from "@/proxy";
 
@@ -53,5 +53,29 @@ describe("proxy: logged-out /account redirect", () => {
   it("runs on /account pages but not on the rest of the site", () => {
     for (const url of ["/account", "/account/kits/abc", "/account?billing=error"]) expect(unstable_doesMiddlewareMatch({ config, url }), url).toBe(true);
     for (const url of ["/", "/login", "/kit/abc", "/accounts", "/pricing"]) expect(unstable_doesMiddlewareMatch({ config, url }), url).toBe(false);
+  });
+});
+
+describe("proxy: the mock checkout in production", () => {
+  const rewrite = (res: Response | undefined) => res?.headers.get("x-middleware-rewrite");
+
+  it.each(["/checkout/mock", "/checkout/mock?product=kit&kitId=AKWq8__P15_kweHmfXX_Uw"])("rewrites %s to a path no route matches, so Next answers 404", (path) => {
+    vi.stubEnv("VERCEL_ENV", "production");
+    expect(rewrite(proxy(request(path)))).toMatch(/^https:\/\/launchloop\.dev\/_not-found-checkout-mock(\?|$)/);
+  });
+
+  it.each(["preview", "development", ""])("lets VERCEL_ENV=%j through to the page", (vercelEnv) => {
+    vi.stubEnv("VERCEL_ENV", vercelEnv);
+    expect(proxy(request("/checkout/mock?product=kit"))).toBeUndefined();
+  });
+
+  it("only touches /checkout/mock itself", () => {
+    vi.stubEnv("VERCEL_ENV", "production");
+    for (const path of ["/checkout/success?session_id=x", "/api/checkout/mock", "/checkout/mocks"]) expect(proxy(request(path)), path).toBeUndefined();
+  });
+
+  it("the matcher sends /checkout/mock through the proxy", () => {
+    for (const url of ["/checkout/mock", "/checkout/mock?product=kit"]) expect(unstable_doesMiddlewareMatch({ config, url }), url).toBe(true);
+    for (const url of ["/checkout/success", "/api/checkout/mock"]) expect(unstable_doesMiddlewareMatch({ config, url }), url).toBe(false);
   });
 });
