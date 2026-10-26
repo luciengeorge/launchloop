@@ -21,13 +21,21 @@ function gapBeforeStruckPrice(trigger: Locator) {
   });
 }
 
+/**
+ * True once React has hydrated this node: React stores its fiber on the DOM node under a "__reactFiber$..." key.
+ * Swapping the node's HTML before then races hydration, which can put React's own markup back.
+ */
+const isHydrated = (locator: Locator) => locator.evaluate((el) => Object.keys(el).some((key) => key.startsWith("__reactFiber$")));
+
 // The e2e server always runs with the promo off, so this puts the promo markup into the real accordion trigger (real CSS, flex).
 test("the home FAQ keeps the space before 'was £19 now £14' at phone width", async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 812 });
   await page.goto("/");
   const trigger = page.getByRole("button", { name: /^What do I get for/ });
   await expect(trigger).toBeVisible();
-  await trigger.getByTestId("faq-question").evaluate((el, html) => {
+  const question = trigger.getByTestId("faq-question");
+  await expect.poll(() => isHydrated(question), { message: "the FAQ question has hydrated" }).toBe(true);
+  await question.evaluate((el, html) => {
     el.innerHTML = html;
   }, renderToStaticMarkup(<PricedText text={PRICED_QUESTION} promo />));
   await expect(trigger.locator("s")).toHaveText(/£19/);
