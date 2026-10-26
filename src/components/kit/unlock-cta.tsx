@@ -102,7 +102,8 @@ export function UnlockCtaPlaceholder() {
   );
 }
 
-type ZoneState = "in" | "above" | "below";
+/** The site header is sticky over the top 3.5rem: a button under it isn't in view. */
+const HEADER_PX = 56;
 
 /**
  * Visible once the visitor has scrolled past an unlock button while the paywall is still on screen and no unlock
@@ -114,24 +115,28 @@ function useStickyVisible(): boolean {
   const [visible, setVisible] = useState(false);
   useEffect(() => {
     const paywall = document.querySelector('[data-testid="preview-paywall"]');
-    if (!paywall || typeof IntersectionObserver === "undefined") return;
-    const zones = new Map<Element, ZoneState>();
-    let paywallInView = false;
-    // The site header is sticky over the top 3.5rem: a button under it isn't in view.
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.target === paywall) paywallInView = entry.isIntersecting;
-          else zones.set(entry.target, entry.isIntersecting ? "in" : entry.boundingClientRect.bottom <= (entry.rootBounds?.top ?? 0) ? "above" : "below");
-        }
-        const states = [...zones.values()];
-        setVisible(paywallInView && !states.includes("in") && states.includes("above"));
-      },
-      { rootMargin: "-56px 0px 0px 0px" },
-    );
-    observer.observe(paywall);
-    for (const zone of paywall.querySelectorAll(`[${UNLOCK_ZONE_ATTRIBUTE}]`)) observer.observe(zone);
-    return () => observer.disconnect();
+    if (!paywall) return;
+    const zones = [...paywall.querySelectorAll(`[${UNLOCK_ZONE_ATTRIBUTE}]`)];
+    // Read from layout on every scroll rather than from IntersectionObserver crossings: a jump (an anchor, a fling,
+    // scroll restoration) can take a button from below the screen to above it without ever crossing into view.
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      const inView = (r: DOMRect) => r.bottom > HEADER_PX && r.top < window.innerHeight;
+      const rects = zones.map((zone) => zone.getBoundingClientRect());
+      setVisible(inView(paywall.getBoundingClientRect()) && !rects.some(inView) && rects.some((r) => r.bottom <= HEADER_PX));
+    };
+    const schedule = () => {
+      frame ||= requestAnimationFrame(update);
+    };
+    schedule();
+    window.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", schedule);
+    };
   }, []);
   return visible;
 }

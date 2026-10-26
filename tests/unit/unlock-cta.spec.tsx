@@ -14,6 +14,7 @@ const control: Served = { variant: "control", fallback: "unassigned" };
 /** Text with a space wherever a tag was. */
 const text = (html: string) => html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
 const buttons = (html: string) => html.match(/<button[^>]*>.*?<\/button>/g) ?? [];
+const firstButton = (html: string) => buttons(html)[0] ?? "";
 
 const panelHtml = (earlyCta: boolean) =>
   renderToStaticMarkup(
@@ -25,7 +26,7 @@ const panelHtml = (earlyCta: boolean) =>
 test("early CTA: the price and the same £19 unlock button as the panel, in the server HTML, in the accessible colour", () => {
   const html = renderToStaticMarkup(<UnlockCta {...KIT} launchPromo={control} />);
   expect(text(html)).toContain("£19 once, no subscription");
-  const [button] = buttons(html);
+  const button = firstButton(html);
   expect(text(button)).toContain("Unlock the full kit, £19");
   expect(button).toContain("bg-cta");
   expect(button).not.toContain(' disabled=""');
@@ -44,8 +45,8 @@ test("early CTA placeholder: no price yet, disabled, and the same box and button
   const placeholder = renderToStaticMarkup(<UnlockCtaPlaceholder />);
   const real = renderToStaticMarkup(<UnlockCta {...KIT} launchPromo={control} />);
   expect(placeholder).toContain("Loading price");
-  expect(buttons(placeholder)[0]).toContain(' disabled=""');
-  const classes = (html: string) => [html.match(/^<div class="([^"]+)"/)?.[1], buttons(html)[0].match(/class="([^"]+)"/)?.[1]];
+  expect(firstButton(placeholder)).toContain(' disabled=""');
+  const classes = (html: string) => [html.match(/^<div class="([^"]+)"/)?.[1], firstButton(html).match(/class="([^"]+)"/)?.[1]];
   expect(classes(placeholder)).toEqual(classes(real));
 });
 
