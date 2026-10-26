@@ -226,4 +226,8 @@ describe("OG image size post", () => {
     expect(size.a.match(/[.!?](\s|$)/g)).toHaveLength(1);
     expect(size.a).not.toMatch(/all design|works everywhere/);
   });
+
+  it("dates the OG preview tool page to 26 October 2026, when its rewrite for this post merged", () => {
+    expect(OG_PREVIEW.updated).toBe("2026-10-26");
+  });
 });

@@ -27,7 +27,7 @@ export const OG_PREVIEW: Tool = {
   description:
     "Free OG preview: paste a URL to see its Open Graph card, check the share image is 1200×630 and fix missing tags. No sign-up. Then get the full launch kit.",
   imageAlt: "OG image preview by LaunchLoop: a link card at 1200×630 with a checklist of Open Graph tags",
-  updated: "2026-10-15",
+  updated: "2026-10-26",
 };
 
 export const TOOLS: Tool[] = [TAGLINE_CHECKER, OG_PREVIEW];
