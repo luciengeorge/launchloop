@@ -6,8 +6,7 @@ import { store } from "./store";
 
 export type ContactSource = "newsletter" | "waitlist" | "kit";
 
-export const isEmail = (v: unknown): v is string =>
-  typeof v === "string" && v.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v);
+export { isEmail } from "./email-address";
 
 /** RFC 2606 / 6761 names (example.com, *.test, *.invalid…) can never receive mail, and Resend rejects them. */
 export function isReservedEmailDomain(email: string): boolean {

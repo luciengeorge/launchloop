@@ -1,6 +1,6 @@
 import { expect, test, type APIRequestContext } from "@playwright/test";
 import { newsletterReturnPath } from "../../src/lib/newsletter";
-import { makeSampleKit, uniqueEmail } from "./helpers";
+import { contrast, makeSampleKit, uniqueEmail } from "./helpers";
 
 // A fresh IP per call gets its own newsletter and preview rate-limit buckets, so specs don't eat each other's budget.
 const freshIp = () => `203.0.${Math.floor(Math.random() * 250) + 1}.${Math.floor(Math.random() * 250) + 1}`;
@@ -82,6 +82,125 @@ test("the footer Subscribe button is primary everywhere except kit pages", async
     await page.goto(path);
     await expect(page.getByRole("contentinfo").getByRole("button", { name: "Subscribe" })).toHaveClass(/\bbg-primary\b/);
   }
+});
+
+test("newsletter-inline-signup off (no flag, as in production until it's created): no inline blocks, the end-of-post block and the footer form", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.locator("[data-inline-newsletter]")).toHaveCount(0);
+  await expect(page.locator('[id="newsletter"]')).toHaveCount(0);
+  await expect(page.getByRole("contentinfo").getByRole("button", { name: "Subscribe" })).toBeVisible();
+  await expect(page.getByTestId("footer-newsletter-link")).toHaveCount(0);
+  await page.goto("/blog/og-image-size");
+  await expect(page.locator("[data-inline-newsletter]")).toHaveCount(0);
+  await expect(page.getByTestId("blog-newsletter")).toBeVisible();
+  await expect(page.locator('[id="newsletter"]')).toHaveCount(1);
+  await expect(page.getByTestId("footer-newsletter-link")).toHaveCount(0);
+});
+
+test("a@b is stopped in the browser with the server's message, without a request, and editing clears it", async ({ page }) => {
+  const posts: string[] = [];
+  page.on("request", (r) => {
+    if (r.url().includes("/api/newsletter")) posts.push(r.url());
+  });
+  await page.goto("/pricing");
+  const footer = page.getByRole("contentinfo");
+  await expect(page.locator('p[id^="newsletter-"]')).toHaveCount(0);
+  const field = footer.getByLabel("Weekly launch teardowns");
+  await field.fill("a@b");
+  await footer.getByRole("button", { name: "Subscribe" }).click();
+  const alert = footer.getByRole("alert");
+  await expect(alert).toHaveText("Enter a valid email address.");
+  await expect(field).toHaveAttribute("aria-invalid", "true");
+  const alertId = await alert.getAttribute("id");
+  expect(alertId).toBeTruthy();
+  expect((await field.getAttribute("aria-describedby"))?.split(" ")).toContain(alertId);
+  await expect(field).toBeFocused();
+  // The form is novalidate once hydrated, so the browser's own bubble didn't take over.
+  expect(await field.evaluate((el: HTMLInputElement) => el.form!.noValidate)).toBe(true);
+
+  await field.pressSequentially(".co");
+  await expect(alert).toHaveCount(0);
+  await expect(field).not.toHaveAttribute("aria-invalid");
+  await expect(field).toHaveAttribute("aria-describedby", /hint/);
+  await page.waitForTimeout(300);
+  expect(posts).toEqual([]);
+
+  // The server is still the judge: the same address posted directly is a 400.
+  const direct = await postJson(page.request, { email: "a@b", placement: "footer" });
+  expect(direct.status()).toBe(400);
+  expect(await direct.json()).toMatchObject({ code: "invalid" });
+});
+
+test("dark text on the orange buttons: the footer Subscribe and the hero kit button pass 4.5:1, at rest and hovered", async ({ page }) => {
+  await page.goto("/");
+  const subscribe = page.getByRole("contentinfo").getByRole("button", { name: "Subscribe" });
+  const kit = page.getByRole("form", { name: "Generate a launch kit" }).getByRole("button", { name: /Get my free preview/ });
+  for (const [name, button] of [["footer Subscribe", subscribe], ["hero kit button", kit]] as const) {
+    // Still the brand orange, with dark text on it.
+    await expect(button).toHaveClass(/\bbg-primary\b/);
+    await expect(button).toHaveClass(/\btext-foreground\b/);
+    await button.scrollIntoViewIfNeeded();
+    const rest = await contrast(button);
+    expect(rest, name).toBeGreaterThanOrEqual(4.5);
+    await button.hover();
+    await page.waitForTimeout(300);
+    const hovered = await contrast(button);
+    expect(hovered, `${name} (hovered)`).toBeGreaterThanOrEqual(4.5);
+    await page.mouse.move(0, 0);
+    console.log(`contrast ${name}: ${rest.toFixed(2)} at rest, ${hovered.toFixed(2)} hovered`);
+  }
+});
+
+test.describe("newsletter_form_viewed", () => {
+  test.use({
+    // posthog-js drops every event from a likely bot (HeadlessChrome UA or brand, navigator.webdriver).
+    userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36",
+  });
+  test.beforeEach(async ({ context }) => {
+    await context.addInitScript(() => {
+      Object.defineProperty(Navigator.prototype, "webdriver", { get: () => false });
+      Object.defineProperty(Navigator.prototype, "userAgentData", { get: () => undefined });
+    });
+  });
+
+  const viewed = async (request: APIRequestContext, campaign: string) =>
+    (await phEvents(request)).filter((e) => e.event === "newsletter_form_viewed" && e.properties.utm_campaign === campaign);
+
+  test("the forms that exist today report a view once, with the landing's UTMs and a scrubbed path", async ({ page }) => {
+    const campaign = `viewed-${Date.now()}`;
+    await page.goto(`/pricing?utm_source=devhunt&utm_medium=directory&utm_campaign=${campaign}&utm_term=x`);
+    await page.getByRole("contentinfo").scrollIntoViewIfNeeded();
+    await expect.poll(async () => (await viewed(page.request, campaign)).length).toBe(1);
+    const [footer] = await viewed(page.request, campaign);
+    expect(footer.properties).toMatchObject({ placement: "footer", path: "/pricing", utm_source: "devhunt", utm_medium: "directory", utm_campaign: campaign });
+    // posthog-js adds every utm_* from the URL itself; the event adds nothing else of the attribution.
+    expect(footer.properties).not.toHaveProperty("referring_domain");
+    // Scrolling away and back on the same page doesn't send it again.
+    await page.mouse.wheel(0, -5000);
+    await page.getByRole("contentinfo").scrollIntoViewIfNeeded();
+    await page.waitForTimeout(1000);
+    expect(await viewed(page.request, campaign)).toHaveLength(1);
+
+    // The footer stays mounted through a client navigation, and reports itself again for the new page.
+    await page.getByRole("contentinfo").getByRole("link", { name: "FAQ" }).click();
+    await page.waitForURL((u) => u.pathname === "/faq");
+    await page.getByRole("contentinfo").scrollIntoViewIfNeeded();
+    await expect.poll(async () => (await viewed(page.request, campaign)).map((e) => e.properties.path)).toEqual(["/pricing", "/faq"]);
+  });
+
+  test("on a kit page the path never carries the kit id", async ({ page }) => {
+    const campaign = `viewed-kit-${Date.now()}`;
+    await page.goto(`/?utm_campaign=${campaign}`);
+    await page.getByRole("button", { name: "Try a sample app" }).click();
+    await page.waitForURL(/\/kit\/[\w-]+$/);
+    const kitId = new URL(page.url()).pathname.split("/").pop()!;
+    await page.getByTestId("preview-newsletter").scrollIntoViewIfNeeded();
+    let events: PhEvent[] = [];
+    await expect.poll(async () => (events = await viewed(page.request, campaign)).some((e) => e.properties.placement === "preview")).toBe(true);
+    expect(events.find((e) => e.properties.placement === "preview")!.properties.path).toBe("/kit/[id]");
+    expect(JSON.stringify(events)).not.toContain(kitId);
+    expect(JSON.stringify(events)).not.toContain("@");
+  });
 });
 
 test("not shown on the way to checkout (?unlock=1)", async ({ page }) => {
@@ -340,6 +459,23 @@ test.describe("plain form posts", () => {
         if (tagged) expect(event.properties.is_test).toBe(true);
         else expect(event.properties).not.toHaveProperty("is_test");
       }
+    });
+
+    test("the browser itself blocks a@b (the field's pattern is the server's rule), so nothing is posted", async ({ page }) => {
+      const posts: string[] = [];
+      page.on("request", (r) => {
+        if (r.url().includes("/api/newsletter")) posts.push(r.url());
+      });
+      await page.goto("/pricing");
+      const field = page.getByRole("contentinfo").getByLabel("Weekly launch teardowns");
+      await field.fill("a@b");
+      await page.getByRole("contentinfo").getByRole("button", { name: "Subscribe" }).click();
+      expect(await field.evaluate((el: HTMLInputElement) => el.validity.patternMismatch)).toBe(true);
+      await page.waitForTimeout(500);
+      expect(posts).toEqual([]);
+      expect(new URL(page.url()).pathname).toBe("/pricing");
+      await field.fill("a@b.co");
+      expect(await field.evaluate((el: HTMLInputElement) => el.validity.valid)).toBe(true);
     });
 
     test("a server error message shows without JavaScript", async ({ page }) => {
