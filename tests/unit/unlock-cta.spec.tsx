@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import path from "node:path";
 import { expect, test } from "@playwright/test";
 import { renderToStaticMarkup } from "react-dom/server";
 import { UnlockCheckoutProvider } from "@/components/kit/unlock-checkout";
@@ -8,6 +6,7 @@ import { CheckoutError } from "@/components/kit/unlock-error";
 import { UnlockPanel } from "@/components/kit/unlock-panel";
 import type { Served } from "@/lib/experiments";
 import type { CheckoutFailureCode } from "@/lib/unlock-checkout";
+import { contrast, rootToken } from "./contrast";
 
 const KIT = { kitId: "kit_0123456789abcdef", priceLabel: "£19" };
 const control: Served = { variant: "control", fallback: "unassigned" };
@@ -23,12 +22,12 @@ const panelHtml = (earlyCta: boolean) =>
     </UnlockCheckoutProvider>,
   );
 
-test("early CTA: the price and the same £19 unlock button as the panel, in the server HTML, in the accessible colour", () => {
+test("early CTA: the price and the same £19 unlock button as the panel, in the server HTML, in the shared orange", () => {
   const html = renderToStaticMarkup(<UnlockCta {...KIT} launchPromo={control} />);
   expect(text(html)).toContain("£19 once, no subscription");
   const button = firstButton(html);
   expect(text(button)).toContain("Unlock the full kit, £19");
-  expect(button).toContain("bg-cta");
+  expect(button).toContain("bg-primary ");
   expect(button).not.toContain(' disabled=""');
   expect(html).not.toContain("£14");
   expect(html).not.toContain("LAUNCH14");
@@ -61,19 +60,21 @@ test("sticky bar: hidden (and out of the tab order) until the browser decides, n
   expect(text(html)).toContain("Unlock the full kit, £19");
 });
 
-test("flag off: the panel's button is exactly today's (no early-CTA colour); on: the panel's button matches the early CTA", () => {
+test("the panel's button has the same classes in both arms, and the same colours as the early CTA's", () => {
+  const classes = (button: string) => button.match(/class="([^"]+)"/)![1];
   const off = buttons(panelHtml(false)).find((b) => b.includes("Unlock the full kit"))!;
-  expect(off).not.toContain("bg-cta");
-  expect(off).toContain("bg-primary");
   const on = buttons(panelHtml(true)).find((b) => b.includes("Unlock the full kit"))!;
-  expect(on).toContain("bg-cta");
-  expect(on).not.toContain("bg-primary ");
+  expect(classes(on)).toBe(classes(off));
+  expect(off).toContain("bg-primary ");
+  const colours = (button: string) => classes(button).split(" ").filter((c) => /^(hover:)?(bg|text)-(primary|cta)/.test(c));
+  const early = firstButton(renderToStaticMarkup(<UnlockCta {...KIT} launchPromo={control} />));
+  expect(colours(off)).toEqual(["bg-primary", "text-primary-foreground", "hover:bg-primary-hover"]);
+  expect(colours(early)).toEqual(colours(off));
 });
 
 test("the panel rendered on its own (no provider) still works as before", () => {
   const html = renderToStaticMarkup(<UnlockPanel {...KIT} launchPromo={control} autoCheckout={false} cancelled={false} saved={false} />);
   expect(text(html)).toContain("Unlock the full kit, £19");
-  expect(html).not.toContain("bg-cta");
 });
 
 test("every checkout error is an alert with an action: Try again, the save link signed out, a new preview when the kit is gone", () => {
@@ -106,28 +107,7 @@ test("the error's link actions are outlined like its buttons: border-border, not
   }
 });
 
-/** WCAG 2 contrast of two `oklch(L C h)` colours, via OKLab to linear sRGB. */
-function contrast(a: string, b: string) {
-  const luminance = (oklch: string) => {
-    const [L, C, h] = oklch.match(/oklch\(([\d.]+) ([\d.]+) ([\d.]+)\)/)!.slice(1).map(Number);
-    const [A, B] = [C * Math.cos((h * Math.PI) / 180), C * Math.sin((h * Math.PI) / 180)];
-    const l = (L + 0.3963377774 * A + 0.2158037573 * B) ** 3;
-    const m = (L - 0.1055613458 * A - 0.0638541728 * B) ** 3;
-    const s = (L - 0.0894841775 * A - 1.291485548 * B) ** 3;
-    const rgb = [4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s, -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s, -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s];
-    const [r, g, bl] = rgb.map((v) => Math.min(1, Math.max(0, v)));
-    return 0.2126 * r + 0.7152 * g + 0.0722 * bl;
-  };
-  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
-  return (hi + 0.05) / (lo + 0.05);
-}
-
-test("the unlock buttons' colours meet 4.5:1 for their white label, at rest and on hover", () => {
-  const css = readFileSync(path.join(process.cwd(), "src/app/globals.css"), "utf8");
-  const root = css.match(/:root \{([\s\S]*?)\n\}/)![1];
-  const token = (name: string) => root.match(new RegExp(`--${name}: (oklch\\([^)]+\\));`))![1];
-  expect(contrast(token("cta"), token("primary-foreground"))).toBeGreaterThanOrEqual(4.5);
-  expect(contrast(token("cta-hover"), token("primary-foreground"))).toBeGreaterThanOrEqual(4.5);
-  // Why the early CTA doesn't use the brand orange as is.
-  expect(contrast(token("primary"), token("primary-foreground"))).toBeLessThan(4.5);
+test("the unlock buttons' orange meets 4.5:1 for its label, at rest and on hover", () => {
+  expect(contrast(rootToken("primary"), rootToken("primary-foreground"))).toBeGreaterThanOrEqual(4.5);
+  expect(contrast(rootToken("primary-hover"), rootToken("primary-foreground"))).toBeGreaterThanOrEqual(4.5);
 });

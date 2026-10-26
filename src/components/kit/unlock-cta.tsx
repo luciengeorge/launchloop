@@ -11,9 +11,6 @@ import type { UnlockContext, UnlockCtaPosition } from "@/lib/unlock-checkout";
 import { useUnlockButtonRef, useUnlockCheckout } from "./unlock-checkout";
 import { CheckoutError } from "./unlock-error";
 
-/** Every unlock button with the early CTA on: the brand orange darkened to >= 4.5:1 behind its white label. */
-export const UNLOCK_BUTTON_CLASS = "bg-cta hover:bg-cta-hover";
-
 interface Props {
   kitId: string;
   /** Full kit price; the panel's price, from the same resolved promo. */
@@ -66,7 +63,7 @@ function UnlockButton({ id, price, busy, onClick, className, ref, describedBy }:
       ref={ref}
       id={id}
       type="button"
-      className={cn("h-11 text-base aria-disabled:pointer-events-none aria-disabled:opacity-50", UNLOCK_BUTTON_CLASS, className)}
+      className={cn("h-11 text-base aria-disabled:pointer-events-none aria-disabled:opacity-50", className)}
       onClick={onClick}
       disabled={busy || !onClick}
       focusableWhenDisabled={!!onClick}

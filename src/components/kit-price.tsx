@@ -29,10 +29,10 @@ export function KitPrice({ promo, size = "inline", placeholder = false }: { prom
     );
   }
   if (!promo) return FULL;
-  // Opacity rather than a muted colour so the struck price reads on light text and on primary buttons.
+  // Opacity rather than a muted colour so the struck price reads on light text and on primary buttons (85% keeps it 4.5:1 on the orange, at rest and hovered).
   return (
     <span className="whitespace-nowrap" data-testid={testId}>
-      <s className="opacity-60">
+      <s className="opacity-85">
         <span className="sr-only">was </span>
         {FULL}
       </s>{" "}

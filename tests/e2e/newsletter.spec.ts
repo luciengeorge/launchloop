@@ -138,7 +138,7 @@ test("dark text on the orange buttons: the footer Subscribe and the hero kit but
   for (const [name, button] of [["footer Subscribe", subscribe], ["hero kit button", kit]] as const) {
     // Still the brand orange, with dark text on it.
     await expect(button).toHaveClass(/\bbg-primary\b/);
-    await expect(button).toHaveClass(/\btext-foreground\b/);
+    await expect(button).toHaveClass(/\btext-primary-foreground\b/);
     await button.scrollIntoViewIfNeeded();
     const rest = await contrast(button);
     expect(rest, name).toBeGreaterThanOrEqual(4.5);

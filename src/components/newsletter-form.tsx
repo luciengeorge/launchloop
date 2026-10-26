@@ -19,7 +19,6 @@ import {
   parsePlacement,
   parseWelcome,
 } from "@/lib/newsletter";
-import { ON_PRIMARY_TEXT } from "@/lib/primary-cta";
 import { useFormViewed } from "@/lib/use-form-viewed";
 import { useHydrated, useQueryParam } from "@/lib/use-query-param";
 
@@ -151,7 +150,7 @@ export function NewsletterForm({
               size="lg"
               variant={buttonVariant}
               disabled={state === "loading"}
-              className={buttonVariant === "default" ? `h-11 w-full sm:w-auto ${ON_PRIMARY_TEXT}` : "h-11 w-full sm:w-auto"}
+              className="h-11 w-full sm:w-auto"
             >
               {state === "loading" ? "Joining…" : buttonLabel}
             </Button>

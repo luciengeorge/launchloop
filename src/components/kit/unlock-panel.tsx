@@ -1,6 +1,5 @@
 "use client";
 
-import { cn } from "cn";
 import { ArrowRight, BookmarkCheck, Check, Loader2, Lock, Mail } from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState, type Ref } from "react";
 import { Button } from "@/components/ui/button";
@@ -15,7 +14,6 @@ import { LAUNCH_PROMO } from "@/lib/products";
 import { trackUnlockClicked, type UnlockContext } from "@/lib/unlock-checkout";
 import { useServerAssignment } from "@/lib/use-experiment";
 import { useUnlockButtonRef, useUnlockCheckout } from "./unlock-checkout";
-import { UNLOCK_BUTTON_CLASS } from "./unlock-cta";
 import { ActionableError, CheckoutError, SAVE_PREVIEW_FIELD_ID } from "./unlock-error";
 
 const EMAIL_KEY = "launchloop:email";
@@ -234,7 +232,7 @@ export function UnlockPanel({ kitId, priceLabel, launchPromo, email, autoCheckou
           ref={unlockRef}
           aria-describedby={checkoutFailure ? errorId : undefined}
           type="button"
-          className={cn("mt-6 h-11 w-full text-base", unlock.earlyCta && UNLOCK_BUTTON_CLASS)}
+          className="mt-6 h-11 w-full text-base"
           onClick={() => unlockClicked(false)}
           disabled={loading}
         >
