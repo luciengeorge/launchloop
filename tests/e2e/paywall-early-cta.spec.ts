@@ -448,9 +448,10 @@ test.describe("errors always carry a CTA (flag off too)", () => {
     await expect(error.getByRole("link", { name: "Make a new preview" })).toHaveAttribute("href", "/#start");
   });
 
-  test("login link that didn't send: Try again or pay as a guest; a code that didn't work: resend it or change the email", async ({ page }) => {
+  test("sign-in link that didn't send: Try again or pay as a guest; a code that didn't work: resend it or change the email", async ({ page }) => {
     await makeSampleKit(page);
     let failLink = true;
+    // /api/auth/request's own answer, worded for /login ("login link"): the paywall says "sign-in link", like its forms.
     await page.route("**/api/auth/request", (route) =>
       failLink ? ((failLink = false), route.fulfill({ status: 500, json: { error: "We couldn't send your login link. Please try again.", code: "send" } })) : route.continue(),
     );
@@ -460,7 +461,7 @@ test.describe("errors always carry a CTA (flag off too)", () => {
     await page.getByRole("button", { name: "Continue to checkout" }).click();
     const linkError = page.getByTestId("login-link-error");
     await expect(linkError).toHaveRole("alert");
-    await expect(linkError).toContainText("We couldn't send your login link.");
+    await expect(linkError.locator("p")).toHaveText("We couldn't send your sign-in link. Please try again.");
     await expect(linkError.getByRole("button", { name: "Pay as a guest instead" })).toBeVisible();
     await linkError.getByRole("button", { name: "Try again" }).click();
     await expect(page.getByTestId("unlock-panel")).toHaveAttribute("data-step", "sent");
@@ -482,18 +483,25 @@ test.describe("errors always carry a CTA (flag off too)", () => {
     await expect(page.getByLabel("Your email")).toBeFocused();
   });
 
-  test("save-preview link that didn't send: Try again", async ({ page }) => {
-    await makeSampleKit(page);
-    let fail = true;
-    await page.route("**/api/auth/request", (route) =>
-      fail ? ((fail = false), route.fulfill({ status: 500, json: { error: "We couldn't send your login link. Please try again.", code: "send" } })) : route.continue(),
-    );
-    const save = page.getByTestId("save-preview");
-    await save.getByLabel("Not ready yet? Save this preview").fill(uniqueEmail("early-cta-save"));
-    await save.getByRole("button", { name: "Email me a link" }).click();
-    await save.getByRole("alert").getByRole("button", { name: "Try again" }).click();
-    await expect(save).toContainText("Link sent to");
-  });
+  for (const [kind, failure] of [
+    ["the API's send error", { status: 500, json: { error: "We couldn't send your login link. Please try again.", code: "send" } }],
+    ["a plain-text 500", { status: 500, contentType: "text/plain", body: "Internal Server Error" }],
+  ] as const) {
+    test(`save-preview link that didn't send (${kind}): "sign-in link" like the form above it, and Try again`, async ({ page }) => {
+      await makeSampleKit(page);
+      let fail = true;
+      await page.route("**/api/auth/request", (route) => (fail ? ((fail = false), route.fulfill(failure)) : route.continue()));
+      const save = page.getByTestId("save-preview");
+      await expect(save).toContainText("A sign-in link that keeps this preview in your account.");
+      await save.getByLabel("Not ready yet? Save this preview").fill(uniqueEmail("early-cta-save"));
+      await save.getByRole("button", { name: "Email me a link" }).click();
+      const error = save.getByRole("alert");
+      await expect(error.locator("p")).toHaveText("We couldn't send your sign-in link. Please try again.");
+      await expect(page.getByTestId("unlock-panel")).not.toContainText(/login link|Request failed/i);
+      await error.getByRole("button", { name: "Try again" }).click();
+      await expect(save).toContainText("Link sent to");
+    });
+  }
 });
 
 interface PhEvent {

@@ -7,9 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { analyticsId } from "@/lib/analytics";
-import { postJson, shownError } from "@/lib/client";
+import { postJson } from "@/lib/client";
 import { EXPERIMENTS, type Served } from "@/lib/experiments";
-import { LOGIN_ERRORS } from "@/lib/login-errors";
+import { signInCodeError, signInLinkError } from "@/lib/form-errors";
 import { useClaimPrimaryCta } from "@/lib/primary-cta";
 import { LAUNCH_PROMO } from "@/lib/products";
 import { trackUnlockClicked, type UnlockContext } from "@/lib/unlock-checkout";
@@ -40,7 +40,7 @@ interface Props {
 
 type Step = "cta" | "email" | "sent" | "redirecting";
 type SaveState = "idle" | "sending" | "sent";
-/** The panel's own errors: the login link didn't send, or the code didn't sign in. Checkout's are shared (useUnlockCheckout). */
+/** The panel's own errors: the sign-in link didn't send, or the code didn't sign in. Checkout's are shared (useUnlockCheckout). */
 type LoginError = { kind: "link" | "code"; message: string };
 
 /**
@@ -148,7 +148,7 @@ export function UnlockPanel({ kitId, priceLabel, launchPromo, email, autoCheckou
         window.location.assign(next);
       }
     } catch (err) {
-      setError({ kind: "code", message: shownError(err, LOGIN_ERRORS.code) });
+      setError({ kind: "code", message: signInCodeError(err) });
       setLoading(false);
     }
   }
@@ -163,7 +163,7 @@ export function UnlockPanel({ kitId, priceLabel, launchPromo, email, autoCheckou
       setCode("");
       setStep("sent");
     } catch (err) {
-      setError({ kind: "link", message: shownError(err, LOGIN_ERRORS.send) });
+      setError({ kind: "link", message: signInLinkError(err) });
     } finally {
       setLoading(false);
     }
@@ -187,7 +187,7 @@ export function UnlockPanel({ kitId, priceLabel, launchPromo, email, autoCheckou
       await postJson("/api/auth/request", { email: address, intent: { type: "save", kitId, aid: await analyticsId() } });
       setSave("sent");
     } catch (err) {
-      setSaveError(shownError(err, LOGIN_ERRORS.send));
+      setSaveError(signInLinkError(err));
       setSave("idle");
     }
   }
