@@ -35,8 +35,7 @@
   --color-secondary: var(--secondary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary: var(--primary);
-  --color-cta: var(--cta);
-  --color-cta-hover: var(--cta-hover);
+  --color-primary-hover: var(--primary-hover);
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
@@ -58,10 +57,10 @@
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
   --primary: oklch(0.64 0.21 37);
-  --primary-foreground: oklch(0.99 0 0);
-  /* The brand orange darkened until primary-foreground on it is >= 4.5:1 (about 5.2:1; --primary is about 3.6:1). */
-  --cta: oklch(0.55 0.2 37);
-  --cta-hover: oklch(0.5 0.19 37);
+  /* Dark, like --foreground: about 5.4:1 on --primary and 6.4:1 on --primary-hover (white on --primary is 3.6:1). */
+  --primary-foreground: oklch(0.145 0 0);
+  /* Solid and lighter, so the dark label gains contrast on hover whatever is behind the button. */
+  --primary-hover: oklch(0.68 0.18 37);
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);
@@ -97,8 +96,8 @@
   --popover-foreground: oklch(0.985 0 0);
   --primary: oklch(0.922 0 0);
   --primary-foreground: oklch(0.205 0 0);
-  --cta: var(--primary);
-  --cta-hover: oklch(0.85 0 0);
+  /* Same as :root's; this block's --primary-foreground on it is about 5.8:1. */
+  --primary-hover: oklch(0.68 0.18 37);
   --secondary: oklch(0.269 0 0);
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.269 0 0);

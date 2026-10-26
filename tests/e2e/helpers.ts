@@ -73,11 +73,20 @@ export const MAIN_H1_HEIGHTS = [
   { width: 1280, height: 120, mobile: false },
 ] as const;
 
-/** WCAG contrast of an element's text against its background (composited over the page's), as the browser renders them. */
+/**
+ * WCAG contrast of an element's text against its background, as the browser renders them: a translucent fill is
+ * composited over its nearest painted ancestors (up to the first opaque one), not over the page's background.
+ */
 export const contrast = (target: Locator) =>
   target.evaluate((el) => {
     // Let the browser resolve oklch/color-mix: paint each colour and read the sRGB pixel back.
     const ctx = document.createElement("canvas").getContext("2d", { willReadFrequently: true })!;
+    const alpha = (color: string) => {
+      ctx.clearRect(0, 0, 1, 1);
+      ctx.fillStyle = color;
+      ctx.fillRect(0, 0, 1, 1);
+      return ctx.getImageData(0, 0, 1, 1).data[3];
+    };
     const paint = (...colors: string[]) => {
       for (const color of ["#fff", ...colors]) {
         ctx.fillStyle = color;
@@ -86,10 +95,18 @@ export const contrast = (target: Locator) =>
       const [r, g, b] = [...ctx.getImageData(0, 0, 1, 1).data].map((v) => (v / 255 <= 0.04045 ? v / 255 / 12.92 : ((v / 255 + 0.055) / 1.055) ** 2.4));
       return 0.2126 * r + 0.7152 * g + 0.0722 * b;
     };
+    // Innermost first, stopping at the first opaque fill; painted outermost first.
+    const backdrop: string[] = [];
+    for (let node = el.parentElement; node; node = node.parentElement) {
+      const fill = getComputedStyle(node).backgroundColor;
+      const a = alpha(fill);
+      if (a === 0) continue;
+      backdrop.unshift(fill);
+      if (a === 255) break;
+    }
     const style = getComputedStyle(el);
-    const page = getComputedStyle(document.body).backgroundColor;
-    const fg = paint(page, style.backgroundColor, style.color);
-    const bg = paint(page, style.backgroundColor);
+    const fg = paint(...backdrop, style.backgroundColor, style.color);
+    const bg = paint(...backdrop, style.backgroundColor);
     return (Math.max(fg, bg) + 0.05) / (Math.min(fg, bg) + 0.05);
   });
 
