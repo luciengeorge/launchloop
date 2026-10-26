@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { parse } from "node-html-parser";
 import { png } from "../unit/png";
+import { recordLayoutShift } from "./helpers";
 
 /** What each directory's listing requires on the home page: a followed link to it. Their bots reject these rel values. */
 const BADGES = [
@@ -29,17 +30,6 @@ async function stubBadgeImages(page: Page) {
     return route.fulfill({ contentType: "image/png", body: Buffer.from(png(1, 1)) });
   });
   return requested;
-}
-
-async function recordLayoutShift(page: Page) {
-  await page.addInitScript(() => {
-    const w = window as unknown as { __cls: number };
-    w.__cls = 0;
-    new PerformanceObserver((list) => {
-      for (const entry of list.getEntries() as unknown as { value: number; hadRecentInput: boolean }[]) if (!entry.hadRecentInput) w.__cls += entry.value;
-    }).observe({ type: "layout-shift", buffered: true });
-  });
-  return () => page.evaluate(() => (window as unknown as { __cls: number }).__cls);
 }
 
 const badgeLink = (page: Page, name: string) => page.getByRole("contentinfo").getByRole("link", { name: new RegExp(`^${name}`) });

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { isTestVisit, pageAnalyticsId } from "@/lib/analytics";
 import { postJson } from "@/lib/client";
+import { EMAIL_MAX, EMAIL_PATTERN, isEmail } from "@/lib/email-address";
 import {
   LEAD_MAGNET,
   NEWSLETTER_ERRORS,
@@ -17,6 +18,8 @@ import {
   parsePlacement,
   parseWelcome,
 } from "@/lib/newsletter";
+import { ON_PRIMARY_TEXT } from "@/lib/primary-cta";
+import { useFormViewed } from "@/lib/use-form-viewed";
 import { useHydrated, useQueryParam } from "@/lib/use-query-param";
 
 interface Props {
@@ -48,10 +51,14 @@ export function NewsletterForm({
   labelledBy,
 }: Props) {
   const id = useId();
+  const root = useRef<HTMLDivElement>(null);
+  const field = useRef<HTMLInputElement>(null);
   const live = useRef<HTMLDivElement>(null);
   const [state, setState] = useState<"idle" | "loading">("idle");
   const [welcome, setWelcome] = useState<WelcomeOutcome | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [edited, setEdited] = useState(false);
+  useFormViewed(root, placement);
 
   // A no-JS post comes back with ?subscribed= (and ?from= for anything but the footer); only that form reacts.
   const subscribedParam = useQueryParam("subscribed");
@@ -63,7 +70,9 @@ export function NewsletterForm({
     redirectedProp ?? (fromHere ? { subscribed: subscribedParam ?? undefined, welcome: welcomeParam ?? undefined, error: errorParam ?? undefined } : {});
   const outcome = welcome ?? (redirected.subscribed === "1" ? parseWelcome(redirected.welcome) : null);
   const redirectError = redirected.subscribed === "0" ? (newsletterError(redirected.error) ?? NEWSLETTER_ERRORS.invalid) : null;
-  const shownError = error ?? (state === "idle" ? redirectError : null);
+  const shownError = error ?? (state === "idle" && !edited ? redirectError : null);
+  const errorId = `${id}-error`;
+  const describedBy = [hint ? `${id}-hint` : null, shownError ? errorId : null].filter(Boolean).join(" ") || undefined;
 
   // The submit button unmounts with the form, which drops focus to <body>: hand it to the checklist link instead.
   useEffect(() => {
@@ -72,7 +81,13 @@ export function NewsletterForm({
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const email = String(new FormData(e.currentTarget).get("email") ?? "");
+    const email = String(new FormData(e.currentTarget).get("email") ?? "").trim();
+    // The server's own rule, so an address it would turn down (a@b) never costs a round trip. The server still checks.
+    if (!isEmail(email)) {
+      setError(NEWSLETTER_ERRORS.invalid);
+      field.current?.focus();
+      return;
+    }
     setState("loading");
     setError(null);
     try {
@@ -92,13 +107,16 @@ export function NewsletterForm({
   }
 
   return (
-    <div>
+    <div ref={root}>
       {outcome ? null : (
         <form
           onSubmit={onSubmit}
           method="post"
           action="/api/newsletter"
-          className="space-y-2"
+          // Before hydration the browser checks `pattern`; after it, onSubmit shows our message instead of the browser's bubble.
+          noValidate={hydrated}
+          // A flex gap skips display:none children, so the hidden no-JS messages below don't add space that hydration takes away.
+          className="flex flex-col gap-2"
           {...(labelledBy ? { "aria-labelledby": labelledBy } : { "aria-label": "Newsletter signup" })}
           data-placement={placement}
         >
@@ -107,18 +125,33 @@ export function NewsletterForm({
           <label htmlFor={`${id}-email`} className={hideLabel ? "sr-only" : "text-sm font-medium"}>
             {label}
           </label>
-          <div className="flex max-w-sm gap-2">
+          {/* Stacked below sm so the field isn't squeezed on a phone; 44px targets, and the Input's 16px text stops iOS zooming on focus. */}
+          <div className="flex max-w-sm flex-col gap-2 sm:flex-row">
             <Input
+              ref={field}
               id={`${id}-email`}
               name="email"
               type="email"
               required
+              pattern={EMAIL_PATTERN}
+              maxLength={EMAIL_MAX}
               placeholder="you@example.com"
               autoComplete="email"
-              aria-describedby={hint ? `${id}-hint` : undefined}
-              className="h-9 bg-background"
+              aria-invalid={shownError ? true : undefined}
+              aria-describedby={describedBy}
+              onChange={() => {
+                setError(null);
+                setEdited(true);
+              }}
+              className="h-11 bg-background"
             />
-            <Button type="submit" size="lg" variant={buttonVariant} disabled={state === "loading"}>
+            <Button
+              type="submit"
+              size="lg"
+              variant={buttonVariant}
+              disabled={state === "loading"}
+              className={buttonVariant === "default" ? `h-11 w-full sm:w-auto ${ON_PRIMARY_TEXT}` : "h-11 w-full sm:w-auto"}
+            >
               {state === "loading" ? "Joining…" : buttonLabel}
             </Button>
           </div>
@@ -127,7 +160,11 @@ export function NewsletterForm({
               {hint}
             </p>
           ) : null}
-          {shownError ? <p className="text-sm text-destructive" role="alert">{shownError}</p> : null}
+          {shownError ? (
+            <p id={errorId} className="text-sm text-destructive" role="alert">
+              {shownError}
+            </p>
+          ) : null}
           {/* A static page can't read ?error= on the server, so until JS runs the post's redirect reveals one of these by its #hash. */}
           {hydrated || redirectError
             ? null
