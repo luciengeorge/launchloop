@@ -13,6 +13,9 @@ export const WAITLIST_MEMBERS_KEY = "contacts:waitlist";
 export const WAITLIST_SOURCES = ["ship_loop_page", "kit_upsell"] as const;
 export type WaitlistSource = (typeof WAITLIST_SOURCES)[number];
 
+/** /api/waitlist's answer when it couldn't store the signup, and the form's message for anything that isn't the API's. */
+export const WAITLIST_SERVER_ERROR = "Couldn't add you right now. Please try again.";
+
 export const isWaitlistSource = (v: unknown): v is WaitlistSource => typeof v === "string" && (WAITLIST_SOURCES as readonly string[]).includes(v);
 
 export interface WaitlistResponse {
