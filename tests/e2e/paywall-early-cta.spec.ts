@@ -333,6 +333,76 @@ for (const [label, viewport] of [
   });
 }
 
+test.describe("one checkout at a time", () => {
+  /** Counts the page's checkout POSTs, holding them all until `release` lets them through. */
+  async function countCheckouts(page: Page) {
+    const gate = held();
+    let posts = 0;
+    await page.route("**/api/checkout", (route, request) => {
+      if (request.method() !== "POST") return route.continue();
+      posts += 1;
+      return gate.answer(route);
+    });
+    return { posts: () => posts, release: () => gate.release((route) => route.continue()) };
+  }
+  const isCheckout = (url: URL) => url.pathname === "/api/checkout";
+
+  test("two clicks on the early CTA in the same task start one checkout (one POST), which goes through", async ({ page }) => {
+    await page.setViewportSize(DESKTOP);
+    await earlyCtaKit(page);
+    const checkouts = await countCheckouts(page);
+    const sent = page.waitForRequest((r) => r.method() === "POST" && isCheckout(new URL(r.url())));
+    await earlyButton(page).evaluate((button: HTMLButtonElement) => {
+      button.click();
+      button.click();
+    });
+    await sent;
+    await page.waitForTimeout(1500);
+    expect(checkouts.posts()).toBe(1);
+    checkouts.release();
+    await page.waitForURL(/\/checkout\/mock\?product=kit/);
+    expect(checkouts.posts()).toBe(1);
+  });
+
+  test("the early CTA and the panel's button clicked in the same task start one checkout, not two", async ({ page }) => {
+    await page.setViewportSize(DESKTOP);
+    await earlyCtaKit(page);
+    const checkouts = await countCheckouts(page);
+    const sent = page.waitForRequest((r) => r.method() === "POST" && isCheckout(new URL(r.url())));
+    await page.evaluate(() => {
+      for (const button of document.querySelectorAll<HTMLButtonElement>('[data-testid="early-unlock-cta"] button, [data-testid="unlock-panel"] button')) {
+        if (button.textContent?.includes("Unlock the full kit")) button.click();
+      }
+    });
+    await sent;
+    await page.waitForTimeout(1500);
+    expect(checkouts.posts()).toBe(1);
+    checkouts.release();
+    await page.waitForURL(/\/checkout\/mock\?product=kit/);
+  });
+
+  test("after one fails, Try again still starts a new checkout (and only one)", async ({ page }) => {
+    await page.setViewportSize(DESKTOP);
+    await earlyCtaKit(page);
+    let posts = 0;
+    await page.route("**/api/checkout", (route, request) => {
+      if (request.method() !== "POST") return route.continue();
+      posts += 1;
+      return posts === 1 ? plain500(route) : route.continue();
+    });
+    await earlyButton(page).evaluate((button: HTMLButtonElement) => {
+      button.click();
+      button.click();
+    });
+    const error = page.getByTestId("early-unlock-cta").getByRole("alert");
+    await expect(error).toBeVisible();
+    expect(posts).toBe(1);
+    await error.getByRole("button", { name: "Try again" }).click();
+    await page.waitForURL(/\/checkout\/mock\?product=kit/);
+    expect(posts).toBe(2);
+  });
+});
+
 test.describe("errors always carry a CTA (flag off too)", () => {
   test("panel checkout failure: Try again starts checkout", async ({ page }) => {
     await makeSampleKit(page);

@@ -222,6 +222,91 @@ describe("runCheckout", () => {
   });
 });
 
+describe("one checkout at a time (singleFlight)", () => {
+  /** The paywall's guarded start, as the checkout hook builds it, around the real runCheckout. */
+  async function guardedStart(fetch: ReturnType<typeof vi.fn>) {
+    const { unlock } = await landOn("https://launchloop.dev/kit/kit_0123456789abcdef");
+    vi.stubGlobal("fetch", fetch);
+    const start = unlock.singleFlight((retry: boolean) => unlock.runCheckout(top, { promo: false, retry }), { holdWhile: (o) => o.kind === "redirect" });
+    return { unlock, start };
+  }
+  const posts = (fetch: ReturnType<typeof vi.fn>) => fetch.mock.calls.filter(([url]) => url === "/api/checkout").length;
+
+  it("two starts in the same task send one POST and share its outcome", async () => {
+    const fetch = vi.fn(async () => Response.json({ url: "/checkout/mock?product=kit", promo: "none" }));
+    const { start } = await guardedStart(fetch);
+    const first = start(false);
+    const second = start(false);
+    expect(second).toBe(first);
+    expect(start.inFlight()).toBe(true);
+    expect(await first).toEqual({ kind: "redirect", url: "/checkout/mock?product=kit" });
+    expect(await second).toEqual(await first);
+    expect(posts(fetch)).toBe(1);
+  });
+
+  it("a redirect keeps it held (the page is leaving), so a late click sends nothing", async () => {
+    const fetch = vi.fn(async () => Response.json({ url: "/checkout/mock?product=kit", promo: "none" }));
+    const { start } = await guardedStart(fetch);
+    await start(false);
+    await Promise.resolve();
+    expect(start.inFlight()).toBe(true);
+    await start(false);
+    expect(posts(fetch)).toBe(1);
+  });
+
+  it("after a failure it's free again: Try again sends a new POST, and logs its own checkout_failed", async () => {
+    const fetch = vi.fn(async () => new Response("Internal Server Error", { status: 500 }));
+    const { start } = await guardedStart(fetch);
+    const [a, b] = [start(false), start(false)];
+    expect(await a).toMatchObject({ kind: "failed", failure: { code: "server" } });
+    expect(await b).toBe(await a);
+    await Promise.resolve();
+    expect(start.inFlight()).toBe(false);
+    expect(posts(fetch)).toBe(1);
+
+    expect(await start(true)).toMatchObject({ kind: "failed" });
+    expect(posts(fetch)).toBe(2);
+    const failed = (await captured()).filter((e) => e.event === "checkout_failed");
+    expect(failed.map((e) => e.properties.retry)).toEqual([false, true]);
+  });
+
+  it("a timed-out checkout frees it too, and the second start in that task didn't add a POST or a timer", async () => {
+    const fetch = vi.fn(
+      (_url: string, init: RequestInit) => new Promise<Response>((_, reject) => init.signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")))),
+    );
+    const { unlock, start } = await guardedStart(fetch);
+    vi.useFakeTimers();
+    try {
+      const first = start(false);
+      start(false);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(vi.getTimerCount()).toBe(1);
+      await vi.advanceTimersByTimeAsync(unlock.CHECKOUT_TIMEOUT_MS);
+      expect(await first).toMatchObject({ kind: "failed", failure: { code: "network" } });
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+    await Promise.resolve();
+    expect(start.inFlight()).toBe(false);
+    expect(posts(fetch)).toBe(1);
+  });
+
+  it("a run that throws frees it", async () => {
+    const { unlock } = await landOn("https://launchloop.dev/kit/kit_0123456789abcdef");
+    let calls = 0;
+    const start = unlock.singleFlight(async () => {
+      calls += 1;
+      throw new Error("boom");
+    });
+    await expect(start()).rejects.toThrow("boom");
+    await Promise.resolve();
+    expect(start.inFlight()).toBe(false);
+    await expect(start()).rejects.toThrow("boom");
+    expect(calls).toBe(2);
+  });
+});
+
 describe("checkout errors always carry a CTA", () => {
   it("classifies what /api/checkout and the network can throw, with a message worth showing", async () => {
     const { unlock, client } = await landOn("https://launchloop.dev/kit/kit_0123456789abcdef");
