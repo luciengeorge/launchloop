@@ -10,6 +10,7 @@ export const PREVIEW_ALLOWANCE = previewAllowance(resolvedPreviewLimits());
 export type KitErrorCode =
   | "invalid_url"
   | "repo_not_found"
+  | "repo_private"
   | "repo_owner_not_found"
   | "github_rate_limited"
   | "github_unavailable"
@@ -29,6 +30,10 @@ export const KIT_ERRORS: Record<KitErrorCode, { title: string; fix: string }> = 
   repo_not_found: {
     title: "This repo is private or doesn't exist.",
     fix: "We can only read public repos right now. Make the repo public, or paste your live site URL instead. Otherwise check the spelling of the repo name.",
+  },
+  repo_private: {
+    title: "That repo is private, so we didn't read it.",
+    fix: "LaunchLoop only reads public repos. Paste your live site URL instead, or make the repo public and try again.",
   },
   repo_owner_not_found: { title: "There's no GitHub user or organisation with that name.", fix: "Check the spelling in the URL, or paste your live site URL instead." },
   github_rate_limited: { title: "GitHub is rate limiting us right now.", fix: "Try again in a few minutes, or paste your live site URL instead." },
