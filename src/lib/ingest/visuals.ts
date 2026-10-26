@@ -1,7 +1,7 @@
 import "server-only";
 import { isGitHubIdenticon } from "../image-tone";
 import type { KitImageFormat, KitImageRef, KitVisuals } from "../schema";
-import { githubApiUrl, githubAuthHeaders, type RepoData } from "./github";
+import { encodeRepoFile, githubApiUrl, githubAuthHeaders, repoApiPath, type RepoData } from "./github";
 import { imageSize, type ImageFormat } from "./image-size";
 import { safeFetch, safeFetchBytes } from "./safe-fetch";
 import type { SiteData } from "./site";
@@ -13,7 +13,7 @@ export const PROBE_BYTES = 128_000;
 export const MAX_SCREENSHOT_BYTES = 3_000_000;
 export const MAX_LOGO_BYTES = 400_000;
 const MAX_SIDE = 4096;
-const TREE_BYTES = 1_500_000;
+export const TREE_BYTES = 1_500_000;
 
 export type Kind = "screenshot" | "logo";
 type Candidate = { url: string; source: KitImageRef["source"] };
@@ -48,7 +48,7 @@ const NOT_A_SHOT_HOST =
 const NOT_A_SHOT_WORDS = /badge|logo|icon|avatar|sponsor|thumb|banner|button|star[-_ ]?history|contributors|deploy|video|play|youtube|wordmark/i;
 
 const rawUrl = (owner: string, name: string, path: string) =>
-  `https://raw.githubusercontent.com/${owner}/${name}/HEAD/${path.replace(/^\.?\//, "").split("/").map(encodeURIComponent).join("/")}`;
+  `https://raw.githubusercontent.com/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/HEAD/${encodeRepoFile(path.replace(/^\.?\//, ""))}`;
 
 /** README image references in document order, resolved to fetchable URLs (relative paths point into the repo). */
 export function readmeImages(readme: string, owner: string, name: string): { url: string; alt: string }[] {
@@ -189,10 +189,10 @@ class Picker {
 
 async function repoTree(repo: RepoData, signal: AbortSignal): Promise<string[]> {
   try {
-    const res = await safeFetch(githubApiUrl(`/repos/${repo.owner}/${repo.name}/git/trees/HEAD?recursive=1`), {
+    const res = await safeFetch(githubApiUrl(`${repoApiPath(repo.owner, repo.name)}/git/trees/HEAD?recursive=1`), {
       accept: "application/vnd.github+json",
       headers: { "X-GitHub-Api-Version": "2022-11-28" },
-      originHeaders: githubAuthHeaders(),
+      originHeaders: repo.visibilityUnverified ? undefined : githubAuthHeaders(),
       maxBytes: TREE_BYTES,
       timeoutMs: 2500,
       signal,

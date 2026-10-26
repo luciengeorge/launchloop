@@ -11,8 +11,11 @@ import { generateDraft } from "@/lib/generation";
 import { resolveKitPromo } from "@/lib/kit-promo";
 import { getKit } from "@/lib/kits";
 import { captureException, captureMessage } from "@/lib/observability";
-import { checkoutPrice, createCheckoutUrl } from "@/lib/payments";
+import { CheckoutUnavailableError, checkoutPrice, createCheckoutUrl } from "@/lib/payments";
 import { clientIp, sharedRateLimit } from "@/lib/rate-limit";
+
+/** Shown in the unlock panel, which keeps its unlock button, so the buyer can retry or write to us. */
+const CHECKOUT_UNAVAILABLE = "Checkout is offline for a few minutes. Your preview is saved: try again shortly, or email hello@launchloop.dev and we'll send you a payment link.";
 
 /** Signed-out kit checkouts create live Stripe sessions without a login, so they're capped per IP. */
 const GUEST_CHECKOUTS_PER_HOUR = Number(process.env.CHECKOUT_RATE_LIMIT_PER_HOUR ?? 20);
@@ -93,6 +96,7 @@ export async function POST(req: Request) {
     return Response.json({ url, promo });
   } catch (error) {
     captureException(error, { stage: "api.checkout", product, kitId });
+    if (error instanceof CheckoutUnavailableError) return Response.json({ error: CHECKOUT_UNAVAILABLE, code: "checkout_unavailable" }, { status: 503 });
     return Response.json({ error: "Couldn't start checkout. Please try again." }, { status: 502 });
   }
 }

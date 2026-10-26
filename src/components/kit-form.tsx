@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { type PreviewSource, track } from "@/lib/analytics";
 import { type KitFailureDetails, KitRequestError, createKitWithProgress } from "@/lib/client";
 import { previewAllowance } from "@/lib/errors";
+import { SAMPLE_INPUT } from "@/lib/ingest/sample";
 import type { PreviewLimits } from "@/lib/site";
 import { LAUNCH_PROMO } from "@/lib/products";
 import { looksLikeGitHubUrl, replacesPrefix, repoPrefill, sameInput } from "@/lib/repo-cta";
@@ -18,10 +19,13 @@ import { sampleCtaLayout, useHeroSampleCta } from "./home-hero";
 import { KitPrice } from "./kit-price";
 import { RateLimitActions } from "./rate-limit-actions";
 
-const previewSource = (value: string): PreviewSource => (value === "sample" ? "sample" : /github\.com/i.test(value) ? "github" : "site");
+const previewSource = (value: string): PreviewSource => (value === SAMPLE_INPUT ? "sample" : /github\.com/i.test(value) ? "github" : "site");
 
 /** Our side is out of capacity: the AI (ai_busy) or the daily free-preview budget (busy). Same UI, different wording. */
 const CAPACITY_CODES = new Set(["ai_busy", "busy"]);
+
+/** The link can't be read as sent (a bad link, or a repo we can't or won't read), so the alert offers two ways forward. */
+const WAY_FORWARD_CODES = new Set(["invalid_url", "repo_not_found", "repo_private"]);
 
 const STEPS = [
   { id: "repo", label: "Reading repo" },
@@ -132,6 +136,14 @@ export function KitForm({ promo }: { promo: boolean }) {
   // Typing the failed link back in brings its error, and the way out, back with it.
   const shownError = error ?? blockedBy?.error ?? null;
 
+  /** Empties the input and leaves repo-only mode, so the placeholder's site URL hint shows and the next paste can be a site. */
+  const switchToSite = () => {
+    setRepoMode(false);
+    setUrl("");
+    setError(null);
+    requestAnimationFrame(() => inputRef.current?.focus());
+  };
+
   const switchToRepo = () => {
     const { value, prefill } = repoPrefill(noContent?.input ?? url);
     track("repo_cta_clicked", { code: "site_no_content", plan, isLoggedIn: hasSessionHint(), prefill });
@@ -237,7 +249,7 @@ export function KitForm({ promo }: { promo: boolean }) {
               )}
             </span>
             <span aria-hidden="true" className={sampleRow.separator}>·</span>
-            <button type="button" className={sampleRow.button} data-variant={sampleCta ?? undefined} onClick={() => void submit("sample")}>
+            <button type="button" className={sampleRow.button} data-variant={sampleCta ?? undefined} onClick={() => void submit(SAMPLE_INPUT)}>
               Try a sample app
             </button>
           </>
@@ -260,6 +272,17 @@ export function KitForm({ promo }: { promo: boolean }) {
               <button type="button" className="mt-2 font-medium underline underline-offset-4" onClick={() => void submit(lastInput.current)}>
                 {CAPACITY_CODES.has(shownError.code) ? "Retry" : "Try again"}
               </button>
+            ) : null}
+            {WAY_FORWARD_CODES.has(shownError.code) ? (
+              <div className="mt-3 flex flex-wrap gap-2" data-testid="kit-error-actions">
+                <Button type="button" onClick={switchToSite} className="h-11 px-4 text-sm sm:h-10" data-testid="kit-site-cta">
+                  Try your site URL instead
+                  <ArrowRight />
+                </Button>
+                <Button type="button" variant="outline" onClick={() => void submit(SAMPLE_INPUT)} className="h-11 px-4 text-sm sm:h-10" data-testid="kit-sample-cta">
+                  Try a sample app
+                </Button>
+              </div>
             ) : null}
             {shownError.code === "site_no_content" ? (
               <>

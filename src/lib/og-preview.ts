@@ -102,6 +102,7 @@ function imageError(error: IngestError): string {
     case "site_no_content":
     case "site_not_html":
     case "repo_not_found":
+    case "repo_private":
     case "repo_owner_not_found":
     case "github_rate_limited":
     case "github_unavailable":

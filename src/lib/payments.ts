@@ -56,13 +56,22 @@ export interface CheckoutResult {
   promo: PromoOutcome;
 }
 
-/** Returns where to send the buyer: Stripe Checkout, or the local mock checkout in test mode. */
+/** Production has no Stripe key, so there's nowhere to take payment. The mock checkout never stands in for it. */
+export class CheckoutUnavailableError extends Error {
+  constructor() {
+    super("Stripe isn't configured in production, so checkout can't start");
+    this.name = "CheckoutUnavailableError";
+  }
+}
+
+/** Returns where to send the buyer: Stripe Checkout, or the local mock checkout in test mode. Throws CheckoutUnavailableError in production without Stripe. */
 export async function createCheckoutUrl(params: CheckoutRequest): Promise<CheckoutResult> {
   const { product, origin, kitId, email, customer, analyticsId, isLoggedIn, experiments, fallbacks, attribution } = params;
   // experiments[exp_launch14_promo] is the server's resolution for the kit (resolveKitPromo in /api/checkout).
   const promo = launchPromoDue(product, experiments);
   const s = stripe();
   if (!s) {
+    if (deployEnv() === "production") throw new CheckoutUnavailableError();
     const qs = new URLSearchParams({
       product,
       aid: analyticsId,
