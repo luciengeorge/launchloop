@@ -1,11 +1,13 @@
 import type { CaptureResult, PostHog, PostHogInterface } from "posthog-js";
 import { type Attribution, QA_PARAM, readLandingAttribution } from "./attribution";
 import { ANALYTICS_ID_PARAM, EXPERIMENTS, featureProperties, isAnalyticsId, type ExperimentKey, type FallbackReason, type Served, type Variant } from "./experiments";
+import type { PAYWALL_EARLY_CTA_FLAG } from "./paywall-cta";
 import { POSTHOG_PROXY_PATH, posthogUiHost } from "./posthog-config";
 import type { RepoPrefill } from "./repo-cta";
 import { scrubProperties } from "./scrub-url";
 import { pendingMarkers, readServedMarker } from "./served-marker";
 import type { StartPlan } from "./start-intent";
+import type { CheckoutFailureCode, PaywallViewport, UnlockContext } from "./unlock-checkout";
 
 export type PreviewSource = "github" | "site" | "sample";
 
@@ -40,8 +42,17 @@ export interface ClientEvents {
    * field's label: never what was typed. `link_url` is scrubbed like every URL.
    */
   hero_clicked: { element: "a" | "button" | "input"; label: string; link_url?: string };
-  /** Control served without a PostHog assignment (see Served). Not an exposure, so it stays out of the experiment. */
-  flag_fallback: { flag: ExperimentKey; variant: Variant; reason: FallbackReason; fallback: true };
+  /**
+   * Control served without a PostHog assignment (see Served). Not an exposure, so it stays out of the experiment.
+   * Also the paywall's early-CTA kill switch (PAYWALL_EARLY_CTA_FLAG) rendered off because PostHog didn't answer.
+   */
+  flag_fallback: { flag: ExperimentKey | typeof PAYWALL_EARLY_CTA_FLAG; variant: Variant; reason: FallbackReason; fallback: true };
+  /** A kit paywall unlock button at least half in view: once per position per page view. */
+  unlock_cta_shown: UnlockContext & { viewport: PaywallViewport };
+  /** A kit paywall unlock button clicked, or (`retry`) the "Try again" on its checkout error. Sent before /api/checkout. */
+  unlock_cta_clicked: UnlockContext & { viewport: PaywallViewport; retry: boolean };
+  /** /api/checkout failed for an unlock button (or ?unlock=1 / the code login, as `panel`). Never carries the message. */
+  checkout_failed: UnlockContext & { viewport: PaywallViewport; code: CheckoutFailureCode; retry: boolean };
 }
 
 const key = process.env.NEXT_PUBLIC_POSTHOG_KEY;

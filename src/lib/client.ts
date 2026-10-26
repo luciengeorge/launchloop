@@ -2,10 +2,22 @@ import { analyticsId, firstTouch, isTestVisit, pageAnalyticsId } from "./analyti
 import type { ExperimentKey, Served } from "./experiments";
 import type { PreviewLimits } from "./site";
 
+/** A JSON API answered with an error: its message, the HTTP status, and its `code` when it sent one. */
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number,
+    public readonly code?: string,
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
 export async function postJson<T>(url: string, body: unknown): Promise<T> {
   const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-  const data = (await res.json().catch(() => ({}))) as T & { error?: string };
-  if (!res.ok) throw new Error(data.error ?? `Request failed (${res.status})`);
+  const data = (await res.json().catch(() => ({}))) as T & { error?: string; code?: unknown };
+  if (!res.ok) throw new ApiError(data.error ?? `Request failed (${res.status})`, res.status, typeof data.code === "string" ? data.code : undefined);
   return data;
 }
 

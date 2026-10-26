@@ -1,0 +1,84 @@
+"use client";
+
+import { cn } from "cn";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { checkoutRecovery, type CheckoutFailure, type CheckoutRecovery } from "@/lib/unlock-checkout";
+
+export interface ErrorAction {
+  label: string;
+  /** A button, or (`href`) a link. */
+  onClick?: () => void;
+  href?: string;
+  testId?: string;
+}
+
+interface ActionableErrorProps {
+  message: string;
+  /** At least one: an error on the paywall is never a dead end. */
+  actions: [ErrorAction, ...ErrorAction[]];
+  className?: string;
+  /** The message's size: the panel's main errors are text-sm, the save-preview form's text-xs. */
+  size?: "sm" | "xs";
+  testId?: string;
+  code?: string;
+}
+
+/** An error with what to do about it, right next to the message and announced with it. */
+export function ActionableError({ message, actions, className, size = "sm", testId, code }: ActionableErrorProps) {
+  return (
+    <div role="alert" className={cn("mt-3", className)} data-testid={testId} data-code={code}>
+      <p className={cn("text-destructive", size === "sm" ? "text-sm" : "text-xs")}>{message}</p>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {actions.map((action) =>
+          action.href ? (
+            <a key={action.label} href={action.href} className={buttonVariants({ variant: "outline" })} data-testid={action.testId}>
+              {action.label}
+            </a>
+          ) : (
+            <Button key={action.label} type="button" variant="outline" onClick={action.onClick} data-testid={action.testId}>
+              {action.label}
+            </Button>
+          ),
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** The save-preview email field, on the panel whenever a signed-out visitor could unlock. */
+export const SAVE_PREVIEW_FIELD_ID = "save-email";
+
+function focusSavePreview() {
+  const field = document.getElementById(SAVE_PREVIEW_FIELD_ID);
+  field?.scrollIntoView({ block: "center", behavior: "smooth" });
+  field?.focus({ preventScroll: true });
+}
+
+function recoveryAction(recovery: CheckoutRecovery, onRetry: () => void): ErrorAction {
+  switch (recovery) {
+    case "retry":
+      return { label: "Try again", onClick: onRetry, testId: "checkout-retry" };
+    case "save":
+      return { label: "Email me a link instead", onClick: focusSavePreview, testId: "checkout-save-instead" };
+    case "new_preview":
+      return { label: "Make a new preview", href: "/#start", testId: "checkout-new-preview" };
+    default: {
+      const unhandled: never = recovery;
+      throw new Error(`Unhandled checkout recovery: ${String(unhandled)}`);
+    }
+  }
+}
+
+/** A failed checkout from one unlock button, with "Try again" (which runs the same checkout) and/or another way on. */
+export function CheckoutError({ failure, isLoggedIn, onRetry, className }: { failure: CheckoutFailure; isLoggedIn: boolean; onRetry: () => void; className?: string }) {
+  const [first, ...rest] = checkoutRecovery(failure.code, isLoggedIn);
+  return (
+    <ActionableError
+      message={failure.message}
+      actions={[recoveryAction(first, onRetry), ...rest.map((r) => recoveryAction(r, onRetry))]}
+      className={className}
+      testId="checkout-error"
+      code={failure.code}
+    />
+  );
+}
