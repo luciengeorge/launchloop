@@ -13,6 +13,10 @@ test("the filled orange's label (--primary-foreground) is at least 4.5:1 on it, 
   expect(contrast(rootToken("primary-hover"), rootToken("primary-foreground"))).toBeGreaterThanOrEqual(4.5);
 });
 
+test(".dark has its own --primary-hover, and its --primary-foreground is at least 4.5:1 on it", () => {
+  expect(contrast(rootToken("primary-hover", ".dark"), rootToken("primary-foreground", ".dark"))).toBeGreaterThanOrEqual(4.5);
+});
+
 test("bg-primary-hover is a Tailwind colour", () => {
   expect(globalsCss()).toMatch(/@theme inline \{[^}]*--color-primary-hover: var\(--primary-hover\);/);
 });

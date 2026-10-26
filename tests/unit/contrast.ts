@@ -19,8 +19,8 @@ export function contrast(a: string, b: string) {
 
 export const globalsCss = () => readFileSync(path.join(process.cwd(), "src/app/globals.css"), "utf8");
 
-/** The literal `oklch(...)` value of `--name` in globals.css's `:root`. */
-export function rootToken(name: string) {
-  const root = globalsCss().match(/:root \{([\s\S]*?)\n\}/)![1];
-  return root.match(new RegExp(`--${name}: (oklch\\([^)]+\\));`))![1];
+/** The literal `oklch(...)` value of `--name` in globals.css's `:root` (or another top-level block, like `.dark`). */
+export function rootToken(name: string, block = ":root") {
+  const body = globalsCss().split(`\n${block} {`)[1]!.split("\n}")[0];
+  return body.match(new RegExp(`--${name}: (oklch\\([^)]+\\));`))![1];
 }
