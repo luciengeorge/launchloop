@@ -6,10 +6,10 @@ import { isBeforePromoEnd, resolveLaunchPromo } from "./launch-promo";
 import { captureException } from "./observability";
 
 /**
- * Marketing pages are shared and cached, so there's no visitor id to bucket. They read the flag for one
- * fixed id: right at a 0% or 100% rollout, which is how exp_launch14_promo is run now. No exposure event.
+ * Marketing pages are shared and cached, so there's no visitor id to bucket. They read flags for one
+ * fixed id: right at a 0% or 100% rollout, which is how exp_launch14_promo and newsletter-inline-signup are run. No exposure event.
  */
-const MARKETING_DISTINCT_ID = "launchloop-marketing-pages";
+export const MARKETING_DISTINCT_ID = "launchloop-marketing-pages";
 
 /**
  * exp_launch14_promo for public marketing pages and checkouts that arrive without a variant.

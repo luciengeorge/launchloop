@@ -13,19 +13,23 @@ export const isBeforePromoEnd = (now: number) => now < LAUNCH_PROMO_ENDS_AT;
  * Whether exp_launch14_promo is on, from a flag evaluation that may fail. Only "treatment" turns it on:
  * control, a disabled flag, no PostHog key, an error or a timeout all mean the plain £19.
  */
-export async function resolveLaunchPromo(
-  evaluate: () => Promise<unknown>,
-  { timeoutMs = LAUNCH_PROMO_TIMEOUT_MS, onError }: { timeoutMs?: number; onError?: (error: unknown) => void } = {},
-): Promise<boolean> {
+export async function resolveLaunchPromo(evaluate: () => Promise<unknown>, options: FlagOptions = {}): Promise<boolean> {
+  return (await evaluateFlag(evaluate, options)) === "treatment";
+}
+
+type FlagOptions = { timeoutMs?: number; onError?: (error: unknown) => void };
+
+/** A server-side flag value for a marketing page: undefined after an error (reported to `onError`) or `timeoutMs`. */
+export async function evaluateFlag(evaluate: () => Promise<unknown>, { timeoutMs = LAUNCH_PROMO_TIMEOUT_MS, onError }: FlagOptions = {}): Promise<unknown> {
   let timer: ReturnType<typeof setTimeout> | undefined;
-  const timeout = new Promise<"timeout">((resolve) => {
-    timer = setTimeout(() => resolve("timeout"), timeoutMs);
+  const timeout = new Promise<undefined>((resolve) => {
+    timer = setTimeout(() => resolve(undefined), timeoutMs);
   });
   try {
-    return (await Promise.race([evaluate(), timeout])) === "treatment";
+    return await Promise.race([evaluate(), timeout]);
   } catch (error) {
     onError?.(error);
-    return false;
+    return undefined;
   } finally {
     clearTimeout(timer);
   }

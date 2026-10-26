@@ -17,6 +17,7 @@
 /.next/
 /.next-test/
 /.next-test-hero/
+/.next-test-inline/
 /out/
 
 # production
@@ -46,6 +47,7 @@ next-env.d.ts
 /.data/
 /.data-test/
 /.data-test-hero/
+/.data-test-inline/
 
 # playwright
 /test-results/

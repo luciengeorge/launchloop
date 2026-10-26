@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { HeroHeadline, HeroHeadlinePending } from "@/components/hero-headline";
 import { ExampleKitSlot, HomeHero } from "@/components/home-hero";
+import { InlineNewsletter } from "@/components/inline-newsletter";
 import { JsonLd } from "@/components/json-ld";
 import { KitForm } from "@/components/kit-form";
 import { KitPrice, KitPromoNote, PricedText } from "@/components/kit-price";
@@ -15,6 +16,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { siteUrl } from "@/lib/env";
 import { heroExperimentEnabled, heroHeadlineAssignment } from "@/lib/hero-headline-server";
 import { isLaunchPromoOn } from "@/lib/launch-promo-server";
+import { isNewsletterInlineOn } from "@/lib/newsletter-flag-server";
 import { PAGES } from "@/lib/pages";
 import { pageMetadata } from "@/lib/seo";
 import { siteGraph } from "@/lib/structured-data";
@@ -40,7 +42,7 @@ const RULES = [
 
 export default async function Home() {
   const url = siteUrl();
-  const promo = await isLaunchPromoOn();
+  const [promo, inlineNewsletter] = await Promise.all([isLaunchPromoOn(), isNewsletterInlineOn()]);
   return (
     <>
       <JsonLd data={siteGraph(url, promo)} />
@@ -90,6 +92,9 @@ export default async function Home() {
           </p>
         </div>
       </HomeHero>
+
+      {/* Outside HomeHero, so none of its click tracking, experiment freezing or layout checks see it. */}
+      {inlineNewsletter ? <InlineNewsletter variant="home" /> : null}
 
       <section id="kit" className="mx-auto max-w-6xl px-4 py-20 sm:px-6" aria-labelledby="kit-heading">
         <div className="max-w-2xl">

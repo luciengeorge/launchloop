@@ -1,6 +1,7 @@
 import type { CaptureResult, PostHog, PostHogInterface } from "posthog-js";
 import { type Attribution, QA_PARAM, readLandingAttribution } from "./attribution";
 import { ANALYTICS_ID_PARAM, EXPERIMENTS, featureProperties, isAnalyticsId, type ExperimentKey, type FallbackReason, type Served, type Variant } from "./experiments";
+import type { NewsletterPlacement } from "./newsletter";
 import type { PAYWALL_EARLY_CTA_FLAG } from "./paywall-cta";
 import { POSTHOG_PROXY_PATH, posthogUiHost } from "./posthog-config";
 import type { RepoPrefill } from "./repo-cta";
@@ -47,6 +48,11 @@ export interface ClientEvents {
    * Also the paywall's early-CTA kill switch (PAYWALL_EARLY_CTA_FLAG) rendered off because PostHog didn't answer.
    */
   flag_fallback: { flag: ExperimentKey | typeof PAYWALL_EARLY_CTA_FLAG; variant: Variant; reason: FallbackReason; fallback: true };
+  /**
+   * A newsletter form at least half on screen, once per placement per page (useFormViewed). `path` is scrubbed like
+   * every URL; the UTMs are the landing's. Never anything typed. The submit is the server's newsletter_subscribed.
+   */
+  newsletter_form_viewed: { placement: NewsletterPlacement; path: string; utm_source?: string; utm_medium?: string; utm_campaign?: string };
   /** A kit paywall unlock button at least half in view: once per position per page view. */
   unlock_cta_shown: UnlockContext & { viewport: PaywallViewport };
   /** A kit paywall unlock button clicked, or (`retry`) the "Try again" on its checkout error. Sent before /api/checkout. */
