@@ -1,7 +1,9 @@
 import "server-only";
 import type { Palette } from "../schema";
 import { DEFAULT_PALETTE, extractPalette } from "./colors";
-import { gh } from "./github";
+import { cappedText, encodeRepoFile, gh, repoApiPath } from "./github";
+import { readCappedText } from "./safe-fetch";
+import { TREE_BYTES, treePaths } from "./visuals";
 
 /** One tree listing plus at most one file per kind, all inside this budget, so a preview barely slows down. */
 export const REPO_PALETTE_BUDGET_MS = 2500;
@@ -70,16 +72,19 @@ export function paletteFromRepoFiles(files: { path: string; text: string }[]): P
 export async function fetchRepoPalette(owner: string, name: string): Promise<Palette> {
   const signal = AbortSignal.timeout(REPO_PALETTE_BUDGET_MS);
   try {
-    const treeRes = await gh(`/repos/${owner}/${name}/git/trees/HEAD?recursive=1`, undefined, signal);
+    const repo = repoApiPath(owner, name);
+    const treeRes = await gh(`${repo}/git/trees/HEAD?recursive=1`, undefined, signal);
     if (!treeRes.ok) return DEFAULT_PALETTE;
-    const tree = (await treeRes.json()) as { tree?: { path?: string; type?: string }[] };
-    const paths = pickColourFiles((tree.tree ?? []).filter((e) => e.type === "blob" && e.path).map((e) => e.path!));
+    // A listing cut off at the cap isn't valid JSON, but its complete entries still are.
+    const { text, truncated } = await readCappedText(treeRes, TREE_BYTES);
+    const listed = truncated ? treePaths(text) : ((JSON.parse(text) as { tree?: { path?: string; type?: string }[] }).tree ?? []).filter((e) => e.type === "blob" && e.path).map((e) => e.path!);
+    const paths = pickColourFiles(listed);
     if (paths.length === 0) return DEFAULT_PALETTE;
     const files = await Promise.all(
       paths.map(async (path) => {
         try {
-          const res = await gh(`/repos/${owner}/${name}/contents/${path}`, "application/vnd.github.raw+json", signal);
-          return res.ok ? { path, text: (await res.text()).slice(0, FILE_CAP) } : null;
+          const res = await gh(`${repo}/contents/${encodeRepoFile(path)}`, "application/vnd.github.raw+json", signal);
+          return res.ok ? { path, text: await cappedText(res, FILE_CAP) } : null;
         } catch {
           return null;
         }

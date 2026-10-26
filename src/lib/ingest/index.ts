@@ -51,7 +51,8 @@ const GITHUB_HOSTS = new Set(["github.com", "www.github.com"]);
  */
 export function normaliseKitInput(raw: string): string {
   const input = normaliseInput(raw);
-  if (input !== SAMPLE_INPUT && GITHUB_HOSTS.has(new URL(input).hostname) && !parseGitHubUrl(input)) {
+  // The raw link is checked too: normalising has already resolved any "." or ".." segment it had.
+  if (input !== SAMPLE_INPUT && GITHUB_HOSTS.has(new URL(input).hostname) && !(parseGitHubUrl(input) && parseGitHubUrl(raw))) {
     throw new IngestError("GitHub URL without owner/repo", "invalid_url", "Paste a repo URL like github.com/owner/repo.");
   }
   return input;
