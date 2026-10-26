@@ -123,7 +123,9 @@ export function singleFlight<A extends unknown[], R>(run: (...args: A) => Promis
     );
     return started;
   };
-  return Object.assign(call, { inFlight: () => current !== null });
+  // reset: the page came back (bfcache) after a run that held it, so nothing is in flight any more. A late settle of
+  // that run can't free a newer one: each settle only clears its own.
+  return Object.assign(call, { inFlight: () => current !== null, reset: () => void (current = null) });
 }
 
 /**

@@ -13,7 +13,7 @@ import { useClaimPrimaryCta } from "@/lib/primary-cta";
 import { LAUNCH_PROMO } from "@/lib/products";
 import { trackUnlockClicked, type UnlockContext } from "@/lib/unlock-checkout";
 import { useServerAssignment } from "@/lib/use-experiment";
-import { useUnlockButtonRef, useUnlockCheckout } from "./unlock-checkout";
+import { usePageRestored, useUnlockButtonRef, useUnlockCheckout } from "./unlock-checkout";
 import { ActionableError, CheckoutError, SAVE_PREVIEW_FIELD_ID } from "./unlock-error";
 
 const EMAIL_KEY = "launchloop:email";
@@ -61,6 +61,11 @@ export function UnlockPanel({ kitId, priceLabel, launchPromo, email, autoCheckou
   const promoVariant = useServerAssignment(EXPERIMENTS.launchPromo, launchPromo).variant;
   useClaimPrimaryCta();
   const unlock = useUnlockCheckout();
+  // Its own "redirecting" (a checkout that left, or the code login on its way to the account) is over once the page is back.
+  usePageRestored(() => {
+    setStep((s) => (s === "redirecting" ? "cta" : s));
+    setLoading(false);
+  });
   const { fullPriceUrl } = unlock;
   const promo = promoVariant === "treatment" && !fullPriceUrl;
   const shownPrice = promo ? LAUNCH_PROMO.priceLabel : priceLabel;
@@ -118,6 +123,8 @@ export function UnlockPanel({ kitId, priceLabel, launchPromo, email, autoCheckou
   }
 
   function unlockClicked(retry: boolean) {
+    // A second click in the same task (before the button re-renders away) starts nothing, so it's no click to log.
+    if (unlock.inFlight()) return;
     trackUnlockClicked(context, retry);
     if (fullPriceUrl) return window.location.assign(fullPriceUrl);
     focusStatus.current = true;

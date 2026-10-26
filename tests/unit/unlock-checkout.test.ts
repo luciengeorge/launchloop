@@ -292,6 +292,39 @@ describe("one checkout at a time (singleFlight)", () => {
     expect(posts(fetch)).toBe(1);
   });
 
+  it("reset (the page back from the bfcache) frees a checkout held by its redirect: the next start sends one POST", async () => {
+    const fetch = vi.fn(async () => Response.json({ url: "/checkout/mock?product=kit", promo: "none" }));
+    const { start } = await guardedStart(fetch);
+    await start(false);
+    await Promise.resolve();
+    expect(start.inFlight()).toBe(true);
+    start.reset();
+    expect(start.inFlight()).toBe(false);
+    const [a, b] = [start(false), start(false)];
+    expect(b).toBe(a);
+    await a;
+    expect(posts(fetch)).toBe(2);
+  });
+
+  it("a run from before the reset that settles late doesn't free the newer one", async () => {
+    const { unlock } = await landOn("https://launchloop.dev/kit/kit_0123456789abcdef");
+    const settle: (() => void)[] = [];
+    const start = unlock.singleFlight(() => new Promise<string>((resolve) => settle.push(() => resolve("failed"))));
+    const old = start();
+    start.reset();
+    const fresh = start();
+    expect(fresh).not.toBe(old);
+    settle[0]();
+    await old;
+    await Promise.resolve();
+    expect(start.inFlight()).toBe(true);
+    expect(start()).toBe(fresh);
+    settle[1]();
+    await fresh;
+    await Promise.resolve();
+    expect(start.inFlight()).toBe(false);
+  });
+
   it("a run that throws frees it", async () => {
     const { unlock } = await landOn("https://launchloop.dev/kit/kit_0123456789abcdef");
     let calls = 0;
