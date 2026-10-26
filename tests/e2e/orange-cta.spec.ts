@@ -23,9 +23,19 @@ async function kitFormError(page: Page, code: "repo_not_found" | "site_no_conten
   await expect(page.getByTestId("kit-error")).toHaveAttribute("data-code", code);
 }
 
+/** The panel's checkout failed with a plain-text 500 (no JSON): its friendly error with Try again is on screen. */
+async function panelCheckoutError(page: Page) {
+  await openKit(page);
+  await page.route("**/api/checkout", (route, request) =>
+    request.method() === "POST" ? route.fulfill({ status: 500, contentType: "text/plain", body: "Internal Server Error" }) : route.continue(),
+  );
+  await page.getByTestId("unlock-panel").getByRole("button", { name: "Unlock the full kit, £19" }).click();
+  await expect(page.getByTestId("unlock-panel").getByRole("alert")).toBeVisible();
+}
+
 const darkBand = (page: Page) => page.locator("aside.bg-foreground, div.bg-foreground").getByRole("link", { name: "Get my free preview" });
 
-/** Every filled orange call to action, where it is, and how to get it on screen. */
+/** Every filled orange call to action (and the checkout error's Try again), where it is, and how to get it on screen. */
 const CTAS: { name: string; open: (page: Page) => Promise<unknown>; locate: (page: Page) => Locator }[] = [
   { name: "header CTA", open: (p) => p.goto("/"), locate: (p) => p.getByRole("banner").getByRole("link", { name: /Get (my )?(launch )?kit/ }) },
   { name: "hero kit button", open: (p) => p.goto("/"), locate: (p) => p.getByRole("form", { name: "Generate a launch kit" }).getByRole("button", { name: /Get my free preview/ }) },
@@ -60,6 +70,9 @@ const CTAS: { name: string; open: (page: Page) => Promise<unknown>; locate: (pag
     open: (p) => openKit(p).then(() => p.getByTestId("unlock-login-first").click()),
     locate: (p) => p.getByTestId("unlock-panel").getByRole("button", { name: "Continue to checkout" }),
   },
+  { name: "kit: panel unlock button after a failed checkout", open: panelCheckoutError, locate: (p) => p.getByTestId("unlock-panel").getByRole("button", { name: "Unlock the full kit, £19" }) },
+  // Outline, not orange: measured because it's the way on from a failed checkout.
+  { name: "kit: checkout error Try again (outline)", open: panelCheckoutError, locate: (p) => p.getByTestId("unlock-panel").getByRole("alert").getByRole("button", { name: "Try again" }) },
   { name: "error: Try your site URL instead", open: (p) => kitFormError(p, "repo_not_found", "github.com/real-owner/secret-repo"), locate: (p) => p.getByTestId("kit-site-cta") },
   { name: "error: Use my GitHub repo instead", open: (p) => kitFormError(p, "site_no_content", "https://acme.io"), locate: (p) => p.getByTestId("kit-repo-cta") },
 ];
@@ -102,7 +115,7 @@ const whiteOnOrange = (page: Page) =>
   });
 
 for (const cta of CTAS) {
-  test(`${cta.name}: dark label on the brand orange, at least 4.5:1 at rest and hovered; no white text on orange on the page`, async ({ page }, { project }) => {
+  test(`${cta.name}: label at least 4.5:1 at rest and hovered; no white text on orange on the page`, async ({ page }, { project }) => {
     await cta.open(page);
     const target = cta.locate(page);
     await expect(target).toBeVisible();
@@ -112,6 +125,9 @@ for (const cta of CTAS) {
     expect(guard.offenders, "white text on orange").toEqual([]);
     if ((await target.isDisabled()) || (await target.getAttribute("aria-disabled")) === "true") test.skip(true, "disabled controls are exempt");
 
+    // Off the target (opening the page may have clicked it) and past its transition, so "rest" isn't half hovered.
+    await page.mouse.move(0, 0);
+    await page.waitForTimeout(300);
     const rest = await contrast(target);
     expect(rest, cta.name).toBeGreaterThanOrEqual(4.5);
     await target.hover();

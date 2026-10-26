@@ -46,6 +46,9 @@ async function failCheckoutOnce(page: Page, fail: Parameters<Page["route"]>[1]) 
 /** The label is at least 4.5:1 on the button, at rest and hovered (the button has transition-all). */
 async function expectReadable(page: Page, button: Locator, name: string) {
   await button.scrollIntoViewIfNeeded();
+  // Off the button (a click leaves the mouse on it) and past the transition, so "rest" isn't half hovered.
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(300);
   const rest = await contrast(button);
   expect(rest, name).toBeGreaterThanOrEqual(4.5);
   await button.hover();
@@ -160,6 +163,23 @@ test.describe("flag on, desktop", () => {
     }
     const fill = (button: Locator) => button.evaluate((el) => getComputedStyle(el).backgroundColor);
     await expect.poll(async () => (await fill(earlyButton(page))) === (await fill(panelButton(page)))).toBe(true);
+  });
+
+  test("after a plain-text 500: the early CTA, the panel's button and each error's Try again are at least 4.5:1 at rest and hovered", async ({ page }) => {
+    await earlyCtaKit(page);
+    await answerCheckouts(page, plain500, plain500);
+    await earlyButton(page).click();
+    const earlyRetry = page.getByTestId("early-unlock-cta").getByRole("alert").getByRole("button", { name: "Try again" });
+    await expect(earlyRetry).toBeVisible();
+    await expectReadable(page, earlyButton(page), "early CTA after a failure");
+    await expectReadable(page, earlyRetry, "early CTA error: Try again");
+
+    await panelButton(page).scrollIntoViewIfNeeded();
+    await panelButton(page).click();
+    const panelRetry = page.getByTestId("unlock-panel").getByRole("alert").getByRole("button", { name: "Try again" });
+    await expect(panelRetry).toBeVisible();
+    await expectReadable(page, panelButton(page), "panel after a failure");
+    await expectReadable(page, panelRetry, "panel error: Try again");
   });
 });
 
@@ -344,6 +364,18 @@ test.describe("flag on, narrow window with a mouse", () => {
     await toLockedSections(page);
     await expect(stickyBar(page)).toHaveAttribute("data-visible", "true");
     await expectReadable(page, stickyBar(page).getByRole("button", { name: "Unlock the full kit, £19" }), "sticky bar");
+  });
+
+  test("after a plain-text 500 from the sticky bar: its button and its Try again are at least 4.5:1 at rest and hovered", async ({ page }) => {
+    await earlyCtaKit(page);
+    await toLockedSections(page);
+    await expect(stickyBar(page)).toHaveAttribute("data-visible", "true");
+    await answerCheckouts(page, plain500);
+    await stickyBar(page).getByRole("button", { name: "Unlock the full kit, £19" }).click();
+    const retry = stickyBar(page).getByRole("alert").getByRole("button", { name: "Try again" });
+    await expect(retry).toBeVisible();
+    await expectReadable(page, stickyBar(page).getByRole("button", { name: "Unlock the full kit, £19" }), "sticky bar after a failure");
+    await expectReadable(page, retry, "sticky bar error: Try again");
   });
 });
 
