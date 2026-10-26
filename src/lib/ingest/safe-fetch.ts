@@ -44,6 +44,8 @@ for (const [prefix, bits] of [
 // Ranges that embed or tunnel to an IPv4 address (compat, NAT64, 6to4, Teredo) are blocked outright.
 for (const [prefix, bits] of [
   ["::", 96],
+  // IPv4-translated (SIIT): ::ffff:0:a.b.c.d is not IPv4-mapped, so BlockList doesn't fold it into the IPv4 rules.
+  ["::ffff:0:0:0", 96],
   ["64:ff9b::", 96],
   ["64:ff9b:1::", 48],
   ["100::", 64],
