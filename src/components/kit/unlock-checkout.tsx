@@ -8,8 +8,13 @@ import { runCheckout, trackUnlockClicked, trackUnlockShown, type CheckoutFailure
 interface CheckoutState {
   /** A checkout is starting or the page is on its way to Stripe: every unlock button waits. */
   redirecting: boolean;
-  /** The last checkout that failed, and which button it was for: only that one shows the error. */
-  failed: { position: UnlockCtaPosition; failure: CheckoutFailure } | null;
+  /** Which button started the checkout under way (null for ?unlock=1's, started before any click). */
+  pending: UnlockCtaPosition | null;
+  /**
+   * The last checkout that failed, and which button it was for: only that one shows the error. `attempt` is new for
+   * every failure, so the same error twice (Try again failing again) still hands focus back (useFocusAfterFailure).
+   */
+  failed: { position: UnlockCtaPosition; failure: CheckoutFailure; attempt: number } | null;
   /** Full-price Checkout URL, set when the promo arm's LAUNCH14 was turned down by Stripe. */
   fullPriceUrl: string | null;
 }
@@ -24,7 +29,8 @@ export interface UnlockCheckout extends CheckoutState {
 }
 
 function useCheckoutState(earlyCta: boolean, autoCheckout: boolean): UnlockCheckout {
-  const [state, setState] = useState<CheckoutState>({ redirecting: autoCheckout, failed: null, fullPriceUrl: null });
+  const [state, setState] = useState<CheckoutState>({ redirecting: autoCheckout, pending: null, failed: null, fullPriceUrl: null });
+  const attempts = useRef(0);
   // Aborted on unmount: a checkout still waiting then stops, with its timeout timer, and logs nothing.
   const mounted = useRef<AbortController | null>(null);
   useEffect(() => {
@@ -34,18 +40,20 @@ function useCheckoutState(earlyCta: boolean, autoCheckout: boolean): UnlockCheck
   }, []);
 
   const start = useCallback<UnlockCheckout["start"]>(async (context, options) => {
-    setState((s) => ({ ...s, redirecting: true, failed: null }));
+    setState((s) => ({ ...s, redirecting: true, pending: context.position, failed: null }));
     const outcome = await runCheckout(context, options, { signal: mounted.current?.signal });
     switch (outcome.kind) {
       case "redirect":
         window.location.assign(outcome.url);
         break;
       case "full_price":
-        setState((s) => ({ ...s, redirecting: false, fullPriceUrl: outcome.url }));
+        setState((s) => ({ ...s, redirecting: false, pending: null, fullPriceUrl: outcome.url }));
         break;
-      case "failed":
-        setState((s) => ({ ...s, redirecting: false, failed: { position: context.position, failure: outcome.failure } }));
+      case "failed": {
+        const attempt = ++attempts.current;
+        setState((s) => ({ ...s, redirecting: false, pending: null, failed: { position: context.position, failure: outcome.failure, attempt } }));
         break;
+      }
       case "cancelled":
         break;
       default: {
@@ -100,6 +108,44 @@ export function useUnlockCheckout(): UnlockCheckout {
   const shared = useContext(UnlockCheckoutContext);
   const own = useCheckoutState(false, false);
   return shared ?? own;
+}
+
+/**
+ * A ref for an unlock button that takes focus back when its checkout fails (`attempt`, from `failed`), so a keyboard or
+ * screen reader user lands on the button beside the error, and can press it again, instead of on the page body. The
+ * button may only mount after the failure (the panel shows "Taking you to secure checkout…" in its place), so it's
+ * focused on the first render that has it. Only when focus was lost (on the body): it never takes focus from
+ * somewhere the visitor has since put it.
+ */
+export function useFocusAfterFailure<T extends HTMLElement>(attempt: number | undefined) {
+  const element = useRef<T | null>(null);
+  const handled = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    // Not mounted yet (the panel's status line still stands in for it): wait for the render that has it.
+    if (attempt === undefined || attempt === handled.current || !element.current?.isConnected) return;
+    handled.current = attempt;
+    const active = document.activeElement;
+    if (!active || active === document.body) element.current.focus();
+  });
+  return element;
+}
+
+/** The ref every unlock button takes: unlock_cta_shown once it's seen (useShownOnce), and focus back after a failure. */
+export function useUnlockButtonRef(context: UnlockContext, failedAttempt: number | undefined) {
+  const shownRef = useShownOnce(context);
+  const focusRef = useFocusAfterFailure<HTMLButtonElement>(failedAttempt);
+  return useCallback(
+    (element: HTMLButtonElement | null) => {
+      focusRef.current = element;
+      const stopObserving = shownRef(element);
+      // A callback ref that returns a cleanup isn't called with null on unmount, so the cleanup forgets the element.
+      return () => {
+        focusRef.current = null;
+        stopObserving?.();
+      };
+    },
+    [focusRef, shownRef],
+  );
 }
 
 /**

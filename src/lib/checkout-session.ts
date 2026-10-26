@@ -18,6 +18,13 @@ export class RecurringPriceError extends Error {
 export const SHIP_LOOP_WAITLIST_ONLY = "Ship Loop isn't on sale. Join the waitlist, we'll email you when it launches.";
 
 /**
+ * Checkout can't take payment right now: /api/checkout's 503 (production without Stripe), and what the unlock buttons
+ * show for any 503, such as a gateway's, which keeps its unlock button so the buyer can retry or write to us.
+ */
+export const CHECKOUT_UNAVAILABLE_MESSAGE =
+  "Checkout is offline for a few minutes. Your preview is saved: try again shortly, or email hello@launchloop.dev and we'll send you a payment link.";
+
+/**
  * The kit is the only thing Checkout sells. Ship Loop (monthly, yearly, pre-order or anything else) is a free waitlist,
  * so every other product gets a 400 with the waitlist message before Stripe is touched.
  */

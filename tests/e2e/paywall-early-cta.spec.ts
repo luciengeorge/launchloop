@@ -1,4 +1,4 @@
-import { expect, test, type APIRequestContext, type BrowserContext, type Locator, type Page } from "@playwright/test";
+import { expect, test, type APIRequestContext, type BrowserContext, type Locator, type Page, type Route } from "@playwright/test";
 import { CHECKOUT_TIMEOUT_MS } from "@/lib/unlock-checkout";
 import { makeSampleKit, uniqueEmail } from "./helpers";
 
@@ -43,6 +43,34 @@ async function failCheckoutOnce(page: Page, fail: Parameters<Page["route"]>[1]) 
   });
 }
 const serverError = { status: 502, json: { error: "Couldn't start checkout. Please try again." } };
+
+type CheckoutAnswer = (route: Route) => Promise<void>;
+/** Answers each /api/checkout in turn with the next of `answers`; once they run out, requests go through. */
+async function answerCheckouts(page: Page, ...answers: CheckoutAnswer[]) {
+  await page.route("**/api/checkout", (route, request) => {
+    if (request.method() !== "POST") return route.continue();
+    const answer = answers.shift();
+    return answer ? answer(route) : route.continue();
+  });
+}
+/** A plain-text 500, as a crashed server or a proxy sends it: no JSON, so no message of ours. */
+const plain500: CheckoutAnswer = (route) => route.fulfill({ status: 500, contentType: "text/plain", body: "Internal Server Error" });
+/** A gateway's own 503 page in front of the app: HTML, no checkout_unavailable code. */
+const gateway503: CheckoutAnswer = (route) => route.fulfill({ status: 503, contentType: "text/html", body: "<html><body><h1>503 Service Temporarily Unavailable</h1></body></html>" });
+/** Holds a request until `release` says how to answer it. */
+function held() {
+  let release!: (answer: CheckoutAnswer) => void;
+  const decided = new Promise<CheckoutAnswer>((resolve) => (release = resolve));
+  return { answer: (async (route) => (await decided)(route)) as CheckoutAnswer, release };
+}
+const OFFLINE = "Checkout is offline for a few minutes. Your preview is saved: try again shortly, or email hello@launchloop.dev and we'll send you a payment link.";
+
+/** The error's message is the button's description, so it's read again when focus lands on the button. */
+async function expectDescribedByError(button: Locator, error: Locator) {
+  const describedBy = await button.getAttribute("aria-describedby");
+  expect(describedBy).toBeTruthy();
+  expect(await error.locator("p").getAttribute("id")).toBe(describedBy);
+}
 
 test.describe("flag off", () => {
   for (const value of [null, false] as const) {
@@ -237,6 +265,73 @@ test.describe("flag on, mobile", () => {
     expect(new URL(page.url()).searchParams.get("kitId")).toBe(kitId);
   });
 });
+
+for (const [label, viewport] of [
+  ["375px", MOBILE],
+  ["desktop", DESKTOP],
+] as const) {
+  test.describe(`error copy and focus, ${label}`, () => {
+    test.use({ viewport });
+
+    test("a plain-text 500: a friendly message with Try again; focus is on the unlock button after the failure, during Try again and after it fails again", async ({ page }) => {
+      await earlyCtaKit(page);
+      const retry = held();
+      await answerCheckouts(page, plain500, retry.answer);
+      const button = earlyButton(page);
+      await button.scrollIntoViewIfNeeded();
+      await button.click();
+
+      const error = page.getByTestId("early-unlock-cta").getByRole("alert");
+      await expect(error.locator("p")).toHaveText("Couldn't start checkout. Please try again.");
+      await expect(page.getByTestId("preview-paywall")).not.toContainText(/Request failed|Internal Server Error/);
+      await expect(error.getByRole("button", { name: "Try again" })).toBeVisible();
+      await expect(error.getByRole("button", { name: "Email me a link instead" })).toBeVisible();
+      await expect(button).toBeFocused();
+      await expect(button).toBeEnabled();
+      await expectDescribedByError(button, error);
+
+      // While Try again's checkout is under way, focus waits on the (busy) unlock button rather than the page.
+      await error.getByRole("button", { name: "Try again" }).click();
+      await expect(button).toBeFocused();
+      await expect(button).toHaveAttribute("aria-disabled", "true");
+      retry.release(plain500);
+      await expect(page.getByTestId("early-unlock-cta").getByRole("alert")).toBeVisible();
+      await expect(button).toBeFocused();
+      await expect(button).toBeEnabled();
+
+      // From there, Enter on the focused button is the retry: checkout goes through.
+      await page.keyboard.press("Enter");
+      await page.waitForURL(/\/checkout\/mock\?product=kit/);
+    });
+
+    test("a plain 503 from a gateway (no code): the offline message with the email-us link; focus holds on the status, then returns to the panel's button", async ({ page }) => {
+      await makeSampleKit(page);
+      const retry = held();
+      await answerCheckouts(page, gateway503, retry.answer);
+      const button = panelButton(page);
+      await button.scrollIntoViewIfNeeded();
+      await button.click();
+
+      const panel = page.getByTestId("unlock-panel");
+      const error = panel.getByRole("alert");
+      await expect(error).toHaveAttribute("data-code", "checkout_unavailable");
+      await expect(error.locator("p")).toHaveText(OFFLINE);
+      await expect(error.getByRole("link", { name: "Email us for a payment link" })).toHaveAttribute("href", "mailto:hello@launchloop.dev?subject=Payment%20link%20for%20my%20launch%20kit");
+      await expect(error.getByRole("button", { name: "Email me a link instead" })).toBeVisible();
+      await expect(error.getByRole("button", { name: "Try again" })).toBeVisible();
+      await expect(button).toBeFocused();
+      await expectDescribedByError(button, error);
+
+      // The panel swaps its button for "Taking you to secure checkout…" while it waits: focus holds there, not on the body.
+      await error.getByRole("button", { name: "Try again" }).click();
+      await expect(page.getByTestId("checkout-redirecting")).toBeFocused();
+      retry.release(gateway503);
+      await expect(panel.getByRole("alert")).toHaveAttribute("data-code", "checkout_unavailable");
+      await expect(button).toBeFocused();
+      expect(await page.evaluate(() => document.activeElement === document.body)).toBe(false);
+    });
+  });
+}
 
 test.describe("errors always carry a CTA (flag off too)", () => {
   test("panel checkout failure: Try again starts checkout", async ({ page }) => {
