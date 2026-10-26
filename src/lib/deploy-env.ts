@@ -13,6 +13,12 @@ export function keyPrefix(e: DeployEnv = deployEnv()): string {
   return e === "production" ? "" : e === "preview" ? "preview:" : "dev:";
 }
 
+/**
+ * Production has no safe fallback for the KV store: files in /tmp are per instance, so rate limits and caps would
+ * quietly stop holding. True when this deployment must refuse instead.
+ */
+export const kvMissingInProduction = (kv: { kvUrl?: string; kvToken?: string }, e: DeployEnv = deployEnv()): boolean => e === "production" && !(kv.kvUrl && kv.kvToken);
+
 export type StripeEventDecision = { handle: true } | { handle: false; reason: string };
 
 /**

@@ -32,7 +32,8 @@ export const env = {
   kvToken: read("KV_REST_API_TOKEN") ?? read("UPSTASH_REDIS_REST_TOKEN"),
   dataDir: read("DATA_DIR"),
 
-  ingestAllowPrivate: read("INGEST_ALLOW_PRIVATE") === "true",
+  /** A testing escape hatch that production never honours, whatever the env says. */
+  ingestAllowPrivate: read("INGEST_ALLOW_PRIVATE") === "true" && read("VERCEL_ENV") !== "production",
   sentryDsn: read("SENTRY_DSN"),
   posthogKey: read("NEXT_PUBLIC_POSTHOG_KEY"),
   authSecret: read("AUTH_SECRET"),

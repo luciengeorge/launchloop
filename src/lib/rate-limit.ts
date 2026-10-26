@@ -4,6 +4,8 @@ import { IngestError, normaliseKitInput } from "./ingest";
 import { SAMPLE_INPUT } from "./ingest/sample";
 import { captureExceptionThrottled } from "./observability";
 import { resolvedPreviewLimits } from "./site";
+import { kvMissingInProduction } from "./deploy-env";
+import { env } from "./env";
 import { store } from "./store";
 
 const buckets = new Map<string, { count: number; resetAt: number }>();
@@ -123,6 +125,10 @@ async function overGlobalDailyCap(): Promise<boolean> {
 
 const busy = () => Response.json(kitErrorBody("busy"), { status: 503 });
 
+/** Busy, for when the store isn't set up. Unlocked kits live in that store too, so this copy doesn't promise they're fine. */
+const STORE_DOWN_FIX = "Free previews are paused for a little while. Retry in a few minutes, or email hello@launchloop.dev and we'll tell you when they're back.";
+const busyWithoutStore = () => Response.json({ ...kitErrorBody("busy"), fix: STORE_DOWN_FIX }, { status: 503 });
+
 /**
  * Runs before any free LLM work (the preview and the free tools). Returns the response to send
  * when the request is refused, or the slot it took to go ahead. Paid generation never goes through here.
@@ -142,6 +148,10 @@ const busy = () => Response.json(kitErrorBody("busy"), { status: 503 });
  */
 export async function freePreviewGate(req: Request, rawInput: string): Promise<FreePreviewGate> {
   if (freePreviewsDisabled()) return { refused: busy() };
+  if (kvMissingInProduction(env)) {
+    captureExceptionThrottled("rate-limit.store-missing", new Error("Free preview refused: no KV store configured in production"), { stage: "rate-limit.store" });
+    return { refused: busyWithoutStore() };
+  }
   let input: string;
   try {
     input = normaliseKitInput(rawInput);
