@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { MockCheckoutForm } from "@/components/mock-checkout-form";
 import { Skeleton } from "@/components/ui/skeleton";
+import { deployEnv } from "@/lib/deploy-env";
 import { isStripeMock } from "@/lib/env";
 import { getKit } from "@/lib/kits";
 import { LAUNCH_PROMO, PRODUCTS, chargedPence, isProductId } from "@/lib/products";
@@ -22,7 +23,7 @@ export default function MockCheckoutPage({ searchParams }: PageProps<"/checkout/
 async function MockCheckout({ searchParams }: Pick<PageProps<"/checkout/mock">, "searchParams">) {
   const query = await searchParams;
   const product = typeof query.product === "string" ? query.product : "";
-  if (!isStripeMock() || !isProductId(product)) notFound();
+  if (deployEnv() === "production" || !isStripeMock() || !isProductId(product)) notFound();
 
   const kitId = typeof query.kitId === "string" ? query.kitId : undefined;
   const kit = product === "kit" && kitId ? await getKit(kitId) : null;

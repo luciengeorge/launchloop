@@ -118,6 +118,96 @@ describe("POST /api/checkout/mock", () => {
   });
 });
 
+describe("the /checkout/mock page", () => {
+  type El = { type: (props: unknown) => unknown; props: { children: El; searchParams?: unknown } };
+
+  /** Renders the page down to its async MockCheckout component and runs it, as the server would. */
+  async function renderMockCheckout() {
+    vi.doMock("@/components/mock-checkout-form", () => ({ MockCheckoutForm: () => null }));
+    vi.doMock("@/lib/kits", () => ({ getKit: async (id: string) => ({ id, brief: { name: "Acme" } }) }));
+    const { default: MockCheckoutPage } = await import("@/app/checkout/mock/page");
+    const page = MockCheckoutPage({ searchParams: Promise.resolve({ product: "kit", kitId: "kit_unit" }) } as never) as unknown as El;
+    const inner = page.props.children.props.children;
+    return inner.type(inner.props);
+  }
+
+  afterEach(() => {
+    vi.doUnmock("@/components/mock-checkout-form");
+    vi.doUnmock("@/lib/kits");
+  });
+
+  it("is a 404 in production even without Stripe keys", async () => {
+    deployment("production");
+    await expect(renderMockCheckout()).rejects.toMatchObject({ digest: expect.stringContaining("404") });
+  });
+
+  it.each(["preview", ""])("still renders with VERCEL_ENV=%j and no Stripe key", async (vercelEnv) => {
+    deployment(vercelEnv);
+    await expect(renderMockCheckout()).resolves.toBeTruthy();
+  });
+});
+
+describe("starting checkout without a Stripe key", () => {
+  const request = { product: "kit" as const, origin: "http://localhost", kitId: "kit_unit", analyticsId: "aid_unit", isLoggedIn: false, experiments: {}, fallbacks: [] };
+
+  it("createCheckoutUrl throws CheckoutUnavailableError in production instead of pointing at /checkout/mock", async () => {
+    deployment("production");
+    vi.doMock("@/lib/observability", observability);
+    const { createCheckoutUrl, CheckoutUnavailableError } = await import("@/lib/payments");
+    await expect(createCheckoutUrl(request)).rejects.toBeInstanceOf(CheckoutUnavailableError);
+  });
+
+  it.each(["preview", ""])("createCheckoutUrl still sends VERCEL_ENV=%j to the mock checkout", async (vercelEnv) => {
+    deployment(vercelEnv);
+    vi.doMock("@/lib/observability", observability);
+    const { createCheckoutUrl } = await import("@/lib/payments");
+    expect((await createCheckoutUrl(request)).url).toMatch(/^\/checkout\/mock\?product=kit&/);
+  });
+
+  async function checkoutRoute() {
+    const captureException = vi.fn();
+    vi.doMock("next/server", () => ({ after: vi.fn() }));
+    vi.doMock("@/lib/observability", () => ({ ...observability(), captureException }));
+    vi.doMock("@/lib/store", () => ({ store: () => mem }));
+    vi.doMock("@/lib/auth", () => ({ getSession: async () => null }));
+    vi.doMock("@/lib/analytics-server", () => ({ captureServerEvent: vi.fn(), resolveDistinctId: () => "server_unit" }));
+    vi.doMock("@/lib/kits", () => ({ getKit: async (id: string) => ({ id, paid: false, attribution: undefined }) }));
+    vi.doMock("@/lib/kit-promo", () => ({ resolveKitPromo: async () => undefined }));
+    vi.doMock("@/lib/generation", () => ({ generateDraft: async () => ({}) }));
+    vi.doMock("@/lib/billing", () => ({ ensureStripeCustomer: vi.fn() }));
+    const { POST } = await import("@/app/api/checkout/route");
+    const post = () => POST(new Request("http://localhost/api/checkout", { method: "POST", headers: { "x-forwarded-for": "203.0.113.8" }, body: JSON.stringify({ product: "kit", kitId: "kit_unit" }) }));
+    return { post, captureException };
+  }
+
+  afterEach(() => {
+    for (const mod of ["next/server", "@/lib/auth", "@/lib/analytics-server", "@/lib/kits", "@/lib/kit-promo", "@/lib/generation", "@/lib/billing"]) vi.doUnmock(mod);
+  });
+
+  it("/api/checkout answers production buyers with a retry and contact CTA, not a dead end, and reports it", async () => {
+    deployment("production", { KV_REST_API_URL: "https://kv.example.test", KV_REST_API_TOKEN: "unit-token" });
+    const { post, captureException } = await checkoutRoute();
+    const res = await post();
+    expect(res.status).toBe(503);
+    const body = (await res.json()) as { error: string; code: string; url?: string };
+    expect(body.code).toBe("checkout_unavailable");
+    expect(body.url).toBeUndefined();
+    expect(body.error).toMatch(/Your preview is saved/);
+    expect(body.error).toMatch(/try again shortly/);
+    expect(body.error).toMatch(/hello@launchloop\.dev/);
+    expect(body.error).not.toMatch(/\u2014/);
+    expect(captureException).toHaveBeenCalledWith(expect.objectContaining({ name: "CheckoutUnavailableError" }), expect.objectContaining({ stage: "api.checkout" }));
+  });
+
+  it.each(["preview", ""])("/api/checkout still returns the mock checkout URL with VERCEL_ENV=%j", async (vercelEnv) => {
+    deployment(vercelEnv);
+    const { post } = await checkoutRoute();
+    const res = await post();
+    expect(res.status).toBe(200);
+    expect(((await res.json()) as { url: string }).url).toMatch(/^\/checkout\/mock\?product=kit&/);
+  });
+});
+
 describe("INGEST_ALLOW_PRIVATE", () => {
   async function safeFetchWithFakeNetwork() {
     const fetch = vi.fn(async () => new Response("<html>ok</html>", { status: 200, headers: { "content-type": "text/html" } }));
