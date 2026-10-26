@@ -12,7 +12,7 @@ export default function PrivacyPage() {
   return (
     <article className="mx-auto max-w-3xl space-y-6 px-4 py-16 leading-relaxed sm:px-6 [&_a]:font-medium [&_a]:text-foreground [&_a]:underline [&_a]:underline-offset-4 [&_h2]:mt-8 [&_h2]:text-xl [&_h2]:font-semibold [&_li]:text-muted-foreground [&_p]:text-muted-foreground [&_strong]:text-foreground">
       <h1 className="text-4xl font-semibold tracking-tight">Privacy policy</h1>
-      <p>Last updated 24 October 2026. This page explains what LaunchLoop does with your data, in plain English.</p>
+      <p>Last updated 26 October 2026. This page explains what LaunchLoop does with your data, in plain English.</p>
 
       <h2>Who we are</h2>
       <p>
@@ -68,9 +68,7 @@ export default function PrivacyPage() {
         buying a kit. PostHog records page views and a few steps: starting a preview, the preview finishing, starting checkout and completing a purchase. Those steps include
         the kit&apos;s id, which plan and price you picked and whether you were signed in. PostHog gives you an anonymous id that only lasts while the page is open. When we
         send you on to another page ourselves (the sign-in link, Stripe checkout and back), that id goes along in the link so those steps count as one visit. We also use
-        PostHog to try out small changes, such as a launch discount or an offer after you buy. Each kit is shown one version of the launch discount, picked at random from
-        the kit&apos;s id so it stays the same when you reload (we keep which version with the kit, on our side; the offer after you buy is picked for each visit),
-        and PostHog records which version you saw. None of
+        PostHog to try out small changes, such as an offer after you buy. The version you see is picked for each visit, and PostHog records which version you saw. None of
         the three set cookies, PostHog stores nothing in your browser, and we never send any of them your email address or name. Before anything is sent, we remove private kit links
         and everything in the address bar except campaign tags (utm_). Like any service your browser talks to, they receive your IP address and browser type, and PostHog may use
         your IP address to work out your rough location.

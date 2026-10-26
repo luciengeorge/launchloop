@@ -59,7 +59,7 @@ export const PAGES = {
     path: "/faq",
     title: "FAQ: launch kits, character limits and refunds",
     description: "How LaunchLoop reads your repo, where its launch advice comes from, what you get in the Launch Kit, the limits it enforces, refunds and Ship Loop.",
-    updated: "2026-10-20",
+    updated: "2026-10-26",
     card: { eyebrow: "FAQ", headline: "Launch kits, character limits and refunds" },
   }),
   guides: core({
@@ -91,7 +91,7 @@ export const PAGES = {
     title: "Privacy policy: what we collect and why",
     description:
       "What data LaunchLoop collects when you preview or buy a launch kit, why we need it, who we share it with, how long we keep it and how to use your rights.",
-    updated: "2026-10-24",
+    updated: "2026-10-26",
     card: { eyebrow: "Privacy", headline: "What we collect and why" },
   }),
   terms: core({
