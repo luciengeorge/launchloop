@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { kitErrorBody } from "@/lib/errors";
+import { kitErrorBody, rateLimitedBody } from "@/lib/errors";
 import { EXAMPLE_KIT_PATH } from "@/lib/site";
 import { contrast, makeSampleKit } from "./helpers";
 
@@ -13,6 +13,15 @@ async function openKit(page: Page) {
   sampleKit ??= await makeSampleKit(page);
   await page.goto(`/kit/${sampleKit}`);
   await expect(page.getByTestId("unlock-panel").getByRole("button", { name: "Unlock the full kit, £19" })).toBeEnabled();
+}
+
+/** The free-preview limit, as errors.spec.ts reaches it: the 429 is replayed, with the visitor's newest preview (`kitId`) or without. */
+async function rateLimited(page: Page, kitId?: string) {
+  await page.route("**/api/kits", (route) => route.fulfill({ status: 429, headers: { "Retry-After": "1380" }, json: { ...rateLimitedBody(1380), ...(kitId ? { kitId } : {}) } }));
+  await page.goto("/");
+  await page.getByLabel("GitHub repo or live site URL").fill("github.com/acme/app");
+  await page.getByRole("button", { name: "Get my free preview" }).first().click();
+  await expect(page.getByTestId("rate-limit-actions")).toBeVisible();
 }
 
 async function kitFormError(page: Page, code: "repo_not_found" | "site_no_content", input: string) {
@@ -73,6 +82,9 @@ const CTAS: { name: string; open: (page: Page) => Promise<unknown>; locate: (pag
   { name: "kit: panel unlock button after a failed checkout", open: panelCheckoutError, locate: (p) => p.getByTestId("unlock-panel").getByRole("button", { name: "Unlock the full kit, £19" }) },
   // Outline, not orange: measured because it's the way on from a failed checkout.
   { name: "kit: checkout error Try again (outline)", open: panelCheckoutError, locate: (p) => p.getByTestId("unlock-panel").getByRole("alert").getByRole("button", { name: "Try again" }) },
+  { name: "not-found page CTA", open: (p) => p.goto("/nonexistent"), locate: (p) => p.getByRole("main").getByRole("link", { name: "Get my free preview" }) },
+  { name: "rate limit: See the Launch Kit", open: (p) => rateLimited(p), locate: (p) => p.getByTestId("rate-limit-pricing") },
+  { name: "rate limit: Unlock my kit", open: (p) => rateLimited(p, "kit_limitedPreview01"), locate: (p) => p.getByTestId("rate-limit-unlock") },
   { name: "error: Try your site URL instead", open: (p) => kitFormError(p, "repo_not_found", "github.com/real-owner/secret-repo"), locate: (p) => p.getByTestId("kit-site-cta") },
   { name: "error: Use my GitHub repo instead", open: (p) => kitFormError(p, "site_no_content", "https://acme.io"), locate: (p) => p.getByTestId("kit-repo-cta") },
 ];
@@ -132,6 +144,8 @@ for (const cta of CTAS) {
     expect(rest, cta.name).toBeGreaterThanOrEqual(4.5);
     await target.hover();
     await page.waitForTimeout(300);
+    // Again while hovered, so a hover:text-white (or a white label on --primary-hover) is caught too.
+    expect((await whiteOnOrange(page)).offenders, "white text on orange (hovered)").toEqual([]);
     const hovered = await contrast(target);
     expect(hovered, `${cta.name} (hovered)`).toBeGreaterThanOrEqual(4.5);
     await page.mouse.move(0, 0);
