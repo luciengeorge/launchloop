@@ -156,16 +156,16 @@ export function StickyUnlockBar(props: Props) {
         visible ? "visible translate-y-0" : "invisible translate-y-full",
       )}
     >
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-3 py-3 sm:gap-3 sm:px-6">
         <p className="leading-tight">
           <Price price={button.price} struck={button.struck} className="text-xl font-semibold tracking-tight" />
           <span className="ml-1 text-xs text-muted-foreground">once</span>
           <span className="block text-xs text-muted-foreground">No subscription</span>
         </p>
-        <UnlockButton ref={shownRef} price={button.price} busy={button.checkout.redirecting} onClick={() => button.click(false)} className="px-4" />
+        <UnlockButton ref={shownRef} price={button.price} busy={button.checkout.redirecting} onClick={() => button.click(false)} className="px-3.5" />
       </div>
       {button.failure ? (
-        <div className="mx-auto max-w-6xl px-4 pb-3 sm:px-6">
+        <div className="mx-auto max-w-6xl px-3 pb-3 sm:px-6">
           <CheckoutError failure={button.failure} isLoggedIn={button.context.isLoggedIn} onRetry={() => button.click(true)} className="mt-0" />
         </div>
       ) : null}
