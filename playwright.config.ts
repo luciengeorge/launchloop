@@ -11,6 +11,10 @@ const HERO_PORT = 3420;
 const baseURL = `http://127.0.0.1:${PORT}`;
 const heroURL = `http://127.0.0.1:${HERO_PORT}`;
 const HERO_SPEC = /hero-(headline|2x2)\.spec\.ts/;
+/** A third build with NEWSLETTER_INLINE=on, for the inline newsletter signups; the other builds have the flag off, as production does until it's created. */
+const INLINE_PORT = 3421;
+const inlineURL = `http://127.0.0.1:${INLINE_PORT}`;
+const INLINE_SPEC = /newsletter-inline\.spec\.ts/;
 
 const serverEnv = {
   MOCK_MODE: "true",
@@ -58,10 +62,12 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
   projects: [
-    { name: "desktop", use: { ...devices["Desktop Chrome"] }, testIgnore: [/newsletter-mobile\.spec\.ts/, HERO_SPEC] },
+    { name: "desktop", use: { ...devices["Desktop Chrome"] }, testIgnore: [/newsletter-mobile\.spec\.ts/, HERO_SPEC, INLINE_SPEC] },
     { name: "mobile", use: { ...devices["Pixel 7"] }, testMatch: /(home|tagline-checker|og-preview|newsletter-mobile)\.spec\.ts/ },
     { name: "hero-desktop", use: { ...devices["Desktop Chrome"], baseURL: heroURL }, testMatch: HERO_SPEC },
     { name: "hero-mobile", use: { ...devices["Pixel 7"], baseURL: heroURL }, testMatch: HERO_SPEC },
+    { name: "inline-desktop", use: { ...devices["Desktop Chrome"], baseURL: inlineURL }, testMatch: INLINE_SPEC },
+    { name: "inline-mobile", use: { ...devices["Pixel 7"], baseURL: inlineURL }, testMatch: INLINE_SPEC },
   ],
   webServer: [
     {
@@ -83,6 +89,13 @@ export default defineConfig({
       timeout: 240_000,
       reuseExistingServer: !process.env.CI,
       env: { ...serverEnv, NEXT_DIST_DIR: ".next-test-hero", DATA_DIR: ".data-test-hero", NEXT_PUBLIC_SITE_URL: heroURL, HERO_EXPERIMENT: "1", HERO_FLAG_TIMEOUT_MS: "2500" },
+    },
+    {
+      command: `rm -rf .data-test-inline && npx next build && npx next start -p ${INLINE_PORT}`,
+      url: inlineURL,
+      timeout: 240_000,
+      reuseExistingServer: !process.env.CI,
+      env: { ...serverEnv, NEXT_DIST_DIR: ".next-test-inline", DATA_DIR: ".data-test-inline", NEXT_PUBLIC_SITE_URL: inlineURL, NEWSLETTER_INLINE: "on" },
     },
   ],
 });

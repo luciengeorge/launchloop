@@ -151,6 +151,19 @@
     pointer-events: none;
     z-index: 1;
   }
+  /*
+   * With newsletter-inline-signup on, the footer renders both its form and a link to the page's inline signup. CSS picks
+   * one: the root layout can't know the route, and usePathname() there would suspend on pages with dynamic params.
+   */
+  [data-footer-newsletter-link] {
+    display: none;
+  }
+  body:has([data-inline-newsletter]) [data-footer-newsletter-link] {
+    display: block;
+  }
+  body:has([data-inline-newsletter]) [data-footer-newsletter-form] {
+    display: none;
+  }
   .bg-grid {
     background-image:
       linear-gradient(to right, color-mix(in oklch, var(--foreground) 6%, transparent) 1px, transparent 1px),
