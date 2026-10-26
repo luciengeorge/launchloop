@@ -552,6 +552,9 @@ test("the OG image size post labels X's archived docs, says where no size is pub
 
   expect((await section("slack")).text).toContain("Slack doesn't publish an image size");
   expect((await section("discord")).text).toContain("They are examples, not a requirement.");
+  const noNumber = page.locator("h3#disagree + ul > li", { hasText: "No number at all." });
+  await expect(noNumber).toContainText("1200×630 in the Quick Start and oEmbed examples, and 1280×720 in the example in its Video section.");
+  await expect(noNumber).not.toContainText("only shows one");
   expect((await section("disagree")).text).toMatch(/Facebook and LinkedIn say 1\.91:1\. X's archived docs say 2:1\./);
   expect((await section("facebook")).links).toContain("https://developers.facebook.com/documentation/sharing/webmasters");
 
