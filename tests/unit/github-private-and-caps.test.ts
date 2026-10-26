@@ -1,8 +1,11 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { createServer, type Server } from "node:http";
+import type { AddressInfo } from "node:net";
+import { gzipSync } from "node:zlib";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/observability", () => ({ captureException: vi.fn(), captureExceptionThrottled: vi.fn(), captureMessage: vi.fn(), normaliseErrorMessage: (e: unknown) => String(e) }));
 
-const { fetchRepo } = await import("@/lib/ingest/github");
+const { cappedText, fetchRepo, ghJson } = await import("@/lib/ingest/github");
 const { ingest } = await import("@/lib/ingest");
 const { KIT_ERRORS, kitErrorBody } = await import("@/lib/errors");
 const { DEFAULT_MAX_BYTES } = await import("@/lib/ingest/safe-fetch");
@@ -112,6 +115,66 @@ describe("GitHub response sizes", () => {
     expect(meta.stats.cancelled).toBe(true);
     expect(meta.stats.pulled).toBeLessThan(DEFAULT_MAX_BYTES + 4 * 64 * 1024);
     expect(calls).toEqual(["/repos/acme/app"]);
+  });
+
+  describe("counts decoded bytes, not bytes on the wire", () => {
+    const DECODED = 40_000_000;
+    const bigText = gzipSync(Buffer.alloc(DECODED, 0x61));
+    const bigJson = gzipSync(Buffer.from(`[${Array.from({ length: 200_000 }, (_, i) => JSON.stringify({ sha: `s${i}`, commit: { message: "x".repeat(150) } })).join(",")}]`));
+    const smallJson = gzipSync(Buffer.from(JSON.stringify({ html_url: "https://github.com/acme/app", private: false })));
+    let server: Server;
+    let base = "";
+    const served = { bytes: 0 };
+
+    beforeAll(async () => {
+      server = createServer((req, res) => {
+        const body = req.url === "/text" ? bigText : req.url === "/json" ? bigJson : smallJson;
+        served.bytes += body.byteLength;
+        res.writeHead(200, { "content-encoding": "gzip", "content-type": req.url === "/text" ? "text/plain" : "application/json" }).end(body);
+      });
+      await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+      base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+    });
+    afterAll(() => {
+      server.closeAllConnections();
+      server.close();
+    });
+
+    it("the compressed bodies are small and decode far past the cap", () => {
+      expect(bigText.byteLength).toBeLessThan(DEFAULT_MAX_BYTES / 10);
+      expect(bigJson.byteLength).toBeLessThan(DEFAULT_MAX_BYTES);
+      expect(DECODED).toBeGreaterThan(DEFAULT_MAX_BYTES * 20);
+    });
+
+    it("cappedText cuts a gzip body at the cap on its decoded text", async () => {
+      const text = await cappedText(await fetch(`${base}/text`), README_CAP);
+      expect(text).toBe("a".repeat(README_CAP));
+      const large = await cappedText(await fetch(`${base}/text`), 2_000_000);
+      expect(large.length).toBe(DEFAULT_MAX_BYTES);
+    });
+
+    it("ghJson drops gzip JSON whose decoded size is over the cap, and still reads small gzip JSON", async () => {
+      expect(await ghJson(await fetch(`${base}/json`))).toBeUndefined();
+      expect(await ghJson(await fetch(`${base}/small`))).toEqual({ html_url: "https://github.com/acme/app", private: false });
+    });
+
+    it("through fetchRepo: a gzip README is cut to its cap and gzip commits over the cap are dropped", async () => {
+      const routes = createServer((req, res) => {
+        const body = req.url === "/repos/acme/app" ? smallJson : req.url === "/repos/acme/app/readme" ? bigText : req.url?.startsWith("/repos/acme/app/commits") ? bigJson : null;
+        if (!body) return void res.writeHead(404).end();
+        res.writeHead(200, { "content-encoding": "gzip" }).end(body);
+      });
+      await new Promise<void>((resolve) => routes.listen(0, "127.0.0.1", resolve));
+      vi.stubEnv("GITHUB_API_URL", `http://127.0.0.1:${(routes.address() as AddressInfo).port}`);
+      try {
+        const repo = await fetchRepo("acme", "app", []);
+        expect(repo.readme).toBe("a".repeat(README_CAP));
+        expect(repo.commits).toEqual([]);
+      } finally {
+        routes.closeAllConnections();
+        routes.close();
+      }
+    });
   });
 
   it("the raw fallback (API rate limited) caps the README the same way", async () => {

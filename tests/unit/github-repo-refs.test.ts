@@ -6,7 +6,7 @@ vi.mock("@/lib/observability", () => ({ captureException: vi.fn(), captureExcept
 
 const { githubRepoLink, isGitHubOwner, isGitHubRepoName, parseGitHubUrl, repoApiPath, fetchRepo } = await import("@/lib/ingest/github");
 const { fetchSite } = await import("@/lib/ingest/site");
-const { ingest, IngestError } = await import("@/lib/ingest");
+const { ingest, IngestError, normaliseKitInput } = await import("@/lib/ingest");
 
 const TRAVERSALS = [
   "https://github.com/../user",
@@ -25,6 +25,20 @@ const TRAVERSALS = [
   "https://github.com\\..\\user",
   "https://github.com/.\t./user",
   "github.com/../user",
+  "https://github.com/%252e%252e/user",
+  "https://github.com/x/%252e%252e%252fuser",
+  "https://github.com/\uff0e\uff0e/user",
+  "https://github.com/x/\uff0e\uff0e",
+  "https://github.com/%EF%BC%8E%EF%BC%8E/user",
+  "https://github.com/x/%ef%bc%8e%ef%bc%8e",
+  "https://github\uff0ecom/acme/app",
+  "github\uff0ecom/acme/app",
+  "https://github.com/acme%00/app",
+  "https://github.com/acme/app%00",
+  "https://github.com/acme/app%00.git",
+  "https://github.com/acme/app@{0}",
+  "https://github.com/acme@{0}/app",
+  "https://github.com/acme/app%40%7B0%7D",
 ];
 
 /** Every request the code makes through the global fetch (GitHub's API and raw files). */
@@ -66,6 +80,11 @@ describe("GitHub names", () => {
 describe("parseGitHubUrl", () => {
   it.each(TRAVERSALS)("refuses the dot segment in %j", (input) => {
     expect(parseGitHubUrl(input)).toBeNull();
+  });
+
+  it.each(TRAVERSALS)("%j is refused by githubRepoLink and normaliseKitInput too", (input) => {
+    expect(githubRepoLink(input)).toBeUndefined();
+    expect(() => normaliseKitInput(input)).toThrow(IngestError);
   });
 
   it.each([

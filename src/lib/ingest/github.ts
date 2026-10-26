@@ -63,7 +63,8 @@ const DOT_SEGMENT = /(?:^|[/\\])(?:\.|%2e){1,2}(?=[/\\]|$)/i;
 export function parseGitHubUrl(input: string): { owner: string; name: string } | null {
   // URL parsing drops tabs and newlines, so ".\t." would become ".." after the check.
   const raw = input.trim().replace(/^git\+/i, "").replace(/[\t\n\r]/g, "");
-  if (DOT_SEGMENT.test(raw.split(/[?#]/)[0])) return null;
+  // Printable ASCII only: URL parsing maps lookalikes such as the fullwidth dot in "github．com" onto real characters.
+  if (/[^\x21-\x7e]/.test(raw) || DOT_SEGMENT.test(raw.split(/[?#]/)[0])) return null;
   let url: URL;
   try {
     url = new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`);
@@ -205,8 +206,8 @@ export async function fetchRepo(owner: string, name: string, warnings: string[])
     }
     repo.readme = readme;
     repo.packageJson = parsePackageJson(pkg, warnings);
-    return repo;
     repo.visibilityUnverified = true;
+    return repo;
   }
 
   if (!meta.ok) throw new IngestError(`GitHub API returned ${meta.status}`, "github_unavailable");
