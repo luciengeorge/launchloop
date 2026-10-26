@@ -445,15 +445,15 @@ test("the BetaList post compares pre-launch options in a dated table, has a read
   const table = page.locator("#compared ~ div table").first();
   await expect(table.locator("thead th")).toHaveText(["Site", "Takes a pre-launch page?", "Price", "Wait", "Link to your site"]);
   const rows = table.locator("tbody tr");
-  await expect(rows.locator("td:first-child")).toHaveText(["BetaList", "Product Hunt, scheduled launch", "Uneed", "Show HN"]);
-  await expect(rows.nth(0).locator("td")).toHaveText([
+  await expect(rows.locator("th:first-child")).toHaveText(["BetaList", "Product Hunt, scheduled launch", "Uneed", "Show HN"]);
+  await expect(rows.nth(0).locator("th, td")).toHaveText([
     "BetaList",
     "Yes, with a way to sign up",
     "Paid only; prices shown at the end of the form; full refund if not selected",
     "About 14, 3 or 1 days to be featured, by plan",
     "Do-follow if featured, through a 301 redirect",
   ]);
-  await expect(rows.nth(2).locator("td").nth(2)).toHaveText("Free line; Fast-track $14.99; Skip the waiting line $39.99");
+  await expect(rows.nth(2).locator("td").nth(1)).toHaveText("Free line; Fast-track $14.99; Skip the waiting line $39.99");
   await expect(table).not.toContainText("LaunchLoop");
   await expect(page.locator("#compared ~ div + p").first()).toHaveText("Checked on 25 October 2026.");
   const compared = await page.locator("h2#compared").evaluate((h2) => {
@@ -477,6 +477,40 @@ test("the BetaList post compares pre-launch options in a dated table, has a read
   expect((await request.get(OG_PREVIEW.path, { maxRedirects: 0 })).status()).toBe(200);
   const toolLinks = await body.locator('a[href^="/tools"]').evaluateAll((links) => links.map((a) => a.getAttribute("href")));
   expect([...new Set(toolLinks)]).toEqual([OG_PREVIEW.path]);
+});
+
+test("the BetaList comparison table has a caption, scoped headers and a labelled, focusable scroll region", async ({ page }) => {
+  await page.goto(postPath(BLOG_POSTS.find((p) => p.slug === "how-to-launch-on-betalist")!));
+  const region = page.getByRole("region", { name: "Comparison table: BetaList vs other pre-launch options" });
+  await expect(region).toHaveAttribute("tabindex", "0");
+  const table = region.locator("table");
+  await expect(table.locator("caption")).toHaveText("Pre-launch options compared: BetaList, Product Hunt's scheduled launch, Uneed and Show HN");
+  await expect(table.locator("thead th")).toHaveCount(5);
+  await expect(table.locator('thead th[scope="col"]')).toHaveCount(5);
+  await expect(table.locator("tbody tr")).toHaveCount(4);
+  await expect(table.locator('tbody tr > th[scope="row"]:first-child')).toHaveCount(4);
+  await expect(table.locator("tbody td")).toHaveCount(16);
+  await expect(page.getByRole("rowheader", { name: "Uneed" })).toBeVisible();
+
+  await region.focus();
+  await expect(region).toBeFocused();
+  // Wide enough that the table fits, so there is nothing to scroll and no hint.
+  await expect(page.getByTestId("compared-scroll-hint")).toBeHidden();
+  expect(await region.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+});
+
+test("at 375 px the BetaList comparison table scrolls sideways, says so, and scrolls from the keyboard", async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 800 });
+  await page.goto(postPath(BLOG_POSTS.find((p) => p.slug === "how-to-launch-on-betalist")!));
+  const region = page.getByRole("region", { name: "Comparison table: BetaList vs other pre-launch options" });
+  await expect(page.getByTestId("compared-scroll-hint")).toBeVisible();
+  await expect(page.getByTestId("compared-scroll-hint")).toHaveText("Scroll sideways to see all columns →");
+  expect(await region.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+
+  await region.focus();
+  await page.keyboard.press("ArrowRight");
+  await expect.poll(() => region.evaluate((el) => el.scrollLeft)).toBeGreaterThan(0);
 });
 
 test("the Indie Hackers post dates old advice and quotes the terms as they read now", async ({ page }) => {
