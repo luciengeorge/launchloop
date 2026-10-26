@@ -57,7 +57,7 @@ export const BLOG_POSTS: BlogPost[] = [
     description:
       "Launching on Product Hunt, from its own help center: how it works, whether to launch there, who can post, the rules on upvotes, and what follows launch day.",
     published: "2026-10-21",
-    updated: "2026-10-21",
+    updated: "2026-10-26",
     readingMinutes: 18,
   },
   {

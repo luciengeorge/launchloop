@@ -21,13 +21,21 @@ Site QA review (GO with nits, 20 October 2026): "What the listing needs" still r
 
 The post's title and description share no wording with the checklist's (`Product Hunt launch checklist (2026 guide)`, `A step-by-step Product Hunt launch checklist: ...`). `tests/unit/blog.test.ts` checks that neither contains "checklist" or "step-by-step", and that every indexable page has a unique title and description.
 
+## Update, 26 October 2026
+
+The weekly fact check found that Product Hunt's relaunch article (https://help.producthunt.com/en/articles/484934-can-i-relaunch-my-product, shown as "Updated this week") now says two months, not six: "we ask Makers to wait at least two months between posts for the same product or from the same company." It also has a new "Domain-Based Restrictions" section: "Products that share the same root domain must adhere to a two-month submission gap." Preparing for launch (https://www.producthunt.com/launch/preparing-for-launch) agrees: "If this is your second time submitting the same product in less than two months, see here."
+
+Read with Cursor's WebFetch on 26 October 2026 (`curl` still gets the Cloudflare challenge). The only Internet Archive copy (12 October 2026) has the old six-month wording, so quotes 21 and 84 are live page only. The page now has 84 quotes, of which 61 match an archive copy word for word.
+
+Changed on the page: the "Is now the right time?" bullet (quote 21 updated, quote 84 added), "The next launch is for the next big change" bullet (two months), the FAQ "Can I launch the same product on Product Hunt again?" (visible and FAQPage JSON-LD, which render from the same array), the Sources note and the relaunch article's date. `updated` in `src/lib/blog.ts` is now 2026-10-26. No other page on the site stated the six-month Product Hunt rule; Fazier's "6 months gap" in the Product Hunt alternatives post is Fazier's own rule and is unchanged.
+
 ## Method
 
 - `curl` with a browser user agent: HTTP 403 with a Cloudflare challenge ("Just a moment...", `cf-mitigated: challenge`) on every help.producthunt.com and producthunt.com URL.
 - Playwright: Chromium headless, and the installed Google Chrome headed on the VM display, both got the same challenge (HTTP 403, title "Just a moment...") on the Launch Guide and `/launch/before-launch`.
 - A server-side fetch service (Cursor's WebFetch) returned the full text of every page cited below on 20 October 2026. It keeps the pages' own characters: straight and curly apostrophes appear as each page has them (the `/launch` pages mostly use curly ones, the help center mostly straight), and the quotes on the page keep them.
 - Help center article URLs came from the Posting, Product Hunt and Support collections in the Internet Archive's copy of `https://help.producthunt.com/en/` (16 October 2026), because the fetch service drops links.
-- Cross-check: the Internet Archive's latest copy of each cited page was downloaded and every `<q>` on the page was searched for in it. After the QA cuts, 62 of the 83 quotes match an archive copy word for word. The other 21 are from pages with no archive copy (the Launch Guide, Daily Hunt Limits, the fair voting article, How to share a scheduled launch, Product of the Day), apart from one scheduling quote whose wording changed after the archive copy (see the note under the table). Those 21 were re-checked by hand against the live text.
+- Cross-check: the Internet Archive's latest copy of each cited page was downloaded and every `<q>` on the page was searched for in it. (Counts below are from 20 October; see "Update, 26 October 2026" for the relaunch quotes.) After the QA cuts, 62 of the 83 quotes match an archive copy word for word. The other 21 are from pages with no archive copy (the Launch Guide, Daily Hunt Limits, the fair voting article, How to share a scheduled launch, Product of the Day), apart from one scheduling quote whose wording changed after the archive copy (see the note under the table). Those 21 were re-checked by hand against the live text.
 
 ## Sources
 
@@ -49,7 +57,7 @@ Product Hunt Help Center (the date is the one shown on each article):
 - Product Hunt Featuring Guidelines, March 10, 2026: https://help.producthunt.com/en/articles/9883485-product-hunt-featuring-guidelines
 - Can I submit an unreleased product?, February 10, 2025: https://help.producthunt.com/en/articles/484932-can-i-submit-an-unreleased-product
 - Product of the Day, Week, & Month, July 10, 2025: https://help.producthunt.com/en/articles/11751186-product-of-the-day-week-month
-- Can I relaunch my product?, July 7, 2026: https://help.producthunt.com/en/articles/484934-can-i-relaunch-my-product
+- Can I relaunch my product?, July 7, 2026 when first read; "Updated this week" when re-read on 26 October 2026: https://help.producthunt.com/en/articles/484934-can-i-relaunch-my-product
 - Maker's guide to Product Forums, May 28, 2025: https://help.producthunt.com/en/articles/11432379-maker-s-guide-to-product-forums
 
 Product Hunt launch guide on producthunt.com (undated pages):
@@ -86,7 +94,7 @@ Product Hunt launch guide on producthunt.com (undated pages):
 | 18 | "Waitlisted products (unless immediate access is provided)" | https://help.producthunt.com/en/articles/9883485-product-hunt-featuring-guidelines | yes (2025-12-28) |
 | 19 | "Value Over Monetization: We avoid featuring minimal, undifferentiated products that seem primarily focused on immediate monetization rather than providing long-term value." | https://help.producthunt.com/en/articles/9883485-product-hunt-featuring-guidelines | yes (2025-12-28) |
 | 20 | "Ultimately, the best time to launch your product is when you’re ready to do so." | https://www.producthunt.com/launch/preparing-for-launch | yes (2026-10-12) |
-| 21 | "we ask Makers to wait at least six months between posts for the same product or from the same company." | https://help.producthunt.com/en/articles/484934-can-i-relaunch-my-product | yes (2026-10-12) |
+| 21 | "we ask Makers to wait at least two months between posts for the same product or from the same company." | https://help.producthunt.com/en/articles/484934-can-i-relaunch-my-product | no copy with this wording; live page only (re-read 2026-10-26; the 2026-10-12 copy says "six months") |
 | 22 | "False. Everybody wants to be #1, but there are plenty of reasons to launch besides reaching the top of the leaderboard." | https://www.producthunt.com/launch/launch-day-questions | yes (2026-10-12) |
 | 23 | "Care more about real engagement than numbers like point totals." | https://help.producthunt.com/en/articles/17350772-launch-guide | no copy with this wording; live page only |
 | 24 | "Hunters post launches; Makers create them." | https://help.producthunt.com/en/articles/10082986-hunter-vs-makers-and-how-to-change-them | yes (2025-12-28) |
@@ -149,6 +157,7 @@ Product Hunt launch guide on producthunt.com (undated pages):
 | 81 | "Announce new updates in the Forums to reach new users." | https://help.producthunt.com/en/articles/17350772-launch-guide | no copy with this wording; live page only |
 | 82 | "You can launch again every time you ship a major feature or update." | https://help.producthunt.com/en/articles/17350772-launch-guide | no copy with this wording; live page only |
 | 83 | "New UIs, pricing plan changes, etc. are not considered significant updates." | https://help.producthunt.com/en/articles/484934-can-i-relaunch-my-product | yes (2026-10-12) |
+| 84 | "Products that share the same root domain must adhere to a two-month submission gap." | https://help.producthunt.com/en/articles/484934-can-i-relaunch-my-product | no copy with this wording; live page only (added 2026-10-26; on the page it follows quote 21) |
 
 Note on the scheduling quote ("the day within 30 days of your current day for the post to go live."): the live article, dated 2 February 2026, says "pick the day within 30 days of your current day". The archive copy from 28 December 2025 says "pick the day and time (in PST) within 30 days". The page quotes the live wording.
 
@@ -170,7 +179,7 @@ Note on the scheduling quote ("the day within 30 days of your current day for th
 - Making a scheduled launch public from the lock icon: How to share a scheduled launch.
 - Points dips are usually filters removing votes that weren't genuine ("in the vast majority of cases"): Why did my launch points go down?.
 - Each launch creates a Launch Page and a Product Page: Launch Day duties.
-- Relaunches within six months need a request: Can I relaunch my product?.
+- Relaunches within two months need a request, and products on the same root domain need the same two-month gap: Can I relaunch my product? (re-read 26 October 2026).
 
 ## Where Product Hunt's own pages disagree
 
