@@ -2,6 +2,7 @@
 
 import { cn } from "cn";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { SITE } from "@/lib/site";
 import { checkoutRecovery, type CheckoutFailure, type CheckoutRecovery } from "@/lib/unlock-checkout";
 
 export interface ErrorAction {
@@ -48,6 +49,8 @@ export function ActionableError({ message, actions, className, size = "sm", test
 /** The save-preview email field, on the panel whenever a signed-out visitor could unlock. */
 export const SAVE_PREVIEW_FIELD_ID = "save-email";
 
+const EMAIL_US_HREF = `mailto:${SITE.email}?subject=${encodeURIComponent("Payment link for my launch kit")}`;
+
 function focusSavePreview() {
   const field = document.getElementById(SAVE_PREVIEW_FIELD_ID);
   field?.scrollIntoView({ block: "center", behavior: "smooth" });
@@ -62,6 +65,8 @@ function recoveryAction(recovery: CheckoutRecovery, onRetry: () => void): ErrorA
       return { label: "Email me a link instead", onClick: focusSavePreview, testId: "checkout-save-instead" };
     case "new_preview":
       return { label: "Make a new preview", href: "/#start", testId: "checkout-new-preview" };
+    case "email_us":
+      return { label: "Email us for a payment link", href: EMAIL_US_HREF, testId: "checkout-email-us" };
     default: {
       const unhandled: never = recovery;
       throw new Error(`Unhandled checkout recovery: ${String(unhandled)}`);

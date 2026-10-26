@@ -99,6 +99,9 @@ describe("checkout errors always carry a CTA", () => {
       message: "That kit doesn't exist any more. Generate a new preview.",
     });
     expect(unlock.checkoutFailure(new ApiError("Couldn't start checkout. Please try again.", 502)).code).toBe("server");
+    // /api/checkout's 503 when production has no Stripe (#92): its own code, and its message (which says what to do) as is.
+    const offline = "Checkout is offline for a few minutes. Your preview is saved: try again shortly, or email hello@launchloop.dev and we'll send you a payment link.";
+    expect(unlock.checkoutFailure(new ApiError(offline, 503, "checkout_unavailable"))).toEqual({ code: "checkout_unavailable", message: offline });
     expect(unlock.checkoutFailure(new ApiError("Unknown product", 400, "invalid_product")).code).toBe("unknown");
     // A raw script error is never shown as is.
     expect(unlock.checkoutFailure(new Error("Cannot read properties of undefined (reading 'url')"))).toEqual({ code: "unknown", message: "Couldn't start checkout. Please try again." });
@@ -106,15 +109,17 @@ describe("checkout errors always carry a CTA", () => {
 
   it("every failure offers at least one action: Try again unless the kit is gone, the save link only when signed out", async () => {
     const { unlock } = await landOn("https://launchloop.dev/kit/kit_0123456789abcdef");
-    const codes = ["network", "rate_limited", "kit_missing", "server", "unknown"] as const;
+    const codes = ["network", "rate_limited", "kit_missing", "checkout_unavailable", "server", "unknown"] as const;
     for (const code of codes) {
       for (const isLoggedIn of [true, false]) {
         const actions = unlock.checkoutRecovery(code, isLoggedIn);
         expect(actions.length).toBeGreaterThan(0);
         expect(actions.includes("retry")).toBe(code !== "kit_missing");
         expect(actions.includes("save")).toBe(code !== "kit_missing" && !isLoggedIn);
+        expect(actions.includes("email_us")).toBe(code === "checkout_unavailable");
       }
     }
     expect(unlock.checkoutRecovery("kit_missing", false)).toEqual(["new_preview"]);
+    expect(unlock.checkoutRecovery("checkout_unavailable", true)).toEqual(["retry", "email_us"]);
   });
 });

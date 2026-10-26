@@ -77,7 +77,7 @@ test("the panel rendered on its own (no provider) still works as before", () => 
 });
 
 test("every checkout error is an alert with an action: Try again, the save link signed out, a new preview when the kit is gone", () => {
-  const codes: CheckoutFailureCode[] = ["network", "rate_limited", "kit_missing", "server", "unknown"];
+  const codes: CheckoutFailureCode[] = ["network", "rate_limited", "kit_missing", "checkout_unavailable", "server", "unknown"];
   for (const code of codes) {
     for (const isLoggedIn of [true, false]) {
       const html = renderToStaticMarkup(<CheckoutError failure={{ code, message: "Couldn't start checkout. Please try again." }} isLoggedIn={isLoggedIn} onRetry={() => {}} />);
@@ -88,6 +88,8 @@ test("every checkout error is an alert with an action: Try again, the save link 
       expect(labels.includes("Try again")).toBe(code !== "kit_missing");
       expect(labels.includes("Email me a link instead")).toBe(code !== "kit_missing" && !isLoggedIn);
       if (code === "kit_missing") expect(html).toMatch(/<a [^>]*href="\/#start"[^>]*>Make a new preview<\/a>/);
+      expect(labels.includes("Email us for a payment link")).toBe(code === "checkout_unavailable");
+      if (code === "checkout_unavailable") expect(html).toContain('href="mailto:hello@launchloop.dev?subject=Payment%20link%20for%20my%20launch%20kit"');
     }
   }
 });

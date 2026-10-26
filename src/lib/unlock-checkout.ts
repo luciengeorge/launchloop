@@ -27,7 +27,8 @@ export function trackUnlockClicked(context: UnlockContext, retry: boolean) {
   track("unlock_cta_clicked", { ...context, viewport: paywallViewport(), retry });
 }
 
-export type CheckoutFailureCode = "network" | "rate_limited" | "kit_missing" | "server" | "unknown";
+/** `checkout_unavailable`: /api/checkout's 503 when payments can't be taken at all (production without Stripe). */
+export type CheckoutFailureCode = "network" | "rate_limited" | "kit_missing" | "checkout_unavailable" | "server" | "unknown";
 
 /** A checkout that didn't start, as the visitor sees it. `message` is ours or the API's, never a raw browser error. */
 export interface CheckoutFailure {
@@ -42,18 +43,22 @@ export function checkoutFailure(error: unknown): CheckoutFailure {
   if (!(error instanceof ApiError)) return error instanceof TypeError ? { code: "network", message: NETWORK_MESSAGE } : { code: "unknown", message: SERVER_MESSAGE };
   if (error.status === 429 || error.code === "rate_limited") return { code: "rate_limited", message: error.message };
   if (error.status === 404) return { code: "kit_missing", message: error.message };
+  if (error.code === "checkout_unavailable") return { code: "checkout_unavailable", message: error.message || SERVER_MESSAGE };
   if (error.status >= 500) return { code: "server", message: error.message || SERVER_MESSAGE };
   return { code: "unknown", message: error.message || SERVER_MESSAGE };
 }
 
 /**
  * What a checkout error offers, never nothing: "retry" runs the same checkout again, "save" emails a link that keeps
- * the preview (signed out only, the paywall's save-preview form), "new_preview" starts over when the kit is gone.
+ * the preview (signed out only, the paywall's save-preview form), "new_preview" starts over when the kit is gone,
+ * "email_us" writes to us for a payment link while checkout is offline (what /api/checkout's message suggests).
  */
-export type CheckoutRecovery = "retry" | "save" | "new_preview";
+export type CheckoutRecovery = "retry" | "save" | "new_preview" | "email_us";
 
 export function checkoutRecovery(code: CheckoutFailureCode, isLoggedIn: boolean): [CheckoutRecovery, ...CheckoutRecovery[]] {
   switch (code) {
+    case "checkout_unavailable":
+      return isLoggedIn ? ["retry", "email_us"] : ["retry", "email_us", "save"];
     case "network":
     case "rate_limited":
     case "server":
