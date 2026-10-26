@@ -102,6 +102,31 @@ export type CheckoutOutcome =
   | { kind: "cancelled" };
 
 /**
+ * At most one `run` at a time: a call while one is in flight gets that call's promise instead of starting another. The
+ * flag is set synchronously, before `run` reaches its first await, so two clicks in the same task (a double click, or
+ * two buttons) make one request. It clears once `run` settles, unless `holdWhile` says the result keeps it busy (the
+ * page is already on its way to Stripe).
+ */
+export function singleFlight<A extends unknown[], R>(run: (...args: A) => Promise<R>, { holdWhile }: { holdWhile?: (result: R) => boolean } = {}) {
+  let current: Promise<R> | null = null;
+  const call = (...args: A): Promise<R> => {
+    if (current) return current;
+    const started = run(...args);
+    current = started;
+    started.then(
+      (result) => {
+        if (current === started && !holdWhile?.(result)) current = null;
+      },
+      () => {
+        if (current === started) current = null;
+      },
+    );
+    return started;
+  };
+  return Object.assign(call, { inFlight: () => current !== null });
+}
+
+/**
  * Starts the kit's Checkout the one way every unlock button does, and logs a failure (checkout_failed). `promo`: the
  * page is showing the LAUNCH14 price. Doesn't navigate: the caller sends the buyer to `url`. After CHECKOUT_TIMEOUT_MS
  * the request is aborted and it's a network failure; `signal` (the caller unmounting) cancels it without one.

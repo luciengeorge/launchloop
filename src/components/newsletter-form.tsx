@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { isTestVisit, pageAnalyticsId } from "@/lib/analytics";
 import { postJson } from "@/lib/client";
 import { EMAIL_MAX, EMAIL_PATTERN, isEmail } from "@/lib/email-address";
+import { newsletterRequestError } from "@/lib/form-errors";
 import {
   LEAD_MAGNET,
   NEWSLETTER_ERRORS,
@@ -100,7 +101,7 @@ export function NewsletterForm({
       });
       setWelcome(parseWelcome(res.welcome));
     } catch (err) {
-      setError((err as Error).message);
+      setError(newsletterRequestError(err));
     }
     setState("idle");
   }

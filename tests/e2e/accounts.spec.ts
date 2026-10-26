@@ -82,6 +82,34 @@ test("login CTA locks with a loading state while the link is sent", async ({ pag
   expect(posts).toBe(1);
 });
 
+test("a plain-text 500 from the login request: the friendly message, never 'Request failed (500)', and the button retries", async ({ page }) => {
+  let failed = false;
+  await page.route("**/api/auth/request", (route) => {
+    if (failed) return route.continue();
+    failed = true;
+    return route.fulfill({ status: 500, contentType: "text/plain", body: "Internal Server Error" });
+  });
+  await page.goto("/login");
+  const submit = page.getByTestId("login-submit");
+  await expect(submit).toHaveCount(1);
+  const field = page.getByLabel("Email");
+  const email = uniqueEmail("login-500");
+  await field.fill(email);
+  await submit.click();
+
+  // In the form: Next's route announcer is a (silent) role="alert" too.
+  const error = page.locator('form[action="/api/auth/request"]').getByRole("alert");
+  await expect(error).toHaveText("We couldn't send your login link. Please try again.");
+  await expect(page.locator("main")).not.toContainText(/Request failed|Internal Server Error|500/);
+  await expect(field).toHaveAttribute("aria-describedby", (await error.getAttribute("id"))!);
+  // The email is kept and the button is the retry.
+  await expect(field).toHaveValue(email);
+  await expect(submit).toBeEnabled();
+  await expect(submit).toHaveText("Email me a login link");
+  await submit.click();
+  await page.waitForURL(/\/login\/check-email$/);
+});
+
 test("logged-out /account pages are an HTTP 307 to /login, not a streamed redirect", async ({ request }) => {
   for (const [path, next] of [
     ["/account", "/account"],

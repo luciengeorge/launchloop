@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { postJson } from "@/lib/client";
-import { LOGIN_ERRORS } from "@/lib/login-errors";
+import { loginRequestError } from "@/lib/form-errors";
 
 /**
  * Posts with fetch once hydrated, so errors show inline and the email stays filled in; before hydration it's a
@@ -42,7 +42,7 @@ export function LoginForm({ error, next, email }: { error?: string; next?: strin
       await postJson("/api/auth/request", { email, next });
       router.push("/login/check-email");
     } catch (err) {
-      setMessage(err instanceof TypeError ? LOGIN_ERRORS.send : (err as Error).message);
+      setMessage(loginRequestError(err));
       submitting.current = false;
       setPending(false);
     }

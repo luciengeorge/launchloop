@@ -355,6 +355,76 @@ for (const [label, viewport] of [
   });
 }
 
+test.describe("one checkout at a time", () => {
+  /** Counts the page's checkout POSTs, holding them all until `release` lets them through. */
+  async function countCheckouts(page: Page) {
+    const gate = held();
+    let posts = 0;
+    await page.route("**/api/checkout", (route, request) => {
+      if (request.method() !== "POST") return route.continue();
+      posts += 1;
+      return gate.answer(route);
+    });
+    return { posts: () => posts, release: () => gate.release((route) => route.continue()) };
+  }
+  const isCheckout = (url: URL) => url.pathname === "/api/checkout";
+
+  test("two clicks on the early CTA in the same task start one checkout (one POST), which goes through", async ({ page }) => {
+    await page.setViewportSize(DESKTOP);
+    await earlyCtaKit(page);
+    const checkouts = await countCheckouts(page);
+    const sent = page.waitForRequest((r) => r.method() === "POST" && isCheckout(new URL(r.url())));
+    await earlyButton(page).evaluate((button: HTMLButtonElement) => {
+      button.click();
+      button.click();
+    });
+    await sent;
+    await page.waitForTimeout(1500);
+    expect(checkouts.posts()).toBe(1);
+    checkouts.release();
+    await page.waitForURL(/\/checkout\/mock\?product=kit/);
+    expect(checkouts.posts()).toBe(1);
+  });
+
+  test("the early CTA and the panel's button clicked in the same task start one checkout, not two", async ({ page }) => {
+    await page.setViewportSize(DESKTOP);
+    await earlyCtaKit(page);
+    const checkouts = await countCheckouts(page);
+    const sent = page.waitForRequest((r) => r.method() === "POST" && isCheckout(new URL(r.url())));
+    await page.evaluate(() => {
+      for (const button of document.querySelectorAll<HTMLButtonElement>('[data-testid="early-unlock-cta"] button, [data-testid="unlock-panel"] button')) {
+        if (button.textContent?.includes("Unlock the full kit")) button.click();
+      }
+    });
+    await sent;
+    await page.waitForTimeout(1500);
+    expect(checkouts.posts()).toBe(1);
+    checkouts.release();
+    await page.waitForURL(/\/checkout\/mock\?product=kit/);
+  });
+
+  test("after one fails, Try again still starts a new checkout (and only one)", async ({ page }) => {
+    await page.setViewportSize(DESKTOP);
+    await earlyCtaKit(page);
+    let posts = 0;
+    await page.route("**/api/checkout", (route, request) => {
+      if (request.method() !== "POST") return route.continue();
+      posts += 1;
+      return posts === 1 ? plain500(route) : route.continue();
+    });
+    await earlyButton(page).evaluate((button: HTMLButtonElement) => {
+      button.click();
+      button.click();
+    });
+    const error = page.getByTestId("early-unlock-cta").getByRole("alert");
+    await expect(error).toBeVisible();
+    expect(posts).toBe(1);
+    await error.getByRole("button", { name: "Try again" }).click();
+    await page.waitForURL(/\/checkout\/mock\?product=kit/);
+    expect(posts).toBe(2);
+  });
+});
+
 test.describe("flag on, narrow window with a mouse", () => {
   // Not a touch device, so :hover applies (Tailwind's hover only matches where the pointer can hover).
   test.use({ viewport: MOBILE });
@@ -424,9 +494,10 @@ test.describe("errors always carry a CTA (flag off too)", () => {
     await expect(error.getByRole("link", { name: "Make a new preview" })).toHaveAttribute("href", "/#start");
   });
 
-  test("login link that didn't send: Try again or pay as a guest; a code that didn't work: resend it or change the email", async ({ page }) => {
+  test("sign-in link that didn't send: Try again or pay as a guest; a code that didn't work: resend it or change the email", async ({ page }) => {
     await makeSampleKit(page);
     let failLink = true;
+    // /api/auth/request's own answer, worded for /login ("login link"): the paywall says "sign-in link", like its forms.
     await page.route("**/api/auth/request", (route) =>
       failLink ? ((failLink = false), route.fulfill({ status: 500, json: { error: "We couldn't send your login link. Please try again.", code: "send" } })) : route.continue(),
     );
@@ -436,7 +507,7 @@ test.describe("errors always carry a CTA (flag off too)", () => {
     await page.getByRole("button", { name: "Continue to checkout" }).click();
     const linkError = page.getByTestId("login-link-error");
     await expect(linkError).toHaveRole("alert");
-    await expect(linkError).toContainText("We couldn't send your login link.");
+    await expect(linkError.locator("p")).toHaveText("We couldn't send your sign-in link. Please try again.");
     await expect(linkError.getByRole("button", { name: "Pay as a guest instead" })).toBeVisible();
     await linkError.getByRole("button", { name: "Try again" }).click();
     await expect(page.getByTestId("unlock-panel")).toHaveAttribute("data-step", "sent");
@@ -458,18 +529,25 @@ test.describe("errors always carry a CTA (flag off too)", () => {
     await expect(page.getByLabel("Your email")).toBeFocused();
   });
 
-  test("save-preview link that didn't send: Try again", async ({ page }) => {
-    await makeSampleKit(page);
-    let fail = true;
-    await page.route("**/api/auth/request", (route) =>
-      fail ? ((fail = false), route.fulfill({ status: 500, json: { error: "We couldn't send your login link. Please try again.", code: "send" } })) : route.continue(),
-    );
-    const save = page.getByTestId("save-preview");
-    await save.getByLabel("Not ready yet? Save this preview").fill(uniqueEmail("early-cta-save"));
-    await save.getByRole("button", { name: "Email me a link" }).click();
-    await save.getByRole("alert").getByRole("button", { name: "Try again" }).click();
-    await expect(save).toContainText("Link sent to");
-  });
+  for (const [kind, failure] of [
+    ["the API's send error", { status: 500, json: { error: "We couldn't send your login link. Please try again.", code: "send" } }],
+    ["a plain-text 500", { status: 500, contentType: "text/plain", body: "Internal Server Error" }],
+  ] as const) {
+    test(`save-preview link that didn't send (${kind}): "sign-in link" like the form above it, and Try again`, async ({ page }) => {
+      await makeSampleKit(page);
+      let fail = true;
+      await page.route("**/api/auth/request", (route) => (fail ? ((fail = false), route.fulfill(failure)) : route.continue()));
+      const save = page.getByTestId("save-preview");
+      await expect(save).toContainText("A sign-in link that keeps this preview in your account.");
+      await save.getByLabel("Not ready yet? Save this preview").fill(uniqueEmail("early-cta-save"));
+      await save.getByRole("button", { name: "Email me a link" }).click();
+      const error = save.getByRole("alert");
+      await expect(error.locator("p")).toHaveText("We couldn't send your sign-in link. Please try again.");
+      await expect(page.getByTestId("unlock-panel")).not.toContainText(/login link|Request failed/i);
+      await error.getByRole("button", { name: "Try again" }).click();
+      await expect(save).toContainText("Link sent to");
+    });
+  }
 });
 
 interface PhEvent {

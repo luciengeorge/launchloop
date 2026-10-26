@@ -4,6 +4,7 @@ import { useId, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { postJson } from "@/lib/client";
+import { waitlistRequestError } from "@/lib/form-errors";
 import { useQueryParam } from "@/lib/use-query-param";
 import type { WaitlistResponse, WaitlistSource } from "@/lib/waitlist";
 
@@ -28,7 +29,7 @@ export function WaitlistForm({ source, plan, className = "" }: { source: Waitlis
       const { duplicate } = await postJson<WaitlistResponse>("/api/waitlist", { email: new FormData(e.currentTarget).get("email"), ...(plan ? { plan } : {}), source });
       setState(duplicate ? "duplicate" : "joined");
     } catch (err) {
-      setError((err as Error).message);
+      setError(waitlistRequestError(err));
       setState("idle");
     }
   }

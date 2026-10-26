@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { track } from "@/lib/analytics";
 import { PAYWALL_EARLY_CTA_FLAG, SITE_HEADER_PX, type PaywallEarlyCta } from "@/lib/paywall-cta";
-import { runCheckout, trackUnlockClicked, trackUnlockShown, type CheckoutFailure, type CheckoutOutcome, type UnlockContext, type UnlockCtaPosition } from "@/lib/unlock-checkout";
+import { runCheckout, singleFlight, trackUnlockClicked, trackUnlockShown, type CheckoutFailure, type CheckoutOutcome, type UnlockContext, type UnlockCtaPosition } from "@/lib/unlock-checkout";
 
 interface CheckoutState {
   /** A checkout is starting or the page is on its way to Stripe: every unlock button waits. */
@@ -39,7 +39,7 @@ function useCheckoutState(earlyCta: boolean, autoCheckout: boolean): UnlockCheck
     return () => controller.abort();
   }, []);
 
-  const start = useCallback<UnlockCheckout["start"]>(async (context, options) => {
+  const run = useCallback<UnlockCheckout["start"]>(async (context, options) => {
     setState((s) => ({ ...s, redirecting: true, pending: context.position, failed: null }));
     const outcome = await runCheckout(context, options, { signal: mounted.current?.signal });
     switch (outcome.kind) {
@@ -64,9 +64,23 @@ function useCheckoutState(earlyCta: boolean, autoCheckout: boolean): UnlockCheck
     return outcome.kind;
   }, []);
 
+  // One checkout at a time for the whole paywall: a second start in the same task (before React re-renders the
+  // buttons as busy) shares the first one's outcome instead of sending another POST. Still held once the page is on
+  // its way to Stripe; free again after a failure (Try again), a timeout or a cancel.
+  const guard = useRef<ReturnType<typeof singleFlight<Parameters<UnlockCheckout["start"]>, CheckoutOutcome["kind"]>> | null>(null);
+  const start = useCallback<UnlockCheckout["start"]>(
+    (context, options) => {
+      guard.current ??= singleFlight(run, { holdWhile: (kind) => kind === "redirect" });
+      return guard.current(context, options);
+    },
+    [run],
+  );
+
   const { fullPriceUrl } = state;
   const click = useCallback<UnlockCheckout["click"]>(
     (context, options) => {
+      // A second click before the buttons re-render as busy: neither a second click event nor a second checkout.
+      if (guard.current?.inFlight()) return;
       trackUnlockClicked(context, options.retry);
       if (fullPriceUrl) window.location.assign(fullPriceUrl);
       else void start(context, options);
