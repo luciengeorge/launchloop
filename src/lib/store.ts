@@ -11,6 +11,8 @@ import { env } from "./env";
  */
 export interface KeyValueStore {
   get<T>(key: string): Promise<T | null>;
+  /** Whether an unexpired value is stored, without reading it. */
+  exists(key: string): Promise<boolean>;
   set<T>(key: string, value: T, ttlSeconds?: number): Promise<void>;
   /** Atomically reads and deletes a key (used for single-use tokens). */
   getDel<T>(key: string): Promise<T | null>;
@@ -40,6 +42,11 @@ class FileStore implements KeyValueStore {
       if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
       throw error;
     }
+  }
+
+  // The expiry is inside the file, so it has to be read.
+  async exists(key: string): Promise<boolean> {
+    return (await this.get(key)) !== null;
   }
 
   async set<T>(key: string, value: T, ttlSeconds?: number): Promise<void> {
@@ -143,6 +150,10 @@ class RedisRestStore implements KeyValueStore {
     return raw ? (JSON.parse(raw) as T) : null;
   }
 
+  async exists(key: string): Promise<boolean> {
+    return (await this.command<number>(["EXISTS", key])) > 0;
+  }
+
   async set<T>(key: string, value: T, ttlSeconds?: number): Promise<void> {
     const args: (string | number)[] = ["SET", key, JSON.stringify(value)];
     if (ttlSeconds) args.push("EX", ttlSeconds);
@@ -190,6 +201,9 @@ class PrefixedStore implements KeyValueStore {
   }
   get<T>(key: string) {
     return this.inner.get<T>(this.k(key));
+  }
+  exists(key: string) {
+    return this.inner.exists(this.k(key));
   }
   set<T>(key: string, value: T, ttlSeconds?: number) {
     return this.inner.set(this.k(key), value, ttlSeconds);

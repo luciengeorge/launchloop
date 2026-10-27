@@ -124,6 +124,17 @@ test("logged-out /account pages are an HTTP 307 to /login, not a streamed redire
   }
 });
 
+test("signed in, an unknown /account/kits id is a real 404 with the not-found page; an owned kit still opens", async ({ page }) => {
+  const kitId = await makeSampleKit(page);
+  await logIn(page, uniqueEmail("account-404"));
+  const res = await page.goto("/account/kits/doesNotExist1234567");
+  expect(res?.status()).toBe(404);
+  await expect(page.getByRole("heading", { name: "This page doesn't exist" })).toBeVisible();
+  await expect(page.getByRole("main").getByRole("link", { name: "Get my free preview" })).toHaveAttribute("href", "/#start");
+  expect((await page.goto(`/account/kits/${kitId}`))?.status()).toBe(200);
+  await expect(page.getByTestId("unlock-panel")).toBeVisible();
+});
+
 test("tampered tokens and forged session cookies are rejected", async ({ page, context, baseURL }) => {
   await page.goto("/login/verify?token=abc.def");
   await page.waitForURL(/\/login\?error=expired/);

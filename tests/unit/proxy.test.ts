@@ -1,81 +1,169 @@
 import { NextRequest } from "next/server";
 import { unstable_doesMiddlewareMatch } from "next/experimental/testing/server";
-import { describe, expect, it, vi } from "vitest";
-import { SESSION_COOKIE } from "@/lib/auth";
-import { config, proxy } from "@/proxy";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { MemoryStore } from "./memory-store";
+
+const kv = vi.hoisted(() => ({ store: undefined as unknown }));
+vi.mock("@/lib/store", () => ({ store: () => kv.store }));
+
+const { SESSION_COOKIE } = await import("@/lib/auth");
+const { kitExists, kitPageExists } = await import("@/lib/kit-exists");
+const { config, proxy } = await import("@/proxy");
 
 const ORIGIN = "https://launchloop.dev";
+const KIT_ID = "AKWq8__P15_kweHmfXX_Uw";
+/** A path no route matches, so Next answers with the root not-found page and a 404. */
+const NOT_FOUND = `${ORIGIN}/_not-found-rewrite`;
+let mem: MemoryStore;
+
+beforeEach(async () => {
+  mem = new MemoryStore();
+  kv.store = mem;
+  await mem.set(`kit:${KIT_ID}`, { id: KIT_ID });
+});
 
 function request(path: string, cookie?: string) {
   return new NextRequest(`${ORIGIN}${path}`, { headers: cookie ? { cookie } : {} });
 }
 
 const location = (res: Response) => res.headers.get("location");
+const rewrite = (res: Response | undefined) => res?.headers.get("x-middleware-rewrite");
 
 describe("proxy: logged-out /account redirect", () => {
   it.each([
     ["/account", "/login?next=%2Faccount"],
     ["/account?billing=error", "/login?next=%2Faccount%3Fbilling%3Derror"],
-    ["/account/kits/AKWq8__P15_kweHmfXX_Uw", "/login?next=%2Faccount%2Fkits%2FAKWq8__P15_kweHmfXX_Uw"],
-  ])("sends %s without a session cookie to %s with a 307", (path, target) => {
-    const res = proxy(request(path))!;
+    [`/account/kits/${KIT_ID}`, `/login?next=%2Faccount%2Fkits%2F${KIT_ID}`],
+  ])("sends %s without a session cookie to %s with a 307", async (path, target) => {
+    const res = (await proxy(request(path)))!;
     expect(res.status).toBe(307);
     expect(location(res)).toBe(`${ORIGIN}${target}`);
   });
 
-  it("encodes next the same way the page-level redirect does, so /login reads back the original path", () => {
-    const id = "AKWq8__P15_kweHmfXX_Uw";
-    const target = new URL(location(proxy(request(`/account/kits/${id}`))!)!);
-    expect(target.search).toBe(`?next=${encodeURIComponent(`/account/kits/${id}`)}`);
-    expect(target.searchParams.get("next")).toBe(`/account/kits/${id}`);
+  it("encodes next the same way the page-level redirect does, so /login reads back the original path", async () => {
+    const target = new URL(location((await proxy(request(`/account/kits/${KIT_ID}`)))!)!);
+    expect(target.search).toBe(`?next=${encodeURIComponent(`/account/kits/${KIT_ID}`)}`);
+    expect(target.searchParams.get("next")).toBe(`/account/kits/${KIT_ID}`);
   });
 
-  it.each(["/account", "/account/kits/AKWq8__P15_kweHmfXX_Uw"])("lets %s through when a session cookie is present, even an unverified one", (path) => {
-    expect(proxy(request(path, `${SESSION_COOKIE}=anything.signed`))).toBeUndefined();
+  it.each(["/account", `/account/kits/${KIT_ID}`])("lets %s through when a session cookie is present, even an unverified one", async (path) => {
+    expect(await proxy(request(path, `${SESSION_COOKIE}=anything.signed`))).toBeUndefined();
   });
 
-  it("treats an empty session cookie as logged out", () => {
-    expect(proxy(request("/account", `${SESSION_COOKIE}=`))?.status).toBe(307);
+  it("treats an empty session cookie as logged out", async () => {
+    expect((await proxy(request("/account", `${SESSION_COOKIE}=`)))?.status).toBe(307);
   });
 
-  it("ignores other cookies and lookalike paths", () => {
-    expect(proxy(request("/account", "ll_auth=1"))?.status).toBe(307);
-    expect(proxy(request("/accounts"))).toBeUndefined();
-    expect(proxy(request("/login?next=%2Faccount"))).toBeUndefined();
+  it("ignores other cookies and lookalike paths", async () => {
+    expect((await proxy(request("/account", "ll_auth=1")))?.status).toBe(307);
+    expect(await proxy(request("/accounts"))).toBeUndefined();
+    expect(await proxy(request("/login?next=%2Faccount"))).toBeUndefined();
   });
 
-  it("still strips a trailing slash first, so /account/ lands on /account", () => {
-    const res = proxy(request("/account/"))!;
+  it("still strips a trailing slash first, so /account/ lands on /account", async () => {
+    const res = (await proxy(request("/account/")))!;
     expect(res.status).toBe(308);
     expect(location(res)).toBe(`${ORIGIN}/account`);
   });
 
   it("runs on /account pages but not on the rest of the site", () => {
     for (const url of ["/account", "/account/kits/abc", "/account?billing=error"]) expect(unstable_doesMiddlewareMatch({ config, url }), url).toBe(true);
-    for (const url of ["/", "/login", "/kit/abc", "/accounts", "/pricing"]) expect(unstable_doesMiddlewareMatch({ config, url }), url).toBe(false);
+    for (const url of ["/", "/login", "/accounts", "/pricing"]) expect(unstable_doesMiddlewareMatch({ config, url }), url).toBe(false);
   });
 });
 
 describe("proxy: the mock checkout in production", () => {
-  const rewrite = (res: Response | undefined) => res?.headers.get("x-middleware-rewrite");
-
-  it.each(["/checkout/mock", "/checkout/mock?product=kit&kitId=AKWq8__P15_kweHmfXX_Uw"])("rewrites %s to a path no route matches, so Next answers 404", (path) => {
+  it.each(["/checkout/mock", `/checkout/mock?product=kit&kitId=${KIT_ID}`])("rewrites %s to the 404 path", async (path) => {
     vi.stubEnv("VERCEL_ENV", "production");
-    expect(rewrite(proxy(request(path)))).toMatch(/^https:\/\/launchloop\.dev\/_not-found-checkout-mock(\?|$)/);
+    expect(rewrite(await proxy(request(path)))).toBe(NOT_FOUND);
   });
 
-  it.each(["preview", "development", ""])("lets VERCEL_ENV=%j through to the page", (vercelEnv) => {
+  it.each(["preview", "development", ""])("lets VERCEL_ENV=%j through to the page", async (vercelEnv) => {
     vi.stubEnv("VERCEL_ENV", vercelEnv);
-    expect(proxy(request("/checkout/mock?product=kit"))).toBeUndefined();
+    expect(await proxy(request("/checkout/mock?product=kit"))).toBeUndefined();
   });
 
-  it("only touches /checkout/mock itself", () => {
+  it("only touches /checkout/mock itself", async () => {
     vi.stubEnv("VERCEL_ENV", "production");
-    for (const path of ["/checkout/success?session_id=x", "/api/checkout/mock", "/checkout/mocks"]) expect(proxy(request(path)), path).toBeUndefined();
+    for (const path of [`/checkout/success?kit=${KIT_ID}&session_id=x`, "/api/checkout/mock", "/checkout/mocks"]) expect(await proxy(request(path)), path).toBeUndefined();
   });
 
   it("the matcher sends /checkout/mock through the proxy", () => {
     for (const url of ["/checkout/mock", "/checkout/mock?product=kit"]) expect(unstable_doesMiddlewareMatch({ config, url }), url).toBe(true);
-    for (const url of ["/checkout/success", "/api/checkout/mock"]) expect(unstable_doesMiddlewareMatch({ config, url }), url).toBe(false);
+    expect(unstable_doesMiddlewareMatch({ config, url: "/api/checkout/mock" })).toBe(false);
+  });
+});
+
+describe("proxy: unknown kit ids are a real 404", () => {
+  const SIGNED_IN = `${SESSION_COOKIE}=anything.signed`;
+
+  it("rewrites /kit/<unknown id> to the 404 path", async () => {
+    for (const id of ["doesNotExist1234567", "short", "bad%20id%20that-is-long-enough"]) {
+      expect(rewrite(await proxy(request(`/kit/${id}`))), id).toBe(NOT_FOUND);
+    }
+  });
+
+  it("lets a saved kit and a preview that is still generating (or failed) through to the page", async () => {
+    const pending = "PendingKit_1234567890";
+    await mem.set(`kitpending:${pending}`, { state: "generating" }, 600);
+    expect(await proxy(request(`/kit/${KIT_ID}`))).toBeUndefined();
+    expect(await proxy(request(`/kit/${KIT_ID}?unlock=1`))).toBeUndefined();
+    expect(await proxy(request(`/kit/${pending}`))).toBeUndefined();
+  });
+
+  it("a preview that has expired from the store is a 404", async () => {
+    vi.useFakeTimers();
+    try {
+      await mem.set("kit:ExpiredPreview_12345", { id: "ExpiredPreview_12345" }, 60);
+      expect(await proxy(request("/kit/ExpiredPreview_12345"))).toBeUndefined();
+      vi.advanceTimersByTime(61_000);
+      expect(rewrite(await proxy(request("/kit/ExpiredPreview_12345")))).toBe(NOT_FOUND);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("rewrites a signed-in /account/kits/<unknown id> and /checkout/success with an unknown or missing kit to the 404 path", async () => {
+    expect(rewrite(await proxy(request("/account/kits/doesNotExist1234567", SIGNED_IN)))).toBe(NOT_FOUND);
+    for (const path of ["/checkout/success?kit=doesNotExist1234567&session_id=x", "/checkout/success", "/checkout/success?kit="]) {
+      expect(rewrite(await proxy(request(path))), path).toBe(NOT_FOUND);
+    }
+    expect(await proxy(request(`/checkout/success?kit=${KIT_ID}`))).toBeUndefined();
+  });
+
+  it("lets the page decide when the store is down, instead of calling every kit missing", async () => {
+    mem.failing = true;
+    expect(await proxy(request(`/kit/${KIT_ID}`))).toBeUndefined();
+    expect(await proxy(request("/kit/doesNotExist1234567"))).toBeUndefined();
+    expect(await proxy(request("/account/kits/doesNotExist1234567", SIGNED_IN))).toBeUndefined();
+  });
+
+  it("a path that can't be decoded goes to the page rather than throwing in the proxy", async () => {
+    expect(await proxy(request("/kit/%E0%A4%A"))).toBeUndefined();
+  });
+
+  it("the matcher runs on the kit pages and the success page only, not their APIs or images", () => {
+    for (const url of ["/kit/abc", `/kit/${KIT_ID}?unlock=1`, "/checkout/success", "/checkout/success?kit=x"]) expect(unstable_doesMiddlewareMatch({ config, url }), url).toBe(true);
+    for (const url of ["/kitchen", `/api/kits/${KIT_ID}/status`, `/api/og/${KIT_ID}/og`, "/example-kit", "/"]) expect(unstable_doesMiddlewareMatch({ config, url }), url).toBe(false);
+  });
+});
+
+describe("kit existence checks", () => {
+  it("kitExists only counts a saved kit; kitPageExists also counts a pending preview", async () => {
+    await mem.set("kitpending:PendingKit_1234567890", { state: "failed" }, 600);
+    expect(await kitExists(KIT_ID)).toBe(true);
+    expect(await kitPageExists(KIT_ID)).toBe(true);
+    expect(await kitExists("PendingKit_1234567890")).toBe(false);
+    expect(await kitPageExists("PendingKit_1234567890")).toBe(true);
+    expect(await kitPageExists("doesNotExist1234567")).toBe(false);
+  });
+
+  it("never asks the store about an id that can't be a kit", async () => {
+    const exists = vi.spyOn(mem, "exists");
+    for (const id of ["", "short", "../../etc/passwd_xx", "a".repeat(33)]) {
+      expect(await kitExists(id)).toBe(false);
+      expect(await kitPageExists(id)).toBe(false);
+    }
+    expect(exists).not.toHaveBeenCalled();
   });
 });

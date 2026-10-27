@@ -27,6 +27,11 @@ export class MemoryStore implements KeyValueStore {
     return (this.read(key)?.value as T) ?? null;
   }
 
+  async exists(key: string): Promise<boolean> {
+    this.check();
+    return this.read(key) !== undefined;
+  }
+
   async set<T>(key: string, value: T, ttlSeconds?: number): Promise<void> {
     this.check();
     this.data.set(key, { value, expiresAt: ttlSeconds ? Date.now() + ttlSeconds * 1000 : undefined });
