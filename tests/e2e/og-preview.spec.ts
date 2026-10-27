@@ -244,6 +244,31 @@ test("friendly errors for bad input and unreachable pages", async ({ page }) => 
   }
 });
 
+test("the page below the tool doesn't move when the preview result appears (1280px on desktop, the phone's own width on mobile)", async ({ page, isMobile }) => {
+  if (!isMobile) await page.setViewportSize({ width: 1280, height: 900 });
+  await page.addInitScript(() => {
+    const w = window as unknown as { __cls: number };
+    w.__cls = 0;
+    new PerformanceObserver((list) => {
+      for (const entry of list.getEntries() as unknown as { value: number; hadRecentInput: boolean }[]) if (!entry.hadRecentInput) w.__cls += entry.value;
+    }).observe({ type: "layout-shift", buffered: true });
+  });
+  // Shifts within 500 ms of the click don't count, so hold the answer back the way a slow live page would.
+  await page.route("**/api/tools/og-preview", async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 1200));
+    await route.continue();
+  });
+  await page.goto(PATH, { waitUntil: "load" });
+  await page.getByLabel("Live page URL").fill(`${FIXTURE}/og/good`);
+  await page.getByRole("button", { name: "Preview card" }).click();
+  await expect(page.getByTestId("og-verdict")).toHaveAttribute("data-verdict", "pass");
+  await expect(page.getByTestId("og-card-image").locator("img")).toHaveJSProperty("complete", true);
+  await page.waitForTimeout(500);
+  const cls = await page.evaluate(() => (window as unknown as { __cls: number }).__cls);
+  test.info().annotations.push({ type: "cls", description: `${cls.toFixed(4)} at ${page.viewportSize()!.width}px` });
+  expect(cls).toBeLessThan(0.01);
+});
+
 test("try-it button previews LaunchLoop itself and keeps the plain CTA", async ({ page }) => {
   await page.goto(PATH);
   await page.getByRole("button", { name: "Try it on LaunchLoop" }).click();

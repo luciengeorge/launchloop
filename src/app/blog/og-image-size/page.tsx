@@ -218,7 +218,7 @@ export default function OgImageSizePostPage() {
           <strong>File size.</strong> LinkedIn says 5 MB, X&apos;s archived docs say less than 5MB, and Facebook says 8 MB.
         </li>
         <li>
-          <strong>No number at all.</strong> Slack and the Open Graph protocol publish no image size, and Discord only shows one in an example.
+          <strong>No number at all.</strong> Slack and the Open Graph protocol publish no image size, and Discord&apos;s doc only uses sizes in its examples: 1200×630 in the Quick Start and oEmbed examples, and 1280×720 in the example in its Video section.
         </li>
       </ul>
 

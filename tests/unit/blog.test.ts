@@ -79,10 +79,10 @@ describe("Product Hunt post", () => {
 describe("BetaList post", () => {
   const p = post("how-to-launch-on-betalist");
 
-  it("targets launching on BetaList and BetaList submission, dated 25 October 2026", () => {
+  it("targets launching on BetaList and BetaList submission, published 25 October 2026 and updated 27 October 2026", () => {
     expect(fullTitle(p.metaTitle)).toBe("How to launch on BetaList: submission guide · LaunchLoop");
     expect(p.description).toMatch(/^How to launch on BetaList/);
-    expect(p).toMatchObject({ published: "2026-10-25", updated: "2026-10-25" });
+    expect(p).toMatchObject({ published: "2026-10-25", updated: "2026-10-27" });
   });
 
   it("links the OG image preview and no /tools path that doesn't exist", () => {
@@ -225,5 +225,9 @@ describe("OG image size post", () => {
     expect(BLOG_POSTS.map(postPath)).toContain(size.more?.href);
     expect(size.a.match(/[.!?](\s|$)/g)).toHaveLength(1);
     expect(size.a).not.toMatch(/all design|works everywhere/);
+  });
+
+  it("dates the OG preview tool page to 26 October 2026, when its rewrite for this post merged", () => {
+    expect(OG_PREVIEW.updated).toBe("2026-10-26");
   });
 });
