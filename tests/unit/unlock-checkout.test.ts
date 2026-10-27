@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { UnlockContext } from "@/lib/unlock-checkout";
+import { singleFlight } from "@/lib/request-guards";
 
 const posthog = vi.hoisted(() => ({ __loaded: false, init: vi.fn(), register: vi.fn(), capture: vi.fn(), get_distinct_id: () => "ph_page" }));
 vi.mock("posthog-js", () => ({ default: posthog }));
@@ -227,7 +228,7 @@ describe("one checkout at a time (singleFlight)", () => {
   async function guardedStart(fetch: ReturnType<typeof vi.fn>) {
     const { unlock } = await landOn("https://launchloop.dev/kit/kit_0123456789abcdef");
     vi.stubGlobal("fetch", fetch);
-    const start = unlock.singleFlight((retry: boolean) => unlock.runCheckout(top, { promo: false, retry }), { holdWhile: (o) => o.kind === "redirect" });
+    const start = singleFlight((retry: boolean) => unlock.runCheckout(top, { promo: false, retry }), { holdWhile: (o) => o.kind === "redirect" });
     return { unlock, start };
   }
   const posts = (fetch: ReturnType<typeof vi.fn>) => fetch.mock.calls.filter(([url]) => url === "/api/checkout").length;
@@ -307,9 +308,8 @@ describe("one checkout at a time (singleFlight)", () => {
   });
 
   it("a run from before the reset that settles late doesn't free the newer one", async () => {
-    const { unlock } = await landOn("https://launchloop.dev/kit/kit_0123456789abcdef");
     const settle: (() => void)[] = [];
-    const start = unlock.singleFlight(() => new Promise<string>((resolve) => settle.push(() => resolve("failed"))));
+    const start = singleFlight(() => new Promise<string>((resolve) => settle.push(() => resolve("failed"))));
     const old = start();
     start.reset();
     const fresh = start();
@@ -326,9 +326,8 @@ describe("one checkout at a time (singleFlight)", () => {
   });
 
   it("a run that throws frees it", async () => {
-    const { unlock } = await landOn("https://launchloop.dev/kit/kit_0123456789abcdef");
     let calls = 0;
-    const start = unlock.singleFlight(async () => {
+    const start = singleFlight(async () => {
       calls += 1;
       throw new Error("boom");
     });
