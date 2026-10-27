@@ -4,7 +4,10 @@ import { CopyButton } from "@/components/copy-button";
 import type { Served } from "@/lib/experiments";
 import { IMAGE_VARIANTS } from "@/lib/image-variants";
 import { LIMITS } from "@/lib/limits";
+import { UNLOCK_ZONE_ATTRIBUTE, type PaywallEarlyCta } from "@/lib/paywall-cta";
 import { PRODUCTS } from "@/lib/products";
+import { UnlockCheckoutProvider } from "./unlock-checkout";
+import { StickyUnlockBar, UnlockCta, UnlockCtaPlaceholder } from "./unlock-cta";
 import { UnlockPanel, UnlockPanelPlaceholder } from "./unlock-panel";
 
 interface Props {
@@ -16,16 +19,23 @@ interface Props {
   free: { tagline?: string; xPost?: string };
   /** exp_launch14_promo for this kit, streamed in after the page (see resolveKitPromo). */
   launchPromo: Promise<Served>;
+  /**
+   * exp_paywall_early_cta, resolved before the page renders so its first HTML is final: on, an unlock CTA under the
+   * heading and a sticky bar below lg, all on the panel's checkout; off, the paywall with only the panel's button.
+   */
+  earlyCta: PaywallEarlyCta;
   email?: string;
   query: Record<string, string | string[] | undefined>;
 }
 
 const fmt = (n: number) => n.toLocaleString("en-GB");
 
-/** Shown on an unpaid kit once the free preview is done: what £19 unlocks, the free X post, and the single unlock CTA. */
-export function PreviewPaywall({ kitId, productName, counts, free, launchPromo, email, query }: Props) {
+/** Shown on an unpaid kit once the free preview is done: what £19 unlocks, the free X post, and the unlock CTA. */
+export function PreviewPaywall({ kitId, productName, counts, free, launchPromo, earlyCta, email, query }: Props) {
   const imageCount = Object.keys(IMAGE_VARIANTS).length;
   const panel = { email, autoCheckout: query.unlock === "1", cancelled: query.checkout === "cancelled", saved: query.saved === "1" };
+  const cta = { kitId, priceLabel: PRODUCTS.kit.priceLabel, launchPromo, email };
+  const zone = earlyCta.enabled ? { [UNLOCK_ZONE_ATTRIBUTE]: "" } : {};
   const samples = free.xPost ? [{ title: "Post 1 of your X thread", text: free.xPost }] : [];
   const sections = [
     { icon: PanelsTopLeft, title: "Landing page copy", detail: `Headline, subheadline, button text, ${counts.features} feature blocks, meta title and description.` },
@@ -43,7 +53,7 @@ export function PreviewPaywall({ kitId, productName, counts, free, launchPromo, 
     { icon: FileArchive, title: "ZIP and email copy", detail: "Everything in one download, plus a copy in your inbox." },
   ];
 
-  return (
+  const paywall = (
     <section
       className="grid overflow-hidden rounded-2xl border-2 border-primary bg-card shadow-xl shadow-primary/10 lg:grid-cols-[1fr_380px]"
       aria-labelledby="paywall-heading"
@@ -61,6 +71,14 @@ export function PreviewPaywall({ kitId, productName, counts, free, launchPromo, 
             Written from your repo and live page, checked against every platform limit, ready to paste.
           </p>
         </div>
+
+        {earlyCta.enabled ? (
+          <div {...zone}>
+            <Suspense fallback={<UnlockCtaPlaceholder />}>
+              <ResolvedUnlockCta {...cta} />
+            </Suspense>
+          </div>
+        ) : null}
 
         <ul className="grid gap-3 sm:grid-cols-2" aria-label="Locked in the full kit" data-testid="paywall-locked-sections">
           {sections.map(({ icon: Icon, title, detail }) => (
@@ -93,16 +111,39 @@ export function PreviewPaywall({ kitId, productName, counts, free, launchPromo, 
         ))}
       </div>
 
-      <div className="border-t border-border bg-muted/40 p-6 sm:p-8 lg:border-l lg:border-t-0">
+      <div className="border-t border-border bg-muted/40 p-6 sm:p-8 lg:border-l lg:border-t-0" {...zone}>
         <Suspense fallback={<UnlockPanelPlaceholder {...panel} />}>
           <ResolvedUnlockPanel kitId={kitId} priceLabel={PRODUCTS.kit.priceLabel} launchPromo={launchPromo} {...panel} />
         </Suspense>
       </div>
+
+      {earlyCta.enabled ? (
+        <Suspense fallback={null}>
+          <ResolvedStickyUnlockBar {...cta} />
+        </Suspense>
+      ) : null}
     </section>
+  );
+
+  return (
+    <UnlockCheckoutProvider earlyCta={earlyCta} autoCheckout={panel.autoCheckout}>
+      {paywall}
+    </UnlockCheckoutProvider>
   );
 }
 
+type Resolving<P extends { launchPromo: Served }> = Omit<P, "launchPromo"> & { launchPromo: Promise<Served> };
+
 /** Waits for the kit's promo on the server, so the panel's first HTML already has the price Checkout will charge. */
-async function ResolvedUnlockPanel({ launchPromo, ...props }: Omit<ComponentProps<typeof UnlockPanel>, "launchPromo"> & { launchPromo: Promise<Served> }) {
+async function ResolvedUnlockPanel({ launchPromo, ...props }: Resolving<ComponentProps<typeof UnlockPanel>>) {
   return <UnlockPanel {...props} launchPromo={await launchPromo} />;
+}
+
+/** The early CTA and the sticky bar wait for the same promo, so every unlock button on the page shows the same price. */
+async function ResolvedUnlockCta({ launchPromo, ...props }: Resolving<ComponentProps<typeof UnlockCta>>) {
+  return <UnlockCta {...props} launchPromo={await launchPromo} />;
+}
+
+async function ResolvedStickyUnlockBar({ launchPromo, ...props }: Resolving<ComponentProps<typeof StickyUnlockBar>>) {
+  return <StickyUnlockBar {...props} launchPromo={await launchPromo} />;
 }

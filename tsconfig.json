@@ -39,11 +39,14 @@
     ".next-test/types/**/*.ts",
     ".next-test/dev/types/**/*.ts",
     ".next-test-hero/types/**/*.ts",
-    ".next-test-hero/dev/types/**/*.ts"
+    ".next-test-hero/dev/types/**/*.ts",
+    ".next-test-inline/types/**/*.ts",
+    ".next-test-inline/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",
     ".next-test",
-    ".next-test-hero"
+    ".next-test-hero",
+    ".next-test-inline"
   ]
 }

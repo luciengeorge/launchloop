@@ -1,6 +1,7 @@
 import "server-only";
 import { parse, type HTMLElement } from "node-html-parser";
 import { pricesIn } from "../prices";
+import { githubRepoLink } from "./github";
 import { IngestError, safeFetch } from "./safe-fetch";
 import { spacedText } from "./text";
 
@@ -69,8 +70,8 @@ export async function fetchSite(url: string, warnings: string[]): Promise<SiteDa
   const pricingUrl = findPricingLink(root, page.url);
   const githubUrl = root
     .querySelectorAll("a[href]")
-    .map((a) => a.getAttribute("href") ?? "")
-    .find((href) => /^https?:\/\/(www\.)?github\.com\/[\w.-]+\/[\w.-]+\/?$/i.test(href));
+    .map((a) => githubRepoLink(a.getAttribute("href") ?? ""))
+    .find((href) => href !== undefined);
   const images = pageImages(root, page.url);
   root.querySelectorAll("script, style, noscript, svg, nav, header, footer, [role=navigation]").forEach((el) => el.remove());
   const body = root.querySelector("body") ?? root;

@@ -1,6 +1,7 @@
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { EXAMPLE_KIT } from "@/lib/example-kit";
 import { EXAMPLE_KIT_PATH } from "@/lib/site";
+import { contrast } from "./helpers";
 
 const FIXTURE = "http://127.0.0.1:3419";
 const FLAG = "exp_hero_sample_cta";
@@ -59,26 +60,6 @@ const fallback = (e: PhEvent) => e.event === "flag_fallback" && e.properties.fla
 const sampleCta = (page: Page) => page.getByRole("button", { name: "Try a sample app" });
 const exampleLink = (page: Page) => page.locator("#start").getByRole("link", { name: "See an example kit" });
 const height = async (page: Page, testId: string) => (await page.getByTestId(testId).boundingBox())!.height;
-
-/** WCAG contrast of an element's text against its background (composited over the page's), as the browser renders them. */
-const contrast = (target: Locator) =>
-  target.evaluate((el) => {
-    // Let the browser resolve oklch/color-mix: paint each colour and read the sRGB pixel back.
-    const ctx = document.createElement("canvas").getContext("2d", { willReadFrequently: true })!;
-    const paint = (...colors: string[]) => {
-      for (const color of ["#fff", ...colors]) {
-        ctx.fillStyle = color;
-        ctx.fillRect(0, 0, 1, 1);
-      }
-      const [r, g, b] = [...ctx.getImageData(0, 0, 1, 1).data].map((v) => (v / 255 <= 0.04045 ? v / 255 / 12.92 : ((v / 255 + 0.055) / 1.055) ** 2.4));
-      return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-    };
-    const style = getComputedStyle(el);
-    const page = getComputedStyle(document.body).backgroundColor;
-    const fg = paint(page, style.backgroundColor, style.color);
-    const bg = paint(page, style.backgroundColor);
-    return (Math.max(fg, bg) + 0.05) / (Math.min(fg, bg) + 0.05);
-  });
 
 async function startSample(page: Page, campaign: string): Promise<PhEvent> {
   await sampleCta(page).click();

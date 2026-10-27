@@ -1,9 +1,28 @@
+import type { DeployEnv } from "./deploy-env";
 import { RESERVED_EMAIL_ERROR } from "./login-errors";
 
-/** Where a newsletter signup happened. Stored on the contact and sent with the `newsletter_subscribed` event. */
-export type NewsletterPlacement = "footer" | "preview" | "blog";
+/**
+ * Where a newsletter signup happened. Stored on the contact and sent with `newsletter_form_viewed` and `newsletter_subscribed`.
+ * `blog` is the end-of-post block and `blog_inline` / `home_inline` the blocks behind `newsletter-inline-signup`.
+ */
+export const NEWSLETTER_PLACEMENTS = ["footer", "preview", "blog", "blog_inline", "home_inline"] as const;
+export type NewsletterPlacement = (typeof NEWSLETTER_PLACEMENTS)[number];
 
-export const parsePlacement = (value: unknown): NewsletterPlacement => (value === "preview" || value === "blog" ? value : "footer");
+/** Anything unknown (an old cached page, a hand-made post) is the footer, as it always was. */
+export const parsePlacement = (value: unknown): NewsletterPlacement =>
+  typeof value === "string" && (NEWSLETTER_PLACEMENTS as readonly string[]).includes(value) ? (value as NewsletterPlacement) : "footer";
+
+/**
+ * Whether `newsletter-inline-signup` is on. `NEWSLETTER_INLINE=off` is a kill that doesn't need PostHog; `on` forces it
+ * outside production (local and e2e builds). Otherwise only a flag value of exactly `true` turns it on, and the flag
+ * isn't read at all when the override decides.
+ */
+export async function resolveInlineFlag({ override, env, flag }: { override: string | undefined; env: DeployEnv; flag: () => Promise<unknown> }): Promise<boolean> {
+  const forced = override?.trim().toLowerCase();
+  if (forced === "off") return false;
+  if (forced === "on" && env !== "production") return true;
+  return (await flag()) === true;
+}
 
 /** Resend's test sink (delivered@resend.dev, bounced@resend.dev, ...): only QA ever signs up with it. */
 export const isResendTestAddress = (email: string) => /(^|\.)resend\.dev$/.test(email.slice(email.lastIndexOf("@") + 1).trim().toLowerCase());
@@ -12,8 +31,8 @@ export const isResendTestAddress = (email: string) => /(^|\.)resend\.dev$/.test(
 export const LEAD_MAGNET = { title: "launch-day checklist", path: "/product-hunt-launch-checklist" } as const;
 
 /**
- * Anchor of the in-page signup (post-preview on kit pages, end of post on blog pages), so a no-JS form post lands back on it.
- * Only one such block per page: the footer form has no id.
+ * Anchor of the in-page signup (post-preview on kit pages, after the intro or at the end of blog posts, under the home
+ * hero), so a no-JS form post lands back on it. Only one such block per page: the footer form has no id.
  */
 export const PREVIEW_NEWSLETTER_ANCHOR = "newsletter";
 

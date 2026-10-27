@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { GUIDES, guidePath } from "@/lib/guides";
+import { isNewsletterInlineOn } from "@/lib/newsletter-flag-server";
 import { PAGES } from "@/lib/pages";
 import { SITE } from "@/lib/site";
 import { TOOLS } from "@/lib/tools";
@@ -25,14 +26,15 @@ const FEATURED_ON = [
   { href: "https://twelve.tools", src: "https://twelve.tools/badge0-light.svg", alt: "Featured on Twelve Tools", width: 148, height: 40 },
 ] as const;
 
-export function SiteFooter() {
+export async function SiteFooter() {
+  const inline = await isNewsletterInlineOn();
   return (
     <footer className="border-t border-border/60 bg-muted/40" data-site-footer>
       <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:px-6 sm:grid-cols-2 md:grid-cols-[1.4fr_1fr_1.2fr_1fr]">
         <div className="space-y-4">
           <Logo />
           <p className="max-w-sm text-sm text-muted-foreground">{SITE.shortDescription} Built for makers shipping with Cursor, Lovable, Bolt and v0.</p>
-          <FooterNewsletter />
+          <FooterNewsletter inline={inline} />
         </div>
         <nav aria-label="Product" className="space-y-3 text-sm">
           <h2 className="font-medium">Product</h2>

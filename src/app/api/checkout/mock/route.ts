@@ -2,6 +2,7 @@ import { after } from "next/server";
 import { captureServerEvent, resolveDistinctId } from "@/lib/analytics-server";
 import { attributionProperties, withTestTraffic } from "@/lib/attribution";
 import { isEmail } from "@/lib/audience";
+import { deployEnv } from "@/lib/deploy-env";
 import { getSession } from "@/lib/auth";
 import { isStripeMock } from "@/lib/env";
 import { withAnalyticsId } from "@/lib/experiments";
@@ -14,8 +15,9 @@ import type { Kit } from "@/lib/schema";
 
 export const maxDuration = 120;
 
-/** Test-mode stand-in for Stripe Checkout. Disabled whenever STRIPE_SECRET_KEY is set. */
+/** Test-mode stand-in for Stripe Checkout. Disabled whenever STRIPE_SECRET_KEY is set, and always in production. */
 export async function POST(req: Request) {
+  if (deployEnv() === "production") return Response.json({ error: "Mock checkout is not available in production." }, { status: 404 });
   if (!isStripeMock()) return Response.json({ error: "Mock checkout is disabled when Stripe is configured." }, { status: 404 });
 
   const body = (await req.json().catch(() => ({}))) as { product?: unknown; kitId?: unknown; email?: unknown; analyticsId?: unknown; promo?: unknown; isTest?: unknown };

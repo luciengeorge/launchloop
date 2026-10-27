@@ -1,11 +1,14 @@
 import type { CaptureResult, PostHog, PostHogInterface } from "posthog-js";
 import { type Attribution, QA_PARAM, readLandingAttribution } from "./attribution";
 import { ANALYTICS_ID_PARAM, EXPERIMENTS, featureProperties, isAnalyticsId, type ExperimentKey, type FallbackReason, type Served, type Variant } from "./experiments";
+import type { NewsletterPlacement } from "./newsletter";
+import type { PAYWALL_EARLY_CTA_FLAG } from "./paywall-cta";
 import { POSTHOG_PROXY_PATH, posthogUiHost } from "./posthog-config";
 import type { RepoPrefill } from "./repo-cta";
 import { scrubProperties } from "./scrub-url";
 import { pendingMarkers, readServedMarker } from "./served-marker";
 import type { StartPlan } from "./start-intent";
+import type { CheckoutFailureCode, PaywallViewport, UnlockContext } from "./unlock-checkout";
 
 export type PreviewSource = "github" | "site" | "sample";
 
@@ -13,6 +16,9 @@ export type PreviewSource = "github" | "site" | "sample";
  * Browser events. Checkout events are captured server-side (see analytics-server.ts) so they carry the Stripe price,
  * and newsletter_subscribed so automated browsers and no-JS posts count.
  */
+/** Errors about the link itself, whose alert offers a site URL or the sample app instead. */
+export type ErrorCtaCode = "invalid_url" | "repo_not_found" | "repo_private";
+
 export interface ClientEvents {
   preview_started: { source: PreviewSource; plan: StartPlan; isLoggedIn: boolean };
   preview_completed: { kitId: string; source: PreviewSource; plan: StartPlan; isLoggedIn: boolean; durationMs: number };
@@ -33,6 +39,8 @@ export interface ClientEvents {
   /** site_no_content's "Use my GitHub repo instead" button, shown with the error. Never carries the link. */
   repo_cta_shown: { code: "site_no_content"; plan: StartPlan; isLoggedIn: boolean };
   repo_cta_clicked: { code: "site_no_content"; plan: StartPlan; isLoggedIn: boolean; prefill: RepoPrefill };
+  /** A button on an invalid_url, repo_not_found or repo_private error: "Try your site URL instead" or "Try a sample app". Never carries the link. */
+  error_cta_clicked: { cta: "site_url" | "sample_app"; error_code: ErrorCtaCode; plan: StartPlan; isLoggedIn: boolean };
   /** The visitor tried to send the link that just failed with site_no_content again; the form pointed them at the button. */
   preview_resubmit_blocked: { code: "site_no_content"; plan: StartPlan; isLoggedIn: boolean };
   /**
@@ -40,8 +48,22 @@ export interface ClientEvents {
    * field's label: never what was typed. `link_url` is scrubbed like every URL.
    */
   hero_clicked: { element: "a" | "button" | "input"; label: string; link_url?: string };
-  /** Control served without a PostHog assignment (see Served). Not an exposure, so it stays out of the experiment. */
-  flag_fallback: { flag: ExperimentKey; variant: Variant; reason: FallbackReason; fallback: true };
+  /**
+   * Control served without a PostHog assignment (see Served). Not an exposure, so it stays out of the experiment.
+   * Also the paywall's early-CTA kill switch (PAYWALL_EARLY_CTA_FLAG) rendered off because PostHog didn't answer.
+   */
+  flag_fallback: { flag: ExperimentKey | typeof PAYWALL_EARLY_CTA_FLAG; variant: Variant; reason: FallbackReason; fallback: true };
+  /**
+   * A newsletter form at least half on screen, once per placement per page (useFormViewed). `path` is scrubbed like
+   * every URL; the UTMs are the landing's. Never anything typed. The submit is the server's newsletter_subscribed.
+   */
+  newsletter_form_viewed: { placement: NewsletterPlacement; path: string; utm_source?: string; utm_medium?: string; utm_campaign?: string };
+  /** A kit paywall unlock button at least half in view: once per position per page view. */
+  unlock_cta_shown: UnlockContext & { viewport: PaywallViewport };
+  /** A kit paywall unlock button clicked, or (`retry`) the "Try again" on its checkout error. Sent before /api/checkout. */
+  unlock_cta_clicked: UnlockContext & { viewport: PaywallViewport; retry: boolean };
+  /** /api/checkout failed for an unlock button (or ?unlock=1 / the code login, as `panel`). Never carries the message. */
+  checkout_failed: UnlockContext & { viewport: PaywallViewport; code: CheckoutFailureCode; retry: boolean };
 }
 
 const key = process.env.NEXT_PUBLIC_POSTHOG_KEY;

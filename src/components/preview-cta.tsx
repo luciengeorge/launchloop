@@ -13,7 +13,7 @@ export async function PreviewCta() {
         Paste your GitHub repo or live URL and {SITE.name} drafts your landing copy, Product Hunt post, X thread, LinkedIn post and launch images, all inside each platform&apos;s limits.
         The preview is free; the full kit is <KitPrice promo={promo} />.
       </p>
-      <Link href="/#start" className="mt-4 inline-flex h-10 items-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+      <Link href="/#start" className="mt-4 inline-flex h-10 items-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary-hover">
         Get a free preview
       </Link>
     </aside>

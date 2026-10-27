@@ -157,6 +157,8 @@ const routes = {
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ login: "real-owner" }));
   },
+  // A repo the token can see but that is private: ingest stops at this metadata with repo_private.
+  "/gh/repos/fixture-labs/private-app": json({ private: true, html_url: "https://github.com/fixture-labs/private-app", description: "Not for your eyes" }),
   // An Elixir/Phoenix repo shaped like plausible/analytics: no homepage, no root package.json, stack in mix.exs.
   "/gh/repos/fixture-labs/pulse": json({
     html_url: "https://github.com/fixture-labs/pulse",
@@ -174,6 +176,26 @@ const routes = {
     { sha: "abc123pulse", commit: { message: "Add weekly email reports", author: { date: "2026-10-10T10:00:00Z" } } },
     { sha: "def456pulse", commit: { message: "Speed up the dashboard query", author: { date: "2026-10-08T10:00:00Z" } } },
   ]),
+  // Shaped like vercel/ms, whose kit page overflowed a 375px screen: a big star count, no homepage, a code-heavy README.
+  "/gh/repos/fixture-labs/ms": json({
+    html_url: "https://github.com/fixture-labs/ms",
+    description: "Tiny millisecond conversion utility",
+    homepage: "",
+    stargazers_count: 1234567,
+    topics: ["milliseconds", "time", "conversion", "utility"],
+    language: "TypeScript",
+    license: { spdx_id: "MIT" },
+  }),
+  "/gh/repos/fixture-labs/ms/readme": text(
+    "# ms\n\nUse this package to easily convert various time formats to milliseconds.\n\n## Examples\n\n```js\nms('2 days')  // 172800000\nms('1d')      // 86400000\nms('10h')     // 36000000\nms(60000, { long: true })  // \"1 minute\"\n```\n\n## Features\n\n- Works both in Node.js and in the browser with zero dependencies\n- Converts human readable durations like 2.5 hrs into milliseconds\n- Formats milliseconds back into short or long human readable strings\n",
+  ),
+  // The newest commit becomes the "Latest ship" proof point, and this one names a long identifier with no break opportunity.
+  "/gh/repos/fixture-labs/ms/commits": json(
+    Array.from({ length: 20 }, (_, i) => ({
+      sha: `ms${i}`,
+      commit: { message: i === 0 ? "Support parse_human_readable_duration_strings_with_fractional_units" : `Release 3.0.0-canary.${20 - i}`, author: { date: "2026-10-10T10:00:00Z" } },
+    })),
+  ),
   "/gh/repos/fixture-labs/pulse/languages": json({ Elixir: 7283575, TypeScript: 1355345, HTML: 176428, JavaScript: 163351, CSS: 22840, PHP: 651 }),
   "/gh/repos/fixture-labs/pulse/contents/mix.exs": async (_req, res) => {
     res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8" });

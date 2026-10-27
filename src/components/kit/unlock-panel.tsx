@@ -1,16 +1,20 @@
 "use client";
 
 import { ArrowRight, BookmarkCheck, Check, Loader2, Lock, Mail } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState, type Ref } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { analyticsId } from "@/lib/analytics";
-import { postJson, startCheckout } from "@/lib/client";
+import { postJson } from "@/lib/client";
 import { EXPERIMENTS, type Served } from "@/lib/experiments";
+import { signInCodeError, signInLinkError } from "@/lib/form-errors";
 import { useClaimPrimaryCta } from "@/lib/primary-cta";
 import { LAUNCH_PROMO } from "@/lib/products";
+import { trackUnlockClicked, type UnlockContext } from "@/lib/unlock-checkout";
 import { useServerAssignment } from "@/lib/use-experiment";
+import { usePageRestored, useUnlockButtonRef, useUnlockCheckout } from "./unlock-checkout";
+import { ActionableError, CheckoutError, SAVE_PREVIEW_FIELD_ID } from "./unlock-error";
 
 const EMAIL_KEY = "launchloop:email";
 
@@ -34,6 +38,8 @@ interface Props {
 
 type Step = "cta" | "email" | "sent" | "redirecting";
 type SaveState = "idle" | "sending" | "sent";
+/** The panel's own errors: the sign-in link didn't send, or the code didn't sign in. Checkout's are shared (useUnlockCheckout). */
+type LoginError = { kind: "link" | "code"; message: string };
 
 /**
  * Signed in: Unlock → Stripe Checkout with the account email → the unlocked kit in /account.
@@ -42,9 +48,9 @@ type SaveState = "idle" | "sending" | "sent";
  * here, then checkout), or just email themselves a link that saves the preview.
  */
 export function UnlockPanel({ kitId, priceLabel, launchPromo, email, autoCheckout, cancelled, saved }: Props) {
-  const [step, setStep] = useState<Step>(autoCheckout ? "redirecting" : "cta");
+  const [ownStep, setStep] = useState<Step>(autoCheckout ? "redirecting" : "cta");
   const [address, setAddress] = useState(email ?? "");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<LoginError | null>(null);
   const [loading, setLoading] = useState(false);
   const [code, setCode] = useState("");
   const [signedIn, setSignedIn] = useState(email);
@@ -54,10 +60,29 @@ export function UnlockPanel({ kitId, priceLabel, launchPromo, email, autoCheckou
   const inputRef = useRef<HTMLInputElement>(null);
   const promoVariant = useServerAssignment(EXPERIMENTS.launchPromo, launchPromo).variant;
   useClaimPrimaryCta();
-  /** Full-price Checkout URL, set when the promo arm's LAUNCH14 was turned down by Stripe. */
-  const [fullPriceUrl, setFullPriceUrl] = useState<string | null>(null);
+  const unlock = useUnlockCheckout();
+  // Its own "redirecting" (a checkout that left, or the code login on its way to the account) is over once the page is back.
+  usePageRestored(() => {
+    setStep((s) => (s === "redirecting" ? "cta" : s));
+    setLoading(false);
+  });
+  const { fullPriceUrl } = unlock;
   const promo = promoVariant === "treatment" && !fullPriceUrl;
   const shownPrice = promo ? LAUNCH_PROMO.priceLabel : priceLabel;
+  // Checkout started from the early CTA or the sticky bar shows here too.
+  const step: Step = unlock.redirecting ? "redirecting" : ownStep;
+  const context: UnlockContext = { kitId, position: "panel", earlyCta: unlock.earlyCta, isLoggedIn: !!signedIn };
+  const failed = unlock.failed?.position === "panel" ? unlock.failed : null;
+  const checkoutFailure = failed?.failure ?? null;
+  const unlockRef = useUnlockButtonRef(context, failed?.attempt);
+  const errorId = useId();
+  /** Set by a click: the button and its error leave while checkout starts, so focus waits on the status line instead. */
+  const focusStatus = useRef(false);
+  const statusRef = useCallback((element: HTMLParagraphElement | null) => {
+    if (!element || !focusStatus.current) return;
+    focusStatus.current = false;
+    element.focus({ preventScroll: true });
+  }, []);
 
   useEffect(() => {
     if (email) return;
@@ -82,26 +107,28 @@ export function UnlockPanel({ kitId, priceLabel, launchPromo, email, autoCheckou
     }
   }
 
-  async function checkout() {
+  /**
+   * The server resolves the promo itself (the same way this page did); nothing about it is sent from here. Showed £14
+   * but the session isn't discounted (Stripe turned the code down, or the kit left the promo arm since): the panel says
+   * so, and the button then opens that full-price session.
+   */
+  async function checkout(retry = false, from: UnlockContext = context) {
     setLoading(true);
     setError(null);
     setStep("redirecting");
-    try {
-      // The server resolves the promo itself (the same way this page did); nothing about it is sent from here.
-      const { url, promo: outcome } = await startCheckout("kit", kitId);
-      // Showed £14 but the session isn't discounted (Stripe turned the code down, or the kit left the promo arm since): say so.
-      if (outcome === "unavailable" || (promo && outcome !== "applied")) {
-        setFullPriceUrl(url);
-        setStep("cta");
-        setLoading(false);
-        return;
-      }
-      window.location.assign(url);
-    } catch (err) {
-      setError((err as Error).message);
+    if ((await unlock.start(from, { promo, retry })) !== "redirect") {
       setStep("cta");
       setLoading(false);
     }
+  }
+
+  function unlockClicked(retry: boolean) {
+    // A second click in the same task (before the button re-renders away) starts nothing, so it's no click to log.
+    if (unlock.inFlight()) return;
+    trackUnlockClicked(context, retry);
+    if (fullPriceUrl) return window.location.assign(fullPriceUrl);
+    focusStatus.current = true;
+    void checkout(retry);
   }
 
   useEffect(() => {
@@ -120,19 +147,19 @@ export function UnlockPanel({ kitId, priceLabel, launchPromo, email, autoCheckou
       const { next } = await postJson<{ next: string }>("/api/auth/verify", { email: address, code });
       if (next.startsWith(`/kit/${kitId}`)) {
         setSignedIn(address);
-        await checkout();
+        await checkout(false, { ...context, isLoggedIn: true });
       } else {
         setStep("redirecting");
         window.location.assign(next);
       }
     } catch (err) {
-      setError((err as Error).message);
+      setError({ kind: "code", message: signInCodeError(err) });
       setLoading(false);
     }
   }
 
-  async function sendLink(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+  /** Emails the sign-in link and code (again, for "Try again" or "Resend code"). */
+  async function requestLink() {
     setLoading(true);
     setError(null);
     remember(address);
@@ -141,14 +168,23 @@ export function UnlockPanel({ kitId, priceLabel, launchPromo, email, autoCheckou
       setCode("");
       setStep("sent");
     } catch (err) {
-      setError((err as Error).message);
+      setError({ kind: "link", message: signInLinkError(err) });
     } finally {
       setLoading(false);
     }
   }
 
-  async function savePreview(e: React.FormEvent<HTMLFormElement>) {
+  function sendLink(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    void requestLink();
+  }
+
+  function savePreview(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    void requestSave();
+  }
+
+  async function requestSave() {
     setSave("sending");
     setSaveError(null);
     remember(address);
@@ -156,7 +192,7 @@ export function UnlockPanel({ kitId, priceLabel, launchPromo, email, autoCheckou
       await postJson("/api/auth/request", { email: address, intent: { type: "save", kitId, aid: await analyticsId() } });
       setSave("sent");
     } catch (err) {
-      setSaveError((err as Error).message);
+      setSaveError(signInLinkError(err));
       setSave("idle");
     }
   }
@@ -200,9 +236,11 @@ export function UnlockPanel({ kitId, priceLabel, launchPromo, email, autoCheckou
 
       {step === "cta" ? (
         <Button
+          ref={unlockRef}
+          aria-describedby={checkoutFailure ? errorId : undefined}
           type="button"
           className="mt-6 h-11 w-full text-base"
-          onClick={() => (fullPriceUrl ? window.location.assign(fullPriceUrl) : void checkout())}
+          onClick={() => unlockClicked(false)}
           disabled={loading}
         >
           <Lock aria-hidden="true" />
@@ -261,12 +299,35 @@ export function UnlockPanel({ kitId, priceLabel, launchPromo, email, autoCheckou
         </div>
       ) : null}
 
-      {step === "redirecting" ? <Redirecting /> : null}
+      {step === "redirecting" ? <Redirecting ref={statusRef} /> : null}
 
-      {error ? (
-        <p className="mt-3 text-sm text-destructive" role="alert">
-          {error}
-        </p>
+      {checkoutFailure ? <CheckoutError failure={checkoutFailure} isLoggedIn={!!signedIn} onRetry={() => unlockClicked(true)} messageId={errorId} /> : null}
+      {error?.kind === "link" ? (
+        <ActionableError
+          message={error.message}
+          actions={[
+            { label: "Try again", onClick: () => void requestLink(), testId: "login-link-retry" },
+            { label: "Pay as a guest instead", onClick: () => unlockClicked(false), testId: "login-link-guest" },
+          ]}
+          testId="login-link-error"
+        />
+      ) : null}
+      {error?.kind === "code" ? (
+        <ActionableError
+          message={error.message}
+          actions={[
+            { label: "Resend code", onClick: () => void requestLink(), testId: "login-code-resend" },
+            {
+              label: "Use a different email",
+              onClick: () => {
+                setError(null);
+                setStep("email");
+              },
+              testId: "login-code-other-email",
+            },
+          ]}
+          testId="login-code-error"
+        />
       ) : null}
       <CheckoutNote />
 
@@ -281,17 +342,21 @@ export function UnlockPanel({ kitId, priceLabel, launchPromo, email, autoCheckou
             </p>
           ) : (
             <form onSubmit={savePreview} className="space-y-2">
-              <SavePreviewFields htmlFor="save-email">
-                <Input id="save-email" name="email" type="email" required autoComplete="email" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="you@example.com" className="h-9 bg-background" />
+              <SavePreviewFields htmlFor={SAVE_PREVIEW_FIELD_ID}>
+                <Input id={SAVE_PREVIEW_FIELD_ID} name="email" type="email" required autoComplete="email" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="you@example.com" className="h-9 bg-background" />
                 <Button type="submit" variant="outline" className="h-9" disabled={save === "sending"}>
                   {save === "sending" ? <Loader2 className="animate-spin" /> : null}
                   Email me a link
                 </Button>
               </SavePreviewFields>
               {saveError ? (
-                <p className="text-xs text-destructive" role="alert">
-                  {saveError}
-                </p>
+                <ActionableError
+                  message={saveError}
+                  actions={[{ label: "Try again", onClick: () => void requestSave(), testId: "save-preview-retry" }]}
+                  size="xs"
+                  className="mt-0"
+                  testId="save-preview-error"
+                />
               ) : null}
             </form>
           )}
@@ -412,9 +477,10 @@ function LoginFirst({ onClick }: { onClick?: () => void }) {
   );
 }
 
-function Redirecting() {
+/** Focusable from script only (tabIndex -1), to hold focus in place of the unlock button while checkout starts. */
+function Redirecting({ ref }: { ref?: Ref<HTMLParagraphElement> }) {
   return (
-    <p className="mt-6 flex items-center justify-center gap-2 text-sm font-medium" role="status">
+    <p ref={ref} tabIndex={-1} className="mt-6 flex items-center justify-center gap-2 text-sm font-medium outline-none" role="status" data-testid="checkout-redirecting">
       <Loader2 className="size-4 animate-spin" aria-hidden="true" /> Taking you to secure checkout…
     </p>
   );

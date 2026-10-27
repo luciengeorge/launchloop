@@ -2,7 +2,8 @@ import "server-only";
 import { z } from "zod";
 import type { IngestResult } from "./ingest";
 import { COMMIT_SAMPLE, type RepoData } from "./ingest/github";
-import { LlmError, OUTPUT_TOKENS, generateStructured } from "./llm";
+import { sanitizeGenerated } from "./dashes";
+import { LlmError, NO_DASHES_RULE, OUTPUT_TOKENS, generateStructured } from "./llm";
 import { pricingProofPoint } from "./prices";
 import { briefSchema, type Brief } from "./schema";
 import { detectStack } from "./stack";
@@ -232,7 +233,7 @@ export async function buildBrief(source: IngestResult): Promise<{ brief: Brief; 
   const { value, provider } = await generateStructured<z.infer<typeof llmBriefSchema>>({
     schema: llmBriefSchema,
     system:
-      "You turn raw repository and website material into a short, factual product brief for launch copy. Use only what the material says. If something is unknown, write a cautious, generic statement instead of inventing specifics. Return JSON.",
+      `You turn raw repository and website material into a short, factual product brief for launch copy. Use only what the material says. If something is unknown, write a cautious, generic statement instead of inventing specifics. ${NO_DASHES_RULE} Return JSON.`,
     user: `Write a product brief as JSON with keys: name (product name, max 30 chars), oneLiner (max 140 chars, what it does and for whom), audience (who it is for), problem (1-2 sentences, the pain it removes), features (3-6 short concrete features actually present in the material, max 120 chars each), tone (3-6 words describing the maker's voice, inferred from the README).\n\nDetected facts: ${JSON.stringify(facts)}\n\nSource material:\n${sourceDigest(source)}`,
     mock: () => heuristicBrief(facts),
     rubric: briefRubric,
@@ -252,8 +253,9 @@ export async function buildBrief(source: IngestResult): Promise<{ brief: Brief; 
   const features = (llmFeatures.length ? llmFeatures : facts.features).slice(0, 6);
   const missing = [...BRIEF_TEXT_FIELDS.filter((k) => !text[k]), ...(features.length ? [] : ["features"])];
   if (missing.length) throw new LlmError(`The brief is still missing ${missing.join(", ")} after every attempt`);
+  // The model's fields are already clean; text taken straight from the source (fallbacks, proof points) may not be.
   return {
-    brief: { ...text, features, proofPoints: facts.proofPoints, stack: facts.stack, url: facts.url, repoUrl: facts.repoUrl },
+    brief: sanitizeGenerated({ ...text, features, proofPoints: facts.proofPoints, stack: facts.stack, url: facts.url, repoUrl: facts.repoUrl }),
     provider,
   };
 }

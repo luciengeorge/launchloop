@@ -2,6 +2,7 @@ import "server-only";
 import { gateway, type GatewayProviderOptions } from "@ai-sdk/gateway";
 import { generateText, NoObjectGeneratedError, Output } from "ai";
 import type { z } from "zod";
+import { sanitizeGenerated } from "./dashes";
 import { env, forceMock } from "./env";
 import { deployEnv } from "./deploy-env";
 import { phase } from "./kit-tracing";
@@ -68,6 +69,10 @@ export const llmLabel = () => {
  * and relies on the doubling retry. Reasoning models (the gpt-5-mini fallback) count reasoning
  * tokens against this budget too, so the retry also covers them.
  */
+/** Part of every prompt that writes user-facing copy. sanitizeGenerated still fixes any dash that slips through. */
+export const NO_DASHES_RULE =
+  "Never use em dashes (—) or en dashes (–) as punctuation. Use a comma, a colon or a full stop instead, and a plain hyphen for number ranges (2-3).";
+
 export const OUTPUT_TOKENS = { brief: 800, preview: 400, kitSection: 1500, linkedin: 2500 } as const;
 
 interface StructuredRequest<T> {
@@ -121,7 +126,7 @@ async function runStructured<T>(req: StructuredRequest<T>, config: GatewayConfig
   if (!config) {
     if (deployEnv() === "production") throw new LlmError("AI Gateway is not configured; template copy is never served in production");
     if (simulatedFailure(req as StructuredRequest<unknown>)) throw new LlmError("Simulated LLM failure");
-    return { value: req.mock(), provider: "mock" };
+    return { value: sanitizeGenerated(req.mock()), provider: "mock" };
   }
   const model = req.speed === "fast" ? config.fastModel : config.model;
   // The gateway tries these in order when `model` fails: main, then fast, then the configured fallbacks.
@@ -149,8 +154,9 @@ async function runStructured<T>(req: StructuredRequest<T>, config: GatewayConfig
           abortSignal: AbortSignal.timeout(ATTEMPT_TIMEOUT_MS),
         }),
       );
-      last = { value: result.output, provider: `gateway:${result.response.modelId}` };
-      problems = req.rubric?.(result.output) ?? [];
+      // Dash punctuation is replaced before the rubric runs, so limits are checked on the text that ships.
+      last = { value: sanitizeGenerated(result.output), provider: `gateway:${result.response.modelId}` };
+      problems = req.rubric?.(last.value) ?? [];
       if (problems.length === 0) return last;
     } catch (error) {
       if (!NoObjectGeneratedError.isInstance(error)) {

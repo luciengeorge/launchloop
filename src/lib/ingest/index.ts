@@ -51,7 +51,8 @@ const GITHUB_HOSTS = new Set(["github.com", "www.github.com"]);
  */
 export function normaliseKitInput(raw: string): string {
   const input = normaliseInput(raw);
-  if (input !== SAMPLE_INPUT && GITHUB_HOSTS.has(new URL(input).hostname) && !parseGitHubUrl(input)) {
+  // The raw link is checked too: normalising has already resolved any "." or ".." segment it had.
+  if (input !== SAMPLE_INPUT && GITHUB_HOSTS.has(new URL(input).hostname) && !(parseGitHubUrl(input) && parseGitHubUrl(raw))) {
     throw new IngestError("GitHub URL without owner/repo", "invalid_url", "Paste a repo URL like github.com/owner/repo.");
   }
   return input;
@@ -112,7 +113,7 @@ export async function ingest(rawInput: string, onStep: (step: IngestStep) => voi
 
   const sitePalette = site ? extractPalette({ css: site.css, themeColor: site.themeColor }) : DEFAULT_PALETTE;
   const [palette, visuals] = await Promise.all([
-    sitePalette.source === "default" && repo ? tracedRepoPalette(repo.owner, repo.name) : sitePalette,
+    sitePalette.source === "default" && repo ? tracedRepoPalette(repo) : sitePalette,
     tracedVisuals(repo, site),
   ]);
   const primary = gh || (repo && !hasUsableContent(site!)) ? "repo" : "site";
@@ -146,8 +147,8 @@ async function tracedVisuals(repo: RepoData | undefined, site: SiteData | undefi
   }
 }
 
-const tracedRepoPalette = (owner: string, name: string) =>
-  phase("ingest.repo_palette", "http.client.github", { "kit.repo": `${owner}/${name}` }, () => fetchRepoPalette(owner, name));
+const tracedRepoPalette = (repo: RepoData) =>
+  phase("ingest.repo_palette", "http.client.github", { "kit.repo": `${repo.owner}/${repo.name}` }, () => fetchRepoPalette(repo.owner, repo.name, !repo.visibilityUnverified));
 
 /** Repo URLs are public, so the span names the repo; a site is recorded by host only. */
 const tracedRepo = (owner: string, name: string, warnings: string[]) =>

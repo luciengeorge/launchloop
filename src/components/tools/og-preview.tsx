@@ -196,6 +196,10 @@ export function OgPreview({ promo }: { promo: boolean }) {
         </Alert>
       ) : null}
 
+      {/* Only while loading, so the jump to this height falls in the click's input window, which CLS ignores. The heights are the
+          shortest result at each breakpoint, so a longer result only grows below the fold. */}
+      {loading ? <div aria-hidden="true" className="min-h-[75rem] lg:min-h-[50rem]" data-testid="og-result-placeholder" /> : null}
+
       {preview ? (
         <>
           <div className="grid gap-5 lg:grid-cols-[3fr_2fr]">

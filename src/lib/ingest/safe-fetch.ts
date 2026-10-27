@@ -44,6 +44,8 @@ for (const [prefix, bits] of [
 // Ranges that embed or tunnel to an IPv4 address (compat, NAT64, 6to4, Teredo) are blocked outright.
 for (const [prefix, bits] of [
   ["::", 96],
+  // IPv4-translated (SIIT): ::ffff:0:a.b.c.d is not IPv4-mapped, so BlockList doesn't fold it into the IPv4 rules.
+  ["::ffff:0:0:0", 96],
   ["64:ff9b::", 96],
   ["64:ff9b:1::", 48],
   ["100::", 64],
@@ -146,6 +148,9 @@ export interface SafeFetchBytesResult {
   truncated: boolean;
 }
 
+/** The body cap safeFetch applies when the caller sets none. */
+export const DEFAULT_MAX_BYTES = 1_500_000;
+
 /** Fetches a public URL with SSRF checks on every redirect hop, a timeout and a size cap. */
 export async function safeFetch(input: string, options: SafeFetchOptions = {}): Promise<SafeFetchResult> {
   const { url, status, contentType, bytes } = await safeFetchBytes(input, options);
@@ -154,7 +159,7 @@ export async function safeFetch(input: string, options: SafeFetchOptions = {}): 
 
 /** Same guards as safeFetch, but returns the raw (capped) body, for binary files like images. */
 export async function safeFetchBytes(input: string, options: SafeFetchOptions = {}): Promise<SafeFetchBytesResult> {
-  const { maxBytes = 1_500_000, timeoutMs = Number(process.env.SITE_FETCH_TIMEOUT_MS ?? 8000) } = options;
+  const { maxBytes = DEFAULT_MAX_BYTES, timeoutMs = Number(process.env.SITE_FETCH_TIMEOUT_MS ?? 8000) } = options;
   let current = new URL(input);
   const origin = current.origin;
   for (let hop = 0; hop < 4; hop++) {
@@ -207,7 +212,19 @@ export async function safeFetchBytes(input: string, options: SafeFetchOptions = 
   throw new IngestError("Too many redirects", "site_http_error", "That URL redirects too many times.");
 }
 
-async function readCapped(res: Response, maxBytes: number): Promise<{ bytes: Uint8Array; truncated: boolean }> {
+/** Anything with a web-stream body: undici's Response here, the global fetch Response for GitHub's API. */
+interface StreamBody {
+  body: { getReader(): { read(): Promise<{ done: boolean; value?: Uint8Array }>; cancel(): Promise<void> } } | null;
+}
+
+/** Reads a decoded text body, at most maxBytes of it, and cancels the rest of the download. */
+export async function readCappedText(res: StreamBody, maxBytes: number): Promise<{ text: string; truncated: boolean }> {
+  const { bytes, truncated } = await readCapped(res, maxBytes);
+  return { text: new TextDecoder().decode(bytes), truncated };
+}
+
+/** Reads at most maxBytes of a body, so an oversized or endless response never sits in memory. */
+export async function readCapped(res: StreamBody, maxBytes: number): Promise<{ bytes: Uint8Array; truncated: boolean }> {
   if (!res.body) return { bytes: new Uint8Array(), truncated: false };
   const reader = res.body.getReader();
   const chunks: Uint8Array[] = [];
@@ -215,7 +232,7 @@ async function readCapped(res: Response, maxBytes: number): Promise<{ bytes: Uin
   let truncated = false;
   while (true) {
     const { done, value } = await reader.read();
-    if (done) break;
+    if (done || !value) break;
     total += value.byteLength;
     if (total > maxBytes) {
       chunks.push(value.slice(0, value.byteLength - (total - maxBytes)));

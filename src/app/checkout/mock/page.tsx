@@ -3,13 +3,20 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { MockCheckoutForm } from "@/components/mock-checkout-form";
 import { Skeleton } from "@/components/ui/skeleton";
+import { deployEnv } from "@/lib/deploy-env";
 import { isStripeMock } from "@/lib/env";
 import { getKit } from "@/lib/kits";
 import { LAUNCH_PROMO, PRODUCTS, chargedPence, isProductId } from "@/lib/products";
 
-export const metadata: Metadata = { title: "Test checkout", robots: { index: false, follow: false } };
+/** proxy.ts answers 404 for this page in production; the title must not say "Test checkout" there either. */
+export function generateMetadata(): Metadata {
+  const robots = { index: false, follow: false };
+  return deployEnv() === "production" ? { title: "Page not found", robots } : { title: "Test checkout", robots };
+}
 
 export default function MockCheckoutPage({ searchParams }: PageProps<"/checkout/mock">) {
+  // Before any Suspense boundary, so a production build prerenders this as a real 404, not a 200 shell.
+  if (deployEnv() === "production") notFound();
   return (
     <div className="mx-auto max-w-md px-4 py-12 sm:px-6">
       <Suspense fallback={<Skeleton className="h-96 rounded-2xl" />}>
@@ -22,7 +29,7 @@ export default function MockCheckoutPage({ searchParams }: PageProps<"/checkout/
 async function MockCheckout({ searchParams }: Pick<PageProps<"/checkout/mock">, "searchParams">) {
   const query = await searchParams;
   const product = typeof query.product === "string" ? query.product : "";
-  if (!isStripeMock() || !isProductId(product)) notFound();
+  if (deployEnv() === "production" || !isStripeMock() || !isProductId(product)) notFound();
 
   const kitId = typeof query.kitId === "string" ? query.kitId : undefined;
   const kit = product === "kit" && kitId ? await getKit(kitId) : null;

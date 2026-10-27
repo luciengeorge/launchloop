@@ -38,7 +38,7 @@ describe("isPrivateIp", () => {
     "127.0.0.1", "10.1.2.3", "172.16.0.1", "192.168.1.1", "169.254.169.254", "100.64.0.1", "0.0.0.0", "198.18.0.1",
     "224.0.0.1", "255.255.255.255", "::", "::1", "::ffff:7f00:1", "::ffff:127.0.0.1", "::ffff:a9fe:a9fe", "::7f00:1",
     "64:ff9b::7f00:1", "2002:7f00:1::", "fc00::1", "fd12::1", "fe80::1", "fe90::1", "febf::1", "fec0::1", "ff02::1",
-    "fe80::1%eth0", "not-an-ip",
+    "fe80::1%eth0", "not-an-ip", "::ffff:0:a9fe:a9fe", "::ffff:0:7f00:1", "::ffff:0:a00:1",
   ])("blocks %s", (ip) => {
     expect(isPrivateIp(ip)).toBe(true);
   });
@@ -54,6 +54,8 @@ describe("safeFetch address validation", () => {
     "http://[::ffff:7f00:1]/",
     "http://[::127.0.0.1]/",
     "http://[::ffff:169.254.169.254]/",
+    "http://[::ffff:0:a9fe:a9fe]/",
+    "http://[::ffff:0:7f00:1]/",
     "http://[64:ff9b::7f00:1]/",
     "http://[2002:7f00:1::]/",
     "http://[fe90::1]/",
@@ -74,6 +76,12 @@ describe("safeFetch address validation", () => {
   it("blocks a hostname that resolves to a private address", async () => {
     dns.lookup.mockResolvedValue(resolvesTo("10.0.0.5"));
     expect(await blockedCode("https://internal.example.com/")).toBe("site_blocked");
+    expect(undiciFetch.fetch).not.toHaveBeenCalled();
+  });
+
+  it("blocks a hostname that resolves to an IPv4-translated metadata address", async () => {
+    dns.lookup.mockResolvedValue(resolvesTo("::ffff:0:a9fe:a9fe"));
+    expect(await blockedCode("https://translated.example.com/")).toBe("site_blocked");
     expect(undiciFetch.fetch).not.toHaveBeenCalled();
   });
 

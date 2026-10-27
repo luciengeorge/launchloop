@@ -4,7 +4,7 @@ import { captureException } from "@/lib/observability";
 import { readBody } from "@/lib/form-body";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { store } from "@/lib/store";
-import { WAITLIST_MEMBERS_KEY, WAITLIST_TAG, isWaitlistSource, type WaitlistResponse } from "@/lib/waitlist";
+import { WAITLIST_MEMBERS_KEY, WAITLIST_SERVER_ERROR, WAITLIST_TAG, isWaitlistSource, type WaitlistResponse } from "@/lib/waitlist";
 
 export async function POST(req: Request) {
   if (!rateLimit(`waitlist:${clientIp(req)}`, 10, 60 * 60 * 1000).ok) {
@@ -25,6 +25,6 @@ export async function POST(req: Request) {
     return Response.json({ ok: true, duplicate: existing } satisfies WaitlistResponse);
   } catch (error) {
     captureException(error, { stage: "api.waitlist" });
-    return Response.json({ error: "Couldn't add you right now. Please try again." }, { status: 500 });
+    return Response.json({ error: WAITLIST_SERVER_ERROR }, { status: 500 });
   }
 }

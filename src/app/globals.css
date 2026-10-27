@@ -35,6 +35,7 @@
   --color-secondary: var(--secondary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
@@ -56,7 +57,10 @@
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
   --primary: oklch(0.64 0.21 37);
-  --primary-foreground: oklch(0.99 0 0);
+  /* Dark, like --foreground: about 5.4:1 on --primary and 6.4:1 on --primary-hover (white on --primary is 3.6:1). */
+  --primary-foreground: oklch(0.145 0 0);
+  /* Solid and lighter, so the dark label gains contrast on hover whatever is behind the button. */
+  --primary-hover: oklch(0.68 0.18 37);
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);
@@ -92,6 +96,8 @@
   --popover-foreground: oklch(0.985 0 0);
   --primary: oklch(0.922 0 0);
   --primary-foreground: oklch(0.205 0 0);
+  /* Same as :root's; this block's --primary-foreground on it is about 5.8:1. */
+  --primary-hover: oklch(0.68 0.18 37);
   --secondary: oklch(0.269 0 0);
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.269 0 0);
@@ -150,6 +156,23 @@
     overflow: hidden;
     pointer-events: none;
     z-index: 1;
+  }
+  /*
+   * With newsletter-inline-signup on, the footer renders both its form and a link to the page's inline signup, and CSS
+   * picks one: the root layout can't know the route, and usePathname() there would suspend on pages with dynamic params.
+   * Until hydration (and without JS) the HTML decides. After it, `data-inline-shown` does: Next keeps pages visited
+   * client-side in the DOM, hidden, so :has() would still find their inline signup.
+   */
+  [data-footer-newsletter-link] {
+    display: none;
+  }
+  body:has([data-inline-newsletter]) [data-footer-newsletter]:not([data-inline-shown]) [data-footer-newsletter-link],
+  [data-inline-shown="true"] [data-footer-newsletter-link] {
+    display: block;
+  }
+  body:has([data-inline-newsletter]) [data-footer-newsletter]:not([data-inline-shown]) [data-footer-newsletter-form],
+  [data-inline-shown="true"] [data-footer-newsletter-form] {
+    display: none;
   }
   .bg-grid {
     background-image:

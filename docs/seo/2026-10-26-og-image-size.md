@@ -7,7 +7,7 @@ Blog post requested on Wednesday 21 October 2026, to publish on Monday 26 Octobe
 **URL:** `/blog/og-image-size`
 **Title:** `OG image size: X, LinkedIn, Facebook and Slack · LaunchLoop` (59 characters). Facebook's doc was readable, so the title keeps Facebook (the fallback title without it wasn't needed).
 **Description:** `Open Graph image size from each platform's own docs: a safe 1200×630 default, what Facebook, LinkedIn, X and Slack say, the tags to set and how to test it.` (155 characters)
-**H1:** OG image size for X, LinkedIn, Facebook and Slack. **Published and updated:** 2026-10-26 (the date in the brief; bump both in `src/lib/blog.ts` if it merges on another day). **Byline:** Lucien George. **Reading time:** 15 min (2,930 words / 200).
+**H1:** OG image size for X, LinkedIn, Facebook and Slack. **Published and updated:** 2026-10-26 (the date in the brief; bump both in `src/lib/blog.ts` if it merges on another day). **Byline:** Lucien George. **Reading time:** 15 min (2,948 words / 200, after the Discord line in "Where the docs disagree" was corrected on 26 October; 2,930 before).
 
 Targets "og image size", "open graph image size" and "open graph image", plus "twitter card image size" (the X section and FAQ) and "linkedin preview image size" (the LinkedIn section and the 1200×627 FAQ). No keyword volumes were looked up for this post, so none are quoted.
 
@@ -131,6 +131,7 @@ All read on 21 October 2026 (the X rows from the archive captures named above).
 - X's archived markup reference lists `og:image` as the fallback for `twitter:image`, and `og:title` / `og:description` for the title and description: the "OpenGraph" column of the tag table.
 - Facebook's `og:image:type` lists only JPEG, GIF and PNG: "MIME type of the image. One of image/jpeg, image/gif or image/png" (webmasters guide, Images table).
 - Discord's only 1200 and 630 are in the Quick Start example (`og:image:width` 1200, `og:image:height` 630) and the oEmbed example (`thumbnail_width` 1200, `thumbnail_height` 630). The doc has no recommended size.
+- Discord's Video section has an example with 1280 and 720 (`og:video:width` 1280, `og:video:height` 720, and `og:image:width` 1280, `og:image:height` 720 for its still image), read on 26 October 2026. So the post's "Where the docs disagree" list says Discord only uses sizes in its examples, 1200×630 and 1280×720, instead of the earlier "Discord only shows one in an example".
 - Discord caps the whole fetch at 50 MB ("At most 50 MB of data returned.") and suggests a new query string such as `?v=2` to see changes immediately.
 - The Open Graph protocol lists width, height and alt as optional structured properties of `og:image` ("The og:image property has some optional structured properties").
 - Setting width and height is one of three fixes Facebook lists for the first-share problem (Images in Link Shares, "Pre-caching images").
@@ -146,7 +147,7 @@ All read on 21 October 2026 (the X rows from the archive captures named above).
 - **File size:** LinkedIn 5 MB, X (archived) less than 5MB, Facebook 8 MB.
 - **Description length:** ogp.me "A one to two sentence description", Facebook "usually between 2 and 4 sentences".
 - **robots.txt:** X's archived troubleshooting page lists a blocking robots.txt as a cause; Slack's Robots page says "We do not currently honor robots.txt files."
-- **No size published:** Slack, Discord (example only) and ogp.me.
+- **No size published:** Slack, Discord (examples only) and ogp.me.
 
 ## Left out
 
