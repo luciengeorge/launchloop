@@ -44,9 +44,16 @@ class FileStore implements KeyValueStore {
     }
   }
 
-  // The expiry is inside the file, so it has to be read.
+  // Metadata only, like Redis EXISTS: the proxy calls this before a page streams, so it must not wait on the value.
+  // The expiry lives inside the file, so an expired record still counts until something reads it.
   async exists(key: string): Promise<boolean> {
-    return (await this.get(key)) !== null;
+    try {
+      await fs.stat(this.file(key));
+      return true;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
+      throw error;
+    }
   }
 
   async set<T>(key: string, value: T, ttlSeconds?: number): Promise<void> {
