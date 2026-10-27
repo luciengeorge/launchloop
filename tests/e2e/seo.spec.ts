@@ -168,6 +168,26 @@ test("every sitemap page has unique, well-sized metadata with a self canonical a
   expect(descriptions.size).toBe(paths.length);
 });
 
+test("every page names @luciengeorge16 as the X account and nothing links the unrelated @LaunchLoop", async ({ page, request }) => {
+  const OTHER_ACCOUNT = /(x|twitter)\.com\/launchloop\b/i;
+  const metaContent = (html: string, name: string) =>
+    html.match(new RegExp(`<meta[^>]*name="${name}"[^>]*content="([^"]*)"`))?.[1] ?? html.match(new RegExp(`<meta[^>]*content="([^"]*)"[^>]*name="${name}"`))?.[1];
+  const { paths } = await sitemapPaths(request);
+  for (const path of [...paths, "/example-kit"]) {
+    const html = await (await request.get(path)).text();
+    expect(metaContent(html, "twitter:site"), path).toBe("@luciengeorge16");
+    expect(metaContent(html, "twitter:creator") ?? "@luciengeorge16", path).toBe("@luciengeorge16");
+    expect(html, path).not.toMatch(OTHER_ACCOUNT);
+    expect(html, path).not.toMatch(/"@launchloop"/i);
+  }
+  for (const path of ["/llms.txt", "/llms-full.txt"]) expect(await (await request.get(path)).text(), path).not.toMatch(OTHER_ACCOUNT);
+
+  await page.goto("/");
+  await expect(page.locator('meta[name="twitter:site"]')).toHaveAttribute("content", "@luciengeorge16");
+  const org = findNode<{ sameAs: string[] }>(await jsonLdNodes(page), "Organization");
+  expect(org.sameAs).toEqual(["https://x.com/luciengeorge16"]);
+});
+
 test("trailing slashes and the old tool aliases redirect permanently", async ({ request }) => {
   const redirects: [string, string][] = [
     ["/pricing/", "/pricing"],
