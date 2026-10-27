@@ -21,6 +21,16 @@ export const BLOG_FEED_PATH = "/blog/rss.xml";
 /** Newest first, so add new posts at the top. */
 export const BLOG_POSTS: BlogPost[] = [
   {
+    slug: "product-hunt-launch-tools",
+    title: "Product Hunt launch tools, tested on one repo",
+    metaTitle: "Product Hunt launch tools, tested on one repo",
+    description:
+      "Looking for the best Product Hunt launch tools? We ran one open-source repo through 10 free tiers and checked the copy and images against Product Hunt specs.",
+    published: "2026-10-27",
+    updated: "2026-10-27",
+    readingMinutes: 21,
+  },
+  {
     slug: "og-image-size",
     title: "OG image size for X, LinkedIn, Facebook and Slack",
     metaTitle: "OG image size: X, LinkedIn, Facebook and Slack",
