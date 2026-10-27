@@ -82,16 +82,42 @@ export function maskReplayAttribute(name: string, value: string): string {
   return id ? scrubbed.split(id).join("[id]") : scrubbed;
 }
 
+/** rrweb's custom-event type: the recorder's own events ($recording_started, url_trigger_matched, $pageview, $url_changed) carry URLs in their payload. */
+const RRWEB_CUSTOM_EVENT = 5;
+
+const scrubPayload = (value: unknown, name = ""): unknown => {
+  if (typeof value === "string") return maskReplayAttribute(name, value);
+  if (Array.isArray(value)) return value.map((item) => scrubPayload(item, name));
+  if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, scrubPayload(item, key)]));
+  return value;
+};
+
+/**
+ * What a $snapshot event's $snapshot_data holds (rrweb events, one or a batch): the payload of every custom event
+ * (type 5, uncompressed) is scrubbed like an attribute, so a URL the recorder itself noted (matchedUrl, href) never
+ * carries a private kit link. Other events are the recording's own business: masked at the source (SESSION_REPLAY_CONFIG).
+ */
+export function scrubReplayEvents(data: unknown): unknown {
+  if (Array.isArray(data)) return data.map(scrubReplayEvents);
+  if (data && typeof data === "object" && (data as { type?: unknown }).type === RRWEB_CUSTOM_EVENT) {
+    const event = data as { data?: { payload?: unknown } };
+    return event.data && "payload" in event.data ? { ...event, data: { ...event.data, payload: scrubPayload(event.data.payload) } } : data;
+  }
+  return data;
+}
+
 /**
  * posthog-js options for the recorder, used only while it runs (on a kit page). All text and every input are masked;
- * media, SVG and iframes are blocked; no console, network, headers, bodies or canvas. URLs the recording keeps (the
- * page address and any network entry) are scrubbed like analytics URLs, so private kit links never reach a replay.
+ * media, SVG, iframes and hidden inputs are blocked (maskAllInputs skips hidden inputs, and the login form's "next" one
+ * holds the kit's own path); no console, network, headers, bodies or canvas. URLs the recording keeps (the page address,
+ * any network entry, the recorder's own custom events: see scrubReplayEvents) are scrubbed like analytics URLs, so
+ * private kit links never reach a replay.
  */
 export const SESSION_REPLAY_CONFIG = {
   session_recording: {
     maskAllInputs: true,
     maskTextSelector: "*",
-    blockSelector: "img, picture, video, canvas, svg, iframe",
+    blockSelector: "img, picture, video, canvas, svg, iframe, input[type=hidden]",
     maskAttributeFn: maskReplayAttribute,
     recordHeaders: false,
     recordBody: false,

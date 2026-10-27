@@ -6,6 +6,7 @@ import {
   onReplayNavigation,
   readReplayEnvironment,
   replayAllowed,
+  scrubReplayEvents,
   syncSessionReplay,
   type ReplayEnvironment,
 } from "@/lib/session-replay";
@@ -138,10 +139,10 @@ describe("client navigations (onRouterTransitionStart, before the URL changes)",
 });
 
 describe("what a recording can contain", () => {
-  it("masks all text and every input; blocks images, video, canvas, SVG and iframes; no console, network, headers, bodies or canvas", () => {
+  it("masks all text and every input; blocks images, video, canvas, SVG, iframes and hidden inputs; no console, network, headers, bodies or canvas", () => {
     const { session_recording: rec, enable_recording_console_log, capture_performance } = SESSION_REPLAY_CONFIG;
     expect(rec).toMatchObject({ maskAllInputs: true, maskTextSelector: "*", recordHeaders: false, recordBody: false, recordCrossOriginIframes: false, captureCanvas: { recordCanvas: false } });
-    expect(rec.blockSelector.split(",").map((s) => s.trim())).toEqual(["img", "picture", "video", "canvas", "svg", "iframe"]);
+    expect(rec.blockSelector.split(",").map((s) => s.trim())).toEqual(["img", "picture", "video", "canvas", "svg", "iframe", "input[type=hidden]"]);
     expect(enable_recording_console_log).toBe(false);
     // Network timing off for replays; web vitals are left to the project's settings, as before.
     expect(capture_performance).toEqual({ network_timing: false });
@@ -162,5 +163,18 @@ describe("what a recording can contain", () => {
     expect(maskReplayAttribute("title", "My launch")).toBe("** ******");
     expect(maskReplayAttribute("placeholder", "you@example.com")).toBe("***************");
     expect(maskReplayAttribute("class", "mt-6 h-11 w-full")).toBe("mt-6 h-11 w-full");
+  });
+
+  it("the recorder's own custom events (type 5) lose the kit id in any payload field, such as a URL trigger's matchedUrl; other events are untouched", () => {
+    vi.stubGlobal("location", new URL(KIT));
+    const started = { type: 5, timestamp: 1, data: { tag: "$recording_started", payload: { reason: "url_trigger_matched", matchedUrl: `${KIT}?unlock=1`, nested: { href: "/kit/AbC123xyz_-9/x" } } } };
+    const other = { type: 3, timestamp: 2, data: { source: 5, text: "/kit/AbC123xyz_-9" } };
+    const [scrubbedStarted, scrubbedOther] = scrubReplayEvents([started, other]) as [typeof started, typeof other];
+    expect(scrubbedStarted.data.payload).toEqual({ reason: "url_trigger_matched", matchedUrl: "https://launchloop.dev/kit/[id]?unlock=1", nested: { href: "/kit/[id]/x" } });
+    expect(scrubbedOther).toBe(other);
+    expect(JSON.stringify(scrubbedStarted)).not.toContain("AbC123xyz_-9");
+    // An event with no payload comes back as it was.
+    const bare = { type: 5, data: { tag: "$x" } };
+    expect(scrubReplayEvents(bare)).toBe(bare);
   });
 });

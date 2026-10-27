@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { gunzipSync } from "node:zlib";
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
+import { makeSampleKit } from "./helpers";
 
 const FIXTURE = "http://127.0.0.1:3419";
 const TOKEN = "phc_playwright";
@@ -26,7 +27,7 @@ const RECORDER = readFileSync(path.join(process.cwd(), "node_modules/posthog-js/
  * left is the site's own (session-replay.ts). The project side even asks for console logs and network payloads: the
  * site's options must keep them out. Returns the recorder downloads, which only happen once recording starts.
  */
-async function projectWithReplayOn(page: Page) {
+async function projectWithReplayOn(page: Page, { urlTrigger = false } = {}) {
   const downloads: string[] = [];
   await page.route(new RegExp(`/lp-relay/array/${TOKEN}/config(\\.js)?`), (route) =>
     route.fulfill({
@@ -35,7 +36,14 @@ async function projectWithReplayOn(page: Page) {
         token: TOKEN,
         hasFeatureFlags: true,
         supportedCompression: ["gzip", "gzip-js"],
-        sessionRecording: { endpoint: "/s/", consoleLogRecordingEnabled: true, recorderVersion: "v2", networkPayloadCapture: { recordHeaders: true, recordBody: true } },
+        sessionRecording: {
+          endpoint: "/s/",
+          consoleLogRecordingEnabled: true,
+          recorderVersion: "v2",
+          networkPayloadCapture: { recordHeaders: true, recordBody: true },
+          // A URL trigger (the project's "start recording when the URL matches" setting): posthog-js records which URL matched.
+          ...(urlTrigger ? { urlTriggers: [{ url: "/kit/", matching: "regex" }] } : {}),
+        },
       })}, siteApps: [] };`,
     }),
   );
@@ -106,6 +114,36 @@ test("the home page never starts recording; a kit page records, masked, with no 
   await page.waitForTimeout(3000);
   const later = (await snapshots(page)).slice(atPricing);
   expect(JSON.stringify(decompressed(later))).not.toContain("/pricing");
+});
+
+test("a hard load of a kit page under a PostHog URL trigger: the private kit id is in none of the captured snapshots", async ({ page }) => {
+  // A kit to load: made first, with no replay config, so nothing from this step is recorded.
+  const kitId = await makeSampleKit(page);
+  const downloads = await projectWithReplayOn(page, { urlTrigger: true });
+  const before = (await snapshots(page)).length;
+
+  // A hard load of /kit/<id>, not a client navigation: the page's HTML (with its hidden inputs) is what's first recorded.
+  await page.goto(`/kit/${kitId}`);
+  await page.waitForLoadState("load");
+  // Both leaks need to be on the page for this test to mean anything: the hidden "next" input carries the kit's own path.
+  const hiddenNext = await page.locator('input[type="hidden"][name="next"]').evaluateAll((inputs) => inputs.map((input) => (input as HTMLInputElement).value));
+  expect(hiddenNext.some((value) => value.includes(kitId))).toBe(true);
+  await expect.poll(() => downloads.length, { timeout: 15_000 }).toBeGreaterThan(0);
+  await page.getByTestId("preview-paywall").scrollIntoViewIfNeeded();
+  await page.mouse.wheel(0, 400);
+  await page.waitForTimeout(1500);
+  // Leaving flushes what's buffered.
+  await page.getByRole("banner").getByRole("link", { name: "Pricing" }).click();
+  await page.waitForURL(/\/pricing$/);
+  await expect.poll(async () => (await snapshots(page)).length - before, { timeout: 15_000 }).toBeGreaterThan(0);
+
+  const raw = JSON.stringify(decompressed((await snapshots(page)).slice(before)));
+  // The URL trigger really fired and was recorded (its custom event carries the matched URL), and the page really was recorded.
+  expect(raw).toContain("url_trigger_matched");
+  expect(raw).toContain('"tagName":"section"');
+  // Anywhere in what PostHog stores, in any field: the private kit id is not there. Its route shape is.
+  expect(raw).not.toContain(kitId);
+  expect(raw).toContain("/kit/[id]");
 });
 
 for (const [label, setup] of [

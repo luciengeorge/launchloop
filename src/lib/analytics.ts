@@ -7,7 +7,7 @@ import { POSTHOG_PROXY_PATH, posthogUiHost } from "./posthog-config";
 import type { RepoPrefill } from "./repo-cta";
 import { scrubProperties } from "./scrub-url";
 import { pendingMarkers, readServedMarker } from "./served-marker";
-import { SESSION_REPLAY_CONFIG } from "./session-replay";
+import { scrubReplayEvents, SESSION_REPLAY_CONFIG } from "./session-replay";
 import type { StartPlan } from "./start-intent";
 import type { CheckoutFailureCode, PaywallViewport, UnlockContext } from "./unlock-checkout";
 import type { WaitlistErrorReason, WaitlistSource } from "./waitlist";
@@ -290,9 +290,10 @@ function withServedExperiments(event: CaptureResult): CaptureResult["properties"
 
 function scrubEvent(event: CaptureResult | null): CaptureResult | null {
   if (!event) return event;
+  const properties = scrubProperties(withServedExperiments(event));
   return {
     ...event,
-    properties: scrubProperties(withServedExperiments(event)),
+    properties: event.event === "$snapshot" && "$snapshot_data" in properties ? { ...properties, $snapshot_data: scrubReplayEvents(properties.$snapshot_data) } : properties,
     ...(event.$set ? { $set: scrubProperties(event.$set) } : {}),
     ...(event.$set_once ? { $set_once: scrubProperties(event.$set_once) } : {}),
   };
