@@ -3,6 +3,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { ShipLoopUpsell } from "@/components/kit/ship-loop-upsell";
 import { EXPERIMENTS } from "@/lib/experiments";
+import { WAITLIST_SERVER_ERROR } from "@/lib/waitlist";
 
 const posthog = vi.hoisted(() => ({ __loaded: false, init: vi.fn(), register: vi.fn(), capture: vi.fn(), get_distinct_id: () => "ph_page" }));
 vi.mock("posthog-js", () => ({ default: posthog }));
@@ -168,6 +169,24 @@ describe("waitlist_signup and waitlist_error", () => {
     await settle();
     expect(captured()).toEqual([{ name: "waitlist_error", props: { signup_source: "kit_upsell", kitId: KIT.kitId, status: 400, reason: "invalid_email" } }]);
     expect(JSON.stringify(posthog.capture.mock.calls)).not.toContain(EMAIL);
+  });
+
+  it("a non-JSON 500 (plain text) or a gateway's HTML 502 shows the friendly copy, never 'Request failed', and logs waitlist_error once", async () => {
+    const { joinWaitlist } = await landOn();
+    const plain = vi.fn(async () => new Response("Internal Server Error", { status: 500, headers: { "Content-Type": "text/plain" } }));
+    const result = await joinWaitlist(EMAIL, KIT, plain);
+    expect(result).toEqual({ ok: false, status: 500, reason: "server_error", message: WAITLIST_SERVER_ERROR });
+    expect(JSON.stringify(result)).not.toMatch(/Request failed|Internal Server Error/);
+    const html = vi.fn(async () => new Response("<html><h1>502 Bad Gateway</h1></html>", { status: 502, headers: { "Content-Type": "text/html" } }));
+    expect(await joinWaitlist(EMAIL, KIT, html)).toMatchObject({ reason: "server_error", message: WAITLIST_SERVER_ERROR });
+    // A JSON error with a blank message gets the friendly copy too.
+    expect(await joinWaitlist(EMAIL, KIT, respond(500, { error: "   " }))).toMatchObject({ message: WAITLIST_SERVER_ERROR });
+    await settle();
+    expect(captured().map((e) => [e.name, e.props.status])).toEqual([
+      ["waitlist_error", 500],
+      ["waitlist_error", 502],
+      ["waitlist_error", 500],
+    ]);
   });
 
   it("a network failure sends waitlist_error with status 0 and reason network, and a message to show", async () => {
