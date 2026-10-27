@@ -71,7 +71,7 @@ test("a passing title: every check passes and the verdict is announced", async (
   await expect(verdict).toHaveAttribute("aria-live", "polite");
   await expect(verdict).toHaveAttribute("data-verdict", "empty");
 
-  await page.getByLabel("Show HN title").fill(GOOD);
+  await page.getByLabel("Show HN title", { exact: true }).fill(GOOD);
   await expect(page.getByTestId("showhn-count")).toHaveText(`${GOOD.length} characters`);
   await expect(verdict).toHaveAttribute("data-verdict", "pass");
   await expect(verdict).toHaveText("Passes every HN rule and tip this tool checks.");
@@ -89,7 +89,7 @@ test("a passing title: every check passes and the verdict is announced", async (
 
 test("a failing title and text: each broken rule warns, tips are labelled, and the link type is keyboard-operable", async ({ page }) => {
   await page.goto(PATH);
-  const title = page.getByLabel("Show HN title");
+  const title = page.getByLabel("Show HN title", { exact: true });
   await title.fill(BAD);
   const verdict = page.getByTestId("showhn-verdict");
   await expect(verdict).toHaveAttribute("data-verdict", "warn");
@@ -123,7 +123,7 @@ test("a failing title and text: each broken rule warns, tips are labelled, and t
 test("no horizontal overflow at 375px, with long input and every check showing", async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 812 });
   await page.goto(PATH);
-  await page.getByLabel("Show HN title").fill(`${BAD} gridcast-dashboards-for-everyone.app ${"x".repeat(80)}`);
+  await page.getByLabel("Show HN title", { exact: true }).fill(`${BAD} gridcast-dashboards-for-everyone.app ${"x".repeat(80)}`);
   await page.getByRole("radio", { name: "A PDF" }).check();
   await page.getByLabel("Your text or first comment").fill(`Please upvote! SUPERCALIFRAGILISTICEXPIALIDOCIOUS ${"y".repeat(120)}`);
   await expect(page.getByTestId("showhn-checks").locator(":scope > li")).toHaveCount(14);
