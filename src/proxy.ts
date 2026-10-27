@@ -31,7 +31,14 @@ class KitLookupTimeout extends Error {
 }
 
 /**
- * Sends a failed kit check to Sentry after the response has gone out (after(); straight away outside a request), and
+ * The proxy's after() callbacks run once the proxy returns, while the page it let through is still rendering. The first
+ * report on an instance loads observability and @sentry/nextjs, about 130ms of module evaluation that would hold that
+ * page's first byte, so it waits this long first: the page has streamed its shell by then.
+ */
+const REPORT_DELAY_MS = 1000;
+
+/**
+ * Sends a failed kit check to Sentry REPORT_DELAY_MS after the proxy has answered (straight away outside a request), and
  * nothing waits on it: a failed import or report only logs. The import is dynamic on purpose: a static one puts
  * @sentry/nextjs in the proxy entry, which every matched request then loads on a cold start (proxy-imports.test.ts
  * keeps it out).
@@ -42,7 +49,7 @@ function reportKitLookupFailure(key: string, error: unknown, context: Record<str
       .then(({ captureExceptionThrottled }) => captureExceptionThrottled(key, error, context))
       .catch((reportError: unknown) => console.error(`[launchloop:error] couldn't report ${key}`, reportError));
   try {
-    after(report);
+    after(() => new Promise((resolve) => setTimeout(resolve, REPORT_DELAY_MS)).then(report));
   } catch {
     void report();
   }
