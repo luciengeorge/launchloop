@@ -3,7 +3,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { ShipLoopUpsell } from "@/components/kit/ship-loop-upsell";
 import { EXPERIMENTS } from "@/lib/experiments";
-import { WAITLIST_SERVER_ERROR } from "@/lib/waitlist";
+import { WAITLIST_ERROR_MESSAGES, WAITLIST_SERVER_ERROR } from "@/lib/waitlist";
 
 const posthog = vi.hoisted(() => ({ __loaded: false, init: vi.fn(), register: vi.fn(), capture: vi.fn(), get_distinct_id: () => "ph_page" }));
 vi.mock("posthog-js", () => ({ default: posthog }));
@@ -71,24 +71,40 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+/** Money or paid-plan wording: none of it belongs anywhere in the free waitlist ask, its success or its errors. */
+const NOT_FREE = /£|\$\d|€|\/mo\b|\/yr\b|\bpay|price|subscri|billing|charg|amount|pre-?order|checkout|stripe/i;
+
 describe("Ship Loop waitlist ask on the kit success page", () => {
-  it("renders for every buyer without any flag: the free waitlist only, no price, no payment", () => {
+  it("with the kill switch on: the free waitlist only, no price, no payment", () => {
+    // The old experiment is gone; the server reads shiploop_waitlist_ask (resolveShipLoopWaitlistAsk) instead.
     expect(Object.values(EXPERIMENTS).some((key) => key.includes("shiploop"))).toBe(false);
-    const html = renderToStaticMarkup(createElement(ShipLoopUpsell, { kitId: KIT.kitId }));
+    const html = renderToStaticMarkup(createElement(ShipLoopUpsell, { kitId: KIT.kitId, enabled: true }));
     expect(html).toContain('data-testid="ship-loop-upsell"');
     expect(html).toContain("You&#x27;re in. Your kit is on its way to your inbox.");
     expect(html).toContain("Join the waitlist, we&#x27;ll email you when it launches. It&#x27;s free.");
     expect(html).toContain('<input type="hidden" name="source" value="kit_upsell"/>');
     expect(html).toMatch(/<label for="[^"]+" class="sr-only">Email<\/label>/);
     expect(html).toContain(">Join the waitlist</button>");
-    expect(html).not.toMatch(/£|\$\d|€|price|pre-?order|checkout|stripe|name="plan"/i);
+    expect(html).not.toMatch(NOT_FREE);
+    expect(html).not.toContain('name="plan"');
     expect(html).not.toContain("\u2014");
-    // Rendering asks PostHog nothing: no flag lookup decides whether it shows.
+    // The browser asks PostHog nothing: the server decided, before the page was sent.
     expect(posthog.init).not.toHaveBeenCalled();
   });
 
+  it("with the kill switch off (or failed closed on the server): nothing at all", () => {
+    expect(renderToStaticMarkup(createElement(ShipLoopUpsell, { kitId: KIT.kitId, enabled: false }))).toBe("");
+  });
+
+  it("its success and error copy are free-waitlist only too", () => {
+    for (const copy of [...Object.values(WAITLIST_ERROR_MESSAGES), "You're on the waitlist.", "You're already on the waitlist.", "We'll email you when Ship Loop launches."]) {
+      expect(copy).not.toMatch(NOT_FREE);
+      expect(copy).not.toContain("\u2014");
+    }
+  });
+
   it("the email field and the submit button are 44px tall (h-11)", () => {
-    const html = renderToStaticMarkup(createElement(ShipLoopUpsell, { kitId: KIT.kitId }));
+    const html = renderToStaticMarkup(createElement(ShipLoopUpsell, { kitId: KIT.kitId, enabled: true }));
     const tag = (pattern: RegExp) => html.match(pattern)?.[0] ?? "";
     expect(tag(/<input[^>]*name="email"[^>]*>/)).toMatch(/class="[^"]*\bh-11\b/);
     expect(tag(/<button[^>]*type="submit"[^>]*>/)).toMatch(/class="[^"]*\bh-11\b/);

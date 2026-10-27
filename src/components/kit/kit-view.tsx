@@ -7,6 +7,7 @@ import { MAX_ATTEMPTS } from "@/lib/fulfil";
 import { resolveKitPromo } from "@/lib/kit-promo";
 import { getDraft } from "@/lib/generation";
 import { resolvePaywallEarlyCta } from "@/lib/paywall-cta-server";
+import { resolveShipLoopWaitlistAsk } from "@/lib/waitlist-ask-server";
 import { getProgress, isOwner } from "@/lib/progress";
 import type { Kit } from "@/lib/schema";
 import { buildTasks, mask, maskContent } from "@/lib/tasks";
@@ -86,7 +87,9 @@ async function PaidKit({ kit, session, query }: Props) {
   const ready = kit.status === "ready" && kit.content;
   const sections = ready ? kit.content! : (await getDraft(kit.id)).sections;
   const tasks = buildTasks({ content: sections, checklist: kit.checklist ?? launchChecklist(kit.brief), locked: false, brief: kit.brief });
-  const done = owner ? await getProgress(kit.id) : [];
+  // Straight back from checkout (?paid=1) only, for the buyer: only then is the waitlist ask's kill switch read.
+  const askDue = owner && query.paid === "1";
+  const [done, waitlistAsk] = await Promise.all([owner ? getProgress(kit.id) : [], askDue ? resolveShipLoopWaitlistAsk(kit.id) : false]);
 
   return (
     <div className="space-y-6">
@@ -108,8 +111,7 @@ async function PaidKit({ kit, session, query }: Props) {
       ) : (
         <GenerationPoller kitId={kit.id} failed={kit.status === "failed"} sectionsReady={Object.keys(sections).length} />
       )}
-      {/* Straight back from checkout (?paid=1) only, for the buyer. */}
-      {owner && query.paid === "1" ? <ShipLoopUpsell kitId={kit.id} /> : null}
+      {askDue ? <ShipLoopUpsell kitId={kit.id} enabled={waitlistAsk} /> : null}
       <KitChecklist kitId={kit.id} productName={kit.brief.name} tasks={tasks} locked={false} persist={owner ? "server" : "local"} initialDone={done} />
     </div>
   );

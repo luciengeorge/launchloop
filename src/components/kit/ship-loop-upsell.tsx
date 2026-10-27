@@ -1,7 +1,11 @@
 import { WaitlistForm } from "@/components/waitlist-form";
 
-/** The free Ship Loop waitlist ask, shown to every buyer straight back from checkout. No price and no payment. */
-export function ShipLoopUpsell({ kitId }: { kitId: string }) {
+/**
+ * The free Ship Loop waitlist ask, for the buyer straight back from checkout. No price and no payment. `enabled`: the
+ * shiploop_waitlist_ask kill switch, resolved on the server (resolveShipLoopWaitlistAsk); off, nothing renders.
+ */
+export function ShipLoopUpsell({ kitId, enabled }: { kitId: string; enabled: boolean }) {
+  if (!enabled) return null;
   return (
     <section className="rounded-2xl border border-border bg-muted/40 p-5 sm:p-6" aria-labelledby="ship-loop-upsell-heading" data-testid="ship-loop-upsell">
       <h2 id="ship-loop-upsell-heading" className="text-lg font-semibold">

@@ -258,7 +258,7 @@ Ship Loop is a free waitlist; nothing about it is sold. `/ship-loop` and the kit
 
 Preview keys carry the `preview:` prefix. The contact is also added to the Resend audience/segment, which is shared with newsletter and buyer contacts, so the store is the source of truth for who joined the waitlist.
 
-- **The kit upsell is shown to every buyer.** `ShipLoopUpsell` renders on the kit success page (`/account/kits/[id]?paid=1`, kit owner only), with no flag. It's the waitlist form only: no price, no checkout.
+- **The kit upsell is behind a kill switch, `shiploop_waitlist_ask`** (PostHog flag 331856, a boolean run at 100%). `ShipLoopUpsell` renders on the kit success page (`/account/kits/[id]?paid=1`, kit owner only) when `resolveShipLoopWaitlistAsk()` (`src/lib/waitlist-ask-server.ts`) reads the flag as `true` for `kit:<id>` on the server. It fails closed: `false`, a missing flag, an error, no PostHog key or no answer within 800 ms (the paywall kill switch's timeout, `resolveKillSwitch` in `src/lib/kill-switch.ts`) hides it. It's only read on that page, for the owner. It's the waitlist form only: no price, no checkout. (`exp_shiploop_success_upsell` is no longer read.)
 - **Events** (browser, `WaitlistForm` via `src/lib/waitlist-client.ts`), on both surfaces. Each carries `signup_source` (`kit_upsell` or `ship_loop_page`), `kitId` on the kit upsell, and `is_test: true` only on QA traffic (see "QA traffic"). None carries the email.
   - `waitlist_cta_viewed`: the form is at least half on screen, once per mount.
   - `waitlist_signup` (`duplicate`): only after `/api/waitlist` answers 2xx.

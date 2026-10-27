@@ -52,20 +52,35 @@ function recordCheckouts(page: Page): Request[] {
   return checkouts;
 }
 
-/** Logs in, pays for a sample kit and lands on its success page. `landing`: a first page to open in this tab (e.g. "/?qa=1"). */
-async function payForKit(page: Page, tag: string, landing?: string) {
+/**
+ * shiploop_waitlist_ask in the fake PostHog the server asks (on kit:<id>): on, switched off, or (null) no such flag,
+ * as when it's missing or PostHog errors. `delayMs`: answer that late.
+ */
+async function setWaitlistAsk(page: Page, kitId: string, value: boolean | null, delayMs = 0) {
+  await page.request.post(`${FIXTURE}/ph/_flags`, { data: { distinctId: `kit:${kitId}`, flags: value === null ? {} : { shiploop_waitlist_ask: value }, delayMs } });
+}
+
+/**
+ * Logs in, pays for a sample kit with the ask's kill switch set (on by default) and lands on its success page.
+ * `landing`: a first page to open in this tab (e.g. "/?qa=1").
+ */
+async function payForKit(page: Page, tag: string, { landing, ask = true, delayMs = 0 }: { landing?: string; ask?: boolean | null; delayMs?: number } = {}) {
   if (landing) await page.goto(landing);
   await logIn(page, uniqueEmail(tag));
   const kitId = await makeSampleKit(page);
+  await setWaitlistAsk(page, kitId, ask, delayMs);
   await payKit(page, kitId);
   return kitId;
 }
+
+/** Money or paid-plan wording: none of it belongs anywhere in the free waitlist ask, its success or its errors. */
+const NOT_FREE = /£|\$\d|€|\/mo\b|\/yr\b|\bpay|price|subscri|billing|charg|amount|pre-?order|checkout|stripe|\u2014/i;
 
 async function expectTouchTarget(target: Locator) {
   expect((await target.boundingBox())!.height).toBeGreaterThanOrEqual(44);
 }
 
-test("every buyer sees the free waitlist ask on the success page, with no flag; viewed once, signup only after a 2xx", async ({ page }) => {
+test("kill switch on: the buyer sees the free waitlist ask on the success page; viewed once, signup only after a 2xx", async ({ page }) => {
   const kitId = await payForKit(page, "upsell-buyer");
   const checkouts = recordCheckouts(page);
   const requests = await mockWaitlist(page, () => ({ status: 200, json: { ok: true, duplicate: false } }));
@@ -73,7 +88,7 @@ test("every buyer sees the free waitlist ask on the success page, with no flag; 
   const upsell = page.getByTestId("ship-loop-upsell");
   await expect(upsell.getByRole("heading")).toHaveText("You're in. Your kit is on its way to your inbox.");
   await expect(upsell).toContainText("Ship Loop is coming soon. Join the waitlist, we'll email you when it launches. It's free.");
-  await expect(upsell).not.toContainText(/£|\$\d|€|price|pre-?order|charged|checkout|stripe|\u2014/i);
+  await expect(upsell).not.toContainText(NOT_FREE);
   await expect(upsell.getByRole("link")).toHaveCount(0);
   await expect(upsell.getByRole("button")).toHaveText(["Join the waitlist"]);
   await expectTouchTarget(upsell.getByRole("textbox", { name: "Email" }));
@@ -86,6 +101,7 @@ test("every buyer sees the free waitlist ask on the success page, with no flag; 
   await upsell.getByRole("textbox", { name: "Email" }).fill(email);
   await upsell.getByRole("button", { name: "Join the waitlist" }).click();
   await expect(upsell.getByTestId("waitlist-status")).toHaveText("You're on the waitlist. We'll email you when Ship Loop launches.");
+  await expect(upsell).not.toContainText(NOT_FREE);
   expect(requests.map((r) => r.postDataJSON())).toEqual([{ email, source: "kit_upsell" }]);
 
   await expect.poll(async () => named(await waitlistEvents(page, kitId), "waitlist_signup").length).toBe(1);
@@ -137,6 +153,7 @@ test("errors are never dead ends: a 400 and a network failure each show a retry 
   await expect(fallback).toBeVisible();
   const retry = upsell.getByRole("button", { name: "Try again" });
   await expectTouchTarget(retry);
+  await expect(upsell).not.toContainText(NOT_FREE);
   await expect.poll(async () => named(await waitlistEvents(page, kitId), "waitlist_error").map((e) => [e.properties.status, e.properties.reason])).toEqual([
     [400, "invalid_email"],
     [0, "network"],
@@ -153,8 +170,25 @@ test("errors are never dead ends: a 400 and a network failure each show a retry 
   expect(JSON.stringify(events)).not.toContain("@example.com");
 });
 
+for (const [label, ask, delayMs] of [
+  ["kill switch off (false)", false, 0],
+  ["kill switch missing or PostHog erroring (no answer for the flag)", null, 0],
+  ["kill switch too slow (answers on, but after the server's timeout)", true, 3000],
+] as const) {
+  test(`${label}: no waitlist ask on the success page, and no waitlist events`, async ({ page }) => {
+    const kitId = await payForKit(page, `upsell-off-${delayMs}-${String(ask)}`, { ask, delayMs });
+    // The success page itself is fine: the kit is there, only the ask is left out.
+    await expect(page.getByTestId("stage-tab-Product Hunt")).toBeVisible();
+    await page.waitForLoadState("networkidle");
+    await expect(page.getByTestId("ship-loop-upsell")).toHaveCount(0);
+    await expect(page.getByTestId("waitlist-form")).toHaveCount(0);
+    await page.waitForTimeout(1000);
+    expect(await waitlistEvents(page, kitId)).toEqual([]);
+  });
+}
+
 test("QA traffic: a tab that landed with ?qa=1 tags the waitlist events is_test, through login and checkout", async ({ page }) => {
-  const kitId = await payForKit(page, "upsell-qa", "/?qa=1");
+  const kitId = await payForKit(page, "upsell-qa", { landing: "/?qa=1" });
   await mockWaitlist(page, () => ({ status: 200, json: { ok: true, duplicate: false } }));
   const upsell = page.getByTestId("ship-loop-upsell");
   await upsell.scrollIntoViewIfNeeded();

@@ -13,6 +13,12 @@ export const WAITLIST_MEMBERS_KEY = "contacts:waitlist";
 export const WAITLIST_SOURCES = ["ship_loop_page", "kit_upsell"] as const;
 export type WaitlistSource = (typeof WAITLIST_SOURCES)[number];
 
+/**
+ * Kill switch for the free Ship Loop waitlist ask on the kit success page: a PostHog boolean flag (id 331856, project
+ * 307574) run at 100%. Only `true` shows the ask; off, missing, an error or no answer in time hides it (fails closed).
+ */
+export const SHIPLOOP_WAITLIST_ASK_FLAG = "shiploop_waitlist_ask";
+
 /** /api/waitlist's answer when it couldn't store the signup, and the form's message for a 5xx that isn't the API's. */
 export const WAITLIST_SERVER_ERROR = "Couldn't add you right now. Please try again.";
 
