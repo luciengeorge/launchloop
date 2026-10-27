@@ -7,7 +7,7 @@ Blog post for `/blog`, from the outline of Sunday 25 October 2026 (`2026-10-25-o
 **URL:** `/blog/product-hunt-launch-tools`
 **Title:** `Product Hunt launch tools, tested on one repo · LaunchLoop` (58 characters; metaTitle 45, inside the 37 to 46 house range)
 **Description:** `Looking for the best Product Hunt launch tools? We ran one open-source repo through 10 free tiers and checked the copy and images against Product Hunt specs.` (157 characters)
-**H1:** Product Hunt launch tools, tested on one repo. **Published and updated:** 2026-10-27 (bump both in `src/lib/blog.ts` if it merges on another day). **Byline:** Lucien George. **Reading time:** 21 minutes (4,114 words in the rendered body at 200 words a minute, counted the way `tests/e2e/blog.spec.ts` counts: the innerText of `article > div`, split on whitespace; the e2e suite recounts it).
+**H1:** Product Hunt launch tools, tested on one repo. **Published and updated:** 2026-10-27 (bump both in `src/lib/blog.ts` if it merges on another day). **Byline:** Lucien George. **Reading time:** 21 minutes (4,164 words in the rendered body at 200 words a minute, counted the way `tests/e2e/blog.spec.ts` counts: the innerText of `article > div`, split on whitespace; the e2e suite recounts it).
 
 "Best" appears only in the meta description and the first FAQ question, where it is answered per job rather than with a pick. There are no scores, rankings, winner or percentages (n = 10).
 
@@ -26,7 +26,7 @@ From the outline, not re-queried (0 OpenSEO credits):
 - **Rules:** free tier only, no card, first output only, one run per tool, one retry on an error (recorded), never post or submit anything.
 - **Counting:** `Array.from(text.trim()).length`, the rule in `src/lib/limits.ts` (`charLength`). Every count on the page was recomputed from the raw outputs with that rule; where a tool showed its own count, ours is used and the difference, if any, is stated. Emoji count as one code point.
 - **Images:** pixel sizes were read from the downloaded files (PIL for batch 2, run by Arthur; `file` for LaunchLoop's three images, see the test log), not from tool labels.
-- **Quotes:** every `<q>` on the page was checked by script (normalised whitespace, JSX entities decoded) against `pages27/00-quotes.md`, the raw output files and the saved repo files: 59 quotes, 59 found word for word. `00-quotes.md` was itself machine-checked against the saved HTML and WebFetch copies on 27 October at about 10:10 Paris (160 strings; see its "Verification" section). `tests/unit/blog.test.ts` fails if the page quotes anything that isn't in the table at the end of this file.
+- **Quotes:** every `<q>` on the page was checked by script (normalised whitespace, JSX entities decoded) against `pages27/00-quotes.md`, the raw output files and the saved repo files: 60 quotes, 60 found word for word. `00-quotes.md` was itself machine-checked against the saved HTML and WebFetch copies on 27 October at about 10:10 Paris (160 strings; see its "Verification" section). `tests/unit/blog.test.ts` fails if the page quotes anything that isn't in the table at the end of this file.
 - **Dashes:** the article has no en or em dashes, and neither does this log: in the raw outputs below each U+2014 is written `[U+2014]` and each U+2013 `[U+2013]`. Quotes stop before, or avoid, source text with a dash (StartKitz's plan bullets, ShipProof's "Free tool" badge, PH LaunchKit's "the PH limit" line, Screenhance's yearly price, Product Hunt's tagline sentence past the parenthesis, Marketing Pack's "Free plan" line). Lines with a percentage sign, such as ShipProof's and PH LaunchKit's "100% free", are not quoted, so the page has no percentages at all.
 
 ## Tools tested, and why
@@ -507,3 +507,4 @@ Sonner is an opinionated toast component for React. Add a Toaster, then render d
 | 57 | "Join the waiting list for early access and a shot at free lifetime upgrades." | https://launchnudge.ai (redirects to www.) |
 | 58 | "Pack your codebase into AI-friendly formats" | https://repomix.com |
 | 59 | "you can send it to an AI assistant (like ChatGPT, Claude)" | https://repomix.com |
+| 60 | "Turn notifications into a better user experience" | first-party test output, `2026-10-27_phlaunchkit_output.txt` |

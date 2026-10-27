@@ -113,7 +113,7 @@ const FAQ: FaqItem[] = [
   },
   {
     q: "Can a tool go from a GitHub repo to launch copy?",
-    a: "Of the 10 tools we tested, only LaunchLoop took a GitHub repo URL. Its free preview gave a tagline, a product brief, a first X post and three watermarked images; its description and maker comment are in the paid kit, which we didn't buy. LaunchCopy and LaunchNudge also take a repo, but we didn't test them. Their own pages don't mention Product Hunt output, and LaunchCopy asks you to sign up.",
+    a: "Of the 10 tools we tested, two were given a GitHub repo URL: LaunchLoop, which takes a repo URL as its input, and ChatGPT, which we typed it into along with the README blurb. LaunchLoop's free preview gave a tagline, a product brief, a first X post and three watermarked images; its description and maker comment are in the paid kit, which we didn't buy. LaunchCopy and LaunchNudge also take a repo, but we didn't test them, and LaunchCopy asks you to sign up.",
   },
   {
     q: "Do these tools post to Product Hunt for you?",
@@ -258,8 +258,8 @@ export default function ProductHuntLaunchToolsPostPage() {
       </p>
       <p>
         <strong>What it gave:</strong> eight taglines, all within 60 characters, from 37 to 48. Its own counts matched ours for all eight. The shortest was{" "}
-        <q>Ship polished React toasts in minutes</q> and the longest <q>React toast notifications without the setup pain</q>. It is a tagline tool, so no description or
-        maker comment was expected.
+        <q>Ship polished React toasts in minutes</q>, and two tied for the longest at 48: <q>Turn notifications into a better user experience</q> and{" "}
+        <q>React toast notifications without the setup pain</q>. It is a tagline tool, so no description or maker comment was expected.
       </p>
 
       <h3 id="chatgpt">ChatGPT (free, logged out)</h3>
@@ -301,8 +301,8 @@ export default function ProductHuntLaunchToolsPostPage() {
 
       <h2 id="gallery-tools">Tools that make gallery images</h2>
       <p>
-        Four tools here only make images: three took our homepage screenshot and Mydentify took the URL. LaunchLoop and Marketing Pack, above, made one image each as part
-        of a wider output. We measured every file. Our free <Link href={OG_PREVIEW.path}>OG image preview</Link> checks the 1200x630 card your link shows when it is shared, not the Product Hunt gallery, so use
+        Four tools here only make images: three took our homepage screenshot and Mydentify took the URL. LaunchLoop and Marketing Pack, above, made images as part of a
+        wider output: three from LaunchLoop, at 1200x630, 1600x900 and 1270x760, and one 1270x760 gallery image from Marketing Pack. We measured every file. Our free <Link href={OG_PREVIEW.path}>OG image preview</Link> checks the 1200x630 card your link shows when it is shared, not the Product Hunt gallery, so use
         it for that card only.
       </p>
 
@@ -460,12 +460,12 @@ export default function ProductHuntLaunchToolsPostPage() {
         <li>
           <strong><a href={OTHERS.launchCopy}>LaunchCopy</a></strong> takes a repo:{" "}
           <q>Paste a GitHub URL and let our AI turn your codebase into ready-to-publish social posts, blog articles, and case studies.</q> Its free plan is{" "}
-          <q>Try it out with one scan</q>, behind a sign-up. Its page doesn&apos;t mention Product Hunt output.
+          <q>Try it out with one scan</q>, behind a sign-up.
         </li>
         <li>
           <strong><a href={OTHERS.launchNudge}>LaunchNudge</a></strong> takes a repo or changelog:{" "}
           <q>LaunchNudge&apos;s AI turns your repo into viral HN, Reddit, and X posts in 5 minutes.</q> It is taking sign-ups for early access:{" "}
-          <q>Join the waiting list for early access and a shot at free lifetime upgrades.</q> Its page states no free tier and doesn&apos;t mention Product Hunt.
+          <q>Join the waiting list for early access and a shot at free lifetime upgrades.</q> Its page states no free tier.
         </li>
         <li>
           <strong><a href={OTHERS.repomix}>Repomix</a></strong> writes no copy itself. It is MIT-licensed, offers to{" "}
@@ -490,7 +490,8 @@ export default function ProductHuntLaunchToolsPostPage() {
         </li>
         <li>
           <strong>Gallery images:</strong> 5 of 10 gave a Product Hunt image, all 5 at exactly 1270x760. 4 were watermarked (LaunchLoop, Screenhance, Perspecto, WhixFrame)
-          and 1 had no visible watermark (Marketing Pack). Each run gave one image, and Product Hunt wants two or more, so you would need a second run or a second tool.
+          and 1 had no visible watermark (Marketing Pack). Each of the 5 runs gave one image at 1270x760, and LaunchLoop&apos;s also gave a 1200x630 and a 1600x900 image.
+          Product Hunt wants two or more gallery images and recommends 1270x760, so at that size you would need a second run or a second tool.
         </li>
         <li>
           <strong>Everything at once:</strong> 1 of 10 free runs, Marketing Pack, gave a tagline, a description, a maker comment and a gallery image about the product.
