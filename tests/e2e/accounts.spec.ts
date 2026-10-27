@@ -124,6 +124,29 @@ test("logged-out /account pages are an HTTP 307 to /login, not a streamed redire
   }
 });
 
+test("signed in, an unknown /account/kits id is a real 404 with the not-found page; an owned kit still opens, another account's kit is the page's not-found", async ({ page }) => {
+  const kitId = await makeSampleKit(page);
+  await logIn(page, uniqueEmail("account-404"));
+  const res = await page.goto("/account/kits/doesNotExist1234567");
+  expect(res?.status()).toBe(404);
+  await expect(page.getByRole("heading", { name: "This page doesn't exist" })).toBeVisible();
+  await expect(page.getByRole("main").getByRole("link", { name: "Get my free preview" })).toHaveAttribute("href", "/#start");
+  expect((await page.goto(`/account/kits/${kitId}`))?.status()).toBe(200);
+  await expect(page.getByTestId("unlock-panel")).toBeVisible();
+
+  // Another account's kit exists, so the proxy lets it through; the page's own ownership check still says not found.
+  const other = await page.context().browser()!.newContext();
+  const otherPage = await other.newPage();
+  await logIn(otherPage, uniqueEmail("account-404-other"));
+  await otherPage.goto(`/account/kits/${kitId}`);
+  await expect(otherPage.getByRole("heading", { name: "This page doesn't exist" })).toBeVisible();
+  await expect(otherPage.getByRole("main").getByRole("link", { name: "Get my free preview" })).toHaveAttribute("href", "/#start");
+  await expect(otherPage.getByTestId("unlock-panel")).toHaveCount(0);
+  await expect(otherPage.getByTestId("preview-paywall")).toHaveCount(0);
+  await expect(otherPage.locator('meta[name="robots"][content*="noindex"]').first()).toBeAttached();
+  await other.close();
+});
+
 test("tampered tokens and forged session cookies are rejected", async ({ page, context, baseURL }) => {
   await page.goto("/login/verify?token=abc.def");
   await page.waitForURL(/\/login\?error=expired/);

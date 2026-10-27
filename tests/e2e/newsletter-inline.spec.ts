@@ -1,6 +1,6 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 import { blogPosts, postPath } from "../../src/lib/blog";
-import { contrast, makeSampleKit, recordLayoutShift, uniqueEmail } from "./helpers";
+import { contrast, expectNewsletterSurvivesNetworkFailure, makeSampleKit, recordLayoutShift, uniqueEmail } from "./helpers";
 
 // Runs against the build with NEWSLETTER_INLINE=on (the inline-* projects); newsletter.spec.ts covers the flag-off pages.
 const FIXTURE = "http://127.0.0.1:3419";
@@ -275,5 +275,15 @@ for (const path of ["/", "/blog/how-to-launch-on-product-hunt"]) {
     await hydrated(page);
     await page.waitForTimeout(1000);
     expect(await cls()).toBe(0);
+  });
+}
+
+for (const { placement, path, testId } of [
+  { placement: "blog_inline", path: "/blog/how-to-launch-on-product-hunt", testId: "inline-newsletter-post" },
+  { placement: "home_inline", path: "/", testId: "inline-newsletter-home" },
+]) {
+  test(`${placement}: a network failure keeps the email, says to try again, and the retry subscribes`, async ({ page }) => {
+    await page.goto(path);
+    await expectNewsletterSurvivesNetworkFailure(page, page.getByTestId(testId), { label: COPY.label, button: COPY.button });
   });
 }

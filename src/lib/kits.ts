@@ -9,11 +9,13 @@ import { phase } from "./kit-tracing";
 import type { Brief, Kit, KitVisuals, Palette } from "./schema";
 import { sanitizeGenerated } from "./dashes";
 import { copyDraft } from "./generation";
+import { isValidKitId, kitKey as key, pendingKitKey as pendingKey } from "./kit-exists";
 import { store } from "./store";
+
+export { isValidKitId };
 
 /** The privacy page promises this: unpaid previews go 30 days after they were made, paid kits stay until the buyer asks us to delete them. */
 const PREVIEW_TTL_SECONDS = 60 * 60 * 24 * 30;
-const key = (id: string) => `kit:${id}`;
 
 function kitTtlSeconds(kit: Kit): number | undefined {
   if (kit.paid) return undefined;
@@ -22,7 +24,6 @@ function kitTtlSeconds(kit: Kit): number | undefined {
 }
 
 export const newId = () => randomBytes(16).toString("base64url");
-export const isValidKitId = (id: string) => /^[A-Za-z0-9_-]{16,32}$/.test(id);
 
 /**
  * The kit with its generated copy cleaned of dash punctuation (withCleanCopy). Reading never writes, but any
@@ -65,7 +66,6 @@ export type PendingKit = { state: "generating" } | ({ state: "failed" } & KitErr
 const PENDING_TTL_SECONDS = 10 * 60;
 /** Past the route's maxDuration plus slack, a preview still marked generating has died with its function. */
 const PENDING_STALE_MS = 90_000;
-const pendingKey = (id: string) => `kitpending:${id}`;
 
 export async function markKitPending(id: string): Promise<void> {
   await store().set(pendingKey(id), { state: "generating", startedAt: Date.now() }, PENDING_TTL_SECONDS);

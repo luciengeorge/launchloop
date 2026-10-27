@@ -11,6 +11,20 @@ async function failureFrom(url: string, response: Response): Promise<unknown> {
     (error: unknown) => error,
   );
 }
+/** What a form's postJson to `url` throws when fetch itself rejects, as it does when the connection fails. */
+async function networkFailure(url: string, error: Error): Promise<unknown> {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => {
+      throw error;
+    }),
+  );
+  return postJson(url, { email: "someone@launchloop.dev" }).then(
+    () => expect.unreachable("the request should have failed"),
+    (thrown: unknown) => thrown,
+  );
+}
+const RAW = /Failed to fetch|TypeError|NetworkError|Load failed|abort|Request failed/i;
 const plain500 = () => new Response("Internal Server Error", { status: 500, headers: { "Content-Type": "text/plain" } });
 const html502 = () => new Response("<html><body><h1>502 Bad Gateway</h1></body></html>", { status: 502, headers: { "Content-Type": "text/html" } });
 
@@ -35,6 +49,20 @@ describe.each(FORMS)("$form form errors", ({ url, shown, friendly, apiMessage })
     expect(shown(await failureFrom(url, html502()))).toBe(friendly);
     expect(shown(new TypeError("Failed to fetch"))).toBe(friendly);
     expect(shown(new Error("Something unexpected"))).toBe(friendly);
+  });
+
+  it("a fetch that rejects (Chrome's TypeError, Firefox's and Safari's wording, an AbortError) shows the friendly copy, never the raw message", async () => {
+    for (const error of [
+      new TypeError("Failed to fetch"),
+      new TypeError("NetworkError when attempting to fetch resource."),
+      new TypeError("Load failed"),
+      new DOMException("The operation was aborted.", "AbortError"),
+    ]) {
+      const message = shown(await networkFailure(url, error));
+      expect(message, error.message).toBe(friendly);
+      expect(message).not.toMatch(RAW);
+      expect(message).toMatch(/try again/i);
+    }
   });
 
   it("keeps the API's own friendly message when it sends one", async () => {
