@@ -24,6 +24,47 @@ const SELF = (path: string) => new RegExp(`^http://127\\.0\\.0\\.1:\\d+${path.re
 
 /** Per post: links the copy must make, and quotes that must appear verbatim. */
 const EXPECT: Record<string, { links: string[]; quotes: string[] }> = {
+  "product-hunt-launch-tools": {
+    links: [
+      "/blog/how-to-launch-on-product-hunt",
+      "/blog/product-hunt-alternatives",
+      "/tools/product-hunt-tagline-checker",
+      "/tools/og-preview",
+      "/product-hunt-launch-checklist",
+      "/how-to-write-a-product-hunt-tagline",
+      "/#start",
+      "/pricing",
+      "https://github.com/emilkowalski/sonner",
+      "https://github.com/emilkowalski/sonner/tree/8e4662b39255120b62138312058f5d77c0139a5e",
+      "https://help.producthunt.com/en/articles/17350772-launch-guide",
+      "https://help.producthunt.com/en/articles/479557-how-to-post-a-product",
+      "https://www.producthunt.com/launch/preparing-for-launch",
+      "https://launchloop.dev/pricing",
+      "https://startkitz.com/",
+      "https://shipproof.io/tools/launch-copy",
+      "https://phlaunchkit.com/tools/product-hunt-tagline-generator",
+      "https://chatgpt.com/pricing",
+      "https://screenhance.com/product-hunt-gallery-generator",
+      "https://mydentify.com/tools/launch-image-listing-asset-pack",
+      "https://perspecto.io/product-hunt-mockup-generator",
+      "https://www.whixframe.com/tools/product-hunt-gallery-generator",
+      "https://getmarketingpack.com/product-hunt-launch-kit",
+    ],
+    quotes: [
+      "tagline caps at 60 characters",
+      "260 characters max",
+      "within 260 characters",
+      "Description (max 500 characters)",
+      "The recommended size for images in the gallery is 1270x760.",
+      "The gallery will need 2+ images before it is viewable.",
+      "Toast notifications for React with built-in animations",
+      "Effortless notification customization for React developers seeking flexibility.",
+      "Beautiful toast notifications for React, made simple.",
+      "Opinionated toasts for React",
+      "Input buffer contains unsupported image format",
+      "An opinionated toast component for React.",
+    ],
+  },
   "how-to-launch-on-betalist": {
     links: [
       "/blog/how-to-launch-on-product-hunt",
@@ -571,6 +612,104 @@ test("at 375 px the BetaList comparison table scrolls sideways, says so, and scr
   await region.focus();
   await page.keyboard.press("ArrowRight");
   await expect.poll(() => region.evaluate((el) => el.scrollLeft)).toBeGreaterThan(0);
+});
+
+test.describe("the Product Hunt launch tools post", () => {
+  const path = "/blog/product-hunt-launch-tools";
+  const label = "Comparison table: Product Hunt launch tools tested on one repo";
+  const TESTED = ["LaunchLoop (ours)", "StartKitz", "ShipProof", "PH LaunchKit", "ChatGPT (free, logged out)", "Screenhance", "Mydentify", "Perspecto", "WhixFrame", "Marketing Pack"];
+
+  test("names the repo and commit, discloses LaunchLoop twice and covers both target phrases in headings and the FAQ", async ({ page }) => {
+    await page.goto(path);
+    const body = page.locator("article > div").first();
+    for (const id of ["at-a-glance", "ph-specs", "method", "copy-tools", "gallery-tools", "repo-to-launch-copy", "gaps", "check", "left-out", "sources"]) {
+      await expect(page.locator(`h2#${id}`)).toBeVisible();
+    }
+    await expect(body.locator("code", { hasText: "8e4662b39255120b62138312058f5d77c0139a5e" })).toBeVisible();
+    await expect(body.locator("p").first()).toContainText("MIT-licensed");
+    await expect(body.locator("p", { hasText: "LaunchLoop is ours" })).toHaveCount(2);
+
+    const headings = (await page.locator("article h2, article h3").allInnerTexts()).join("\n");
+    expect(headings).toContain("Product Hunt launch kit");
+    expect(headings).toContain("GitHub repo to launch copy");
+    const faq = findNode<{ mainEntity: { name: string; acceptedAnswer: { text: string } }[] }>(await jsonLdNodes(page), "FAQPage");
+    const faqText = faq.mainEntity.map((q) => `${q.name} ${q.acceptedAnswer.text}`).join("\n");
+    expect(faqText).toContain("Product Hunt launch kit");
+    expect(faqText).toMatch(/GitHub repo to launch copy/i);
+    expect(faq.mainEntity.map((q) => q.name)).toEqual(await page.locator("article #faq ~ div h3").allInnerTexts());
+
+    const text = await page.locator("article").innerText();
+    expect(text, "raw counts only").not.toMatch(/\d\s?%|per ?cent/i);
+    expect(text, "no ranking").not.toMatch(/\bwinner is\b|\branked\b|\bscore of\b|\/10\b/i);
+  });
+
+  test("the comparison table lists all 10 tools with an accessible, sortable header row", async ({ page }) => {
+    await page.goto(path);
+    const region = page.getByRole("region", { name: label });
+    await expect(region).toHaveAttribute("tabindex", "0");
+    const table = region.locator("table");
+    await expect(table.locator("caption")).toContainText("Column headings are buttons that sort the table.");
+    await expect(table.locator('thead th[scope="col"]')).toHaveCount(10);
+    await expect(table.locator("thead th button")).toHaveCount(10);
+    await expect(table.locator('tbody tr > th[scope="row"]:first-child')).toHaveText(TESTED);
+    await expect(table.locator("th[aria-sort]")).toHaveCount(0);
+
+    const header = table.locator("thead th", { hasText: "Longest tagline (chars)" });
+    await header.getByRole("button").click();
+    await expect(header).toHaveAttribute("aria-sort", "ascending");
+    await expect(table.locator("th[aria-sort]")).toHaveCount(1);
+    const firstColumn = () => table.locator('tbody tr > th[scope="row"]').allInnerTexts();
+    // Tools without a tagline sort last in both directions.
+    expect((await firstColumn()).slice(0, 6)).toEqual(["Marketing Pack", "ShipProof", "PH LaunchKit", "ChatGPT (free, logged out)", "LaunchLoop (ours)", "StartKitz"]);
+
+    await header.getByRole("button").press("Enter");
+    await expect(header).toHaveAttribute("aria-sort", "descending");
+    expect((await firstColumn()).slice(0, 6)).toEqual(["StartKitz", "LaunchLoop (ours)", "ChatGPT (free, logged out)", "PH LaunchKit", "ShipProof", "Marketing Pack"]);
+    expect((await firstColumn()).slice(6).sort()).toEqual(["Mydentify", "Perspecto", "Screenhance", "WhixFrame"]);
+
+    const tool = table.locator("thead th", { hasText: "Tool" }).first();
+    await tool.getByRole("button").click();
+    await expect(tool).toHaveAttribute("aria-sort", "ascending");
+    await expect(header).not.toHaveAttribute("aria-sort");
+    expect((await firstColumn())[0]).toBe("ChatGPT (free, logged out)");
+  });
+
+  test("at 375 px both tables scroll sideways inside their regions and the page doesn't", async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 800 });
+    await page.goto(path);
+    for (const [name, hint] of [
+      [label, "at-a-glance-scroll-hint"],
+      ["Repo facts next to generated launch copy", "repo-copy-scroll-hint"],
+    ]) {
+      const region = page.getByRole("region", { name });
+      await expect(page.getByTestId(hint)).toBeVisible();
+      expect(await region.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  });
+
+  test("states the evidence-backed findings plainly, with our own counts", async ({ page }) => {
+    await page.goto(path);
+    const section = (id: string) =>
+      page.locator(`h3#${id}`).evaluate((h3) => {
+        const parts: string[] = [];
+        for (let el = h3.nextElementSibling; el && el.tagName !== "H3" && el.tagName !== "H2"; el = el.nextElementSibling) parts.push((el as HTMLElement).innerText);
+        return parts.join("\n");
+      });
+    expect(await section("shipproof")).toContain("described ShipProof itself, not Sonner");
+    const chatgpt = await section("chatgpt");
+    expect(chatgpt).toContain("43/60");
+    expect(chatgpt).toContain("143/260");
+    expect(chatgpt).toContain("Our counts are 53 and 193");
+    const startkitz = await section("startkitz");
+    expect(startkitz).toContain("(79)");
+    expect(startkitz).toContain("No Product Hunt description or maker comment");
+    const launchloop = await section("launchloop");
+    expect(launchloop).toContain("No description and no maker comment");
+    expect(await section("mydentify")).toContain("We retried once");
+    expect(await section("marketing-pack")).toContain("Emil Kowalski");
+    await expect(page.locator("h2#ph-specs + p + ul")).toContainText("recommended, not required");
+  });
 });
 
 test("the Indie Hackers post dates old advice and quotes the terms as they read now", async ({ page }) => {

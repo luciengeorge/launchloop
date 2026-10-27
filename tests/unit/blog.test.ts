@@ -103,8 +103,48 @@ describe("BetaList post", () => {
   });
 });
 
+describe("Product Hunt launch tools post", () => {
+  const p = post("product-hunt-launch-tools");
+  const root = path.join(import.meta.dirname, "../..");
+  const source = readFileSync(path.join(root, "src/app/blog/product-hunt-launch-tools/page.tsx"), "utf8");
+  const log = readFileSync(path.join(root, "docs/seo/2026-10-27-product-hunt-launch-tools.md"), "utf8");
+  const decode = (s: string) =>
+    s.replace(/\{" "\}/g, " ").replace(/&apos;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/\s+/g, " ").trim();
+
+  it("has the approved title and slug, is dated 27 October 2026, and says best only in the meta description", () => {
+    expect(p).toMatchObject({ slug: "product-hunt-launch-tools", title: "Product Hunt launch tools, tested on one repo", published: "2026-10-27", updated: "2026-10-27" });
+    expect(fullTitle(p.metaTitle)).toBe("Product Hunt launch tools, tested on one repo · LaunchLoop");
+    expect(p.description).toMatch(/best Product Hunt launch tools/);
+    expect(`${p.title} ${p.metaTitle}`).not.toMatch(/best/i);
+    expect(BLOG_POSTS[0].slug).toBe(p.slug);
+  });
+
+  it("quotes nothing that isn't listed word for word in its quote log", () => {
+    const quotes = [...source.matchAll(/<q>([\s\S]*?)<\/q>/g)].map((m) => decode(m[1]));
+    expect(quotes.length).toBeGreaterThan(50);
+    const table = log.split("## Every quote on the page")[1];
+    expect(table, "the log has an 'Every quote on the page' table").toBeTruthy();
+    const logged = table.replace(/\s+/g, " ");
+    for (const q of quotes) expect(logged, q).toContain(`"${q}"`);
+  });
+
+  it("gives raw counts only, quotes no traffic figures and has no dashes in its own copy", () => {
+    expect(source).not.toMatch(/\d\s?%|per ?cent/i);
+    expect(source).not.toMatch(DASHES);
+    expect(source).not.toMatch(/posthog|pageviews|visitors/i);
+  });
+
+  it("links only /tools pages that exist", () => {
+    const tools = TOOLS.map((t) => t.path);
+    for (const m of source.matchAll(/href="(\/tools[^"]*)"/g)) expect(tools).toContain(m[1]);
+    expect(source).toContain("<Link href={TAGLINE_CHECKER.path}>");
+    expect(source).toContain("<Link href={OG_PREVIEW.path}>");
+  });
+});
+
 describe("quote logs", () => {
   const LOGS: Record<string, string> = {
+    "product-hunt-launch-tools": "docs/seo/2026-10-27-product-hunt-launch-tools.md",
     "how-to-launch-on-betalist": "docs/seo/2026-10-25-how-to-launch-on-betalist.md",
     "product-hunt-alternatives": "docs/seo/2026-10-24-product-hunt-alternatives.md",
   };
