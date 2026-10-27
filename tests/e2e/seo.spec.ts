@@ -258,7 +258,9 @@ test("no page's server HTML carries a root-relative string that 404s, which Goog
   const { paths } = await sitemapPaths(request);
   const candidates = new Map<string, string>();
   for (const path of paths) {
-    const html = (await (await request.get(path)).text()).replaceAll('\\"', '"');
+    // The RSC flight payload is split across self.__next_f.push chunks, and a boundary can fall inside a path
+    // ("/how-to" + "-write-a-show-hn-post#replies"). Join the chunks first so a split path isn't read as a short one.
+    const html = (await (await request.get(path)).text()).replaceAll('"])</script><script>self.__next_f.push([1,"', "").replaceAll('\\"', '"');
     for (const [, found] of html.matchAll(/"(\/[A-Za-z0-9][\w.~/-]*)"/g)) if (!candidates.has(found)) candidates.set(found, path);
   }
   expect(candidates.size).toBeGreaterThan(10);
