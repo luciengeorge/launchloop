@@ -29,7 +29,8 @@ export function scrubProperties(props: Record<string, unknown>): Record<string, 
   return out;
 }
 
-function scrubValue(value: string): string {
+/** One URL or path, scrubbed like every analytics URL property. Anything that isn't a URL comes back as it was. */
+export function scrubValue(value: string): string {
   if (value.startsWith("/")) return scrubPath(value.split(/[?#]/)[0]!);
   try {
     return scrubUrl(value);

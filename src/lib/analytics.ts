@@ -7,6 +7,7 @@ import { POSTHOG_PROXY_PATH, posthogUiHost } from "./posthog-config";
 import type { RepoPrefill } from "./repo-cta";
 import { scrubProperties } from "./scrub-url";
 import { pendingMarkers, readServedMarker } from "./served-marker";
+import { SESSION_REPLAY_CONFIG } from "./session-replay";
 import type { StartPlan } from "./start-intent";
 import type { CheckoutFailureCode, PaywallViewport, UnlockContext } from "./unlock-checkout";
 
@@ -183,7 +184,9 @@ function initAnalytics(posthog: PostHog, token: string, start: { url: string; at
     capture_exceptions: false,
     capture_heatmaps: false,
     capture_dead_clicks: false,
+    // Off everywhere; kit pages turn it on (and every other page off) through syncSessionReplay, with these options.
     disable_session_recording: true,
+    ...SESSION_REPLAY_CONFIG,
     disable_surveys: true,
     before_send: scrubEvent,
     // Runs before the SDK's own pageview, which is for the URL it finds at init.
