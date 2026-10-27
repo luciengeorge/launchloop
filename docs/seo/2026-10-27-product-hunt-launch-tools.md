@@ -7,7 +7,7 @@ Blog post for `/blog`, from the outline of Sunday 25 October 2026 (`2026-10-25-o
 **URL:** `/blog/product-hunt-launch-tools`
 **Title:** `Product Hunt launch tools, tested on one repo · LaunchLoop` (58 characters; metaTitle 45, inside the 37 to 46 house range)
 **Description:** `Looking for the best Product Hunt launch tools? We ran one open-source repo through 10 free tiers and checked the copy and images against Product Hunt specs.` (157 characters)
-**H1:** Product Hunt launch tools, tested on one repo. **Published and updated:** 2026-10-27 (bump both in `src/lib/blog.ts` if it merges on another day). **Byline:** Lucien George. **Reading time:** 21 minutes (4,124 words in the rendered body at 200 words a minute, counted the way `tests/e2e/blog.spec.ts` counts: the innerText of `article > div`, split on whitespace; the e2e suite recounts it).
+**H1:** Product Hunt launch tools, tested on one repo. **Published and updated:** 2026-10-27 (bump both in `src/lib/blog.ts` if it merges on another day). **Byline:** Lucien George. **Reading time:** 21 minutes (4,111 words in the rendered body at 200 words a minute, counted the way `tests/e2e/blog.spec.ts` counts: the innerText of `article > div`, split on whitespace; the e2e suite recounts it).
 
 "Best" appears only in the meta description and the first FAQ question, where it is answered per job rather than with a pick. There are no scores, rankings, winner or percentages (n = 10).
 
@@ -85,7 +85,7 @@ First-party test, run on Tuesday 27 October 2026, Paris time (CET, UTC+1). One r
 
 - **Time (Paris, CET):** 10:07 to 10:09
 - **Input:** Repo URL https://github.com/emilkowalski/sonner (main at the pinned commit).
-- **Counts (ours, `Array.from(text.trim()).length`):** Tagline 54 (tool showed 54/60; match). Brief one-liner 111. First X post 253 code points (not checked against X's weighted count; not used on the page). No description, no maker comment (locked, paid kit). Images: `og` 1200x630, `x` 1600x900, `ph` 1270x760, all with a PREVIEW watermark and a "Free preview · launchloop.dev" badge. On the `ph` image two of three feature lines end in an ellipsis and the browser frame shows a mostly white capture.
+- **Counts (ours, `Array.from(text.trim()).length`):** Tagline 54 (tool showed 54/60; match). Brief one-liner 111. First X post 253 code points (not checked against X's weighted count; not used on the page). No description, no maker comment (locked, paid kit). Images: `og` 1200x630, `x` 1600x900, `ph` 1270x760, all with a PREVIEW watermark and a "Free preview · launchloop.dev" badge. On the `ph` image the browser frame shows a mostly white capture.
 - **Screenshots and files:** `2026-10-27_launchloop_image_og.png`, `_x.png`, `_ph.png` (listed in the output file). Pixel sizes: the saved files weren't in the batch, so the three PNGs were downloaded again from the kit's image routes (`https://launchloop.dev/api/og/dIemCR9Us6mshoORqQ3VHg/{og,x,ph}`) on 27 October 2026 at 10:17 Paris and read with `file`: 1200 x 630, 1600 x 900, 1270 x 760.
 - **Raw output** (`2026-10-27_launchloop_output.txt`, verbatim except as noted at the top of this section):
 
