@@ -1,6 +1,7 @@
 import { parseTweet, regexen } from "twitter-text";
 import { describe, expect, it } from "vitest";
-import { LIMITS, fitToLimit, xLength } from "@/lib/limits";
+import { LIMITS, fitToLimit } from "@/lib/limits";
+import { xLength } from "@/lib/x-length";
 import { X_TLDS } from "@/lib/x-tlds";
 
 /** twitter-text is X's reference counter; it is a dev dependency only, so the browser bundle doesn't ship it or its core-js@2 polyfills. */
