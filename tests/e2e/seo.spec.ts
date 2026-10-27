@@ -254,6 +254,17 @@ test("social image routes answer X-Robots-Tag: noindex, keep their type and cach
   expect(robots).not.toMatch(/Disallow: \/(og|.*image)/);
 });
 
+test("no page's server HTML carries a root-relative string that 404s, which Google would crawl as a link", async ({ request }) => {
+  const { paths } = await sitemapPaths(request);
+  const candidates = new Map<string, string>();
+  for (const path of paths) {
+    const html = (await (await request.get(path)).text()).replaceAll('\\"', '"');
+    for (const [, found] of html.matchAll(/"(\/[A-Za-z0-9][\w.~/-]*)"/g)) if (!candidates.has(found)) candidates.set(found, path);
+  }
+  expect(candidates.size).toBeGreaterThan(10);
+  for (const [found, path] of candidates) expect((await request.get(found, { maxRedirects: 0 })).status(), `"${found}" on ${path}`).not.toBe(404);
+});
+
 test("brand icons, manifest and llms-full.txt", async ({ page, request }) => {
   await page.goto("/");
   await expect(page.locator('link[rel="icon"][type="image/svg+xml"]')).toHaveCount(1);
