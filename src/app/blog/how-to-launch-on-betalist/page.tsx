@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { BlogPostLayout } from "@/components/blog-post-layout";
 import { Faq, type FaqItem } from "@/components/guide-faq";
+import { ScrollTable } from "@/components/scroll-table";
 import { post, postPath } from "@/lib/blog";
 import { postPage } from "@/lib/pages";
 import { blogPageMetadata } from "@/lib/seo";
@@ -469,61 +470,51 @@ export default function BetaListLaunchPostPage() {
         BetaList is built for products that aren&apos;t public yet. Here is how it compares with Product Hunt&apos;s scheduled launches and with two sites from our{" "}
         <Link href={ALTERNATIVES}>Product Hunt alternatives</Link> post, Uneed and Show HN, that founders often try early. Each cell comes from that site&apos;s own pages.
       </p>
-      <div className="@container">
-        {/* The table's min width is 40rem, so the hint only shows while the table is wider than its column. */}
-        <p className="mb-2 text-xs @min-[40rem]:hidden" aria-hidden="true" data-testid="compared-scroll-hint">
-          Scroll sideways to see all columns →
-        </p>
-        <div
-          className="overflow-x-auto rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-          tabIndex={0}
-          role="region"
-          aria-label="Comparison table: BetaList vs other pre-launch options"
-        >
-          <table className="w-full min-w-[40rem] text-left text-sm text-muted-foreground">
-            <caption className="sr-only">Pre-launch options compared: BetaList, Product Hunt&apos;s scheduled launch, Uneed and Show HN</caption>
-            <thead>
-              <tr className="border-b border-border text-foreground">
-                <th scope="col" className="py-2 pr-4 font-medium">Site</th>
-                <th scope="col" className="py-2 pr-4 font-medium">Takes a pre-launch page?</th>
-                <th scope="col" className="py-2 pr-4 font-medium">Price</th>
-                <th scope="col" className="py-2 pr-4 font-medium">Wait</th>
-                <th scope="col" className="py-2 font-medium">Link to your site</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr className="border-b border-border">
-                <th scope="row" className="py-2 pr-4 align-top font-normal">BetaList</th>
-                <td className="py-2 pr-4 align-top">Yes, with a way to sign up</td>
-                <td className="py-2 pr-4 align-top">Paid only; prices shown at the end of the form; full refund if not selected</td>
-                <td className="py-2 pr-4 align-top">About 14, 3 or 1 days to be featured, by plan</td>
-                <td className="py-2 align-top">Do-follow if featured, through a 301 redirect</td>
-              </tr>
-              <tr className="border-b border-border">
-                <th scope="row" className="py-2 pr-4 align-top font-normal">Product Hunt, scheduled launch</th>
-                <td className="py-2 pr-4 align-top">Occasionally; an email sign-up alone isn&apos;t eligible for the homepage</td>
-                <td className="py-2 pr-4 align-top">Free</td>
-                <td className="py-2 pr-4 align-top">You pick a day within 30 days</td>
-                <td className="py-2 align-top">Not stated in its help center</td>
-              </tr>
-              <tr className="border-b border-border">
-                <th scope="row" className="py-2 pr-4 align-top font-normal">Uneed</th>
-                <td className="py-2 pr-4 align-top">No: not behind a waitlist or invite code, even on a paid launch</td>
-                <td className="py-2 pr-4 align-top">Free line; Fast-track $14.99; Skip the waiting line $39.99</td>
-                <td className="py-2 pr-4 align-top">Free: at least 30 days; Fast-track: about 2 weeks; Skip: you pick the date</td>
-                <td className="py-2 align-top">Free: do-follow from an upvote score of 20; Fast-track: from 10; Skip: always</td>
-              </tr>
-              <tr>
-                <th scope="row" className="py-2 pr-4 align-top font-normal">Show HN</th>
-                <td className="py-2 pr-4 align-top">No: no landing pages or sign-up pages</td>
-                <td className="py-2 pr-4 align-top">No fee listed</td>
-                <td className="py-2 pr-4 align-top">No review step described</td>
-                <td className="py-2 align-top">Not stated in its guidelines</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <ScrollTable
+        label="Comparison table: BetaList vs other pre-launch options"
+        caption="Pre-launch options compared: BetaList, Product Hunt's scheduled launch, Uneed and Show HN"
+        hintTestId="compared-scroll-hint"
+      >
+        <thead>
+          <tr className="border-b border-border text-foreground">
+            <th scope="col" className="py-2 pr-4 font-medium">Site</th>
+            <th scope="col" className="py-2 pr-4 font-medium">Takes a pre-launch page?</th>
+            <th scope="col" className="py-2 pr-4 font-medium">Price</th>
+            <th scope="col" className="py-2 pr-4 font-medium">Wait</th>
+            <th scope="col" className="py-2 font-medium">Link to your site</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr className="border-b border-border">
+            <th scope="row" className="py-2 pr-4 align-top font-normal">BetaList</th>
+            <td className="py-2 pr-4 align-top">Yes, with a way to sign up</td>
+            <td className="py-2 pr-4 align-top">Paid only; prices shown at the end of the form; full refund if not selected</td>
+            <td className="py-2 pr-4 align-top">About 14, 3 or 1 days to be featured, by plan</td>
+            <td className="py-2 align-top">Do-follow if featured, through a 301 redirect</td>
+          </tr>
+          <tr className="border-b border-border">
+            <th scope="row" className="py-2 pr-4 align-top font-normal">Product Hunt, scheduled launch</th>
+            <td className="py-2 pr-4 align-top">Occasionally; an email sign-up alone isn&apos;t eligible for the homepage</td>
+            <td className="py-2 pr-4 align-top">Free</td>
+            <td className="py-2 pr-4 align-top">You pick a day within 30 days</td>
+            <td className="py-2 align-top">Not stated in its help center</td>
+          </tr>
+          <tr className="border-b border-border">
+            <th scope="row" className="py-2 pr-4 align-top font-normal">Uneed</th>
+            <td className="py-2 pr-4 align-top">No: not behind a waitlist or invite code, even on a paid launch</td>
+            <td className="py-2 pr-4 align-top">Free line; Fast-track $14.99; Skip the waiting line $39.99</td>
+            <td className="py-2 pr-4 align-top">Free: at least 30 days; Fast-track: about 2 weeks; Skip: you pick the date</td>
+            <td className="py-2 align-top">Free: do-follow from an upvote score of 20; Fast-track: from 10; Skip: always</td>
+          </tr>
+          <tr>
+            <th scope="row" className="py-2 pr-4 align-top font-normal">Show HN</th>
+            <td className="py-2 pr-4 align-top">No: no landing pages or sign-up pages</td>
+            <td className="py-2 pr-4 align-top">No fee listed</td>
+            <td className="py-2 pr-4 align-top">No review step described</td>
+            <td className="py-2 align-top">Not stated in its guidelines</td>
+          </tr>
+        </tbody>
+      </ScrollTable>
       <p>Checked on 25 October 2026.</p>
       <ul>
         <li>

@@ -330,7 +330,7 @@ test("the alternatives post groups sites by fit, prices each one, and never list
   for (const id of ["at-a-glance", "dev-tools", "early-stage", "general", "communities", "choosing"]) await expect(page.locator(`h2#${id}`)).toBeVisible();
   const sites = ["DevHunt", "Show HN", "BetaList", "r/alphaandbetausers", "Uneed", "Fazier", "Tiny Startups", "Microlaunch", "Peerlist Launchpad", "Indie Hackers", "r/SideProject"];
   const rows = page.locator("#at-a-glance + p + div table tbody tr");
-  await expect(rows.locator("td:first-child")).toHaveText(sites);
+  await expect(rows.locator("th:first-child")).toHaveText(sites);
   for (const id of ["devhunt", "show-hn", "betalist", "alphaandbetausers", "uneed", "fazier", "tiny-startups", "microlaunch", "peerlist", "indie-hackers", "sideproject"]) {
     await expect(page.locator(`h3#${id}`)).toBeVisible();
   }
@@ -356,8 +356,8 @@ test("the alternatives post links both free tools where they help, and no other 
 
 test("the alternatives post has Uneed's 21 October prices and wait, dates the table, and keeps the old ones out of the page and JSON-LD", async ({ page }) => {
   await page.goto("/blog/product-hunt-alternatives");
-  const uneed = page.locator("#at-a-glance + p + div table tbody tr", { has: page.locator("td:first-child", { hasText: /^Uneed$/ }) });
-  await expect(uneed.locator("td")).toHaveText(["Uneed", "Free waiting line, at least 30 days out", "Fast-track $14.99, Skip the waiting line $39.99, Relaunch $15"]);
+  const uneed = page.locator("#at-a-glance + p + div table tbody tr", { has: page.locator("th:first-child", { hasText: /^Uneed$/ }) });
+  await expect(uneed.locator("th, td")).toHaveText(["Uneed", "Free waiting line, at least 30 days out", "Fast-track $14.99, Skip the waiting line $39.99, Relaunch $15"]);
   await expect(page.locator("#at-a-glance + p + div + p")).toHaveText("Prices checked on 21 October 2026.");
 
   const body = page.locator("article > div").first();
@@ -372,6 +372,66 @@ test("the alternatives post has Uneed's 21 October prices and wait, dates the ta
   expect(faq.mainEntity.map((q) => q.name)).toEqual(visible);
   for (const q of faq.mainEntity) await expect(body).toContainText(q.acceptedAnswer.text);
 });
+
+test("the alternatives table has a caption, scoped headers and a labelled, focusable scroll region", async ({ page }) => {
+  await page.goto("/blog/product-hunt-alternatives");
+  const region = page.getByRole("region", { name: "Comparison table: free and paid options on each Product Hunt alternative" });
+  await expect(region).toHaveAttribute("tabindex", "0");
+  const table = region.locator("table");
+  await expect(table.locator("caption")).toHaveText("Free or paid, at a glance: each site's free route and the paid options it lists");
+  await expect(table.locator("thead th")).toHaveCount(3);
+  await expect(table.locator('thead th[scope="col"]')).toHaveCount(3);
+  await expect(table.locator("tbody tr")).toHaveCount(11);
+  await expect(table.locator('tbody tr > th[scope="row"]:first-child')).toHaveCount(11);
+  await expect(table.locator("th:not([scope])")).toHaveCount(0);
+  await expect(table.locator("tbody td")).toHaveCount(22);
+  await expect(page.getByRole("rowheader", { name: "Peerlist Launchpad" })).toBeVisible();
+
+  await region.focus();
+  await expect(region).toBeFocused();
+  await expect(page.getByTestId("at-a-glance-scroll-hint")).toBeHidden();
+  expect(await region.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+});
+
+test("at 375 px the alternatives table scrolls sideways, says so, scrolls from the keyboard, and the page doesn't", async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 800 });
+  await page.goto("/blog/product-hunt-alternatives");
+  const region = page.getByRole("region", { name: "Comparison table: free and paid options on each Product Hunt alternative" });
+  await expect(page.getByTestId("at-a-glance-scroll-hint")).toBeVisible();
+  await expect(page.getByTestId("at-a-glance-scroll-hint")).toHaveText("Scroll sideways to see all columns →");
+  expect(await region.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+
+  await region.focus();
+  await page.keyboard.press("ArrowRight");
+  await expect.poll(() => region.evaluate((el) => el.scrollLeft)).toBeGreaterThan(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
+
+for (const { path, name } of [
+  { path: "/blog/product-hunt-alternatives", name: "Comparison table: free and paid options on each Product Hunt alternative" },
+  { path: "/blog/how-to-launch-on-betalist", name: "Comparison table: BetaList vs other pre-launch options" },
+]) {
+  test(`the table scroll region on ${path} shows a focus ring, with an outline for forced-colors mode`, async ({ page }) => {
+    await page.goto(path);
+    const region = page.getByRole("region", { name });
+    const ring = () =>
+      region.evaluate((el) => {
+        const s = getComputedStyle(el);
+        return { focusVisible: el.matches(":focus-visible"), outlineStyle: s.outlineStyle, outlineWidth: s.outlineWidth, outlineColor: s.outlineColor, boxShadow: s.boxShadow };
+      });
+    expect((await ring()).outlineStyle).toBe("none");
+
+    await region.focus();
+    expect(await ring()).toMatchObject({ focusVisible: true, outlineStyle: "solid", outlineWidth: "2px", outlineColor: "rgba(0, 0, 0, 0)" });
+    expect((await ring()).boxShadow).not.toBe("none");
+
+    await page.emulateMedia({ forcedColors: "active" });
+    const forced = await ring();
+    expect(forced).toMatchObject({ outlineStyle: "solid", outlineWidth: "2px" });
+    expect(forced.outlineColor).not.toBe("rgba(0, 0, 0, 0)");
+  });
+}
 
 test("the alternatives post has BetaList's 24 October wording and none of its retired lines, in the page or the JSON-LD", async ({ page }) => {
   await page.goto("/blog/product-hunt-alternatives");

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { BlogPostLayout } from "@/components/blog-post-layout";
 import { Faq, type FaqItem } from "@/components/guide-faq";
+import { ScrollTable } from "@/components/scroll-table";
 import { post, postPath } from "@/lib/blog";
 import { postPage } from "@/lib/pages";
 import { blogPageMetadata } from "@/lib/seo";
@@ -81,74 +82,76 @@ export default function ProductHuntAlternativesPostPage() {
 
       <h2 id="at-a-glance">Free or paid, at a glance</h2>
       <p>What each site&apos;s own pages said about cost. Where a site shows a crossed-out price next to a lower one, the table gives the lower price.</p>
-      <div className="overflow-x-auto">
-        <table className="w-full text-left text-sm text-muted-foreground">
-          <thead>
-            <tr className="border-b border-border text-foreground">
-              <th className="py-2 pr-4 font-medium">Site</th>
-              <th className="py-2 pr-4 font-medium">Free route</th>
-              <th className="py-2 font-medium">Paid options the site lists</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr className="border-b border-border">
-              <td className="py-2 pr-4 align-top">DevHunt</td>
-              <td className="py-2 pr-4 align-top">Free listing with a nofollow link</td>
-              <td className="py-2 align-top">Launch $19, boosted launch $49</td>
-            </tr>
-            <tr className="border-b border-border">
-              <td className="py-2 pr-4 align-top">Show HN</td>
-              <td className="py-2 pr-4 align-top">No fee listed</td>
-              <td className="py-2 align-top">None listed</td>
-            </tr>
-            <tr className="border-b border-border">
-              <td className="py-2 pr-4 align-top">BetaList</td>
-              <td className="py-2 pr-4 align-top">None: all submissions are paid</td>
-              <td className="py-2 align-top">Plans shown only in the submission form; Boost $99/week or $199/month after you are featured</td>
-            </tr>
-            <tr className="border-b border-border">
-              <td className="py-2 pr-4 align-top">r/alphaandbetausers</td>
-              <td className="py-2 pr-4 align-top">No fee listed</td>
-              <td className="py-2 align-top">None listed</td>
-            </tr>
-            <tr className="border-b border-border">
-              <td className="py-2 pr-4 align-top">Uneed</td>
-              <td className="py-2 pr-4 align-top">Free waiting line, at least 30 days out</td>
-              <td className="py-2 align-top">Fast-track $14.99, Skip the waiting line $39.99, Relaunch $15</td>
-            </tr>
-            <tr className="border-b border-border">
-              <td className="py-2 pr-4 align-top">Fazier</td>
-              <td className="py-2 pr-4 align-top">Basic, if you link back to Fazier</td>
-              <td className="py-2 align-top">Lite $29, Premium $49, Super $99</td>
-            </tr>
-            <tr className="border-b border-border">
-              <td className="py-2 pr-4 align-top">Tiny Startups</td>
-              <td className="py-2 pr-4 align-top">Free launch, review queue</td>
-              <td className="py-2 align-top">Skip the queue: £29 on its About page; higher in its terms and submit form</td>
-            </tr>
-            <tr className="border-b border-border">
-              <td className="py-2 pr-4 align-top">Microlaunch</td>
-              <td className="py-2 pr-4 align-top">Not shown on its public pages</td>
-              <td className="py-2 align-top">Launch Pro $39, Launch Plus $79</td>
-            </tr>
-            <tr className="border-b border-border">
-              <td className="py-2 pr-4 align-top">Peerlist Launchpad</td>
-              <td className="py-2 pr-4 align-top">Free, with a verified profile</td>
-              <td className="py-2 align-top">Identity verification has a fee it doesn&apos;t state; workplace verification is free</td>
-            </tr>
-            <tr className="border-b border-border">
-              <td className="py-2 pr-4 align-top">Indie Hackers</td>
-              <td className="py-2 pr-4 align-top">No fee listed</td>
-              <td className="py-2 align-top">None listed</td>
-            </tr>
-            <tr>
-              <td className="py-2 pr-4 align-top">r/SideProject</td>
-              <td className="py-2 pr-4 align-top">No fee listed</td>
-              <td className="py-2 align-top">None listed</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <ScrollTable
+        label="Comparison table: free and paid options on each Product Hunt alternative"
+        caption="Free or paid, at a glance: each site's free route and the paid options it lists"
+        hintTestId="at-a-glance-scroll-hint"
+      >
+        <thead>
+          <tr className="border-b border-border text-foreground">
+            <th scope="col" className="py-2 pr-4 font-medium">Site</th>
+            <th scope="col" className="py-2 pr-4 font-medium">Free route</th>
+            <th scope="col" className="py-2 font-medium">Paid options the site lists</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr className="border-b border-border">
+            <th scope="row" className="py-2 pr-4 align-top font-normal">DevHunt</th>
+            <td className="py-2 pr-4 align-top">Free listing with a nofollow link</td>
+            <td className="py-2 align-top">Launch $19, boosted launch $49</td>
+          </tr>
+          <tr className="border-b border-border">
+            <th scope="row" className="py-2 pr-4 align-top font-normal">Show HN</th>
+            <td className="py-2 pr-4 align-top">No fee listed</td>
+            <td className="py-2 align-top">None listed</td>
+          </tr>
+          <tr className="border-b border-border">
+            <th scope="row" className="py-2 pr-4 align-top font-normal">BetaList</th>
+            <td className="py-2 pr-4 align-top">None: all submissions are paid</td>
+            <td className="py-2 align-top">Plans shown only in the submission form; Boost $99/week or $199/month after you are featured</td>
+          </tr>
+          <tr className="border-b border-border">
+            <th scope="row" className="py-2 pr-4 align-top font-normal">r/alphaandbetausers</th>
+            <td className="py-2 pr-4 align-top">No fee listed</td>
+            <td className="py-2 align-top">None listed</td>
+          </tr>
+          <tr className="border-b border-border">
+            <th scope="row" className="py-2 pr-4 align-top font-normal">Uneed</th>
+            <td className="py-2 pr-4 align-top">Free waiting line, at least 30 days out</td>
+            <td className="py-2 align-top">Fast-track $14.99, Skip the waiting line $39.99, Relaunch $15</td>
+          </tr>
+          <tr className="border-b border-border">
+            <th scope="row" className="py-2 pr-4 align-top font-normal">Fazier</th>
+            <td className="py-2 pr-4 align-top">Basic, if you link back to Fazier</td>
+            <td className="py-2 align-top">Lite $29, Premium $49, Super $99</td>
+          </tr>
+          <tr className="border-b border-border">
+            <th scope="row" className="py-2 pr-4 align-top font-normal">Tiny Startups</th>
+            <td className="py-2 pr-4 align-top">Free launch, review queue</td>
+            <td className="py-2 align-top">Skip the queue: £29 on its About page; higher in its terms and submit form</td>
+          </tr>
+          <tr className="border-b border-border">
+            <th scope="row" className="py-2 pr-4 align-top font-normal">Microlaunch</th>
+            <td className="py-2 pr-4 align-top">Not shown on its public pages</td>
+            <td className="py-2 align-top">Launch Pro $39, Launch Plus $79</td>
+          </tr>
+          <tr className="border-b border-border">
+            <th scope="row" className="py-2 pr-4 align-top font-normal">Peerlist Launchpad</th>
+            <td className="py-2 pr-4 align-top">Free, with a verified profile</td>
+            <td className="py-2 align-top">Identity verification has a fee it doesn&apos;t state; workplace verification is free</td>
+          </tr>
+          <tr className="border-b border-border">
+            <th scope="row" className="py-2 pr-4 align-top font-normal">Indie Hackers</th>
+            <td className="py-2 pr-4 align-top">No fee listed</td>
+            <td className="py-2 align-top">None listed</td>
+          </tr>
+          <tr>
+            <th scope="row" className="py-2 pr-4 align-top font-normal">r/SideProject</th>
+            <td className="py-2 pr-4 align-top">No fee listed</td>
+            <td className="py-2 align-top">None listed</td>
+          </tr>
+        </tbody>
+      </ScrollTable>
       <p>Prices checked on 21 October 2026.</p>
 
       <h2 id="dev-tools">If you built a developer tool</h2>
