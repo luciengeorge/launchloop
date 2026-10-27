@@ -254,4 +254,16 @@ test("an unknown kit id is a real 404 with the not-found page and a link to star
   const kitId = await makeSampleKit(page);
   expect((await page.request.get(`/kit/${kitId}`)).status()).toBe(200);
   expect((await page.request.get(`/kit/${kitId}?unlock=1`)).status()).toBe(200);
+
+  // The trailing-slash form redirects to the slashless one, then answers like it; a path below a kit is no page at all.
+  for (const [id, status] of [
+    [kitId, 200],
+    ["doesNotExist1234567", 404],
+  ] as const) {
+    const redirect = await page.request.get(`/kit/${id}/`, { maxRedirects: 0 });
+    expect(redirect.status(), id).toBe(308);
+    expect(new URL(redirect.headers()["location"], "http://localhost").pathname, id).toBe(`/kit/${id}`);
+    expect((await page.request.get(`/kit/${id}/`)).status(), id).toBe(status);
+    expect((await page.request.get(`/kit/${id}/sub`)).status(), `${id}/sub`).toBe(404);
+  }
 });
