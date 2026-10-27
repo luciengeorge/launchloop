@@ -161,10 +161,9 @@ describe("experiment properties on events", () => {
 
 describe("parseExperiments", () => {
   it("knows each flag's own variants", () => {
-    expect(parseExperiments({ exp_hero_sample_cta: "test", exp_launch14_promo: "treatment", exp_shiploop_success_upsell: "control" })).toEqual({
+    expect(parseExperiments({ exp_hero_sample_cta: "test", exp_launch14_promo: "treatment" })).toEqual({
       exp_hero_sample_cta: "test",
       exp_launch14_promo: "treatment",
-      exp_shiploop_success_upsell: "control",
     });
     expect(parseExperiments({ exp_hero_sample_cta: "treatment", exp_launch14_promo: "test", toString: "control", constructor: "control" })).toEqual({});
   });

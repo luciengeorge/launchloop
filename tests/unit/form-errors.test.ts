@@ -1,10 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { postJson } from "@/lib/client";
-import { loginRequestError, newsletterRequestError, signInCodeError, signInLinkError, waitlistRequestError } from "@/lib/form-errors";
+import { loginRequestError, newsletterRequestError, signInCodeError, signInLinkError } from "@/lib/form-errors";
 import { LOGIN_ERRORS, RESERVED_EMAIL_ERROR, SIGN_IN_LINK_ERRORS } from "@/lib/login-errors";
 import { NEWSLETTER_ERRORS } from "@/lib/newsletter";
-import { WAITLIST_SERVER_ERROR } from "@/lib/waitlist";
-
 /** What a form's postJson to `url` throws when the server answers with `response`. */
 async function failureFrom(url: string, response: Response): Promise<unknown> {
   vi.stubGlobal("fetch", vi.fn(async () => response));
@@ -23,7 +21,6 @@ afterEach(() => {
 const FORMS = [
   { form: "/login", url: "/api/auth/request", shown: loginRequestError, friendly: LOGIN_ERRORS.send, apiMessage: LOGIN_ERRORS.rate },
   { form: "newsletter", url: "/api/newsletter", shown: newsletterRequestError, friendly: NEWSLETTER_ERRORS.server, apiMessage: NEWSLETTER_ERRORS.reserved },
-  { form: "Ship Loop waitlist", url: "/api/waitlist", shown: waitlistRequestError, friendly: WAITLIST_SERVER_ERROR, apiMessage: RESERVED_EMAIL_ERROR },
 ] as const;
 
 describe.each(FORMS)("$form form errors", ({ url, shown, friendly, apiMessage }) => {
