@@ -3,6 +3,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { ShipLoopUpsell } from "@/components/kit/ship-loop-upsell";
 import { EXPERIMENTS } from "@/lib/experiments";
+import { REQUEST_TIMEOUT_MS, singleFlight } from "@/lib/request-guards";
 import { WAITLIST_ERROR_MESSAGES, WAITLIST_SERVER_ERROR } from "@/lib/waitlist";
 
 const posthog = vi.hoisted(() => ({ __loaded: false, init: vi.fn(), register: vi.fn(), capture: vi.fn(), get_distinct_id: () => "ph_page" }));
@@ -226,6 +227,91 @@ describe("waitlist_signup and waitlist_error", () => {
       ["waitlist_error", 429, "rate_limited"],
       ["waitlist_error", 404, "http_error"],
     ]);
+  });
+});
+
+describe("a waitlist request that doesn't answer", () => {
+  /** A fetch that never answers, as a hung /api/waitlist, but rejects like the real one when its signal aborts. */
+  const hungFetch = () =>
+    vi.fn(
+      (_url: string | URL | Request, init?: RequestInit) =>
+        new Promise<Response>((_, reject) => init?.signal?.addEventListener("abort", () => reject(new DOMException("The operation was aborted.", "AbortError")))),
+    );
+
+  it("is aborted after 15s: a network failure with the network copy (the form's Try again), logged once", async () => {
+    const { joinWaitlist } = await landOn();
+    const fetcher = hungFetch();
+    vi.useFakeTimers();
+    try {
+      const joining = joinWaitlist(EMAIL, KIT, fetcher);
+      await vi.advanceTimersByTimeAsync(REQUEST_TIMEOUT_MS - 1);
+      expect(fetcher).toHaveBeenCalledTimes(1);
+      const init = fetcher.mock.calls[0]![1]!;
+      expect(init.signal?.aborted).toBe(false);
+      expect(posthog.capture).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(1);
+      expect(await joining).toEqual({ ok: false, status: 0, reason: "network", message: "We couldn't reach LaunchLoop. Check your connection and try again." });
+      expect(init.signal?.aborted).toBe(true);
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+    await settle();
+    expect(captured()).toEqual([{ name: "waitlist_error", props: { signup_source: "kit_upsell", kitId: KIT.kitId, status: 0, reason: "network" } }]);
+    expect(REQUEST_TIMEOUT_MS).toBe(15_000);
+  });
+
+  it("still gives up at 15s when the answer starts but its body never ends, or the fetch ignores the abort", async () => {
+    const { joinWaitlist } = await landOn();
+    const stalled = vi.fn(async () => new Response(new ReadableStream({ start() {} }), { status: 200, headers: { "Content-Type": "application/json" } }));
+    vi.useFakeTimers();
+    try {
+      const joining = joinWaitlist(EMAIL, KIT, stalled);
+      await vi.advanceTimersByTimeAsync(REQUEST_TIMEOUT_MS);
+      expect(await joining).toMatchObject({ ok: false, status: 0, reason: "network" });
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+    await settle();
+    expect(captured().map((e) => e.name)).toEqual(["waitlist_error"]);
+  });
+
+  it("an answer in time clears the timeout", async () => {
+    const { joinWaitlist } = await landOn();
+    vi.useFakeTimers();
+    try {
+      expect(await joinWaitlist(EMAIL, KIT, respond(200, { ok: true, duplicate: false }))).toEqual({ ok: true, duplicate: false });
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe("one waitlist POST at a time (singleFlight, as the form calls it)", () => {
+  it("two submits in the same task (a double click) send one POST and log one signup; it frees once answered", async () => {
+    const { joinWaitlist } = await landOn();
+    const fetcher = respond(200, { ok: true, duplicate: false });
+    const join = singleFlight(joinWaitlist);
+    const [first, second] = [join(EMAIL, KIT, fetcher), join(EMAIL, KIT, fetcher)];
+    expect(join.inFlight()).toBe(true);
+    expect(second).toBe(first);
+    expect(await first).toEqual({ ok: true, duplicate: false });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    await settle();
+    expect(captured("waitlist_signup")).toHaveLength(1);
+    expect(join.inFlight()).toBe(false);
+    await join(EMAIL, KIT, fetcher);
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
+  it("frees after a failure too, so Try again sends the next one", async () => {
+    const { joinWaitlist } = await landOn();
+    const join = singleFlight(joinWaitlist);
+    expect(await join(EMAIL, KIT, vi.fn(() => Promise.reject(new TypeError("Failed to fetch"))))).toMatchObject({ ok: false, reason: "network" });
+    await settle();
+    expect(join.inFlight()).toBe(false);
   });
 });
 

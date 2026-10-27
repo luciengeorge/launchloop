@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { expect, test, type Page, type Request } from "@playwright/test";
+import { expectHungJoinRecovers, expectOneJoinPerBurst } from "./helpers";
 
 /** Every POST to /api/checkout this page makes. Ship Loop is a free waitlist, so no Ship Loop surface may make one. */
 function recordCheckouts(page: Page): Request[] {
@@ -57,6 +58,17 @@ test("waitlist signup: a server error is shown and the form stays", async ({ pag
   await plans.getByRole("button", { name: "Join the waitlist" }).click();
   await expect(plans.getByRole("alert")).toHaveText("Couldn't add you right now. Please try again.");
   await expect(plans.getByRole("button", { name: "Join the waitlist" })).toBeEnabled();
+});
+
+test("waitlist signup: a request that never answers gives up after 15s with the network error and a working Try again", async ({ page }) => {
+  await page.clock.install();
+  await page.goto("/ship-loop");
+  await expectHungJoinRecovers(page, page.locator("#plans"), `wait-hung-${Date.now()}@example.com`);
+});
+
+test("waitlist signup: two submits in one task, and more while it's out, send exactly one POST", async ({ page }) => {
+  await page.goto("/ship-loop");
+  await expectOneJoinPerBurst(page, page.locator("#plans"), `wait-burst-${Date.now()}@example.com`, "same-task");
 });
 
 test("no Ship Loop surface offers a pre-order or a £99 buy, repeats the old promises, or calls /api/checkout", async ({ page }) => {
