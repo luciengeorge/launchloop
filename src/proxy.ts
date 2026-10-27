@@ -1,7 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { deployEnv } from "@/lib/deploy-env";
 import { kitExists, kitPageExists } from "@/lib/kit-exists";
-import { captureExceptionThrottled } from "@/lib/observability";
 import { POSTHOG_PROXY_PATH } from "@/lib/posthog-config";
 import { SESSION_COOKIE } from "@/lib/session-cookie";
 
@@ -29,6 +28,17 @@ class KitLookupTimeout extends Error {
     super(`Kit existence check took longer than ${KIT_LOOKUP_TIMEOUT_MS}ms`);
     this.name = "KitLookupTimeout";
   }
+}
+
+/**
+ * Sends a failed kit check to Sentry without holding the response: fire and forget, and a failed import or report only
+ * logs. The import is dynamic on purpose: a static one puts @sentry/nextjs in the proxy entry, which every matched
+ * request then loads on a cold start (proxy-imports.test.ts keeps it out).
+ */
+function reportKitLookupFailure(key: string, error: unknown, context: Record<string, unknown>) {
+  import("@/lib/observability")
+    .then(({ captureExceptionThrottled }) => captureExceptionThrottled(key, error, context))
+    .catch((reportError: unknown) => console.error(`[launchloop:error] couldn't report ${key}`, reportError));
 }
 
 /** The existence check a path needs, or undefined for paths that don't name a kit (or won't decode). */
@@ -68,8 +78,8 @@ async function isMissingKit(nextUrl: NextRequest["nextUrl"]): Promise<boolean> {
     return !(await Promise.race([pending, timeout]));
   } catch (error) {
     const { pathname } = nextUrl;
-    if (error instanceof KitLookupTimeout) captureExceptionThrottled("proxy.kit-exists.timeout", error, { pathname, timeoutMs: KIT_LOOKUP_TIMEOUT_MS });
-    else captureExceptionThrottled("proxy.kit-exists", error, { pathname });
+    if (error instanceof KitLookupTimeout) reportKitLookupFailure("proxy.kit-exists.timeout", error, { pathname, timeoutMs: KIT_LOOKUP_TIMEOUT_MS });
+    else reportKitLookupFailure("proxy.kit-exists", error, { pathname });
     return false;
   } finally {
     clearTimeout(timer);

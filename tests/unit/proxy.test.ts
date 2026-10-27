@@ -138,7 +138,7 @@ describe("proxy: unknown kit ids are a real 404", () => {
     expect(await proxy(request(`/kit/${KIT_ID}`))).toBeUndefined();
     expect(await proxy(request("/kit/doesNotExist1234567"))).toBeUndefined();
     expect(await proxy(request("/account/kits/doesNotExist1234567", SIGNED_IN))).toBeUndefined();
-    expect(captureExceptionThrottled).toHaveBeenCalledTimes(3);
+    await vi.waitFor(() => expect(captureExceptionThrottled).toHaveBeenCalledTimes(3));
     expect(captureExceptionThrottled).toHaveBeenCalledWith("proxy.kit-exists", expect.objectContaining({ message: "KV command failed with 503" }), {
       pathname: "/kit/doesNotExist1234567",
     });
@@ -151,7 +151,7 @@ describe("proxy: unknown kit ids are a real 404", () => {
     const elapsed = performance.now() - started;
     expect(elapsed).toBeGreaterThanOrEqual(KIT_LOOKUP_TIMEOUT_MS - 50);
     expect(elapsed).toBeLessThan(KIT_LOOKUP_TIMEOUT_MS + 500);
-    expect(captureExceptionThrottled).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => expect(captureExceptionThrottled).toHaveBeenCalledTimes(1));
     expect(captureExceptionThrottled).toHaveBeenCalledWith("proxy.kit-exists.timeout", expect.objectContaining({ name: "KitLookupTimeout" }), {
       pathname: "/kit/doesNotExist1234567",
       timeoutMs: KIT_LOOKUP_TIMEOUT_MS,
@@ -169,7 +169,7 @@ describe("proxy: unknown kit ids are a real 404", () => {
       fail(new Error("KV command failed with 503"));
       // Vitest fails the run on an unhandled rejection; give one a chance to surface.
       await vi.advanceTimersByTimeAsync(0);
-      expect(captureExceptionThrottled).toHaveBeenCalledTimes(1);
+      await vi.waitFor(() => expect(captureExceptionThrottled).toHaveBeenCalledTimes(1));
 
       // A lookup that answers in time clears its timer.
       vi.mocked(mem.exists).mockResolvedValue(true);
@@ -178,6 +178,26 @@ describe("proxy: unknown kit ids are a real 404", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("a report that throws only logs: the proxy still lets the request through, with no unhandled rejection", async () => {
+    vi.mocked(captureExceptionThrottled).mockImplementation(() => {
+      throw new Error("Sentry is broken");
+    });
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    mem.failing = true;
+    expect(await proxy(request("/kit/doesNotExist1234567"))).toBeUndefined();
+    await vi.waitFor(() => expect(logged).toHaveBeenCalledWith("[launchloop:error] couldn't report proxy.kit-exists", expect.objectContaining({ message: "Sentry is broken" })));
+  });
+
+  it("a slow report doesn't hold the response past the timeout budget", async () => {
+    // A report that never finishes: awaiting it would hold the response forever.
+    vi.mocked(captureExceptionThrottled).mockImplementation(() => new Promise<never>(() => {}) as never);
+    vi.spyOn(mem, "exists").mockImplementation(() => new Promise<boolean>(() => {}));
+    const started = performance.now();
+    expect(await proxy(request("/kit/doesNotExist1234567"))).toBeUndefined();
+    expect(performance.now() - started).toBeLessThan(KIT_LOOKUP_TIMEOUT_MS + 150);
+    await vi.waitFor(() => expect(captureExceptionThrottled).toHaveBeenCalledTimes(1));
   });
 
   it("a path that can't be decoded goes to the page rather than throwing in the proxy, and isn't reported", async () => {
@@ -240,5 +260,25 @@ describe("kit existence checks", () => {
       expect(await kitPageExists(id)).toBe(false);
     }
     expect(exists).not.toHaveBeenCalled();
+  });
+});
+
+// Last: it resets the module registry, so later tests would see a different observability mock.
+describe("proxy: reporting a failed kit check", () => {
+  it("observability that fails to load only logs: the proxy still lets the request through", async () => {
+    vi.resetModules();
+    vi.doMock("@/lib/observability", () => {
+      throw new Error("chunk failed to load");
+    });
+    try {
+      const fresh = await import("@/proxy");
+      const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+      mem.failing = true;
+      expect(await fresh.proxy(request("/kit/doesNotExist1234567"))).toBeUndefined();
+      await vi.waitFor(() => expect(logged).toHaveBeenCalledWith("[launchloop:error] couldn't report proxy.kit-exists", expect.anything()));
+    } finally {
+      vi.doUnmock("@/lib/observability");
+      vi.resetModules();
+    }
   });
 });
