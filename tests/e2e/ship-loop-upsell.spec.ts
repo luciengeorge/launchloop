@@ -1,5 +1,5 @@
 import { expect, test, type BrowserContext, type Locator, type Page, type Request, type Route } from "@playwright/test";
-import { logIn, makeSampleKit, payKit, uniqueEmail } from "./helpers";
+import { expectHungJoinRecovers, expectOneJoinPerBurst, logIn, makeSampleKit, payKit, uniqueEmail } from "./helpers";
 
 const FIXTURE = "http://127.0.0.1:3419";
 
@@ -186,6 +186,79 @@ for (const [label, ask, delayMs] of [
     expect(await waitlistEvents(page, kitId)).toEqual([]);
   });
 }
+
+test("a join the server never answers gives up after 15s: the network error with a working Try again, never a stuck 'Joining…'", async ({ page }) => {
+  await payForKit(page, "upsell-hung");
+  await page.clock.install();
+  await page.reload();
+  await expectHungJoinRecovers(page, page.getByTestId("ship-loop-upsell"), uniqueEmail("upsell-hung-waitlist"));
+});
+
+test("a double click, and more submits while it's out, send exactly one POST", async ({ page }) => {
+  await payForKit(page, "upsell-burst");
+  await expectOneJoinPerBurst(page, page.getByTestId("ship-loop-upsell"), uniqueEmail("upsell-burst-waitlist"), "dblclick");
+});
+
+test("the ask stays while the buyer types: a router.refresh() that reads the kill switch as off doesn't hide it; the next visit does", async ({ page }) => {
+  const kitId = await payForKit(page, "upsell-refresh");
+  const upsell = page.getByTestId("ship-loop-upsell");
+  const field = upsell.getByRole("textbox", { name: "Email" });
+  await field.fill("half-typed@exam");
+
+  await setWaitlistAsk(page, kitId, false);
+  // What GenerationPoller does as each section lands: the server renders the page again, and reads the flag again.
+  const refreshed = page.waitForResponse((res) => res.request().headers()["rsc"] === "1" && new URL(res.url()).pathname === `/account/kits/${kitId}`);
+  await page.evaluate(() => (window as unknown as { next: { router: { refresh(): void } } }).next.router.refresh());
+  expect(await (await refreshed).text(), "the refresh's render read the kill switch as off").toContain('"enabled":false');
+  await page.waitForTimeout(500);
+  await expect(upsell).toBeVisible();
+  await expect(field).toHaveValue("half-typed@exam");
+  await expect(field).toBeFocused();
+
+  // Off still takes effect: from the next visit.
+  await page.reload();
+  await expect(page.getByTestId("stage-tab-Product Hunt")).toBeVisible();
+  await page.waitForLoadState("networkidle");
+  await expect(page.getByTestId("ship-loop-upsell")).toHaveCount(0);
+});
+
+test("the ask is the buyer's alone: signed out or signed in as someone else, ?paid=1 shows none, with the usual login redirect or 404", async ({ page, browser }) => {
+  const kitId = await payForKit(page, "upsell-owner");
+  await expect(page.getByTestId("ship-loop-upsell")).toBeVisible();
+  const accountPaid = `/account/kits/${kitId}?paid=1`;
+  // The private link renders the paid kit for anyone who has it: only the owner check keeps the ask off it.
+  const privatePaid = `/kit/${kitId}?paid=1`;
+  const noAsk = async (visitor: Page, label: string) => {
+    await visitor.waitForLoadState("networkidle");
+    await expect(visitor.getByTestId("ship-loop-upsell"), label).toHaveCount(0);
+    await expect(visitor.getByTestId("waitlist-form"), label).toHaveCount(0);
+  };
+
+  const signedOut = await browser.newContext();
+  const anon = await signedOut.newPage();
+  await anon.goto(accountPaid);
+  await anon.waitForURL(/\/login\?next=/);
+  expect(new URL(anon.url()).searchParams.get("next")).toBe(`/account/kits/${kitId}`);
+  await noAsk(anon, "signed out, /account");
+  await anon.goto(privatePaid);
+  await expect(anon.getByTestId("stage-tab-Product Hunt")).toBeVisible();
+  await noAsk(anon, "signed out, private link");
+  expect(await (await anon.request.get(privatePaid)).text()).not.toContain('data-testid="ship-loop-upsell"');
+  await signedOut.close();
+
+  const otherAccount = await browser.newContext();
+  const other = await otherAccount.newPage();
+  await logIn(other, uniqueEmail("upsell-not-owner"));
+  await other.goto(accountPaid);
+  await expect(other).toHaveTitle("Page not found · LaunchLoop");
+  await expect(other.getByRole("heading", { name: "This page doesn't exist" })).toBeVisible();
+  await noAsk(other, "another account, /account");
+  await other.goto(privatePaid);
+  await expect(other.getByTestId("stage-tab-Product Hunt")).toBeVisible();
+  await noAsk(other, "another account, private link");
+  expect(await (await other.request.get(privatePaid)).text()).not.toContain('data-testid="ship-loop-upsell"');
+  await otherAccount.close();
+});
 
 test("QA traffic: a tab that landed with ?qa=1 tags the waitlist events is_test, through login and checkout", async ({ page }) => {
   const kitId = await payForKit(page, "upsell-qa", { landing: "/?qa=1" });
