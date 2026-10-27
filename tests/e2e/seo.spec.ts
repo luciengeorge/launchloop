@@ -113,6 +113,7 @@ test("sitemap lists every indexable page once, with lastmod, and no redirecting 
     "/tools",
     "/tools/product-hunt-tagline-checker",
     "/tools/og-preview",
+    "/tools/show-hn-title-checker",
     "/product-hunt-launch-checklist",
     "/how-to-launch-a-vibe-coded-app",
     "/how-to-promote-on-reddit",
