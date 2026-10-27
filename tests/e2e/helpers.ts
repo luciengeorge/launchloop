@@ -1,4 +1,5 @@
 import { expect, type APIRequestContext, type Locator, type Page } from "@playwright/test";
+import { NEWSLETTER_ERRORS } from "../../src/lib/newsletter";
 
 export const uniqueEmail = (tag: string) => `${tag}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@example.com`;
 
@@ -154,4 +155,39 @@ export async function unlockAndPay(page: Page, kitId: string, email: string) {
   await expect(page.getByLabel("Email for your receipt and kit")).toHaveValue(email);
   await page.getByRole("button", { name: /Pay £19/ }).click();
   await page.waitForURL(new RegExp(`/account/kits/${kitId}\\?paid=1`));
+}
+
+/** What a browser's fetch says when the connection fails, or a raw HTTP status: never shown to a visitor. */
+export const RAW_REQUEST_ERROR = /Failed to fetch|TypeError|NetworkError|Load failed|Request failed \(/;
+
+/**
+ * Submits the newsletter form in `scope` while /api/newsletter fails at the network level, as a dropped connection
+ * does, and checks the visitor sees the friendly copy, keeps what they typed and can retry. Then lets the request
+ * through and checks the retry subscribes.
+ */
+export async function expectNewsletterSurvivesNetworkFailure(page: Page, scope: Locator, { label, button }: { label: string; button: string }) {
+  let offline = true;
+  await page.route("**/api/newsletter", (route) => (offline ? route.abort("failed") : route.continue()));
+  // Before hydration the form would post natively instead of through fetch.
+  await expect(page.locator('p[id^="newsletter-"]')).toHaveCount(0);
+  const email = uniqueEmail("offline-news");
+  const field = scope.getByLabel(label);
+  const submit = scope.getByRole("button", { name: button });
+  await field.fill(email);
+  await submit.click();
+
+  const alert = scope.getByRole("alert");
+  await expect(alert).toHaveText(NEWSLETTER_ERRORS.server);
+  await expect(alert).toContainText(/try again/i);
+  await expect(page.locator("body")).not.toContainText(RAW_REQUEST_ERROR);
+  await expect(field).toHaveValue(email);
+  await expect(field).toHaveAttribute("aria-invalid", "true");
+  expect((await field.getAttribute("aria-describedby"))?.split(" ")).toContain(await alert.getAttribute("id"));
+  await expect(submit).toBeEnabled();
+  await expect(submit).toHaveText(button);
+
+  offline = false;
+  await submit.click();
+  await expect(scope.getByRole("status")).toHaveAttribute("data-welcome", "sent");
+  await expect(scope.getByRole("alert")).toHaveCount(0);
 }
