@@ -26,8 +26,12 @@ const PATH_END = String.raw`(?:[+\-a-z${CYRILLIC}0-9=_#/${LATIN_ACCENTS}]|${PARE
 const PATH = `(?:(?:${PATH_CHAR}*(?:${PARENS}${PATH_CHAR}*)*${PATH_END})|(?:@${PATH_CHAR}+/))`;
 const QUERY_CHARS = String.raw`[a-z0-9!?*'@();:&=+$/%#\[\]\-_.,~|]`;
 const QUERY_END = String.raw`[a-z0-9\-_&=#/]`;
+/*
+ * `^` must stay the last alternative of the preceding-character group, as in twitter-text: a non-ASCII first character
+ * ("über.com") is then taken as the preceding character, so X links only "ber.com" and counts the "ü" as well.
+ */
 const URL_RE = new RegExp(
-  String.raw`(^|[^A-Za-z0-9@＠$#＃${INVALID}]|[${DIRECTIONAL}])((https?:\/\/)?(${DOMAIN})(?::[0-9]+)?(\/${PATH}*)?(?:\?${QUERY_CHARS}*${QUERY_END})?)`,
+  String.raw`([^A-Za-z0-9@＠$#＃${INVALID}]|[${DIRECTIONAL}]|^)((https?:\/\/)?(${DOMAIN})(?::[0-9]+)?(\/${PATH}*)?(?:\?${QUERY_CHARS}*${QUERY_END})?)`,
   "gi",
 );
 const ASCII_DOMAIN = new RegExp(String.raw`(?:[\-a-z0-9${LATIN_ACCENTS}]+\.)+${TLD}`, "gi");
