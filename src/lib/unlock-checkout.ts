@@ -1,6 +1,7 @@
 import { track } from "./analytics";
 import { CHECKOUT_UNAVAILABLE_MESSAGE } from "./checkout-session";
 import { ApiError, startCheckout } from "./client";
+import { REQUEST_TIMEOUT_MS, RequestTimeoutError, withTimeout } from "./request-guards";
 
 /** Where an unlock button sits on the kit paywall: under its heading, the sticky bar below lg, or the panel beside it. */
 export type UnlockCtaPosition = "top" | "sticky" | "panel";
@@ -38,14 +39,7 @@ export interface CheckoutFailure {
 }
 
 /** Past this, a checkout that hasn't started is abandoned and shown as a network failure, with Try again. */
-export const CHECKOUT_TIMEOUT_MS = 15_000;
-
-class CheckoutTimeoutError extends Error {
-  constructor() {
-    super(`Checkout didn't answer within ${CHECKOUT_TIMEOUT_MS / 1000}s`);
-    this.name = "CheckoutTimeoutError";
-  }
-}
+export const CHECKOUT_TIMEOUT_MS = REQUEST_TIMEOUT_MS;
 
 const NETWORK_MESSAGE = "We couldn't reach checkout. Check your connection and try again.";
 const SERVER_MESSAGE = "Couldn't start checkout. Please try again.";
@@ -58,7 +52,7 @@ const KIT_MISSING_MESSAGE = "That kit doesn't exist any more. Generate a new pre
  * gateway's in front of it, so it always offers the email-us link.
  */
 export function checkoutFailure(error: unknown): CheckoutFailure {
-  if (error instanceof CheckoutTimeoutError) return { code: "network", message: NETWORK_MESSAGE };
+  if (error instanceof RequestTimeoutError) return { code: "network", message: NETWORK_MESSAGE };
   if (!(error instanceof ApiError)) return error instanceof TypeError ? { code: "network", message: NETWORK_MESSAGE } : { code: "unknown", message: SERVER_MESSAGE };
   const said = error.serverMessage;
   if (error.status === 503 || error.code === "checkout_unavailable") return { code: "checkout_unavailable", message: said ?? CHECKOUT_UNAVAILABLE_MESSAGE };
@@ -102,33 +96,6 @@ export type CheckoutOutcome =
   | { kind: "cancelled" };
 
 /**
- * At most one `run` at a time: a call while one is in flight gets that call's promise instead of starting another. The
- * flag is set synchronously, before `run` reaches its first await, so two clicks in the same task (a double click, or
- * two buttons) make one request. It clears once `run` settles, unless `holdWhile` says the result keeps it busy (the
- * page is already on its way to Stripe).
- */
-export function singleFlight<A extends unknown[], R>(run: (...args: A) => Promise<R>, { holdWhile }: { holdWhile?: (result: R) => boolean } = {}) {
-  let current: Promise<R> | null = null;
-  const call = (...args: A): Promise<R> => {
-    if (current) return current;
-    const started = run(...args);
-    current = started;
-    started.then(
-      (result) => {
-        if (current === started && !holdWhile?.(result)) current = null;
-      },
-      () => {
-        if (current === started) current = null;
-      },
-    );
-    return started;
-  };
-  // reset: the page came back (bfcache) after a run that held it, so nothing is in flight any more. A late settle of
-  // that run can't free a newer one: each settle only clears its own.
-  return Object.assign(call, { inFlight: () => current !== null, reset: () => void (current = null) });
-}
-
-/**
  * Starts the kit's Checkout the one way every unlock button does, and logs a failure (checkout_failed). `promo`: the
  * page is showing the LAUNCH14 price. Doesn't navigate: the caller sends the buyer to `url`. After CHECKOUT_TIMEOUT_MS
  * the request is aborted and it's a network failure; `signal` (the caller unmounting) cancels it without one.
@@ -138,27 +105,9 @@ export async function runCheckout(
   { promo, retry }: { promo: boolean; retry: boolean },
   { signal }: { signal?: AbortSignal } = {},
 ): Promise<CheckoutOutcome> {
-  const controller = new AbortController();
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  let cancel = () => {};
-  // Raced against the whole start, not just the fetch: startCheckout first waits for the analytics id (the PostHog SDK).
-  const stopped = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => {
-      controller.abort();
-      reject(new CheckoutTimeoutError());
-    }, CHECKOUT_TIMEOUT_MS);
-    cancel = () => {
-      controller.abort();
-      reject(signal?.reason);
-    };
-  });
-  if (signal?.aborted) cancel();
-  else signal?.addEventListener("abort", cancel, { once: true });
-  const request = startCheckout("kit", context.kitId, {}, { signal: controller.signal });
-  // Once the race is decided the loser may still reject (an aborted fetch): nothing is listening for it.
-  request.catch(() => {});
   try {
-    const { url, promo: outcome } = await Promise.race([request, stopped]);
+    // Timed over the whole start, not just the fetch: startCheckout first waits for the analytics id (the PostHog SDK).
+    const { url, promo: outcome } = await withTimeout((timeout) => startCheckout("kit", context.kitId, {}, { signal: timeout }), { timeoutMs: CHECKOUT_TIMEOUT_MS, signal });
     if (!url) throw new ApiError(SERVER_MESSAGE, 502);
     if (outcome === "unavailable" || (promo && outcome !== "applied")) return { kind: "full_price", url };
     return { kind: "redirect", url };
@@ -167,8 +116,5 @@ export async function runCheckout(
     const failure = checkoutFailure(error);
     track("checkout_failed", { ...context, viewport: paywallViewport(), code: failure.code, retry });
     return { kind: "failed", failure };
-  } finally {
-    clearTimeout(timer);
-    signal?.removeEventListener("abort", cancel);
   }
 }
