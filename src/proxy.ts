@@ -55,10 +55,14 @@ function reportKitLookupFailure(key: string, error: unknown, context: Record<str
   }
 }
 
-/** Its own message, so Sentry's dedupe doesn't drop it as a repeat of the page's report of the same store error. */
+/**
+ * The store error as its own exception, without `cause`: Sentry's dedupe compares the innermost linked error, so a
+ * chained "fetch failed" would be dropped as a repeat of the page's own report of the same store error.
+ */
 class KitLookupError extends Error {
-  constructor(cause: unknown) {
-    super("Kit existence check failed", { cause });
+  constructor(error: unknown) {
+    const reason = (e: unknown) => (e instanceof Error ? `${e.message}${e.cause instanceof Error ? ` (${e.cause.message})` : ""}` : String(e));
+    super(`Kit existence check failed: ${reason(error)}`);
     this.name = "KitLookupError";
   }
 }

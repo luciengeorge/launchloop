@@ -141,11 +141,13 @@ describe("proxy: unknown kit ids are a real 404", () => {
     await vi.waitFor(() => expect(captureExceptionThrottled).toHaveBeenCalledTimes(3));
     expect(captureExceptionThrottled).toHaveBeenCalledWith(
       "proxy.kit-exists",
-      expect.objectContaining({ name: "KitLookupError", cause: expect.objectContaining({ message: "KV command failed with 503" }) }),
+      expect.objectContaining({ name: "KitLookupError", message: "Kit existence check failed: KV command failed with 503" }),
       {
         pathname: "/kit/doesNotExist1234567",
       },
     );
+    // No linked cause: Sentry's dedupe would compare it with the page's own report of the same store error.
+    expect(vi.mocked(captureExceptionThrottled).mock.calls.every(([, error]) => !(error as Error).cause)).toBe(true);
   });
 
   it("a store that never answers doesn't hold the page up: the proxy lets it through after KIT_LOOKUP_TIMEOUT_MS and reports a timeout", async () => {
