@@ -1,9 +1,10 @@
 import "server-only";
-import { LIMITS, charLength, containsVoteBegging, fitToLimit, stripVoteBegging, xLength } from "./limits";
+import { LIMITS, charLength, containsVoteBegging, fitToLimit, stripVoteBegging } from "./limits";
 import { LlmError, NO_DASHES_RULE, OUTPUT_TOKENS, generateStructured } from "./llm";
 import { z } from "zod";
 import { kitContentSchema, previewSchema, type Brief, type KitContent, type KitSection, type Preview } from "./schema";
 import { checkTagline, taglineProblems } from "./tagline-check";
+import { xLength } from "./x-length";
 
 const BANNED_PHRASES = [
   "revolutioniz",

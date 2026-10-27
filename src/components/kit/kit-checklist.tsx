@@ -9,8 +9,9 @@ import { StartLink } from "@/components/start-link";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { IMAGE_VARIANTS, kitImageUrl } from "@/lib/image-variants";
-import { charLength, xLength } from "@/lib/limits";
+import { charLength } from "@/lib/limits";
 import { PIPELINE_STAGES, TASK_GROUPS, currentStageIndex, type KitTask, type TaskGroup } from "@/lib/tasks";
+import { xLength } from "@/lib/x-length";
 import { Confetti } from "./confetti";
 
 interface Props {

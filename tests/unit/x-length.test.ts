@@ -1,6 +1,7 @@
 import { parseTweet, regexen } from "twitter-text";
 import { describe, expect, it } from "vitest";
-import { LIMITS, fitToLimit, xLength } from "@/lib/limits";
+import { LIMITS, fitToLimit } from "@/lib/limits";
+import { xLength } from "@/lib/x-length";
 import { X_TLDS } from "@/lib/x-tlds";
 
 /** twitter-text is X's reference counter; it is a dev dependency only, so the browser bundle doesn't ship it or its core-js@2 polyfills. */
@@ -42,6 +43,11 @@ describe("xLength", () => {
     "https://t.co/abc123/extra",
     "https://example.com/wiki/Foo_(bar) and https://example.com/a?b=c&d=e.",
     "münchen.de is a link, 例子.中国 is not one without https",
+    "über.com is where it starts",
+    "über.com/path",
+    "Ölbär.de and über.com",
+    "Mid-post über.com link",
+    "After punctuation: (über.com), see:über.com, “über.com”.",
     "Café crème at café.fr: déjà vu",
     "日本語のテキスト launchloop.dev 中文",
     "Price: £14, launch on 26 Oct. ‘Quotes’ “and” dashes – fine…",
