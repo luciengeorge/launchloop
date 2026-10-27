@@ -222,7 +222,7 @@ export default function ProductHuntLaunchToolsPostPage() {
         the paid kit, which we didn&apos;t buy, so LaunchLoop gets None in those columns like every other tool whose free tier lacks them.
       </p>
       <p>
-        <strong>What we noticed:</strong> on the Product Hunt image, the browser frame showed a mostly white capture of the homepage.
+        <strong>What we noticed:</strong> each of the three images, at 1200x630, 1600x900 and 1270x760, carried a PREVIEW watermark and a free preview badge.
       </p>
 
       <h3 id="startkitz">StartKitz</h3>
