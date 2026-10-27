@@ -132,7 +132,7 @@ export default async function ShowHnTitleCheckerPage() {
       </div>
       <ol className="mt-5 grid max-w-3xl gap-3" data-testid="showhn-rules">
         {rules.map((r) => (
-          <li key={r.id} id={`rule-${r.id}`} data-rule={r.id} className="rounded-xl border border-border bg-card p-4">
+          <li key={r.id} id={`rule-${r.id}`} data-rule={r.id} className="scroll-mt-20 rounded-xl border border-border bg-card p-4">
             <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
               <span className="font-medium">{r.name}</span>
               <span className="rounded-full border border-border px-1.5 py-px text-[0.6875rem] font-medium uppercase tracking-wide">HN rule</span>

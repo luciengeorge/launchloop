@@ -90,6 +90,7 @@ export function ShowHnChecker() {
   const ruleWarnings = result.checks.filter((c) => c.kind === "rule" && c.status === "warn").length;
   const tipWarnings = result.checks.filter((c) => c.kind === "tip" && c.status === "warn").length;
   const empty = result.checks.length === 0;
+  const ordered = [...result.checks.filter((c) => c.status === "warn"), ...result.checks.filter((c) => c.status === "pass")];
 
   return (
     <div className="space-y-6" data-testid="showhn-checker">
@@ -155,7 +156,7 @@ export function ShowHnChecker() {
         </p>
         {empty ? null : (
           <ul className="mt-4 space-y-4" data-testid="showhn-checks">
-            {result.checks.map((c) => (
+            {ordered.map((c) => (
               <CheckItem key={c.id} check={c} />
             ))}
           </ul>

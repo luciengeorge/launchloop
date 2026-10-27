@@ -95,6 +95,8 @@ test("a failing title and text: each broken rule warns, tips are labelled, and t
   await expect(verdict).toHaveAttribute("data-verdict", "warn");
   await expect(verdict).toHaveText("3 HN rules to look at.");
   for (const id of ["caps", "hype", "exclaim"]) await expect(page.locator(`[data-check="${id}"]`)).toHaveAttribute("data-status", "warn");
+  const statuses = await page.getByTestId("showhn-checks").locator(":scope > li").evaluateAll((items) => items.map((li) => li.getAttribute("data-status")));
+  expect(statuses).toEqual([...statuses].sort((a, b) => (a === b ? 0 : a === "warn" ? -1 : 1)));
   await expect(page.locator('[data-check="caps"]')).toContainText("Capitals: “GRIDCAST”");
   await expect(page.locator('[data-check="hype"]')).toContainText("Hype: “best”");
   await expect(page.getByTestId("showhn-checker").locator('a[href="/show-hn-launch-checklist"]')).toHaveCount(0);
