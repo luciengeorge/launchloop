@@ -254,8 +254,8 @@ export default function BetaListLaunchPostPage() {
         </li>
         <li>
           <strong>Pitch</strong> (required, 75 characters, one sentence).{" "}
-          <q>A single, plain sentence that makes it immediately obvious what your product does.</q> A pitch packed with several clauses is{" "}
-          <q>the single most common edit we make</q>.
+          <q>A single, plain sentence that makes it immediately obvious what your product does.</q>{" "}
+          <q>A packed-in pitch is the single most common edit we make</q>.
         </li>
         <li>
           <strong>Description</strong> (required, 700 characters, plain text).{" "}
@@ -575,7 +575,7 @@ export default function BetaListLaunchPostPage() {
       <h2 id="sources">Sources</h2>
       <p>
         Checked as of October 2026. Every BetaList quote and price on this page was read on BetaList&apos;s own pages on 24 October 2026 and found unchanged on 25 October
-        2026. The comparison table&apos;s Product Hunt, Uneed and Show HN facts were read on those sites&apos; own pages on 25 October 2026. These sites change their plans
+        2026. The submission guide was read again on 26 October 2026. The comparison table&apos;s Product Hunt, Uneed and Show HN facts were read on those sites&apos; own pages on 25 October 2026. These sites change their plans
         and pages without notice, so check the links before you submit.
       </p>
       <ul>

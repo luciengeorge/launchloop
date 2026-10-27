@@ -65,7 +65,7 @@ const FAQ: FaqItem[] = [
   },
   {
     q: "Can I launch the same product on Product Hunt again?",
-    a: "Yes, for a significant update. Product Hunt asks makers to wait at least six months between posts for the same product or company. Within six months you have to submit a relaunch request describing what changed, and new UIs or pricing changes don't count as significant.",
+    a: "Yes, for a significant update. Product Hunt asks makers to wait at least two months between posts for the same product or company, and products on the same root domain need the same two-month gap. Within two months you have to submit a relaunch request describing what changed, and new UIs or pricing changes don't count as significant.",
   },
 ];
 
@@ -158,9 +158,10 @@ export default function ProductHuntLaunchPostPage() {
           your goals.
         </li>
         <li>
-          <strong>A launch spends your next six months.</strong> The <a href={SRC.relaunch}>relaunch article</a> says{" "}
-          <q>we ask Makers to wait at least six months between posts for the same product or from the same company.</q> Earlier relaunches need a request and a significant
-          update, so a half-ready launch has a cost.
+          <strong>A launch spends your next two months.</strong> The <a href={SRC.relaunch}>relaunch article</a> says{" "}
+          <q>we ask Makers to wait at least two months between posts for the same product or from the same company.</q> The gap covers your other products too:{" "}
+          <q>Products that share the same root domain must adhere to a two-month submission gap.</q> Earlier relaunches need a request and a significant update, so a
+          half-ready launch has a cost.
         </li>
         <li>
           <strong>First place isn&apos;t the only outcome that counts.</strong> Product Hunt calls it a myth that a launch is only worth it at number one:{" "}
@@ -371,7 +372,7 @@ export default function ProductHuntLaunchPostPage() {
           <q>Announce new updates in the Forums to reach new users.</q>
         </li>
         <li>
-          <strong>The next launch is for the next big change.</strong> <q>You can launch again every time you ship a major feature or update.</q> Within six months that means a
+          <strong>The next launch is for the next big change.</strong> <q>You can launch again every time you ship a major feature or update.</q> Within two months that means a
           relaunch request, and <q>New UIs, pricing plan changes, etc. are not considered significant updates.</q>
         </li>
       </ul>
@@ -392,8 +393,9 @@ export default function ProductHuntLaunchPostPage() {
 
       <h2 id="sources">Sources</h2>
       <p>
-        Checked as of October 2026. Every quote on this page was read on Product Hunt&apos;s help center and on producthunt.com on 20 October 2026. Product Hunt&apos;s pages
-        don&apos;t always agree with each other, and they change without notice, so check the links before you launch.
+        Checked as of October 2026. Every quote on this page was read on Product Hunt&apos;s help center and on producthunt.com on 20 October 2026, apart from the relaunch
+        article, which was read again on 26 October 2026 after Product Hunt shortened its gap between launches from six months to two. Product Hunt&apos;s pages don&apos;t
+        always agree with each other, and they change without notice, so check the links before you launch.
       </p>
       <ul>
         <li><a href={SRC.launchGuide}>Launch Guide</a>, Product Hunt Help Center</li>
@@ -412,7 +414,7 @@ export default function ProductHuntLaunchPostPage() {
         <li><a href={SRC.featuring}>Product Hunt Featuring Guidelines</a>, Product Hunt Help Center (dated March 2026)</li>
         <li><a href={SRC.unreleased}>Can I submit an unreleased product?</a>, Product Hunt Help Center (dated February 2025)</li>
         <li><a href={SRC.productOfTheDay}>Product of the Day, Week, &amp; Month</a>, Product Hunt Help Center (dated July 2025)</li>
-        <li><a href={SRC.relaunch}>Can I relaunch my product?</a>, Product Hunt Help Center (dated July 2026)</li>
+        <li><a href={SRC.relaunch}>Can I relaunch my product?</a>, Product Hunt Help Center (updated October 2026)</li>
         <li><a href={SRC.forums}>Maker&apos;s guide to Product Forums</a>, Product Hunt Help Center (dated May 2025)</li>
         <li><a href={SRC.howItWorks}>How Product Hunt works</a>, Product Hunt launch guide</li>
         <li><a href={SRC.beforeLaunch}>Before launch</a>, Product Hunt launch guide</li>
