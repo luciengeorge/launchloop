@@ -55,6 +55,14 @@ function reportKitLookupFailure(key: string, error: unknown, context: Record<str
   }
 }
 
+/** Its own message, so Sentry's dedupe doesn't drop it as a repeat of the page's report of the same store error. */
+class KitLookupError extends Error {
+  constructor(cause: unknown) {
+    super("Kit existence check failed", { cause });
+    this.name = "KitLookupError";
+  }
+}
+
 /** The existence check a path needs, or undefined for paths that don't name a kit (or won't decode). */
 function kitLookup({ pathname, searchParams }: NextRequest["nextUrl"]): (() => Promise<boolean>) | undefined {
   try {
@@ -93,7 +101,7 @@ async function isMissingKit(nextUrl: NextRequest["nextUrl"]): Promise<boolean> {
   } catch (error) {
     const { pathname } = nextUrl;
     if (error instanceof KitLookupTimeout) reportKitLookupFailure("proxy.kit-exists.timeout", error, { pathname, timeoutMs: KIT_LOOKUP_TIMEOUT_MS });
-    else reportKitLookupFailure("proxy.kit-exists", error, { pathname });
+    else reportKitLookupFailure("proxy.kit-exists", new KitLookupError(error), { pathname });
     return false;
   } finally {
     clearTimeout(timer);

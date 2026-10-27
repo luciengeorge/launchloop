@@ -139,9 +139,13 @@ describe("proxy: unknown kit ids are a real 404", () => {
     expect(await proxy(request("/kit/doesNotExist1234567"))).toBeUndefined();
     expect(await proxy(request("/account/kits/doesNotExist1234567", SIGNED_IN))).toBeUndefined();
     await vi.waitFor(() => expect(captureExceptionThrottled).toHaveBeenCalledTimes(3));
-    expect(captureExceptionThrottled).toHaveBeenCalledWith("proxy.kit-exists", expect.objectContaining({ message: "KV command failed with 503" }), {
-      pathname: "/kit/doesNotExist1234567",
-    });
+    expect(captureExceptionThrottled).toHaveBeenCalledWith(
+      "proxy.kit-exists",
+      expect.objectContaining({ name: "KitLookupError", cause: expect.objectContaining({ message: "KV command failed with 503" }) }),
+      {
+        pathname: "/kit/doesNotExist1234567",
+      },
+    );
   });
 
   it("a store that never answers doesn't hold the page up: the proxy lets it through after KIT_LOOKUP_TIMEOUT_MS and reports a timeout", async () => {
