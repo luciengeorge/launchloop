@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { deployEnv } from "@/lib/deploy-env";
 import { kitExists, kitPageExists } from "@/lib/kit-exists";
+import { captureExceptionThrottled } from "@/lib/observability";
 import { POSTHOG_PROXY_PATH } from "@/lib/posthog-config";
 import { SESSION_COOKIE } from "@/lib/session-cookie";
 
@@ -20,26 +21,58 @@ const NOT_FOUND_PATH = "/_not-found-rewrite";
 const KIT_PAGE = /^\/kit\/([^/]+)$/;
 const ACCOUNT_KIT_PAGE = /^\/account\/kits\/([^/]+)$/;
 
+/** The kit pages stream their skeleton in well under this; a store slower than that shouldn't hold every kit view up. */
+export const KIT_LOOKUP_TIMEOUT_MS = 1500;
+
+class KitLookupTimeout extends Error {
+  constructor() {
+    super(`Kit existence check took longer than ${KIT_LOOKUP_TIMEOUT_MS}ms`);
+    this.name = "KitLookupTimeout";
+  }
+}
+
+/** The existence check a path needs, or undefined for paths that don't name a kit (or won't decode). */
+function kitLookup({ pathname, searchParams }: NextRequest["nextUrl"]): (() => Promise<boolean>) | undefined {
+  try {
+    const kitPage = KIT_PAGE.exec(pathname);
+    if (kitPage) return kitPageExists.bind(null, decodeURIComponent(kitPage[1]));
+    const accountKit = ACCOUNT_KIT_PAGE.exec(pathname);
+    if (accountKit) return kitExists.bind(null, decodeURIComponent(accountKit[1]));
+  } catch {
+    return undefined;
+  }
+  if (pathname === "/checkout/success") return kitExists.bind(null, searchParams.get("kit") ?? "");
+  return undefined;
+}
+
 /**
  * True when the request names a kit that isn't stored: /kit/<id> (or a preview still generating), /account/kits/<id>
- * and /checkout/success?kit=<id>. A store error, or a path that won't decode, is false: the page then shows its own
- * error or not-found UI, as before. Someone else's kit under /account/kits is still the page's notFound(), as telling
- * it apart needs the verified session.
+ * and /checkout/success?kit=<id>. A store error, or no answer within KIT_LOOKUP_TIMEOUT_MS, is reported and false: the
+ * page then shows its own skeleton, error or not-found UI, as before.
+ *
+ * Only the session cookie's presence was checked above, so any made-up ll_session cookie gets a 404 for an unknown id
+ * under /account/kits and the page for an existing one. That says no more than /kit/<id> already says to anyone, and
+ * ids are 128 random bits, so it can't be used to find kits. Someone else's kit under /account/kits still reaches the
+ * page, whose notFound() streams after a 200, as telling it apart needs the verified session.
  */
-async function isMissingKit({ pathname, searchParams }: NextRequest["nextUrl"]): Promise<boolean> {
-  const lookup = (): Promise<boolean> | undefined => {
-    const kitPage = KIT_PAGE.exec(pathname);
-    if (kitPage) return kitPageExists(decodeURIComponent(kitPage[1]));
-    const accountKit = ACCOUNT_KIT_PAGE.exec(pathname);
-    if (accountKit) return kitExists(decodeURIComponent(accountKit[1]));
-    if (pathname === "/checkout/success") return kitExists(searchParams.get("kit") ?? "");
-    return undefined;
-  };
+async function isMissingKit(nextUrl: NextRequest["nextUrl"]): Promise<boolean> {
+  const lookup = kitLookup(nextUrl);
+  if (!lookup) return false;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new KitLookupTimeout()), KIT_LOOKUP_TIMEOUT_MS);
+  });
+  // race() subscribes to both, so a lookup that rejects after the timeout has won is still handled.
+  const pending = Promise.resolve().then(lookup);
   try {
-    const exists = lookup();
-    return exists !== undefined && !(await exists);
-  } catch {
+    return !(await Promise.race([pending, timeout]));
+  } catch (error) {
+    const { pathname } = nextUrl;
+    if (error instanceof KitLookupTimeout) captureExceptionThrottled("proxy.kit-exists.timeout", error, { pathname, timeoutMs: KIT_LOOKUP_TIMEOUT_MS });
+    else captureExceptionThrottled("proxy.kit-exists", error, { pathname });
     return false;
+  } finally {
+    clearTimeout(timer);
   }
 }
 

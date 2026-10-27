@@ -5,10 +5,12 @@ import { MemoryStore } from "./memory-store";
 
 const kv = vi.hoisted(() => ({ store: undefined as unknown }));
 vi.mock("@/lib/store", () => ({ store: () => kv.store }));
+vi.mock("@/lib/observability", async (importOriginal) => ({ ...(await importOriginal<object>()), captureExceptionThrottled: vi.fn() }));
 
 const { SESSION_COOKIE } = await import("@/lib/auth");
 const { kitExists, kitPageExists } = await import("@/lib/kit-exists");
-const { config, proxy } = await import("@/proxy");
+const { captureExceptionThrottled } = await import("@/lib/observability");
+const { KIT_LOOKUP_TIMEOUT_MS, config, proxy } = await import("@/proxy");
 
 const ORIGIN = "https://launchloop.dev";
 const KIT_ID = "AKWq8__P15_kweHmfXX_Uw";
@@ -131,15 +133,73 @@ describe("proxy: unknown kit ids are a real 404", () => {
     expect(await proxy(request(`/checkout/success?kit=${KIT_ID}`))).toBeUndefined();
   });
 
-  it("lets the page decide when the store is down, instead of calling every kit missing", async () => {
+  it("lets the page decide when the store is down, instead of calling every kit missing, and reports it", async () => {
     mem.failing = true;
     expect(await proxy(request(`/kit/${KIT_ID}`))).toBeUndefined();
     expect(await proxy(request("/kit/doesNotExist1234567"))).toBeUndefined();
     expect(await proxy(request("/account/kits/doesNotExist1234567", SIGNED_IN))).toBeUndefined();
+    expect(captureExceptionThrottled).toHaveBeenCalledTimes(3);
+    expect(captureExceptionThrottled).toHaveBeenCalledWith("proxy.kit-exists", expect.objectContaining({ message: "KV command failed with 503" }), {
+      pathname: "/kit/doesNotExist1234567",
+    });
   });
 
-  it("a path that can't be decoded goes to the page rather than throwing in the proxy", async () => {
+  it("a store that never answers doesn't hold the page up: the proxy lets it through after KIT_LOOKUP_TIMEOUT_MS and reports a timeout", async () => {
+    vi.spyOn(mem, "exists").mockImplementation(() => new Promise<boolean>(() => {}));
+    const started = performance.now();
+    expect(await proxy(request("/kit/doesNotExist1234567"))).toBeUndefined();
+    const elapsed = performance.now() - started;
+    expect(elapsed).toBeGreaterThanOrEqual(KIT_LOOKUP_TIMEOUT_MS - 50);
+    expect(elapsed).toBeLessThan(KIT_LOOKUP_TIMEOUT_MS + 500);
+    expect(captureExceptionThrottled).toHaveBeenCalledTimes(1);
+    expect(captureExceptionThrottled).toHaveBeenCalledWith("proxy.kit-exists.timeout", expect.objectContaining({ name: "KitLookupTimeout" }), {
+      pathname: "/kit/doesNotExist1234567",
+      timeoutMs: KIT_LOOKUP_TIMEOUT_MS,
+    });
+  });
+
+  it("a lookup that fails after the timeout has won leaves no unhandled rejection or timer behind", async () => {
+    vi.useFakeTimers();
+    try {
+      let fail: (error: Error) => void = () => {};
+      vi.spyOn(mem, "exists").mockImplementation(() => new Promise<boolean>((_, reject) => (fail = reject)));
+      const result = proxy(request("/kit/doesNotExist1234567"));
+      await vi.advanceTimersByTimeAsync(KIT_LOOKUP_TIMEOUT_MS);
+      expect(await result).toBeUndefined();
+      fail(new Error("KV command failed with 503"));
+      // Vitest fails the run on an unhandled rejection; give one a chance to surface.
+      await vi.advanceTimersByTimeAsync(0);
+      expect(captureExceptionThrottled).toHaveBeenCalledTimes(1);
+
+      // A lookup that answers in time clears its timer.
+      vi.mocked(mem.exists).mockResolvedValue(true);
+      expect(await proxy(request(`/kit/${KIT_ID}`))).toBeUndefined();
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("a path that can't be decoded goes to the page rather than throwing in the proxy, and isn't reported", async () => {
     expect(await proxy(request("/kit/%E0%A4%A"))).toBeUndefined();
+    expect(captureExceptionThrottled).not.toHaveBeenCalled();
+  });
+
+  it("/kit/<id>/<sub> isn't a kit page: the matcher skips it and no route matches it", async () => {
+    for (const url of [`/kit/${KIT_ID}/sub`, "/kit/doesNotExist1234567/sub"]) expect(unstable_doesMiddlewareMatch({ config, url }), url).toBe(false);
+    const exists = vi.spyOn(mem, "exists");
+    expect(await proxy(request("/kit/doesNotExist1234567/sub"))).toBeUndefined();
+    expect(exists).not.toHaveBeenCalled();
+  });
+
+  it("/kit/<id>/ redirects to /kit/<id> first, for a real and an unknown id, without a store lookup", async () => {
+    const exists = vi.spyOn(mem, "exists");
+    for (const id of [KIT_ID, "doesNotExist1234567"]) {
+      const res = (await proxy(request(`/kit/${id}/`)))!;
+      expect(res.status).toBe(308);
+      expect(location(res)).toBe(`${ORIGIN}/kit/${id}`);
+    }
+    expect(exists).not.toHaveBeenCalled();
   });
 
   it("the matcher runs on the kit pages and the success page only, not their APIs or images", () => {
@@ -156,6 +216,21 @@ describe("kit existence checks", () => {
     expect(await kitExists("PendingKit_1234567890")).toBe(false);
     expect(await kitPageExists("PendingKit_1234567890")).toBe(true);
     expect(await kitPageExists("doesNotExist1234567")).toBe(false);
+  });
+
+  it("a saved kit costs one EXISTS; the pending key is only asked about when the kit isn't there", async () => {
+    await mem.set("kitpending:PendingKit_1234567890", { state: "generating" }, 600);
+    const exists = vi.spyOn(mem, "exists");
+    expect(await kitPageExists(KIT_ID)).toBe(true);
+    expect(exists.mock.calls).toEqual([[`kit:${KIT_ID}`]]);
+
+    exists.mockClear();
+    expect(await kitPageExists("PendingKit_1234567890")).toBe(true);
+    expect(exists.mock.calls).toEqual([["kit:PendingKit_1234567890"], ["kitpending:PendingKit_1234567890"]]);
+
+    exists.mockClear();
+    expect(await proxy(request(`/kit/${KIT_ID}`))).toBeUndefined();
+    expect(exists).toHaveBeenCalledTimes(1);
   });
 
   it("never asks the store about an id that can't be a kit", async () => {
