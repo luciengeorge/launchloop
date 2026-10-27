@@ -1,4 +1,4 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { after, NextResponse, type NextRequest } from "next/server";
 import { deployEnv } from "@/lib/deploy-env";
 import { kitExists, kitPageExists } from "@/lib/kit-exists";
 import { POSTHOG_PROXY_PATH } from "@/lib/posthog-config";
@@ -31,14 +31,21 @@ class KitLookupTimeout extends Error {
 }
 
 /**
- * Sends a failed kit check to Sentry without holding the response: fire and forget, and a failed import or report only
- * logs. The import is dynamic on purpose: a static one puts @sentry/nextjs in the proxy entry, which every matched
- * request then loads on a cold start (proxy-imports.test.ts keeps it out).
+ * Sends a failed kit check to Sentry after the response has gone out (after(); straight away outside a request), and
+ * nothing waits on it: a failed import or report only logs. The import is dynamic on purpose: a static one puts
+ * @sentry/nextjs in the proxy entry, which every matched request then loads on a cold start (proxy-imports.test.ts
+ * keeps it out).
  */
 function reportKitLookupFailure(key: string, error: unknown, context: Record<string, unknown>) {
-  import("@/lib/observability")
-    .then(({ captureExceptionThrottled }) => captureExceptionThrottled(key, error, context))
-    .catch((reportError: unknown) => console.error(`[launchloop:error] couldn't report ${key}`, reportError));
+  const report = () =>
+    import("@/lib/observability")
+      .then(({ captureExceptionThrottled }) => captureExceptionThrottled(key, error, context))
+      .catch((reportError: unknown) => console.error(`[launchloop:error] couldn't report ${key}`, reportError));
+  try {
+    after(report);
+  } catch {
+    void report();
+  }
 }
 
 /** The existence check a path needs, or undefined for paths that don't name a kit (or won't decode). */
