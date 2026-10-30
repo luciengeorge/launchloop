@@ -5,7 +5,7 @@ import { GuideLayout } from "@/components/guide-layout";
 import { guide } from "@/lib/guides";
 import { guidePage } from "@/lib/pages";
 import { pageMetadata } from "@/lib/seo";
-import { OG_PREVIEW } from "@/lib/tools";
+import { OG_PREVIEW, SHOW_HN_CHECKER } from "@/lib/tools";
 
 const g = guide("show-hn-launch-checklist");
 
@@ -99,6 +99,10 @@ export default function ShowHnChecklistPage() {
         A format that works is <strong>Show HN: [Name], [what it does in plain words]</strong>, or just <strong>Show HN: [what it does]</strong> if the name adds nothing. For
         real examples from HN, weak and stronger titles, and whether to make it a link or a text post, read{" "}
         <Link href="/how-to-write-a-show-hn-post">how to write a Show HN post</Link>.
+      </p>
+      <p>
+        To test a title as you type, paste it into the free <Link href={SHOW_HN_CHECKER.path}>Show HN title checker</Link>. It checks the title and your text against these
+        written rules and quotes the HN sentence behind each check.
       </p>
 
       <h2 id="first-comment">Write the maker&apos;s first comment</h2>

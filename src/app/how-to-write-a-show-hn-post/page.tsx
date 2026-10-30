@@ -5,6 +5,7 @@ import { GuideLayout } from "@/components/guide-layout";
 import { guide } from "@/lib/guides";
 import { guidePage } from "@/lib/pages";
 import { pageMetadata } from "@/lib/seo";
+import { SHOW_HN_CHECKER } from "@/lib/tools";
 
 const g = guide("how-to-write-a-show-hn-post");
 
@@ -115,6 +116,10 @@ export default function ShowHnPostGuidePage() {
           title, so make it one a moderator wouldn&apos;t need to rewrite.
         </li>
       </ul>
+      <p>
+        To check a title against these rules as you type, use the free <Link href={SHOW_HN_CHECKER.path}>Show HN title checker</Link>. Each check quotes the HN sentence
+        it enforces, and anything that is only our advice is labelled as a tip.
+      </p>
       <h3>Weak and stronger titles</h3>
       <p>These are for made-up products. Concrete details such as &ldquo;open source&rdquo;, &ldquo;self-hosted&rdquo; or &ldquo;runs in the browser&rdquo; tell readers what they are clicking on. Adjectives don&apos;t.</p>
       <ul>

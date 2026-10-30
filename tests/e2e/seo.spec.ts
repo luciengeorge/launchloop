@@ -114,6 +114,7 @@ test("sitemap lists every indexable page once, with lastmod, and no redirecting 
     "/tools",
     "/tools/product-hunt-tagline-checker",
     "/tools/og-preview",
+    "/tools/show-hn-title-checker",
     "/product-hunt-launch-checklist",
     "/how-to-launch-a-vibe-coded-app",
     "/how-to-promote-on-reddit",
@@ -276,8 +277,10 @@ test("social image routes answer X-Robots-Tag: noindex, keep their type and cach
 
 test("no page's server HTML carries a root-relative string that 404s, which Google would crawl as a link", async ({ request }) => {
   const { paths } = await sitemapPaths(request);
+  // Google also crawls pages that aren't in the sitemap: the noindex public pages and the 404 page.
+  const extra = ["/login", "/login/check-email", "/example-kit", "/this-page-does-not-exist"];
   const candidates = new Map<string, string>();
-  for (const path of paths) {
+  for (const path of [...paths, ...extra]) {
     // The RSC flight payload is split across self.__next_f.push chunks, and a boundary can fall inside a path
     // ("/how-to" + "-write-a-show-hn-post#replies"). Join the chunks first so a split path isn't read as a short one.
     const html = (await (await request.get(path)).text()).replaceAll('"])</script><script>self.__next_f.push([1,"', "").replaceAll('\\"', '"');

@@ -30,7 +30,17 @@ export const OG_PREVIEW: Tool = {
   updated: "2026-10-26",
 };
 
-export const TOOLS: Tool[] = [TAGLINE_CHECKER, OG_PREVIEW];
+export const SHOW_HN_CHECKER: Tool = {
+  path: "/tools/show-hn-title-checker",
+  title: "Show HN title checker",
+  metaTitle: "Show HN Title Checker: Test Against HN Rules",
+  description:
+    "Free Show HN title checker: test your title and first comment against Hacker News's own rules, each quoted and linked to its source. No AI, no sign-up.",
+  imageAlt: "Show HN title checker by LaunchLoop: a title checked against Hacker News's own rules, each one quoted",
+  updated: "2026-10-27",
+};
+
+export const TOOLS: Tool[] = [TAGLINE_CHECKER, OG_PREVIEW, SHOW_HN_CHECKER];
 
 export const TAGLINE_FAQ = [
   {
@@ -79,5 +89,30 @@ export const OG_FAQ: readonly ToolFaqItem[] = [
   {
     q: "Is the OG preview free?",
     a: "Yes, with no sign-up and no card. It fetches the public page and its share image the way a link previewer would, as LaunchLoopBot, and doesn't save the URL or the results.",
+  },
+];
+
+export const SHOW_HN_FAQ: readonly ToolFaqItem[] = [
+  {
+    q: "How long can a Show HN title be?",
+    a: "HN's submit form rejects titles longer than 80 characters, even though the written guidelines don't mention it. The Show HN guidelines, the main guidelines and the FAQ give no length. The limit comes from HN's published news.arc source, and HN's live code isn't public, so check the form if you're near it. This tool shows the count, and adds a separate submit form check when your title is over 80, not as an HN rule. Aim for a title that says what the project is in one short line.",
+  },
+  {
+    q: "What should a Show HN title start with?",
+    a: "With \"Show HN\". The Show HN guidelines say to submit a story whose title begins with \"Show HN\". After that, say plainly what the project is, without capitals, exclamation points or claims about how great it is, which the HN guidelines ask titles to avoid.",
+    more: { href: "/how-to-write-a-show-hn-post#title", label: "See weak and stronger titles." },
+  },
+  {
+    q: "Can I ask people to upvote or comment on my Show HN?",
+    a: "No. The Show HN guidelines say not to ask friends to upvote or comment, the HN guidelines say not to solicit upvotes, comments or submissions, and the HN FAQ says HN penalises or bans submissions, accounts and sites that break this rule. The checker doesn't flag asking for feedback, because the Show HN guidelines expect readers to give feedback in the thread.",
+    more: { href: "/show-hn-launch-checklist#voting", label: "Read the voting rules in full." },
+  },
+  {
+    q: "Does the checker use AI or save what I type?",
+    a: "No. The checks are plain pattern rules that run in your browser, so your title and text aren't sent to LaunchLoop or saved. The page loads the site's usual analytics, which don't record what you type into the form.",
+  },
+  {
+    q: "Why does it flag something that's fine in my title?",
+    a: "The checks look for patterns, such as an all-caps word, a number before a plural or a version number, and can't know what you meant. An acronym or a meaningful number is fine: HN's own guidelines give \"The 5 Platonic Solids\" as an example of a number worth keeping. Treat a warning as a prompt to look again, not a ban.",
   },
 ];
