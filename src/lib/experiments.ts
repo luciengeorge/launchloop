@@ -1,7 +1,6 @@
 /** PostHog multivariate flags (50/50, each independent), with the variants in VARIANTS. Pure: shared by browser and server. */
 export const EXPERIMENTS = {
   launchPromo: "exp_launch14_promo",
-  shipLoopUpsell: "exp_shiploop_success_upsell",
   heroHeadline: "exp_hero_headline",
   heroSampleCta: "exp_hero_sample_cta",
 } as const;
@@ -11,7 +10,6 @@ export type ExperimentKey = (typeof EXPERIMENTS)[keyof typeof EXPERIMENTS];
 /** Each flag's variant keys, as set up in PostHog. Control is what every fallback serves; anything else PostHog returns is unassigned. */
 const VARIANTS = {
   exp_launch14_promo: ["control", "treatment"],
-  exp_shiploop_success_upsell: ["control", "treatment"],
   exp_hero_headline: ["control", "test"],
   exp_hero_sample_cta: ["control", "test"],
 } as const satisfies Record<ExperimentKey, readonly ["control", ...string[]]>;

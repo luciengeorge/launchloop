@@ -18,7 +18,7 @@ export const SITE = {
   description:
     "LaunchLoop reads your GitHub README, package.json and recent commits, plus your live site, then writes your landing page copy, Product Hunt post, X thread and LinkedIn post, and renders on-brand social images. Free preview, then pay once for the full kit.",
   shortDescription: "Turn a vibe-coded app into a complete launch kit in minutes.",
-  twitter: "@launchloop",
+  twitter: "@luciengeorge16",
   email: "hello@launchloop.dev",
 } as const;
 

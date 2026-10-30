@@ -40,6 +40,14 @@ describe("posthog-js config", () => {
     expect(config.capture_dead_clicks).toBe(false);
     expect(config.disable_session_recording).toBe(true);
   });
+
+  it("session replay stays off at init; the masked options are there for kit pages to start it with (see session-replay.ts)", async () => {
+    const { config } = await load();
+    expect(config.disable_session_recording).toBe(true);
+    expect(config.session_recording).toMatchObject({ maskAllInputs: true, maskTextSelector: "*", recordHeaders: false, recordBody: false });
+    expect(config.enable_recording_console_log).toBe(false);
+    expect(config.capture_performance).toEqual({ network_timing: false });
+  });
 });
 
 describe("experiment properties on events", () => {
@@ -161,10 +169,9 @@ describe("experiment properties on events", () => {
 
 describe("parseExperiments", () => {
   it("knows each flag's own variants", () => {
-    expect(parseExperiments({ exp_hero_sample_cta: "test", exp_launch14_promo: "treatment", exp_shiploop_success_upsell: "control" })).toEqual({
+    expect(parseExperiments({ exp_hero_sample_cta: "test", exp_launch14_promo: "treatment" })).toEqual({
       exp_hero_sample_cta: "test",
       exp_launch14_promo: "treatment",
-      exp_shiploop_success_upsell: "control",
     });
     expect(parseExperiments({ exp_hero_sample_cta: "treatment", exp_launch14_promo: "test", toString: "control", constructor: "control" })).toEqual({});
   });

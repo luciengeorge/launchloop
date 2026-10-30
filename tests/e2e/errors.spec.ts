@@ -332,8 +332,8 @@ test("unknown pages and kits get a helpful not-found page", async ({ page }) => 
   expect(res?.status()).toBe(404);
   await expect(page.getByRole("heading", { name: "This page doesn't exist" })).toBeVisible();
   await expect(page).toHaveTitle("Page not found · LaunchLoop");
-  await page.goto("/kit/doesNotExist1234567");
-  await expect(page.getByRole("heading", { name: "We can't find that kit" })).toBeVisible();
+  expect((await page.goto("/kit/doesNotExist1234567"))?.status()).toBe(404);
+  await expect(page.getByRole("heading", { name: "This page doesn't exist" })).toBeVisible();
 });
 
 test("preview requests are rate limited per IP across the hour; invalid URLs, the sample and the first missing repos don't count", async ({ request }) => {

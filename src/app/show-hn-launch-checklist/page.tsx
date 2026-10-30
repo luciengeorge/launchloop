@@ -145,7 +145,7 @@ export default function ShowHnChecklistPage() {
       <h2 id="timing">Pick a time</h2>
       <p>
         Hacker News doesn&apos;t publish a best time to post. What the <a href={SRC.faq}>HN FAQ</a> does explain is ranking: points divided by a power of the time since
-        submission, plus other factors such as user flags, anti-abuse software and moderator action. Every Show HN appears on <a href={SRC.shownew}>/shownew</a>, and moves to the Show page
+        submission, plus other factors such as user flags, anti-abuse software and moderator action. Every Show HN appears on the <a href={SRC.shownew}>Show HN new page</a>, and moves to the Show page
         once it clears a small points threshold.
       </p>
       <ul>

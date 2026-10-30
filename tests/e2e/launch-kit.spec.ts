@@ -236,7 +236,34 @@ test("Elixir repo with no homepage: stack from the languages API and mix.exs, an
   await expect(chips.filter({ hasText: "Live page" })).toHaveAttribute("data-ok", "false");
 });
 
-test("unknown kit shows a helpful not-found page", async ({ page }) => {
-  await page.goto("/kit/doesNotExist1234567");
-  await expect(page.getByRole("heading", { name: "We can't find that kit" })).toBeVisible();
+test("an unknown kit id is a real 404 with the not-found page and a link to start a kit", async ({ page }) => {
+  for (const id of ["doesNotExist1234567", "short"]) {
+    const res = await page.goto(`/kit/${id}`);
+    expect(res?.status(), id).toBe(404);
+    await expect(page).toHaveTitle("Page not found · LaunchLoop");
+    await expect(page.getByRole("heading", { name: "This page doesn't exist" })).toBeVisible();
+    await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/);
+    await expect(page.getByRole("main").getByRole("link", { name: "Get my free preview" })).toHaveAttribute("href", "/#start");
+  }
+  await page.getByRole("main").getByRole("link", { name: "Get my free preview" }).click();
+  await page.waitForURL(/\/#start$/);
+  await expect(page.getByRole("button", { name: "Try a sample app" })).toBeVisible();
+
+  // The checkout success page looks a kit up by id too; a real kit still answers 200.
+  expect((await page.request.get("/checkout/success?kit=doesNotExist1234567&session_id=cs_test")).status()).toBe(404);
+  const kitId = await makeSampleKit(page);
+  expect((await page.request.get(`/kit/${kitId}`)).status()).toBe(200);
+  expect((await page.request.get(`/kit/${kitId}?unlock=1`)).status()).toBe(200);
+
+  // The trailing-slash form redirects to the slashless one, then answers like it; a path below a kit is no page at all.
+  for (const [id, status] of [
+    [kitId, 200],
+    ["doesNotExist1234567", 404],
+  ] as const) {
+    const redirect = await page.request.get(`/kit/${id}/`, { maxRedirects: 0 });
+    expect(redirect.status(), id).toBe(308);
+    expect(new URL(redirect.headers()["location"], "http://localhost").pathname, id).toBe(`/kit/${id}`);
+    expect((await page.request.get(`/kit/${id}/`)).status(), id).toBe(status);
+    expect((await page.request.get(`/kit/${id}/sub`)).status(), `${id}/sub`).toBe(404);
+  }
 });

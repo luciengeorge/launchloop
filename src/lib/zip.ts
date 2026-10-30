@@ -2,8 +2,9 @@ import "server-only";
 import { strToU8, zipSync, type Zippable } from "fflate";
 import { IMAGE_VARIANTS, type ImageVariant } from "./image-variants";
 import { renderKitImageBuffer } from "./images";
-import { LIMITS, charLength, xLength } from "./limits";
+import { LIMITS, charLength } from "./limits";
 import type { Kit } from "./schema";
+import { xLength } from "./x-length";
 
 const count = (text: string, limit: number, measure = charLength) => `${measure(text)}/${limit} chars`;
 
