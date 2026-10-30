@@ -1,6 +1,7 @@
 import { type APIRequestContext, expect, type Page, test } from "@playwright/test";
 import { INDEXNOW_KEY } from "../../src/lib/indexnow";
 import { PRODUCTS } from "../../src/lib/products";
+import { STATIC_OG_HEADERS } from "../../src/lib/seo";
 
 test("home has title, description and Open Graph tags", async ({ page }) => {
   await page.goto("/");
@@ -254,6 +255,36 @@ test("site OG image renders", async ({ request }) => {
   const res = await request.get("/opengraph-image");
   expect(res.status()).toBe(200);
   expect(res.headers()["content-type"]).toBe("image/png");
+});
+
+test("social image routes answer X-Robots-Tag: noindex, keep their type and caching, and stay crawlable; pages and feeds don't", async ({ request }) => {
+  for (const path of ["/og/faq", "/opengraph-image", "/tools/og-preview/opengraph-image"]) {
+    const res = await request.get(path);
+    expect(res.status(), path).toBe(200);
+    expect(res.headers()["x-robots-tag"], path).toBe("noindex");
+    expect(res.headers()["content-type"], path).toBe("image/png");
+    expect(res.headers()["cache-control"], path).toBe(STATIC_OG_HEADERS["Cache-Control"]);
+  }
+  for (const path of ["/", "/blog/how-to-launch-on-product-hunt", "/blog/rss.xml", "/sitemap.xml"]) {
+    const res = await request.get(path);
+    expect(res.status(), path).toBe(200);
+    expect(res.headers()["x-robots-tag"], path).toBeUndefined();
+  }
+  const robots = await (await request.get("/robots.txt")).text();
+  expect(robots).not.toMatch(/Disallow: \/(og|.*image)/);
+});
+
+test("no page's server HTML carries a root-relative string that 404s, which Google would crawl as a link", async ({ request }) => {
+  const { paths } = await sitemapPaths(request);
+  const candidates = new Map<string, string>();
+  for (const path of paths) {
+    // The RSC flight payload is split across self.__next_f.push chunks, and a boundary can fall inside a path
+    // ("/how-to" + "-write-a-show-hn-post#replies"). Join the chunks first so a split path isn't read as a short one.
+    const html = (await (await request.get(path)).text()).replaceAll('"])</script><script>self.__next_f.push([1,"', "").replaceAll('\\"', '"');
+    for (const [, found] of html.matchAll(/"(\/[A-Za-z0-9][\w.~/-]*)"/g)) if (!candidates.has(found)) candidates.set(found, path);
+  }
+  expect(candidates.size).toBeGreaterThan(10);
+  for (const [found, path] of candidates) expect((await request.get(found, { maxRedirects: 0 })).status(), `"${found}" on ${path}`).not.toBe(404);
 });
 
 test("brand icons, manifest and llms-full.txt", async ({ page, request }) => {
