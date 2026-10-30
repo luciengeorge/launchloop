@@ -10,6 +10,8 @@ import { SHOW_HN_CHECKER, SHOW_HN_FAQ, TOOLS } from "@/lib/tools";
 import {
   HN_QUOTES,
   HN_SOURCES,
+  HN_TITLE_LIMIT,
+  NEWS_ARC,
   SHOW_HN_EXAMPLES,
   SHOW_HN_RULES,
   checkShowHn,
@@ -23,6 +25,9 @@ const title = (t: string, id: CheckId) => status({ title: t }, id);
 const comment = (c: string, id: CheckId) => status({ title: "Show HN: Gridcast, dashboards from a CSV file", comment: c }, id);
 
 const GOOD = "Show HN: Gridcast, turn a CSV into a dashboard you can share by link";
+
+/** A Show HN title of exactly `n` characters. */
+const titleOfLength = (n: number, filler = "x") => `Show HN: ${filler.repeat(n - "Show HN: ".length)}`;
 
 describe("Show HN title checks", () => {
   it("passes a plain, descriptive title on every check", () => {
@@ -39,6 +44,21 @@ describe("Show HN title checks", () => {
     expect(title("show hn: Gridcast, dashboards from a CSV", "prefix")).toBe("warn");
     expect(title("Gridcast, dashboards from a CSV", "prefix")).toBe("warn");
     expect(title("I made Gridcast. Show HN: dashboards", "prefix")).toBe("warn");
+  });
+
+  it("prefix: the words must be exactly Show HN with one space, and not run into the next word", () => {
+    expect(title("Show HN", "prefix")).toBe("pass");
+    expect(title("Show HN:Gridcast, dashboards from a CSV", "prefix")).toBe("pass");
+    expect(title("Show HN - Gridcast, dashboards from a CSV", "prefix")).toBe("pass");
+    expect(title("Show  HN: Gridcast, dashboards from a CSV", "prefix")).toBe("warn");
+    expect(title("Show\u00a0HN: Gridcast, dashboards from a CSV", "prefix")).toBe("warn");
+    expect(title("Show HNews: Gridcast, dashboards from a CSV", "prefix")).toBe("warn");
+    expect(title("Show HNGridcast", "prefix")).toBe("warn");
+    const label = (t: string) => checkShowHn({ title: t }).checks.find((c) => c.id === "prefix")?.label;
+    expect(label("Show  HN: Gridcast, dashboards")).toBe("Write it as “Show HN”");
+    expect(label("Show HNews: Gridcast, dashboards")).toBe("“Show HN” runs into the next word");
+    // The spacing slip doesn't hide the title body from the other checks.
+    expect(title("Show  HN: GRIDCAST, dashboards from a CSV", "caps")).toBe("warn");
   });
 
   it("caps: flags shouted words but not acronyms or the Show HN prefix", () => {
@@ -112,19 +132,45 @@ describe("checks on the title and the text", () => {
     expect(title("Show HN: Join the waitlist for my budgeting app", "offtopic")).toBe("warn");
     expect(title("Show HN: My newsletter about Rust compilers", "offtopic")).toBe("warn");
     expect(title("Show HN: A keyboard on Kickstarter", "offtopic")).toBe("warn");
+    expect(title("Show HN: Pre-order my split keyboard", "offtopic")).toBe("warn");
+    expect(title("Show HN: Our crowdfunding page for a split keyboard", "offtopic")).toBe("warn");
     expect(comment("It's coming soon, but here's our landing page.", "offtopic")).toBe("warn");
     expect(title("Show HN: A self-hosted waitlist tool for SaaS launches", "offtopic")).toBe("pass");
     expect(title(GOOD, "offtopic")).toBe("pass");
   });
 
   it("asks: flags asking for upvotes or comments, not for feedback", () => {
-    for (const c of ["Please upvote if you like it", "Leave a comment below!", "Pls vote for us", "Help us get to the front page", "Show some love"]) {
+    for (const c of [
+      "Please upvote if you like it",
+      "Leave a comment below!",
+      "Pls vote for us",
+      "Help us get to the front page",
+      "Show some love",
+      "Please upvote and leave a comment!",
+      "Please leave a comment to help us rank.",
+      "Please comment if you like it.",
+      "Leave a comment below to help us rank. Feedback welcome.",
+      "Please comment with your feedback and an upvote.",
+    ]) {
       expect(comment(c, "asks"), c).toBe("warn");
     }
     expect(title("Show HN: Upvote this, a tiny voting app", "asks")).toBe("warn");
-    for (const c of ["I'd love your feedback on the parser.", "Please share your feedback on the onboarding.", "Your feedback would help me get it right."]) {
+    for (const c of [
+      "I'd love your feedback on the parser.",
+      "Please share your feedback on the onboarding.",
+      "Your feedback would help me get it right.",
+      "Please try it and comment with any feedback.",
+      "Please try it out and leave a comment with your thoughts.",
+      "Comment below with any bugs or suggestions.",
+    ]) {
       expect(comment(c, "asks"), c).toBe("pass");
     }
+  });
+
+  it("asks: a feedback request in one sentence doesn't excuse a solicitation in the next", () => {
+    expect(comment("Please try it and comment with any feedback. Please upvote it too.", "asks")).toBe("warn");
+    expect(comment("Leave a comment below! Feedback welcome.", "asks")).toBe("warn");
+    expect(comment("Please try it and comment with any feedback.\nLeave a comment below!", "asks")).toBe("warn");
   });
 });
 
@@ -168,8 +214,49 @@ describe("verdict", () => {
     expect(checkShowHn({ title: "", comment: "" })).toEqual({ titleLength: 0, commentLength: 0, verdict: "pass", checks: [] });
   });
 
-  it("counts characters, not UTF-16 units, and states no limit", () => {
+  it("counts characters, not UTF-16 units", () => {
     expect(checkShowHn({ title: "Show HN: 🚀" }).titleLength).toBe(10);
+  });
+});
+
+describe("the submit form's title limit", () => {
+  const lengthCheck = (t: string) => checkShowHn({ title: t }).checks.find((c) => c.id === "length");
+
+  it("is 80 characters, from HN's published news.arc source", () => {
+    expect(HN_TITLE_LIMIT).toBe(80);
+    expect(NEWS_ARC.url).toMatch(/^https:\/\/github\.com\/arclanguage\/anarki\/blob\/master\/apps\/news\/news\.arc$/);
+  });
+
+  it("accepts a title of exactly 80 characters: no length check at all", () => {
+    const t = titleOfLength(80);
+    const result = checkShowHn({ title: t });
+    expect(result.titleLength).toBe(80);
+    expect(lengthCheck(t)).toBeUndefined();
+    expect(result.checks.map((c) => c.id)).not.toContain("length");
+  });
+
+  it("warns at 81 characters, as a submit form check that is neither a rule nor a tip", () => {
+    const t = titleOfLength(81);
+    const result = checkShowHn({ title: t });
+    expect(result.titleLength).toBe(81);
+    const check = lengthCheck(t);
+    expect(check).toMatchObject({ id: "length", kind: "form", status: "warn", label: "Over 80 characters" });
+    expect(check?.detail).toBe("HN's submit form rejects titles longer than 80 characters. Yours is 81, so cut at least 1.");
+    expect(check?.detail).not.toMatch(/guideline/i);
+    expect(result.verdict).toBe("warn");
+    expect(lengthCheck(titleOfLength(95))?.detail).toContain("Yours is 95, so cut at least 15.");
+  });
+
+  it("counts with charLength, so an emoji is one character and the surrounding spaces don't count", () => {
+    expect(lengthCheck(titleOfLength(80, "🚀"))).toBeUndefined();
+    expect(lengthCheck(titleOfLength(81, "🚀"))).toBeDefined();
+    expect(lengthCheck(`   ${titleOfLength(80)}   `)).toBeUndefined();
+  });
+
+  it("makes the verdict warn even when every HN rule passes", () => {
+    const result = checkShowHn({ title: titleOfLength(81, "a") });
+    expect(result.checks.filter((c) => c.kind === "rule" && c.status === "warn").map((c) => c.id)).toEqual([]);
+    expect(result.verdict).toBe("warn");
   });
 });
 
@@ -189,7 +276,7 @@ describe("rules and their sources", () => {
     for (const source of Object.values(HN_SOURCES)) expect(source.url).toMatch(/^https:\/\/news\.ycombinator\.com\/[a-z]+\.html$/);
   });
 
-  it("the submit form needs a login, so no title length limit is stated anywhere we quote", () => {
+  it("the submit form needs a login, and none of the HN pages we quote states a title length limit, so the limit is never quoted as a guideline", () => {
     const submit = parse(readFileSync(path.join(FIXTURES, "submit.html"), "utf8")).textContent;
     expect(submit).toContain("You have to be logged in to submit.");
     for (const text of Object.values(pageText)) expect(text).not.toMatch(/\b80 characters\b|title[^.]{0,40}\blimit/i);
@@ -226,7 +313,25 @@ describe("registry", () => {
       expect(other.description).not.toBe(SHOW_HN_CHECKER.description);
     }
     for (const text of [SHOW_HN_CHECKER.metaTitle, SHOW_HN_CHECKER.description, ...SHOW_HN_FAQ.flatMap((f) => [f.q, f.a])]) expect(text).not.toMatch(/[\u2013\u2014]/);
+    for (const text of [SHOW_HN_CHECKER.description, ...SHOW_HN_FAQ.flatMap((f) => [f.q, f.a]), ...SHOW_HN_RULES.map((r) => r.how)]) expect(text).not.toMatch(/%|percent/i);
     expect(toolPage(SHOW_HN_CHECKER).image.url).toBe("/tools/show-hn-title-checker/opengraph-image");
+  });
+
+  it("the length FAQ answer says the submit form rejects titles over 80 characters, and doesn't call it a guideline", () => {
+    const answer = SHOW_HN_FAQ.find((f) => f.q === "How long can a Show HN title be?")?.a ?? "";
+    expect(answer).toContain("HN's submit form rejects titles longer than 80 characters");
+    expect(answer).toContain("even though the written guidelines don't mention it");
+    expect(answer).toContain("news.arc");
+    expect(answer).not.toMatch(/doesn't say|no limit|not a limit/i);
+  });
+
+  it("how-it's-checked text matches the code: the fundraiser rule says pre-sale, never the pre-order wording the pricing test bans, and the tip says Our tip", () => {
+    const rule = (id: string) => SHOW_HN_RULES.find((r) => r.id === id)!;
+    expect(rule("offtopic").how).toContain("a pre-sale");
+    expect(rule("offtopic").how).not.toMatch(/pre-?order/i);
+    expect(rule("asks").how).toContain("Asking for feedback isn't flagged.");
+    expect(rule("howwhy").how).not.toContain("Our guess at an HN sentence");
+    expect(rule("howwhy").how).toMatch(/^Our tip, based on the Show HN request to explain how and why\./);
   });
 
   it("is in the sitemap, llms.txt and llms-full.txt, and the tools hub description names it", () => {
@@ -247,6 +352,8 @@ describe("registry", () => {
     expect(log).toContain("2026-10-27");
     for (const source of Object.values(HN_SOURCES)) expect(log).toContain(source.url);
     expect(log).toContain("https://news.ycombinator.com/submit");
+    expect(log).toContain(NEWS_ARC.url);
+    expect(log).toContain("title-limit* 80");
     for (const quote of Object.values(HN_QUOTES)) expect(log, quote.text).toContain(quote.text);
   });
 });

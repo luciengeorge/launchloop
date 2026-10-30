@@ -8,7 +8,7 @@ Sources were fetched on Tuesday 27 October 2026 (2026-10-27) at about 09:10 UTC.
 **Title:** `Show HN Title Checker: Test Against HN Rules · LaunchLoop` (57 characters)
 **Description:** `Free Show HN title checker: test your title and first comment against Hacker News's own rules, each quoted and linked to its source. No AI, no sign-up.` (151 characters)
 
-The checker runs in the browser (no server action, no AI, no account). It reads a title, an optional text or first comment, and what the link goes to (something to try, a video or a PDF). It returns pass or warn per check. Each check is labelled either **HN rule** (it enforces a quoted HN sentence) or **Our tip** (LaunchLoop's own heuristic).
+The checker runs in the browser (no server action, no AI, no account). It reads a title, an optional text or first comment, and what the link goes to (something to try, a video or a PDF). It returns pass or warn per check. Each check is labelled **HN rule** (it enforces a quoted HN sentence), **Our tip** (LaunchLoop's own heuristic) or, for the title length only, **Submit form** (a limit HN's submit form enforces that no written guideline states).
 
 ## Method
 
@@ -65,13 +65,22 @@ The checker runs in the browser (no server action, no AI, no account). It reads 
 
 **URL:** https://news.ycombinator.com/submit
 
-Signed out, the page shows only "You have to be logged in to submit." and a login and create-account form. No title field or length limit is visible, so none is quoted.
+Signed out, the page shows only "You have to be logged in to submit." and a login and create-account form. No title field or length limit is visible, so none is quoted. The title limit has a different source, below.
+
+### Title length limit (not a guideline, not quoted)
+
+**Source:** HN's published news.arc source, as copied in the Anarki repository: https://github.com/arclanguage/anarki/blob/master/apps/news/news.arc (raw file fetched with `curl` on 27 October 2026). It contains `(= title-limit* 80`, `toolong* "Please make title < @title-limit* characters."` and, in the submit handler, `(len> title title-limit*)`, which returns the `toolong*` message.
+
+- The test is `len> title title-limit*`, so a title of 80 characters is accepted and 81 is rejected, even though the message reads "< 80". The tool follows the code: it warns at 81 or more.
+- QA found that the submit form rejects titles over 80 characters, and reported HN comments from 2022 and 2024 that agree. Those comments were not re-fetched for this log and no URL is recorded, so the page doesn't cite them.
+- HN's live code isn't public. The Anarki copy is the published source, not proof of what the live form does today, so the page says "HN's published news.arc source" and tells people to check the form if they're near the limit.
+- None of showhn.html, newsguidelines.html or newsfaq.html mentions a length (the unit test checks there is no "80 characters" or "title ... limit" in the fetched copies). So the limit is shown as a **Submit form** check, with its own badge, never as an **HN rule** or a quote.
 
 ## How each check maps to a quote
 
 | Check | Kind | Quote keys | What the code looks for |
 | --- | --- | --- | --- |
-| `prefix` | rule | `prefix` | Title begins with `Show HN` in that case. Lowercase `show hn` warns. |
+| `prefix` | rule | `prefix` | Title begins with `Show HN`: those capitals, one space, and not running into the next word. Lowercase `show hn`, `Show  HN` (two spaces) and `Show HNews` warn. `Show HN:Gridcast` and `Show HN - Gridcast` pass. HN's sentence says the title "begins with" Show HN and we don't know how the live form matches it, so the warning says to match the words exactly and doesn't claim HN rejects the title. |
 | `caps` | rule | `titles` | All-caps words of 4+ letters, or shouted short words (NEW, NOW, ALL...), except an acronym allow-list (JSON, HTTP, YAML...). |
 | `exclaim` | rule | `titles` | Any `!` after the prefix. |
 | `hype` | rule | `titles` ("saying how great an article is") | Our word list: best, greatest, ultimate, amazing, awesome, incredible, insanely, revolutionary, game-changing, groundbreaking, mind-blowing, world's first, world-class, cutting-edge, next-level, blazing fast, lightning fast, stunning, magical, killer, epic, unbelievable. The page says the list is ours. |
@@ -79,8 +88,8 @@ Signed out, the page shows only "You have to be logged in to submit." and a logi
 | `number` | rule | `number`, `numberException` | A number before a listicle noun (ways, reasons, tips...) or before a hype adjective. "The 5 Platonic Solids" passes. |
 | `media` | rule | `media` | If the user says the link is a video or a PDF, the title must end with `[video]` or `[pdf]`. |
 | `upgrade` | rule | `upgrades` | `v2`, a three-part version like `1.3.1`, or "is out", "now supports", "new version", "now available", "just released". Two-part versions (Python 3.12) pass. |
-| `offtopic` | rule | `offTopic`, `notReady`, `landing` | "my/our waitlist", "join the waitlist", "my/our newsletter", "my/our blog post", "my/our landing page", fundraiser, crowdfunding, Kickstarter, Indiegogo, pre-order, "coming soon", in the title or text. A waitlist *tool* passes. |
-| `asks` | rule | `askFriends`, `solicit`, `penalty` | Upvote, vote for us, please vote or comment, leave a comment, comment below, support us on HN, help us reach the front page, show some love, in the title or text. Asking for feedback passes. |
+| `offtopic` | rule | `offTopic`, `notReady`, `landing` | "my/our waitlist", "join the waitlist", "my/our newsletter", "my/our blog post", "my/our landing page", fundraiser, crowdfunding, Kickstarter, Indiegogo, pre-order, "coming soon", in the title or text. A waitlist *tool* passes. The page describes the pre-order part as "a pre-sale" because `tests/e2e/pricing-consistency.spec.ts` bans the pre-order wording in every rendered page. |
+| `asks` | rule | `askFriends`, `solicit`, `penalty` | Upvote, vote for us, please vote, retweet or boost, support us on HN, help us reach the front page, show some love, in the title or text. Asking for comments (please comment, leave a comment, comment below) is flagged unless the same sentence is a plain request for feedback, suggestions, thoughts or bug reports with no mention of votes or ranking. So "Please try it and comment with any feedback." passes, while "Please upvote and leave a comment!" and "Leave a comment below to help us rank." warn. showhn.html says "HN users can try it out, give you feedback, and ask questions in the thread.", so a plain request for feedback isn't soliciting. The check can't tell intent, so it is a pattern, not a verdict. |
 | `signup` | rule | `easyToTry` | Text mentions signing up, logging in, creating an account or an email address, in a sentence with no negation ("no sign-up needed" passes, "you can't try it without signing up" warns). |
 | `emphasis` | rule | `emphasis` | All-caps words in the text, same allow-list as `caps`. |
 | `describes` | tip | none | Fewer than 3 words after `Show HN:`. Labelled "Our tip, not an HN rule". |
@@ -94,7 +103,7 @@ Each check is tied to the exact HN sentence it enforces, quoted and linked, and 
 
 ## Left out
 
-- **Title length limit.** Not stated on showhn.html, newsguidelines.html or newsfaq.html, and the submit form needs a login. The tool shows a neutral character count and the page says no limit is stated. No number is given.
+- **Title length as an HN rule.** The 80 character limit isn't stated on showhn.html, newsguidelines.html or newsfaq.html, so it isn't a rule or a quote. It is shown as a separate submit form check, sourced to HN's published news.arc source (see above). An earlier version of this log and page said HN states no limit; that was wrong about the form.
 - **dang's Show HN tips** (`item?id=22336638`, linked from showhn.html) and other moderator comments. Not one of the three rules pages, so not quoted on this page; `/how-to-write-a-show-hn-post` covers them with its own quote log (`2026-10-20-show-hn-post-guide.md`).
 - **"don't editorialize" and linkbait.** No reliable pattern, so listed under "What no checker can judge" instead of being checked.
 - **Generated or AI-edited text.** Can't be detected without AI, so it is quoted as a rule to check yourself, not a check.

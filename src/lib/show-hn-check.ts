@@ -3,8 +3,8 @@ import { charLength } from "./limits";
 /**
  * Show HN title and first-comment checks. Every "rule" check enforces a sentence quoted word for word from
  * Hacker News's own pages (fetched 27 October 2026, see docs/seo/2026-10-27-show-hn-title-checker.md); a "tip" is
- * LaunchLoop's own heuristic and is labelled as such everywhere it is shown. HN states no title length limit on these
- * pages, so the length is a plain count with no pass or warn.
+ * LaunchLoop's own heuristic and is labelled as such everywhere it is shown. The 80 character title limit is neither: those
+ * pages never mention it, so it is a "form" check that cites HN's published news.arc source, never a guideline quote.
  */
 export const HN_SOURCES = {
   showhn: { url: "https://news.ycombinator.com/showhn.html", name: "Show HN guidelines" },
@@ -13,6 +13,12 @@ export const HN_SOURCES = {
 } as const;
 
 export type HnSource = keyof typeof HN_SOURCES;
+
+/** HN's submit form rejects a title longer than this: `title-limit* 80` and `(len> title title-limit*)` in news.arc. Not in any written HN guideline. */
+export const HN_TITLE_LIMIT = 80;
+
+/** The copy of news.arc in the Anarki repository, read on 27 October 2026. HN's live code isn't public, so this is the published source, not a guarantee. */
+export const NEWS_ARC = { url: "https://github.com/arclanguage/anarki/blob/master/apps/news/news.arc", name: "news.arc in the Anarki repository" } as const;
 
 export type HnQuote = { text: string; source: HnSource };
 
@@ -43,20 +49,23 @@ export const HN_QUOTES = {
   editorialize: { text: "Otherwise please use the original title, unless it is misleading or linkbait; don't editorialize.", source: "guidelines" },
 } as const satisfies Record<string, HnQuote>;
 
-export type CheckId = "prefix" | "caps" | "exclaim" | "hype" | "domain" | "number" | "media" | "upgrade" | "describes" | "offtopic" | "asks" | "signup" | "emphasis" | "howwhy";
+export type RuleId = "prefix" | "caps" | "exclaim" | "hype" | "domain" | "number" | "media" | "upgrade" | "describes" | "offtopic" | "asks" | "signup" | "emphasis" | "howwhy";
+
+/** "length" is the submit form's title limit: a check, but not one of the quoted HN rules or our tips. */
+export type CheckId = RuleId | "length";
 
 export type CheckField = "title" | "comment" | "both";
 
-/** "rule": enforces the quoted HN sentence. "tip": LaunchLoop's own heuristic, not an HN rule. */
-export type CheckKind = "rule" | "tip";
+/** "rule": enforces the quoted HN sentence. "tip": LaunchLoop's own heuristic, not an HN rule. "form": a limit HN's submit form enforces that no written guideline states. */
+export type CheckKind = "rule" | "tip" | "form";
 
 export type CheckStatus = "pass" | "warn";
 
 export type LinkType = "project" | "video" | "pdf";
 
 export interface ShowHnRule {
-  id: CheckId;
-  kind: CheckKind;
+  id: RuleId;
+  kind: "rule" | "tip";
   field: CheckField;
   name: string;
   /** What the tool looks for, in plain words, so the page can say exactly how each rule is checked. */
@@ -100,7 +109,11 @@ const ACRONYMS = new Set([
 /** Short words people capitalise to shout, which are too short for the 4-letter rule. */
 const SHOUTED_SHORT = new Set(["NEW", "NOW", "ALL", "YOU", "OUR", "THE", "AND", "FOR", "ANY", "NOT", "WOW", "OMG"]);
 
-const PREFIX = /^show hn\b\s*:?\s*/i;
+/** "Show HN" in any case or spacing, followed by a word boundary. The check, not this, decides whether the spelling is exact. */
+const PREFIX = /^show\s+hn\b\s*:?\s*/i;
+/** Exactly "Show HN" (one space, those capitals), not running on into another word such as "Show HNews". */
+const PREFIX_EXACT = /^Show HN\b/;
+const PREFIX_RUN_ON = /^show\s+hn(?=[\p{L}\p{N}_])/iu;
 const DOMAIN = /(?<![@\w.-])(?:www\.)?[a-z0-9][a-z0-9-]*\.(?:com|net|org|io|dev|app|ai|co|sh|me|xyz|gg|tech|site|run|tools|page|cloud|studio|design|fm|tv|ly|to|us|uk|de|fr|club|lol|fyi)\b/i;
 const NUMBER_ADJECTIVE = new RegExp(`(?:^|\\s)\\d[\\d,]*\\+?\\s+(?:${HYPE.map((h) => h.re.source.replace(/^\\b|\\b$/g, "")).join("|")}|essential|great|surprising|powerful)\\b`, "i");
 const LISTICLE = /(?:^|\s)\d[\d,]*\+?\s+(?:\w+\s+)?(?:ways|reasons|things|tips|tricks|secrets|hacks|lessons|mistakes|facts|ideas|examples|steps|resources)\b/i;
@@ -113,16 +126,24 @@ const OFF_TOPIC: { label: string; re: RegExp }[] = [
   { label: "a fundraiser", re: /\bfundrais(?:er|ing)\b|\bcrowdfunding\b|\bkickstarter\b|\bindiegogo\b|\bpre-?orders?\b/i },
   { label: "coming soon", re: /\bcoming\s+soon\b|\blaunching\s+soon\b/i },
 ];
+/** Asking for votes, or for help ranking: always flagged. */
 const ASKS: RegExp[] = [
   /\bup-?vot(?:e|es|ed|ing)\b/i,
   /\bvot(?:e|es|ing)\s+(?:for|on)\s+(?:us|me|our|my|it|this)\b/i,
-  /\b(?:please|pls|plz|kindly)\b[^.!?\n]{0,40}\b(?:vote|comment|retweet|boost)\b/i,
-  /\b(?:leave|drop|post|write)\s+(?:a|us\s+a|me\s+a|your)\s+comments?\b/i,
-  /\bcomment\s+below\b/i,
+  /\b(?:please|pls|plz|kindly)\b[^.!?\n]{0,40}\b(?:vote|retweet|boost)\b/i,
   /\bsupport\s+(?:us|me)\s+on\s+(?:hn|hacker\s*news)\b/i,
   /\bhelp\s+(?:us|me)\s+(?:get\s+to|reach|hit|climb\s+to)\s+(?:the\s+)?(?:front\s*page|top|#\s?1|number\s+one)\b/i,
   /\bshow\s+(?:us\s+|me\s+)?(?:some\s+)?love\b/i,
 ];
+/** Asking for comments. Flagged unless the same sentence is a plain request for feedback, which the Show HN guidelines welcome in the thread. */
+const COMMENT_ASKS: RegExp[] = [
+  /\b(?:please|pls|plz|kindly)\b[^.!?\n]{0,40}\bcomment\b/i,
+  /\b(?:leave|drop|post|write)\s+(?:a|us\s+a|me\s+a|your)\s+comments?\b/i,
+  /\bcomment\s+below\b/i,
+];
+const FEEDBACK = /\b(?:feedback|suggestions?|thoughts|bug\s+reports?)\b/i;
+/** A feedback request that also mentions votes or ranking is still soliciting. */
+const RANKING = /\b(?:rank(?:ing)?|front\s*page|algorithm|visibility|upvotes?|votes?|boost)\b/i;
 const SIGNUP = /\bsign[\s-]?(?:up|in)\b|\bsigning\s+up\b|\bregist(?:er|ration)\b|\blog[\s-]?in\b|\bcreate\s+an\s+account\b|\baccount\s+(?:is\s+)?(?:required|needed)\b|\b(?:your|an)\s+email(?:\s+address)?\b/i;
 const NEGATION = /\b(?:no|without|never|zero|nothing)\b|n['’]t\b|\bnot\b/i;
 /** "You can't try it without signing up" negates twice: still a barrier. */
@@ -141,15 +162,15 @@ export const SHOW_HN_RULES: readonly ShowHnRule[] = [
   { id: "number", kind: "rule", field: "title", name: "No gratuitous numbers", how: "Flags listicle numbers like 10 Ways or 14 Amazing. A meaningful number is fine, as HN says.", quotes: q(HN_QUOTES.number, HN_QUOTES.numberException) },
   { id: "media", kind: "rule", field: "title", name: "[video] or [pdf] for videos and PDFs", how: "If you say your link is a video or a PDF, checks the title ends with [video] or [pdf].", quotes: q(HN_QUOTES.media) },
   { id: "upgrade", kind: "rule", field: "title", name: "Not just a version bump", how: "Flags version numbers like 1.3.1 or v2 and phrases like is out or now supports.", quotes: q(HN_QUOTES.upgrades) },
-  { id: "offtopic", kind: "rule", field: "both", name: "Something people can try now", how: "Flags a waitlist, newsletter, blog post, landing page, fundraiser or crowdfunding campaign, or coming soon, in the title or text.", quotes: q(HN_QUOTES.offTopic, HN_QUOTES.notReady, HN_QUOTES.landing) },
+  { id: "offtopic", kind: "rule", field: "both", name: "Something people can try now", how: "Flags a waitlist, newsletter, blog post, landing page, fundraiser (crowdfunding, Kickstarter, Indiegogo or a pre-sale), or coming soon, in the title or text.", quotes: q(HN_QUOTES.offTopic, HN_QUOTES.notReady, HN_QUOTES.landing) },
   { id: "asks", kind: "rule", field: "both", name: "No asking for upvotes or comments", how: "Flags asking people to upvote, vote, comment, share or help you reach the front page. Asking for feedback isn't flagged.", quotes: q(HN_QUOTES.askFriends, HN_QUOTES.solicit, HN_QUOTES.penalty) },
   { id: "signup", kind: "rule", field: "comment", name: "Easy to try without a sign-up", how: "Flags mentions of signing up, logging in, an account or an email address, unless the sentence says you don't need one.", quotes: q(HN_QUOTES.easyToTry) },
   { id: "emphasis", kind: "rule", field: "comment", name: "No uppercase for emphasis", how: "Flags all-caps words in your text, except common acronyms.", quotes: q(HN_QUOTES.emphasis) },
   { id: "describes", kind: "tip", field: "title", name: "Says what it is, not just the name", how: `Our tip, not an HN rule: warns when fewer than ${MIN_DESCRIBING_WORDS} words follow Show HN.`, quotes: q() },
-  { id: "howwhy", kind: "tip", field: "comment", name: "Explains how and why", how: "Our guess at an HN sentence: looks for words like because, why, how, problem or I built. It can't tell whether you actually explained anything.", quotes: q(HN_QUOTES.howWhy) },
+  { id: "howwhy", kind: "tip", field: "comment", name: "Explains how and why", how: "Our tip, based on the Show HN request to explain how and why. It looks for words like because, why, how, problem or I built, and can't tell whether you actually explained anything.", quotes: q(HN_QUOTES.howWhy) },
 ];
 
-export const RULE_BY_ID = Object.fromEntries(SHOW_HN_RULES.map((r) => [r.id, r])) as Record<CheckId, ShowHnRule>;
+export const RULE_BY_ID = Object.fromEntries(SHOW_HN_RULES.map((r) => [r.id, r])) as Record<RuleId, ShowHnRule>;
 
 export interface ShowHnCheck {
   id: CheckId;
@@ -159,7 +180,7 @@ export interface ShowHnCheck {
   detail: string;
 }
 
-/** "pass": every rule and tip passes. "tips": every HN rule passes, a tip doesn't. "warn": at least one HN rule to fix. */
+/** "pass": every check passes. "tips": every HN rule and the title limit pass, a tip doesn't. "warn": at least one HN rule or the submit form's title limit to fix. */
 export type Verdict = "pass" | "tips" | "warn";
 
 export interface ShowHnResult {
@@ -198,7 +219,10 @@ export const findDomain = (text: string) => text.match(DOMAIN)?.[0] ?? null;
 export const hasGratuitousNumber = (text: string) => LISTICLE.test(text) || NUMBER_ADJECTIVE.test(text);
 export const looksLikeUpgrade = (text: string) => VERSION.test(text);
 export const offTopicSigns = (text: string) => OFF_TOPIC.filter((o) => o.re.test(text)).map((o) => o.label);
-export const asksForEngagement = (text: string) => ASKS.some((re) => re.test(text));
+export function asksForEngagement(text: string): boolean {
+  if (ASKS.some((re) => re.test(text))) return true;
+  return text.split(/(?<=[.!?])\s+|\n+/).some((s) => COMMENT_ASKS.some((re) => re.test(s)) && !(FEEDBACK.test(s) && !RANKING.test(s)));
+}
 export const explainsHowWhy = (text: string) => HOW_WHY.test(text);
 
 /** True if a sentence mentions a sign-up, login, account or email without saying it isn't needed. */
@@ -207,14 +231,27 @@ export function mentionsSignupBarrier(text: string): boolean {
   return sentences.some((s) => SIGNUP.test(s) && (!NEGATION.test(s) || DOUBLE_NEGATION.test(s)));
 }
 
-const result = (id: CheckId, status: CheckStatus, label: string, detail: string): ShowHnCheck => ({ id, kind: RULE_BY_ID[id].kind, status, label, detail });
-const pass = (id: CheckId, label: string, detail: string) => result(id, "pass", label, detail);
-const warn = (id: CheckId, label: string, detail: string) => result(id, "warn", label, detail);
+const result = (id: RuleId, status: CheckStatus, label: string, detail: string): ShowHnCheck => ({ id, kind: RULE_BY_ID[id].kind, status, label, detail });
+const pass = (id: RuleId, label: string, detail: string) => result(id, "pass", label, detail);
+const warn = (id: RuleId, label: string, detail: string) => result(id, "warn", label, detail);
 
 function prefixCheck(title: string): ShowHnCheck {
-  if (title.startsWith("Show HN")) return pass("prefix", "Starts with “Show HN”", "Posted with this title, it counts as a Show HN.");
-  if (PREFIX.test(title)) return warn("prefix", "Write it as “Show HN”", "HN's rule spells it “Show HN”, with a capital S, H and N. Match it exactly.");
+  if (PREFIX_EXACT.test(title)) return pass("prefix", "Starts with “Show HN”", "Posted with this title, it counts as a Show HN.");
+  if (PREFIX_RUN_ON.test(title)) return warn("prefix", "“Show HN” runs into the next word", "HN's rule says the title begins with “Show HN”. Put a colon or a space straight after it.");
+  if (PREFIX.test(title)) return warn("prefix", "Write it as “Show HN”", "HN's rule spells it “Show HN”, with a capital S, H and N and one space between the words. Match it exactly.");
   return warn("prefix", "Doesn't start with “Show HN”", "Start the title with “Show HN: ” so it's posted as a Show HN.");
+}
+
+/** The submit form's title limit. Shown only when the title is over it, and never as an HN guideline. */
+function lengthCheck(length: number): ShowHnCheck | null {
+  if (length <= HN_TITLE_LIMIT) return null;
+  return {
+    id: "length",
+    kind: "form",
+    status: "warn",
+    label: `Over ${HN_TITLE_LIMIT} characters`,
+    detail: `HN's submit form rejects titles longer than ${HN_TITLE_LIMIT} characters. Yours is ${length}, so cut at least ${length - HN_TITLE_LIMIT}.`,
+  };
 }
 
 function mediaCheck(title: string, link: LinkType): ShowHnCheck {
@@ -290,12 +327,14 @@ export function checkShowHn({ title: rawTitle, comment: rawComment = "", link = 
   const comment = rawComment.trim();
   const checks: ShowHnCheck[] = [];
   if (title) checks.push(...titleChecks(title, link));
+  const tooLong = lengthCheck(charLength(title));
+  if (tooLong) checks.push(tooLong);
   if (title || comment) {
     const both = `${title}\n${comment}`;
     checks.push(offTopicCheck(both), asksCheck(both));
   }
   if (comment) checks.push(...commentChecks(comment));
-  const rulesWarn = checks.some((c) => c.kind === "rule" && c.status === "warn");
+  const rulesWarn = checks.some((c) => c.kind !== "tip" && c.status === "warn");
   const tipsWarn = checks.some((c) => c.kind === "tip" && c.status === "warn");
   const verdict: Verdict = rulesWarn ? "warn" : tipsWarn ? "tips" : "pass";
   return { titleLength: charLength(title), commentLength: charLength(comment), verdict, checks };
@@ -307,7 +346,7 @@ export interface ShowHnExample {
   after: { title: string; comment?: string };
   link?: LinkType;
   /** The checks `before` fails. `after` passes every check. */
-  fixes: CheckId[];
+  fixes: RuleId[];
 }
 
 export const SHOW_HN_EXAMPLES: readonly ShowHnExample[] = [

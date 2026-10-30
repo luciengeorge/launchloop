@@ -9,7 +9,7 @@ import { siteUrl } from "@/lib/env";
 import { isLaunchPromoOn } from "@/lib/launch-promo-server";
 import { PAGES, toolPage } from "@/lib/pages";
 import { pageMetadata } from "@/lib/seo";
-import { HN_QUOTES, HN_SOURCES, RULE_BY_ID, SHOW_HN_EXAMPLES, SHOW_HN_RULES, type HnQuote, type ShowHnRule } from "@/lib/show-hn-check";
+import { HN_QUOTES, HN_SOURCES, HN_TITLE_LIMIT, NEWS_ARC, RULE_BY_ID, SHOW_HN_EXAMPLES, SHOW_HN_RULES, type HnQuote, type ShowHnRule } from "@/lib/show-hn-check";
 import { SITE } from "@/lib/site";
 import { breadcrumbs, faqPage } from "@/lib/structured-data";
 import { OG_PREVIEW, SHOW_HN_FAQ, SHOW_HN_CHECKER as tool, TAGLINE_CHECKER, type ToolFaqItem } from "@/lib/tools";
@@ -75,7 +75,7 @@ export default async function ShowHnTitleCheckerPage() {
                 `Checks a Show HN title against ${rules.filter((r) => r.field !== "comment").length} written Hacker News rules`,
                 "Checks your text or first comment for asking for votes, sign-up barriers and uppercase emphasis",
                 "Each check quotes the exact Hacker News sentence it enforces, with a link",
-                "Plain character count, with no invented length limit",
+                `Character count, with a note when the title is over the ${HN_TITLE_LIMIT} characters HN's submit form rejects`,
                 "Runs in the browser, with no AI and no sign-up",
               ],
               offers: { "@type": "Offer", price: "0", priceCurrency: "GBP", availability: "https://schema.org/InStock" },
@@ -218,9 +218,11 @@ export default async function ShowHnTitleCheckerPage() {
       <div className={`max-w-3xl ${prose}`}>
         <h2 id="length">Is there a title length limit?</h2>
         <p>
-          Not one HN states. The Show HN guidelines, the main guidelines and the FAQ don&apos;t give a title length, and the{" "}
-          <a href="https://news.ycombinator.com/submit">submit form</a> shows only a login when you&apos;re signed out, so we couldn&apos;t read one there either. The checker
-          shows a plain character count and doesn&apos;t pass or fail it. A title that says what the project is in one short line is the safe target.
+          Yes. HN&apos;s <a href="https://news.ycombinator.com/submit">submit form</a> rejects titles longer than {HN_TITLE_LIMIT} characters, even though the written guidelines
+          don&apos;t mention it. The Show HN guidelines, the main guidelines and the FAQ give no title length. The limit comes from HN&apos;s published news.arc source (
+          <a href={NEWS_ARC.url}>{NEWS_ARC.name}</a>), which sets a title limit of {HN_TITLE_LIMIT}. HN&apos;s live code isn&apos;t public, and the submit form shows only a login
+          when you&apos;re signed out, so we couldn&apos;t test the live form ourselves. The checker counts the whole title, including Show HN, and adds a separate{" "}
+          &ldquo;Submit form&rdquo; check when it&apos;s over {HN_TITLE_LIMIT}. That check is not a guideline quote. A title that says what the project is in one short line is the safe target.
         </p>
 
         <h2 id="after-the-title">After the title</h2>
@@ -260,6 +262,10 @@ export default async function ShowHnTitleCheckerPage() {
           <li><a href={HN_SOURCES.guidelines.url}>Hacker News guidelines</a></li>
           <li><a href={HN_SOURCES.faq.url}>Hacker News FAQ</a></li>
         </ul>
+        <p>
+          The {HN_TITLE_LIMIT} character title limit is the one exception. No HN page states it, so it isn&apos;t quoted. It comes from <a href={NEWS_ARC.url}>{NEWS_ARC.name}</a>,
+          which we read on {FETCHED}.
+        </p>
       </div>
 
       <aside className="mt-16 flex flex-col items-start gap-4 rounded-3xl bg-foreground px-6 py-10 text-background sm:px-10">

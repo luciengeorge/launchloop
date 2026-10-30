@@ -95,7 +95,7 @@ export const OG_FAQ: readonly ToolFaqItem[] = [
 export const SHOW_HN_FAQ: readonly ToolFaqItem[] = [
   {
     q: "How long can a Show HN title be?",
-    a: "Hacker News doesn't say on its Show HN guidelines, its main guidelines or its FAQ, and the submit form is behind a login, so this tool doesn't present a limit as an HN rule. It shows a plain character count instead. Aim for a title that says what the project is in one short line.",
+    a: "HN's submit form rejects titles longer than 80 characters, even though the written guidelines don't mention it. The Show HN guidelines, the main guidelines and the FAQ give no length. The limit comes from HN's published news.arc source, and HN's live code isn't public, so check the form if you're near it. This tool shows the count, and adds a separate submit form check when your title is over 80, not as an HN rule. Aim for a title that says what the project is in one short line.",
   },
   {
     q: "What should a Show HN title start with?",

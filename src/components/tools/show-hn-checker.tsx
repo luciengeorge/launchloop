@@ -2,11 +2,11 @@
 
 import { CircleCheck, TriangleAlert } from "lucide-react";
 import Link from "next/link";
-import { useId, useState } from "react";
+import { useId, useState, useSyncExternalStore } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { HN_SOURCES, RULE_BY_ID, checkShowHn, type CheckKind, type CheckStatus, type LinkType, type ShowHnCheck, type Verdict } from "@/lib/show-hn-check";
+import { HN_SOURCES, HN_TITLE_LIMIT, NEWS_ARC, RULE_BY_ID, checkShowHn, type CheckKind, type CheckStatus, type LinkType, type ShowHnCheck, type Verdict } from "@/lib/show-hn-check";
 
 const LINK_TYPES: { value: LinkType; label: string }[] = [
   { value: "project", label: "Something to try (app, site or repo)" },
@@ -30,9 +30,11 @@ function StatusIcon({ status }: { status: CheckStatus }) {
 function KindBadge({ kind }: { kind: CheckKind }) {
   switch (kind) {
     case "rule":
-      return <span className="rounded-full border border-border px-1.5 py-px text-[0.6875rem] font-medium uppercase tracking-wide text-foreground">HN rule</span>;
+      return <span data-testid="showhn-badge" className="rounded-full border border-border px-1.5 py-px text-[0.6875rem] font-medium uppercase tracking-wide text-foreground">HN rule</span>;
     case "tip":
-      return <span className="rounded-full bg-muted px-1.5 py-px text-[0.6875rem] font-medium uppercase tracking-wide text-muted-foreground">Our tip</span>;
+      return <span data-testid="showhn-badge" className="rounded-full bg-muted px-1.5 py-px text-[0.6875rem] font-medium uppercase tracking-wide text-muted-foreground">Our tip</span>;
+    case "form":
+      return <span data-testid="showhn-badge" className="rounded-full border border-dashed border-border px-1.5 py-px text-[0.6875rem] font-medium uppercase tracking-wide text-foreground">Submit form</span>;
     default: {
       const unreachable: never = kind;
       return unreachable;
@@ -40,15 +42,26 @@ function KindBadge({ kind }: { kind: CheckKind }) {
   }
 }
 
-function verdictText(verdict: Verdict, ruleWarnings: number, tipWarnings: number, empty: boolean): string {
-  if (empty) return "Start typing your title. The checks update as you go.";
+const noopSubscribe = () => () => {};
+
+/** False on the server and during hydration, true once the page's JavaScript is running. */
+function useHydrated(): boolean {
+  return useSyncExternalStore(noopSubscribe, () => true, () => false);
+}
+
+function verdictText(verdict: Verdict, ruleWarnings: number, tipWarnings: number, formWarnings: number, empty: boolean, hydrated: boolean): string {
+  // Without JavaScript nothing updates, so say nothing until the page is live. The noscript note explains.
+  if (empty) return hydrated ? "Start typing your title. The checks update as you go." : "";
   switch (verdict) {
     case "pass":
       return "Passes every HN rule and tip this tool checks.";
     case "tips":
       return `Passes every HN rule this tool checks, with ${tipWarnings} tip${tipWarnings === 1 ? "" : "s"} to consider.`;
-    case "warn":
-      return `${ruleWarnings} HN rule${ruleWarnings === 1 ? "" : "s"} to look at.`;
+    case "warn": {
+      const rules = ruleWarnings ? `${ruleWarnings} HN rule${ruleWarnings === 1 ? "" : "s"} to look at.` : "";
+      const form = formWarnings ? "HN's submit form would reject this title." : "";
+      return [rules, form].filter(Boolean).join(" ");
+    }
     default: {
       const unreachable: never = verdict;
       return unreachable;
@@ -57,7 +70,7 @@ function verdictText(verdict: Verdict, ruleWarnings: number, tipWarnings: number
 }
 
 function CheckItem({ check }: { check: ShowHnCheck }) {
-  const quote = RULE_BY_ID[check.id].quotes[0];
+  const quote = check.id === "length" ? undefined : RULE_BY_ID[check.id].quotes[0];
   return (
     <li data-check={check.id} data-status={check.status} data-kind={check.kind} className="flex gap-2.5 text-sm">
       <StatusIcon status={check.status} />
@@ -75,6 +88,15 @@ function CheckItem({ check }: { check: ShowHnCheck }) {
             </a>
           </p>
         ) : null}
+        {check.kind === "form" ? (
+          <p className="break-words text-xs text-muted-foreground">
+            This comes from HN&apos;s submit form and its published source, not from a guideline:{" "}
+            <a href={NEWS_ARC.url} className="font-medium text-foreground underline underline-offset-4">
+              {NEWS_ARC.name}
+            </a>
+            .
+          </p>
+        ) : null}
       </div>
     </li>
   );
@@ -85,10 +107,12 @@ export function ShowHnChecker() {
   const [comment, setComment] = useState("");
   const [link, setLink] = useState<LinkType>("project");
   const ids = useId();
+  const hydrated = useHydrated();
 
   const result = checkShowHn({ title, comment, link });
   const ruleWarnings = result.checks.filter((c) => c.kind === "rule" && c.status === "warn").length;
   const tipWarnings = result.checks.filter((c) => c.kind === "tip" && c.status === "warn").length;
+  const formWarnings = result.checks.filter((c) => c.kind === "form" && c.status === "warn").length;
   const empty = result.checks.length === 0;
   const ordered = [...result.checks.filter((c) => c.status === "warn"), ...result.checks.filter((c) => c.status === "pass")];
 
@@ -98,7 +122,7 @@ export function ShowHnChecker() {
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-2">
             <Label htmlFor={`${ids}-title`}>Show HN title</Label>
-            <span id={`${ids}-count`} data-testid="showhn-count" className="shrink-0 whitespace-nowrap rounded-full bg-muted px-2 py-0.5 font-mono text-xs tabular-nums text-muted-foreground">
+            <span id={`${ids}-count`} data-testid="showhn-count" data-over-limit={result.titleLength > HN_TITLE_LIMIT} className="shrink-0 whitespace-nowrap rounded-full bg-muted px-2 py-0.5 font-mono text-xs tabular-nums text-muted-foreground">
               {result.titleLength} characters
             </span>
           </div>
@@ -113,7 +137,7 @@ export function ShowHnChecker() {
             className="h-11 text-base"
           />
           <p id={`${ids}-count-note`} className="text-xs text-muted-foreground">
-            A plain count: HN&apos;s guidelines, Show HN page and FAQ don&apos;t state a title length limit.
+            HN&apos;s submit form rejects titles longer than {HN_TITLE_LIMIT} characters. That comes from HN&apos;s published news.arc source, not the guidelines.
           </p>
         </div>
 
@@ -152,7 +176,7 @@ export function ShowHnChecker() {
       <section aria-labelledby={`${ids}-checks`} className="rounded-xl border border-border bg-card p-4 sm:p-5">
         <h2 id={`${ids}-checks`} className="text-sm font-medium">Checklist</h2>
         <p id={`${ids}-verdict`} data-testid="showhn-verdict" data-verdict={empty ? "empty" : result.verdict} role="status" aria-live="polite" className="mt-1 text-sm text-muted-foreground">
-          {verdictText(result.verdict, ruleWarnings, tipWarnings, empty)}
+          {verdictText(result.verdict, ruleWarnings, tipWarnings, formWarnings, empty, hydrated)}
         </p>
         {empty ? null : (
           <ul className="mt-4 space-y-4" data-testid="showhn-checks">
