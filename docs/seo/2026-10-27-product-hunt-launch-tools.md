@@ -57,7 +57,7 @@ The ten from the outline, all run on 27 October 2026. None needed a card or an a
 - **Why ShipProof's output described ShipProof.** The page states the fact (the form showed our inputs; the output was about ShipProof; no error) and that one run can't say whether it always happens. No cause is suggested.
 - **Why Mydentify errored.** The page gives the error text and the one retry. The tester's guess in the raw note is not used.
 - **LaunchLoop's paid description and maker comment.** Not bought, so not tested; the page says so in the table, the LaunchLoop section, the repo section and the FAQ.
-- **ChatGPT's prompt wording.** The output file records the inputs (blurb and repo URL) but not the exact prompt; the page says only what it was given.
+- **ChatGPT's prompt wording.** The output `.txt` doesn't record the inputs. The screenshot `2026-10-27_chatgpt_output1.png` shows the exact prompt (blurb and repo URL), transcribed in the ChatGPT section below.
 - **Marketing Pack's account requirement.** Not verifiable from its pages on 27 October (`00-quotes.md`); in the run it asked for no email or sign-in, which is what the page says.
 - **Maker comment limit.** No Product Hunt page read on 27 October gives one, so the page gives maker comment counts without a pass or fail. Marketing Pack's own "up to 2,000 characters" is quoted as its page's claim, not as Product Hunt's.
 
@@ -294,9 +294,9 @@ PH LaunchKit tagline generator. Start 2026-10-27 10:12 Paris, end 10:12 Paris. N
 ### ChatGPT, logged out
 
 - **Time (Paris, CET):** 10:13
-- **Input:** Typed: the blurb and the repo URL. The prompt's exact wording isn't in the output file.
+- **Input:** Typed: the blurb and the repo URL. Exact prompt, from `2026-10-27_chatgpt_output1.png`: "Write a Product Hunt listing for this product: a tagline (max 60 characters), a description (max 260 characters) and a maker comment. Product: Sonner. Repo: https://github.com/emilkowalski/sonner. About: Sonner is an opinionated toast component for React. You can read more about why and how it was built here."
 - **Counts (ours, `Array.from(text.trim()).length`):** Tagline 53 (UI showed 43/60). Description 193 (UI showed 143/260). Maker comment 716. Within 60 and 260 either way.
-- **Screenshots and files:** None listed in the output file.
+- **Screenshots and files:** `2026-10-27_chatgpt_output1.png` (the prompt and the first reply; the evidence for the inputs, since the `.txt` doesn't record them).
 - **Raw output** (`2026-10-27_chatgpt_output.txt`, verbatim except as noted at the top of this section):
 
 ```text
