@@ -1,6 +1,7 @@
-import { afterPageLoad, loadAnalytics, rememberFirstTouch } from "./lib/analytics";
+import { afterPageLoad, isTestVisit, loadAnalytics, rememberFirstTouch } from "./lib/analytics";
 import { reportClientError } from "./lib/client";
 import { captureClientException, loadSentry, loadedSentry } from "./lib/sentry-client";
+import { onReplayNavigation, readReplayEnvironment, syncSessionReplay } from "./lib/session-replay";
 
 // Synchronous and SDK-free: the landing URL is read before any in-app navigation can change it.
 rememberFirstTouch();
@@ -10,7 +11,11 @@ rememberFirstTouch();
  * page's own HTML, CSS, fonts and hydration. Each also loads on demand if it's needed sooner.
  */
 function loadSdks() {
-  void loadAnalytics().then(() => loadSentry());
+  void loadAnalytics().then((posthog) => {
+    // The page this tab loaded on: masked replay starts here only if it's a kit page (see session-replay.ts).
+    if (posthog) syncSessionReplay(posthog, new URL(window.location.href), readReplayEnvironment(isTestVisit()));
+    return loadSentry();
+  });
 }
 
 void afterPageLoad().then(loadSdks);
@@ -32,6 +37,8 @@ window.addEventListener("unhandledrejection", (event) => {
 
 export function onRouterTransitionStart(url: string, navigationType: "push" | "replace" | "traverse") {
   // The visitor is already moving around: don't wait for load to start counting.
-  void loadAnalytics();
+  void loadAnalytics().then((posthog) => {
+    if (posthog) onReplayNavigation(posthog, new URL(url, window.location.href), readReplayEnvironment(isTestVisit()));
+  });
   loadedSentry()?.captureRouterTransitionStart(url, navigationType);
 }

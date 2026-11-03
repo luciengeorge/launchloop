@@ -82,8 +82,8 @@ export const PAGES = {
     path: "/tools",
     title: "Free launch tools for makers and indie hackers",
     description:
-      "Free launch tools with no sign-up: check your Product Hunt tagline against the 60-character limit and preview the card your link shows when it's shared.",
-    updated: "2026-10-18",
+      "Free launch tools with no sign-up: check your Product Hunt tagline and Show HN title against each site's rules, and preview your link's share card.",
+    updated: "2026-10-27",
     card: { eyebrow: "Free tools", headline: "Free launch tools, no sign-up" },
   }),
   privacy: core({
@@ -91,7 +91,7 @@ export const PAGES = {
     title: "Privacy policy: what we collect and why",
     description:
       "What data LaunchLoop collects when you preview or buy a launch kit, why we need it, who we share it with, how long we keep it and how to use your rights.",
-    updated: "2026-10-26",
+    updated: "2026-10-27",
     card: { eyebrow: "Privacy", headline: "What we collect and why" },
   }),
   terms: core({

@@ -5,7 +5,7 @@ import { GuideLayout } from "@/components/guide-layout";
 import { guide } from "@/lib/guides";
 import { guidePage } from "@/lib/pages";
 import { pageMetadata } from "@/lib/seo";
-import { OG_PREVIEW } from "@/lib/tools";
+import { OG_PREVIEW, SHOW_HN_CHECKER } from "@/lib/tools";
 
 const g = guide("show-hn-launch-checklist");
 
@@ -100,6 +100,10 @@ export default function ShowHnChecklistPage() {
         real examples from HN, weak and stronger titles, and whether to make it a link or a text post, read{" "}
         <Link href="/how-to-write-a-show-hn-post">how to write a Show HN post</Link>.
       </p>
+      <p>
+        To test a title as you type, paste it into the free <Link href={SHOW_HN_CHECKER.path}>Show HN title checker</Link>. It checks the title and your text against these
+        written rules and quotes the HN sentence behind each check.
+      </p>
 
       <h2 id="first-comment">Write the maker&apos;s first comment</h2>
       <p>
@@ -141,7 +145,7 @@ export default function ShowHnChecklistPage() {
       <h2 id="timing">Pick a time</h2>
       <p>
         Hacker News doesn&apos;t publish a best time to post. What the <a href={SRC.faq}>HN FAQ</a> does explain is ranking: points divided by a power of the time since
-        submission, plus other factors such as user flags, anti-abuse software and moderator action. Every Show HN appears on <a href={SRC.shownew}>/shownew</a>, and moves to the Show page
+        submission, plus other factors such as user flags, anti-abuse software and moderator action. Every Show HN appears on the <a href={SRC.shownew}>Show HN new page</a>, and moves to the Show page
         once it clears a small points threshold.
       </p>
       <ul>

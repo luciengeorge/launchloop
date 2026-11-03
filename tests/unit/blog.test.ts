@@ -8,7 +8,7 @@ import { llmsText } from "@/lib/llms";
 import { cardPages, indexablePages, PAGES, postPage } from "@/lib/pages";
 import { blogFeed } from "@/lib/rss";
 import { SITE } from "@/lib/site";
-import { OG_FAQ, OG_PREVIEW, TOOLS } from "@/lib/tools";
+import { OG_FAQ, OG_PREVIEW, TAGLINE_CHECKER, TOOLS } from "@/lib/tools";
 
 const BASE = "https://launchloop.test";
 const DASHES = /[\u2013\u2014]/;
@@ -192,10 +192,11 @@ describe("Product Hunt alternatives post", () => {
     expect(source).not.toMatch(/betalist\.com\/(faq|support)|60k/i);
   });
 
-  it("links both free tools and no /tools path that doesn't exist", () => {
+  it("links the tagline checker and OG preview, and no /tools path that doesn't exist", () => {
     const source = readFileSync(path.join(import.meta.dirname, "../../src/app/blog/product-hunt-alternatives/page.tsx"), "utf8");
     const hrefs = [...source.matchAll(/href="(\/tools[^"]*)"/g)].map((m) => m[1]);
-    expect([...new Set(hrefs)].sort()).toEqual(TOOLS.map((t) => t.path).sort());
+    expect([...new Set(hrefs)].sort()).toEqual([OG_PREVIEW.path, TAGLINE_CHECKER.path].sort());
+    for (const href of hrefs) expect(TOOLS.map((t) => t.path)).toContain(href);
   });
 });
 

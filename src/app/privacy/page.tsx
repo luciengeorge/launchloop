@@ -12,7 +12,7 @@ export default function PrivacyPage() {
   return (
     <article className="mx-auto max-w-3xl space-y-6 px-4 py-16 leading-relaxed sm:px-6 [&_a]:font-medium [&_a]:text-foreground [&_a]:underline [&_a]:underline-offset-4 [&_h2]:mt-8 [&_h2]:text-xl [&_h2]:font-semibold [&_li]:text-muted-foreground [&_p]:text-muted-foreground [&_strong]:text-foreground">
       <h1 className="text-4xl font-semibold tracking-tight">Privacy policy</h1>
-      <p>Last updated 26 October 2026. This page explains what LaunchLoop does with your data, in plain English.</p>
+      <p>Last updated 27 October 2026. This page explains what LaunchLoop does with your data, in plain English.</p>
 
       <h2>Who we are</h2>
       <p>
@@ -73,6 +73,11 @@ export default function PrivacyPage() {
         and everything in the address bar except campaign tags (utm_). Like any service your browser talks to, they receive your IP address and browser type, and PostHog may use
         your IP address to work out your rough location.
       </p>
+      <p data-testid="privacy-session-replay">
+        On kit pages only (the private link to each kit), PostHog also records a masked replay of how the page is used, so we can see what to make clearer. All text
+        and everything you type is masked, and images and videos aren&apos;t recorded. Recordings are kept for 30 days and processed by PostHog in the EU. To opt out, turn on
+        Global Privacy Control or Do Not Track in your browser, or email {mail}.
+      </p>
       <p>
         We use Sentry to record errors so we can fix them. An error report includes what went wrong, the page and your browser and device type, and may include your IP address.
       </p>
@@ -94,7 +99,7 @@ export default function PrivacyPage() {
         <li>Stripe (payments)</li>
         <li>Resend (email)</li>
         <li>Vercel (hosting, Vercel Analytics, Speed Insights and Vercel AI Gateway)</li>
-        <li>PostHog (product analytics: how people move from a free preview to a purchase)</li>
+        <li>PostHog (product analytics: how people move from a free preview to a purchase, and masked replays of kit pages)</li>
         <li>Upstash (our database: kits, email sign-ups, sign-in links and rate limits)</li>
         <li>Sentry (error tracking)</li>
         <li>

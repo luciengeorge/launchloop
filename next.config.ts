@@ -1,6 +1,7 @@
 import { withSentryConfig } from "@sentry/nextjs/config";
 import type { NextConfig } from "next";
 import { EXAMPLE_KIT } from "./src/lib/example-kit";
+import { NOINDEX_HEADER, NOINDEX_IMAGE_SOURCES } from "./src/lib/noindex-headers";
 import { POSTHOG_PROXY_PATH, posthogAssetsHost, posthogHost } from "./src/lib/posthog-config";
 import { EXAMPLE_KIT_PATH } from "./src/lib/site";
 
@@ -19,6 +20,9 @@ const nextConfig: NextConfig = {
       // The example kit isn't a stored kit, so /kit/<its id> would render the kit page's not-found shell with a 200.
       { source: `/kit/${EXAMPLE_KIT.id}`, destination: EXAMPLE_KIT_PATH, permanent: true },
     ];
+  },
+  headers() {
+    return NOINDEX_IMAGE_SOURCES.map((source) => ({ source, headers: [NOINDEX_HEADER] }));
   },
   // First-party proxy for PostHog so ad blockers don't drop conversion events.
   rewrites() {

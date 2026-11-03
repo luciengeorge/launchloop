@@ -40,6 +40,14 @@ describe("posthog-js config", () => {
     expect(config.capture_dead_clicks).toBe(false);
     expect(config.disable_session_recording).toBe(true);
   });
+
+  it("session replay stays off at init; the masked options are there for kit pages to start it with (see session-replay.ts)", async () => {
+    const { config } = await load();
+    expect(config.disable_session_recording).toBe(true);
+    expect(config.session_recording).toMatchObject({ maskAllInputs: true, maskTextSelector: "*", recordHeaders: false, recordBody: false });
+    expect(config.enable_recording_console_log).toBe(false);
+    expect(config.capture_performance).toEqual({ network_timing: false });
+  });
 });
 
 describe("experiment properties on events", () => {
