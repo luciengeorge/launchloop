@@ -134,6 +134,8 @@ describe("checks on the title and the text", () => {
     expect(title("Show HN: A keyboard on Kickstarter", "offtopic")).toBe("warn");
     expect(title("Show HN: Pre-order my split keyboard", "offtopic")).toBe("warn");
     expect(title("Show HN: Our crowdfunding page for a split keyboard", "offtopic")).toBe("warn");
+    expect(title("Show HN: Gridcast, a pre-sale kit for CSV dashboards", "offtopic")).toBe("warn");
+    expect(title("Show HN: Gridcast, a presale kit for CSV dashboards", "offtopic")).toBe("warn");
     expect(comment("It's coming soon, but here's our landing page.", "offtopic")).toBe("warn");
     expect(title("Show HN: A self-hosted waitlist tool for SaaS launches", "offtopic")).toBe("pass");
     expect(title(GOOD, "offtopic")).toBe("pass");

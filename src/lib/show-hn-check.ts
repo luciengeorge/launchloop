@@ -123,7 +123,7 @@ const OFF_TOPIC: { label: string; re: RegExp }[] = [
   { label: "a newsletter", re: /\b(?:my|our)\s+newsletter\b|\bsubscribe\s+to\s+(?:my|our|the)\b/i },
   { label: "a blog post", re: /\b(?:my|our)\s+(?:new\s+)?blog\s+post\b/i },
   { label: "a landing page", re: /\b(?:my|our)\s+landing\s+page\b/i },
-  { label: "a fundraiser", re: /\bfundrais(?:er|ing)\b|\bcrowdfunding\b|\bkickstarter\b|\bindiegogo\b|\bpre-?orders?\b/i },
+  { label: "a fundraiser", re: /\bfundrais(?:er|ing)\b|\bcrowdfunding\b|\bkickstarter\b|\bindiegogo\b|\bpre-?orders?\b|\bpre-?sales?\b/i },
   { label: "coming soon", re: /\bcoming\s+soon\b|\blaunching\s+soon\b/i },
 ];
 /** Asking for votes, or for help ranking: always flagged. */
