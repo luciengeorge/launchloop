@@ -434,7 +434,7 @@ export default function ProductHuntLaunchToolsPostPage() {
           gave the version as v2.0.8, which matches package.json.
         </li>
         <li>
-          <strong>Only one took the repo.</strong> LaunchLoop read the repo URL. ChatGPT got the repo URL along with the typed blurb; Marketing Pack and StartKitz read the
+          <strong>Only one tool read the repo.</strong> LaunchLoop read the repo URL. ChatGPT got the repo URL along with the typed blurb; Marketing Pack and StartKitz read the
           website; PH LaunchKit worked from the blurb alone.
         </li>
         <li>
