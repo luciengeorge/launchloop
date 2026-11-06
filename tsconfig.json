@@ -49,6 +49,7 @@
     "node_modules",
     ".next-test",
     ".next-test-hero",
-    ".next-test-inline"
+    ".next-test-inline",
+    ".next-test-calendar"
   ]
 }

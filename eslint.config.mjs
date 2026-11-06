@@ -12,6 +12,7 @@ const eslintConfig = defineConfig([
     ".next-test/**",
     ".next-test-hero/**",
     ".next-test-inline/**",
+    ".next-test-calendar/**",
     "playwright-report/**",
     "test-results/**",
     "out/**",
