@@ -157,6 +157,8 @@ test("/newsletter and /newsletter/1 are indexable with share cards, and the issu
   await expect(page.getByTestId("newsletter-archive-signup").getByRole("button", { name: COPY.button })).toBeVisible();
   await page.getByRole("link", { name: "Before you submit to BetaList, check these 5 things" }).click();
   await page.waitForURL((u) => u.pathname === "/newsletter/1");
+  // A full load, as a crawler sees it: after a client navigation Next keeps the index mounted, head tags included.
+  await page.reload();
 
   expect(await robots(page)).toBe("index, follow");
   await expect(page).toHaveTitle("Before you submit to BetaList: 5 checks · LaunchLoop");

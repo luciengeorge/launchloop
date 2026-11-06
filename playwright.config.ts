@@ -19,7 +19,7 @@ const INLINE_SPEC = /newsletter-inline\.spec\.ts/;
  * A fourth build with NEWSLETTER_CALENDAR=on, for the 7-day launch calendar reward and the newsletter archive. Inline is on
  * too, as on Preview and at go-live; the default build covers both off, as production is until Lucien's OK.
  */
-const CALENDAR_PORT = 3422;
+const CALENDAR_PORT = 3423;
 const calendarURL = `http://127.0.0.1:${CALENDAR_PORT}`;
 const CALENDAR_SPEC = /newsletter-calendar\.spec\.ts/;
 
