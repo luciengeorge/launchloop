@@ -1,4 +1,5 @@
 import "server-only";
+import { randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { keyPrefix, kvMissingInProduction } from "./deploy-env";
@@ -59,7 +60,8 @@ class FileStore implements KeyValueStore {
   async set<T>(key: string, value: T, ttlSeconds?: number): Promise<void> {
     await fs.mkdir(this.dir, { recursive: true });
     const target = this.file(key);
-    const tmp = `${target}.${process.pid}.${Date.now()}.tmp`;
+    // Unique per write: two writes of one key in the same millisecond would otherwise share a temp file, and one rename fails.
+    const tmp = `${target}.${process.pid}.${randomUUID()}.tmp`;
     const payload = { value, expiresAt: ttlSeconds ? Date.now() + ttlSeconds * 1000 : undefined };
     await fs.writeFile(tmp, JSON.stringify(payload));
     await fs.rename(tmp, target);
