@@ -68,6 +68,21 @@ export const GUIDES: Guide[] = [
   },
 ];
 
+/**
+ * The newsletter signup reward behind newsletter-calendar-reward. Not in GUIDES, which feeds the footer, llms.txt, the
+ * blog and tool hubs and every guide's "More guides": while the flag is off the page must not be linked from anywhere.
+ * /guides and the sitemap add it when the flag is on.
+ */
+export const LAUNCH_CALENDAR: Guide = {
+  slug: "7-day-launch-calendar",
+  title: "The 7-day launch calendar",
+  metaTitle: "7-day launch calendar: a week of launch prep",
+  description:
+    "What to do on each day of the week before a launch: Product Hunt, your share card, BetaList, Indie Hackers and free directories, with a source for each task.",
+  published: "2026-11-06",
+  updated: "2026-11-06",
+};
+
 export const guidePath = (g: Pick<Guide, "slug">) => `/${g.slug}`;
 
 export const guide = (slug: string) => GUIDES.find((g) => g.slug === slug)!;

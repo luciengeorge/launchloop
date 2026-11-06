@@ -26,6 +26,12 @@ export function pageMetadata({
   };
 }
 
+/** pageMetadata for a calendarRewardPages() page: noindex (links still followed) while newsletter-calendar-reward is off. */
+export function calendarRewardMetadata(page: SitePage, calendarReward: boolean): Metadata {
+  const metadata = pageMetadata(page);
+  return calendarReward ? metadata : { ...metadata, robots: { index: false, follow: true } };
+}
+
 /** pageMetadata plus the <link rel="alternate"> to the blog's RSS feed, for the blog index and every post. */
 export function blogPageMetadata(page: SitePage): Metadata {
   const metadata = pageMetadata(page);

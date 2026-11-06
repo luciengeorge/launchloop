@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { parse } from "node-html-parser";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import sitemap from "@/app/sitemap";
 import { llmsText } from "@/lib/llms";
 import { PAGES, toolPage } from "@/lib/pages";
@@ -19,6 +19,8 @@ import {
   type HnSource,
   type ShowHnInput,
 } from "@/lib/show-hn-check";
+
+vi.mock("@/lib/newsletter-flag-server", () => ({ isNewsletterCalendarOn: async () => false }));
 
 const status = (input: ShowHnInput, id: CheckId) => checkShowHn(input).checks.find((c) => c.id === id)?.status;
 const title = (t: string, id: CheckId) => status({ title: t }, id);
@@ -336,8 +338,8 @@ describe("registry", () => {
     expect(rule("howwhy").how).toMatch(/^Our tip, based on the Show HN request to explain how and why\./);
   });
 
-  it("is in the sitemap, llms.txt and llms-full.txt, and the tools hub description names it", () => {
-    expect(sitemap().find((e) => e.url.endsWith(SHOW_HN_CHECKER.path))?.lastModified).toBe("2026-10-27");
+  it("is in the sitemap, llms.txt and llms-full.txt, and the tools hub description names it", async () => {
+    expect((await sitemap()).find((e) => e.url.endsWith(SHOW_HN_CHECKER.path))?.lastModified).toBe("2026-10-27");
     for (const full of [false, true]) expect(llmsText(BASE, full, false)).toContain(`[Show HN title checker](${BASE}${SHOW_HN_CHECKER.path})`);
     expect(PAGES.tools.description).toContain("Show HN title");
     expect(PAGES.tools.updated).toBe("2026-10-27");

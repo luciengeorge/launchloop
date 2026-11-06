@@ -1,10 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import sitemap from "@/app/sitemap";
 import { BLOG_POSTS } from "@/lib/blog";
 import { GUIDES, guide, guidePath } from "@/lib/guides";
 import { llmsText } from "@/lib/llms";
 import { cardPages, guidePage, indexablePages } from "@/lib/pages";
 import { SITE } from "@/lib/site";
+
+vi.mock("@/lib/newsletter-flag-server", () => ({ isNewsletterCalendarOn: async () => false }));
 
 const BASE = "https://launchloop.test";
 const DASHES = /[\u2013\u2014]/;
@@ -61,9 +63,9 @@ describe("Show HN post guide", () => {
     expect(cardPages()).toContainEqual({ slug: "how-to-write-a-show-hn-post", card: { eyebrow: "Guide", headline: "How to write a Show HN post" } });
   });
 
-  it("is in the sitemap and llms.txt, alongside the Show HN checklist", () => {
+  it("is in the sitemap and llms.txt, alongside the Show HN checklist", async () => {
     expect(indexablePages().filter((p) => p.path === guidePath(g))).toHaveLength(1);
-    const entries = sitemap();
+    const entries = await sitemap();
     expect(entries.find((e) => e.url.endsWith("/how-to-write-a-show-hn-post"))?.lastModified).toBe("2026-10-20");
     expect(entries.find((e) => e.url.endsWith("/show-hn-launch-checklist"))?.lastModified).toBe("2026-10-20");
     for (const promo of [true, false]) {

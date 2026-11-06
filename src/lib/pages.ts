@@ -1,5 +1,6 @@
 import { BLOG_POSTS, blogUpdated, postPath, type BlogPost } from "@/lib/blog";
-import { GUIDES, guidePath, type Guide } from "@/lib/guides";
+import { GUIDES, guidePath, LAUNCH_CALENDAR, type Guide } from "@/lib/guides";
+import { issuePath, NEWSLETTER_ISSUES, NEWSLETTER_PATH, type NewsletterIssue } from "@/lib/newsletter-issues";
 import type { ShareCard } from "@/lib/og-card";
 import { SITE } from "@/lib/site";
 import { TOOLS, type Tool } from "@/lib/tools";
@@ -134,12 +135,46 @@ export function toolPage(t: Tool): SitePage {
   return { path: t.path, title: t.metaTitle, description: t.description, updated: t.updated, type: "website", image: { url: `${t.path}/opengraph-image`, alt: t.imageAlt } };
 }
 
-/** Every page that belongs in the sitemap. Redirect aliases, noindex pages and robots-disallowed paths must never be added. */
-export function indexablePages(): SitePage[] {
-  return [...Object.values(PAGES), ...TOOLS.map(toolPage), ...GUIDES.map(guidePage), ...BLOG_POSTS.map(postPage)];
+export const NEWSLETTER_PAGE: SitePage = core({
+  path: NEWSLETTER_PATH,
+  title: "Weekly launch teardowns: sample issues",
+  description:
+    "One launch teardown a week, by email: a real launch, what worked, what didn't and what you can copy. Read a sample issue before you sign up.",
+  updated: "2026-11-06",
+  card: { eyebrow: "Newsletter", headline: "Weekly launch teardowns" },
+});
+
+/** An issue's share image is /og/newsletter-<n>: the card route takes one path segment. */
+export function issuePage(issue: NewsletterIssue): SitePage {
+  return {
+    path: issuePath(issue),
+    title: issue.metaTitle,
+    description: issue.preview,
+    updated: issue.updated,
+    type: "article",
+    image: { url: `/og/newsletter-${issue.number}`, alt: `${issue.subject} · ${SITE.name}` },
+    card: { eyebrow: `Newsletter · Issue ${issue.number}`, headline: issue.subject },
+  };
 }
 
-/** Pages with a generated share image, keyed by the single path segment of their /og/<slug> image URL. */
+/**
+ * The pages newsletter-calendar-reward publishes: the calendar and the newsletter archive. The routes always exist (a
+ * welcome email already sent still links the calendar after a kill), but they're noindex and out of the sitemap while
+ * the flag is off.
+ */
+export function calendarRewardPages(): SitePage[] {
+  return [guidePage(LAUNCH_CALENDAR), NEWSLETTER_PAGE, ...NEWSLETTER_ISSUES.map(issuePage)];
+}
+
+/**
+ * Every page that belongs in the sitemap. Redirect aliases, noindex pages and robots-disallowed paths must never be added.
+ * `calendarReward` is isNewsletterCalendarOn(): off leaves out calendarRewardPages(), which are noindex then.
+ */
+export function indexablePages({ calendarReward = false }: { calendarReward?: boolean } = {}): SitePage[] {
+  return [...Object.values(PAGES), ...TOOLS.map(toolPage), ...GUIDES.map(guidePage), ...BLOG_POSTS.map(postPage), ...(calendarReward ? calendarRewardPages() : [])];
+}
+
+/** Pages with a generated share image, keyed by the single path segment of their /og/<slug> image URL. Flag or not, so a share card never 404s. */
 export function cardPages(): { slug: string; card: ShareCard }[] {
-  return indexablePages().flatMap((p) => (p.card ? [{ slug: p.image.url.replace(/^\/og\//, ""), card: p.card }] : []));
+  return indexablePages({ calendarReward: true }).flatMap((p) => (p.card ? [{ slug: p.image.url.replace(/^\/og\//, ""), card: p.card }] : []));
 }

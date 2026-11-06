@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { unstable_doesMiddlewareMatch } from "next/experimental/testing/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import sitemap from "@/app/sitemap";
 import { BLOG_POSTS, postPath } from "@/lib/blog";
 import { GUIDES, guidePath } from "@/lib/guides";
@@ -23,8 +23,11 @@ import {
 import { TOOLS } from "@/lib/tools";
 import { config } from "@/proxy";
 
+vi.mock("@/lib/newsletter-flag-server", () => ({ isNewsletterCalendarOn: async () => false }));
+
 const ROOT = path.join(import.meta.dirname, "../..");
 const SLUGS = GUIDES.map((g) => g.slug);
+const SITEMAP = await sitemap();
 
 describe("IndexNow key", () => {
   it("is 32 lowercase hex characters", () => {
@@ -99,7 +102,7 @@ describe("changedPaths", () => {
   });
 
   describe("against the real content", () => {
-    const listed = new Set(sitemap().map((entry) => new URL(entry.url).pathname));
+    const listed = new Set(SITEMAP.map((entry) => new URL(entry.url).pathname));
     const pages = [
       ...BLOG_POSTS.map((p) => [postPath(p), "/blog"]),
       ...GUIDES.map((g) => [guidePath(g), "/guides"]),
