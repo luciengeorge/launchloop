@@ -1,9 +1,10 @@
 import { NewsletterForm } from "@/components/newsletter-form";
 import { postPath, type BlogPost } from "@/lib/blog";
-import { PREVIEW_NEWSLETTER_ANCHOR } from "@/lib/newsletter";
+import { PREVIEW_NEWSLETTER_ANCHOR, type NewsletterReward, SIGNUP_COPY } from "@/lib/newsletter";
 
 /** Quiet next step at the end of every post, after the free-preview CTA, which stays the primary action. */
-export function BlogNewsletter({ post }: { post: BlogPost }) {
+export function BlogNewsletter({ post, reward }: { post: BlogPost; reward: NewsletterReward }) {
+  const copy = SIGNUP_COPY[reward];
   return (
     <section
       id={PREVIEW_NEWSLETTER_ANCHOR}
@@ -13,7 +14,7 @@ export function BlogNewsletter({ post }: { post: BlogPost }) {
     >
       <div className="max-w-md">
         <h2 id="blog-newsletter-heading" className="text-base font-semibold">
-          Get my launch-day checklist
+          {copy.postTitle}
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
           I&apos;ll email it to you now, then one launch teardown a week. Short, practical, easy to unsubscribe.
@@ -23,10 +24,11 @@ export function BlogNewsletter({ post }: { post: BlogPost }) {
       <div className="sm:w-96 sm:shrink-0">
         <NewsletterForm
           placement="blog"
-          label="Email for the launch-day checklist"
+          reward={reward}
+          label={copy.label}
           hideLabel
           hint={null}
-          buttonLabel="Send me the checklist"
+          buttonLabel={copy.button}
           buttonVariant="outline"
           returnTo={postPath(post)}
           labelledBy="blog-newsletter-heading"

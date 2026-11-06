@@ -15,6 +15,13 @@ const HERO_SPEC = /hero-(headline|2x2)\.spec\.ts/;
 const INLINE_PORT = 3421;
 const inlineURL = `http://127.0.0.1:${INLINE_PORT}`;
 const INLINE_SPEC = /newsletter-inline\.spec\.ts/;
+/**
+ * A fourth build with NEWSLETTER_CALENDAR=on, for the 7-day launch calendar reward and the newsletter archive. Inline is on
+ * too, as on Preview and at go-live; the default build covers both off, as production is until Lucien's OK.
+ */
+const CALENDAR_PORT = 3423;
+const calendarURL = `http://127.0.0.1:${CALENDAR_PORT}`;
+const CALENDAR_SPEC = /newsletter-calendar\.spec\.ts/;
 
 const serverEnv = {
   MOCK_MODE: "true",
@@ -62,12 +69,13 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
   projects: [
-    { name: "desktop", use: { ...devices["Desktop Chrome"] }, testIgnore: [/newsletter-mobile\.spec\.ts/, HERO_SPEC, INLINE_SPEC] },
+    { name: "desktop", use: { ...devices["Desktop Chrome"] }, testIgnore: [/newsletter-mobile\.spec\.ts/, HERO_SPEC, INLINE_SPEC, CALENDAR_SPEC] },
     { name: "mobile", use: { ...devices["Pixel 7"] }, testMatch: /(home|tagline-checker|og-preview|newsletter-mobile|orange-cta)\.spec\.ts/ },
     { name: "hero-desktop", use: { ...devices["Desktop Chrome"], baseURL: heroURL }, testMatch: HERO_SPEC },
     { name: "hero-mobile", use: { ...devices["Pixel 7"], baseURL: heroURL }, testMatch: HERO_SPEC },
     { name: "inline-desktop", use: { ...devices["Desktop Chrome"], baseURL: inlineURL }, testMatch: INLINE_SPEC },
     { name: "inline-mobile", use: { ...devices["Pixel 7"], baseURL: inlineURL }, testMatch: INLINE_SPEC },
+    { name: "calendar-desktop", use: { ...devices["Desktop Chrome"], baseURL: calendarURL }, testMatch: CALENDAR_SPEC },
   ],
   webServer: [
     {
@@ -96,6 +104,20 @@ export default defineConfig({
       timeout: 240_000,
       reuseExistingServer: !process.env.CI,
       env: { ...serverEnv, NEXT_DIST_DIR: ".next-test-inline", DATA_DIR: ".data-test-inline", NEXT_PUBLIC_SITE_URL: inlineURL, NEWSLETTER_INLINE: "on" },
+    },
+    {
+      command: `rm -rf .data-test-calendar && npx next build && npx next start -p ${CALENDAR_PORT}`,
+      url: calendarURL,
+      timeout: 240_000,
+      reuseExistingServer: !process.env.CI,
+      env: {
+        ...serverEnv,
+        NEXT_DIST_DIR: ".next-test-calendar",
+        DATA_DIR: ".data-test-calendar",
+        NEXT_PUBLIC_SITE_URL: calendarURL,
+        NEWSLETTER_INLINE: "on",
+        NEWSLETTER_CALENDAR: "on",
+      },
     },
   ],
 });

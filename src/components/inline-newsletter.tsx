@@ -1,17 +1,15 @@
 import { NewsletterForm } from "@/components/newsletter-form";
 import { postPath, type BlogPost } from "@/lib/blog";
 import { InlineNewsletterClaim } from "@/lib/inline-newsletter-claim";
-import { PREVIEW_NEWSLETTER_ANCHOR } from "@/lib/newsletter";
-
-const LABEL = "Email for the launch-day checklist";
-const BUTTON = "Send me the checklist";
+import { PREVIEW_NEWSLETTER_ANCHOR, type NewsletterReward, SIGNUP_COPY } from "@/lib/newsletter";
 
 /**
  * The early signups behind `newsletter-inline-signup`: after a post's intro (`post`) and under the home hero (`home`).
  * Outline buttons, so the page's filled orange button stays its product call to action. `data-inline-newsletter` (before
  * hydration, see globals.css) and InlineNewsletterClaim (after) swap the footer form for a link to this block.
  */
-export function InlineNewsletter(props: { variant: "post"; post: BlogPost } | { variant: "home" }) {
+export function InlineNewsletter(props: ({ variant: "post"; post: BlogPost } | { variant: "home" }) & { reward: NewsletterReward }) {
+  const copy = SIGNUP_COPY[props.reward];
   if (props.variant === "home") {
     return (
       <section
@@ -27,12 +25,20 @@ export function InlineNewsletter(props: { variant: "post"; post: BlogPost } | { 
             <h2 id="home-newsletter-heading" className="text-base font-semibold">
               Not launching this week?
             </h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              I&apos;ll email you my launch-day checklist now, then one launch teardown a week. Short, practical, easy to unsubscribe.
-            </p>
+            <p className="mt-1 text-sm text-muted-foreground">{copy.body}</p>
           </div>
           <div className="sm:w-96 sm:shrink-0">
-            <NewsletterForm placement="home_inline" label={LABEL} hideLabel hint={null} buttonLabel={BUTTON} buttonVariant="outline" returnTo="/" labelledBy="home-newsletter-heading" />
+            <NewsletterForm
+              placement="home_inline"
+              reward={props.reward}
+              label={copy.label}
+              hideLabel
+              hint={null}
+              buttonLabel={copy.button}
+              buttonVariant="outline"
+              returnTo="/"
+              labelledBy="home-newsletter-heading"
+            />
           </div>
         </div>
       </section>
@@ -50,7 +56,7 @@ export function InlineNewsletter(props: { variant: "post"; post: BlogPost } | { 
     >
       <InlineNewsletterClaim />
       <p id="inline-newsletter-heading" className="text-base font-semibold text-foreground!">
-        Get my launch-day checklist
+        {copy.postTitle}
       </p>
       <p className="mt-1 text-sm text-muted-foreground">
         I&apos;ll email it to you now, then one launch teardown a week. Short, practical, easy to unsubscribe.
@@ -58,10 +64,11 @@ export function InlineNewsletter(props: { variant: "post"; post: BlogPost } | { 
       <div className="mt-3">
         <NewsletterForm
           placement="blog_inline"
-          label={LABEL}
+          reward={props.reward}
+          label={copy.label}
           hideLabel
           hint={null}
-          buttonLabel={BUTTON}
+          buttonLabel={copy.button}
           buttonVariant="outline"
           returnTo={postPath(props.post)}
           labelledBy="inline-newsletter-heading"

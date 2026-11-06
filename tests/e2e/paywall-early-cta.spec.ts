@@ -616,7 +616,8 @@ test.describe("errors always carry a CTA (flag off too)", () => {
     await page.getByRole("button", { name: "Verify" }).click();
     const codeError = page.getByTestId("login-code-error");
     await expect(codeError).toHaveRole("alert");
-    const resend = page.waitForRequest((r) => new URL(r.url()).pathname === "/api/auth/request");
+    // The answer, not the request: it clears the code field, so typing before it lands loses the code.
+    const resend = page.waitForResponse((r) => new URL(r.url()).pathname === "/api/auth/request");
     await codeError.getByRole("button", { name: "Resend code" }).click();
     await resend;
     await expect(page.getByTestId("unlock-panel")).toHaveAttribute("data-step", "sent");

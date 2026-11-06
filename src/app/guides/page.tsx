@@ -1,20 +1,22 @@
 import type { Metadata } from "next";
 import { HubPage } from "@/components/hub-page";
-import { GUIDES, guidePath } from "@/lib/guides";
+import { GUIDES, guidePath, LAUNCH_CALENDAR } from "@/lib/guides";
+import { isNewsletterCalendarOn } from "@/lib/newsletter-flag-server";
 import { PAGES } from "@/lib/pages";
 import { pageMetadata } from "@/lib/seo";
 import { TOOLS } from "@/lib/tools";
 
 export const metadata: Metadata = pageMetadata(PAGES.guides);
 
-export default function GuidesPage() {
+export default async function GuidesPage() {
+  const guides = (await isNewsletterCalendarOn()) ? [...GUIDES, LAUNCH_CALENDAR] : GUIDES;
   return (
     <HubPage
       page={PAGES.guides}
       crumb="Guides"
       heading="Launch guides"
       intro="Step-by-step guides for getting an app in front of people: what to prepare, the limits each platform enforces, and the rules that get launches penalised."
-      items={GUIDES.map((g) => ({ path: guidePath(g), title: g.title, description: g.description, updated: g.updated }))}
+      items={guides.map((g) => ({ path: guidePath(g), title: g.title, description: g.description, updated: g.updated }))}
       related={{
         heading: "Free tools",
         hubPath: PAGES.tools.path,

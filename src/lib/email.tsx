@@ -6,8 +6,9 @@ import { KitFailedEmail } from "../emails/kit-failed";
 import { KitReadyEmail } from "../emails/kit-ready";
 import { LOGO_CID, LOGO_PNG_BASE64 } from "../emails/logo-data";
 import { MagicLinkEmail } from "../emails/magic-link";
-import { NewsletterWelcomeEmail } from "../emails/newsletter-welcome";
-import { LEAD_MAGNET } from "./newsletter";
+import { NewsletterCalendarWelcomeEmail, NewsletterWelcomeEmail } from "../emails/newsletter-welcome";
+import { LEAD_MAGNETS, welcomeLink } from "./newsletter";
+import { isNewsletterCalendarOn } from "./newsletter-flag-server";
 import { formatPaidAmount } from "./money";
 import type { Kit } from "./schema";
 import { store } from "./store";
@@ -120,8 +121,15 @@ export async function kitReadyEmail(params: {
   return { to: params.to, subject: `Payment received: your ${kit.brief.name} launch kit is ready`, ...rendered, attachments: [params.zip] };
 }
 
+/** The reward follows newsletter-calendar-reward at send time; off (or unreadable) is the checklist email, unchanged. */
 export async function newsletterWelcomeEmail(params: { to: string }): Promise<OutgoingEmail> {
-  const checklistUrl = `${deploymentUrl()}${LEAD_MAGNET.path}?utm_source=newsletter&utm_medium=email&utm_campaign=welcome`;
+  const base = deploymentUrl();
+  if (await isNewsletterCalendarOn()) {
+    const calendarUrl = welcomeLink(base, LEAD_MAGNETS.calendar.path);
+    const checklistUrl = welcomeLink(base, LEAD_MAGNETS.checklist.path, "ph-checklist");
+    return { to: params.to, subject: "Your 7-day launch calendar", ...(await renderEmail(<NewsletterCalendarWelcomeEmail calendarUrl={calendarUrl} checklistUrl={checklistUrl} />)) };
+  }
+  const checklistUrl = welcomeLink(base, LEAD_MAGNETS.checklist.path);
   return { to: params.to, subject: "Your launch-day checklist", ...(await renderEmail(<NewsletterWelcomeEmail checklistUrl={checklistUrl} />)) };
 }
 

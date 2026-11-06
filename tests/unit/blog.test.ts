@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import sitemap from "@/app/sitemap";
 import { BLOG_AUTHOR, BLOG_POSTS, blogPosts, post, postPath, rssDate } from "@/lib/blog";
 import { GUIDES, guide } from "@/lib/guides";
@@ -9,6 +9,8 @@ import { cardPages, indexablePages, PAGES, postPage } from "@/lib/pages";
 import { blogFeed } from "@/lib/rss";
 import { SITE } from "@/lib/site";
 import { OG_FAQ, OG_PREVIEW, TAGLINE_CHECKER, TOOLS } from "@/lib/tools";
+
+vi.mock("@/lib/newsletter-flag-server", () => ({ isNewsletterCalendarOn: async () => false }));
 
 const BASE = "https://launchloop.test";
 const DASHES = /[\u2013\u2014]/;
@@ -208,8 +210,8 @@ describe("blog pages", () => {
     expect(cardPages()).toContainEqual({ slug, card: { eyebrow: "Blog", headline: p.title } });
   });
 
-  it("puts the blog index and every post in the sitemap with lastmod", () => {
-    const entries = sitemap();
+  it("puts the blog index and every post in the sitemap with lastmod", async () => {
+    const entries = await sitemap();
     expect(entries.find((e) => e.url.endsWith("/blog"))?.lastModified).toBe(PAGES.blog.updated);
     for (const p of BLOG_POSTS) {
       expect(entries.filter((e) => e.url.endsWith(postPath(p)))).toHaveLength(1);

@@ -1,8 +1,11 @@
 import { NewsletterForm } from "@/components/newsletter-form";
-import { PREVIEW_NEWSLETTER_ANCHOR } from "@/lib/newsletter";
+import { newsletterReward, PREVIEW_NEWSLETTER_ANCHOR, SIGNUP_COPY } from "@/lib/newsletter";
+import { isNewsletterCalendarOn } from "@/lib/newsletter-flag-server";
 
 /** Quiet next step under the paywall for visitors who aren't buying today. The kit CTA above stays the primary action. */
-export function PreviewNewsletter({ kitId, query }: { kitId: string; query: Record<string, string | string[] | undefined> }) {
+export async function PreviewNewsletter({ kitId, query }: { kitId: string; query: Record<string, string | string[] | undefined> }) {
+  const reward = newsletterReward(await isNewsletterCalendarOn());
+  const copy = SIGNUP_COPY[reward];
   const param = (key: string) => {
     const value = query[key];
     return query.from === "preview" && typeof value === "string" ? value : undefined;
@@ -19,17 +22,16 @@ export function PreviewNewsletter({ kitId, query }: { kitId: string; query: Reco
         <h2 id="preview-newsletter-heading" className="text-base font-semibold">
           Not launching this week?
         </h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          I&apos;ll email you my launch-day checklist now, then one launch teardown a week. Short, practical, easy to unsubscribe.
-        </p>
+        <p className="mt-1 text-sm text-muted-foreground">{copy.body}</p>
       </div>
       <div className="sm:w-96 sm:shrink-0">
         <NewsletterForm
           placement="preview"
-          label="Email for the launch-day checklist"
+          reward={reward}
+          label={copy.label}
           hideLabel
           hint={null}
-          buttonLabel="Send me the checklist"
+          buttonLabel={copy.button}
           buttonVariant="outline"
           returnTo={`/kit/${kitId}`}
           redirected={redirected}

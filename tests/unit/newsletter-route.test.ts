@@ -98,12 +98,12 @@ describe("POST /api/newsletter records newsletter_subscribed on the server", () 
     expect(JSON.stringify(captured())).not.toMatch(/resend|delivered|bounced|@/i);
   });
 
-  it.each(["blog_inline", "home_inline"] as const)("the inline placement %s is stored on the contact and recorded as itself, on both paths", async (placement) => {
+  it.each(["blog_inline", "home_inline", "newsletter"] as const)("the placement %s is stored on the contact and recorded as itself, on both paths", async (placement) => {
     const store = kv.store as MemoryStore;
     const email = `${placement}@launchloop.dev`;
     await postJson({ email, placement, analyticsId: PAGE_ID });
     expect(await store.get(`contact:newsletter:${email}`)).toMatchObject({ placement });
-    const next = placement === "home_inline" ? "/" : "/blog/og-image-size";
+    const next = { home_inline: "/", blog_inline: "/blog/og-image-size", newsletter: "/newsletter/1" }[placement];
     const res = await postForm({ email: `form-${email}`, placement, next });
     expect(res.headers.get("location")).toBe(`${next}?subscribed=1&from=${placement}#newsletter`);
     expect(await store.get(`contact:newsletter:form-${email}`)).toMatchObject({ placement });
@@ -111,6 +111,15 @@ describe("POST /api/newsletter records newsletter_subscribed on the server", () 
       { placement, welcome: "sent", submitted: "js", is_webdriver: false },
       { placement, welcome: "sent", submitted: "form" },
     ]);
+  });
+
+  it("an archive signup still sends exactly one welcome email per address, through the same transactional send", async () => {
+    const { sendEmail, newsletterWelcomeEmail } = await import("@/lib/email");
+    await postJson({ email: "archive@launchloop.dev", placement: "newsletter", analyticsId: PAGE_ID });
+    const again = await postForm({ email: "Archive@LaunchLoop.dev", placement: "newsletter", next: "/newsletter" });
+    expect(again.headers.get("location")).toBe("/newsletter?subscribed=1&welcome=existing&from=newsletter#newsletter");
+    expect(vi.mocked(newsletterWelcomeEmail).mock.calls).toEqual([[{ to: "archive@launchloop.dev" }]]);
+    expect(vi.mocked(sendEmail)).toHaveBeenCalledOnce();
   });
 
   it("an unknown placement is recorded as footer, like the stored contact", async () => {
