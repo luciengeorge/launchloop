@@ -16,7 +16,8 @@ import { buttonVariants } from "@/components/ui/button";
 import { siteUrl } from "@/lib/env";
 import { heroExperimentEnabled, heroHeadlineAssignment } from "@/lib/hero-headline-server";
 import { isLaunchPromoOn } from "@/lib/launch-promo-server";
-import { isNewsletterInlineOn } from "@/lib/newsletter-flag-server";
+import { newsletterReward } from "@/lib/newsletter";
+import { isNewsletterCalendarOn, isNewsletterInlineOn } from "@/lib/newsletter-flag-server";
 import { PAGES } from "@/lib/pages";
 import { pageMetadata } from "@/lib/seo";
 import { siteGraph } from "@/lib/structured-data";
@@ -42,7 +43,7 @@ const RULES = [
 
 export default async function Home() {
   const url = siteUrl();
-  const [promo, inlineNewsletter] = await Promise.all([isLaunchPromoOn(), isNewsletterInlineOn()]);
+  const [promo, inlineNewsletter, calendarReward] = await Promise.all([isLaunchPromoOn(), isNewsletterInlineOn(), isNewsletterCalendarOn()]);
   return (
     <>
       <JsonLd data={siteGraph(url, promo)} />
@@ -94,7 +95,7 @@ export default async function Home() {
       </HomeHero>
 
       {/* Outside HomeHero, so none of its click tracking, experiment freezing or layout checks see it. */}
-      {inlineNewsletter ? <InlineNewsletter variant="home" /> : null}
+      {inlineNewsletter ? <InlineNewsletter variant="home" reward={newsletterReward(calendarReward)} /> : null}
 
       <section id="kit" className="mx-auto max-w-6xl px-4 py-20 sm:px-6" aria-labelledby="kit-heading">
         <div className="max-w-2xl">

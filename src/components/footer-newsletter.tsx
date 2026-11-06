@@ -1,7 +1,7 @@
 "use client";
 
 import { useInlineNewsletterShown } from "@/lib/inline-newsletter-claim";
-import { PREVIEW_NEWSLETTER_ANCHOR } from "@/lib/newsletter";
+import { type NewsletterReward, PREVIEW_NEWSLETTER_ANCHOR } from "@/lib/newsletter";
 import { usePrimaryCtaClaimed } from "@/lib/primary-cta";
 import { NewsletterForm } from "./newsletter-form";
 
@@ -10,8 +10,8 @@ import { NewsletterForm } from "./newsletter-form";
  * a page that has an inline signup shows a link up to it instead of a second form: globals.css picks one, from the HTML
  * until hydration and from `data-inline-shown` after it.
  */
-export function FooterNewsletter({ inline = false }: { inline?: boolean }) {
-  const form = <NewsletterForm buttonVariant={usePrimaryCtaClaimed() ? "outline" : "default"} />;
+export function FooterNewsletter({ inline = false, reward = "checklist" }: { inline?: boolean; reward?: NewsletterReward }) {
+  const form = <NewsletterForm reward={reward} buttonVariant={usePrimaryCtaClaimed() ? "outline" : "default"} />;
   const shown = useInlineNewsletterShown();
   if (!inline) return form;
   return (

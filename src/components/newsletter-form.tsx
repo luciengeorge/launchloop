@@ -9,10 +9,12 @@ import { postJson } from "@/lib/client";
 import { EMAIL_MAX, EMAIL_PATTERN, isEmail } from "@/lib/email-address";
 import { newsletterRequestError } from "@/lib/form-errors";
 import {
-  LEAD_MAGNET,
+  LEAD_MAGNETS,
   NEWSLETTER_ERRORS,
   type NewsletterErrorCode,
   type NewsletterPlacement,
+  type NewsletterReward,
+  SIGNUP_COPY,
   type WelcomeOutcome,
   newsletterError,
   newsletterErrorAnchor,
@@ -24,10 +26,12 @@ import { useHydrated, useQueryParam } from "@/lib/use-query-param";
 
 interface Props {
   placement?: NewsletterPlacement;
+  /** What the success state links to. The server parent reads newsletter-calendar-reward; without it, the checklist. */
+  reward?: NewsletterReward;
   label?: string;
   /** Keeps the label for screen readers only, when a heading next to the form already says what it is. */
   hideLabel?: boolean;
-  /** Line under the field. `null` drops it. */
+  /** Line under the field. `null` drops it; left out, it names the reward. */
   hint?: string | null;
   buttonLabel?: string;
   buttonVariant?: "default" | "outline";
@@ -41,9 +45,10 @@ interface Props {
 
 export function NewsletterForm({
   placement = "footer",
+  reward = "checklist",
   label = "Weekly launch teardowns",
   hideLabel = false,
-  hint = "I'll send you my launch-day checklist straight away, then one launch teardown a week.",
+  hint = SIGNUP_COPY[reward].footerHint,
   buttonLabel = "Subscribe",
   buttonVariant = "default",
   returnTo,
@@ -182,37 +187,43 @@ export function NewsletterForm({
         className="space-y-1 text-sm"
         {...(outcome ? { "data-testid": `newsletter-done-${placement}`, "data-welcome": outcome } : {})}
       >
-        {outcome ? <Subscribed welcome={outcome} /> : null}
+        {outcome ? <Subscribed welcome={outcome} reward={reward} /> : null}
       </div>
     </div>
   );
 }
 
 /** Only says an email is on its way when this signup actually sent one. */
-function Subscribed({ welcome }: { welcome: WelcomeOutcome }) {
-  const link = (text: string) => (
-    <Link href={LEAD_MAGNET.path} className="font-medium text-foreground underline underline-offset-4 hover:text-primary">
+function Subscribed({ welcome, reward }: { welcome: WelcomeOutcome; reward: NewsletterReward }) {
+  const magnet = LEAD_MAGNETS[reward];
+  const link = (text: string, href: string = magnet.path) => (
+    <Link href={href} className="font-medium text-foreground underline underline-offset-4 hover:text-primary">
       {text}
     </Link>
   );
   return (
     <>
       {welcome === "existing" ? (
-        <p className="font-medium">You&apos;re already on the list. Here&apos;s the {LEAD_MAGNET.title}:</p>
+        <p className="font-medium">You&apos;re already on the list. Here&apos;s the {magnet.title}:</p>
       ) : (
         <p className="font-medium">You&apos;re subscribed. One useful launch teardown a week, no spam.</p>
       )}
       {welcome === "sent" ? (
         <p className="text-muted-foreground">
-          {link(`Open your ${LEAD_MAGNET.title}`)}. I&apos;ve emailed you the link too.
+          {link(`Open your ${magnet.title}`)}. I&apos;ve emailed you the link too.
         </p>
       ) : welcome === "skipped" ? (
         <p className="text-muted-foreground">
-          Here&apos;s the {LEAD_MAGNET.title}: {link("Open the checklist")}
+          Here&apos;s the {magnet.title}: {link(`Open the ${magnet.short}`)}
         </p>
       ) : (
-        <p className="text-muted-foreground">{link("Open the checklist")}</p>
+        <p className="text-muted-foreground">{link(`Open the ${magnet.short}`)}</p>
       )}
+      {reward === "calendar" ? (
+        <p className="text-muted-foreground" data-testid="newsletter-done-checklist">
+          Prefer the Product Hunt checklist? {link("Open it here", LEAD_MAGNETS.checklist.path)}.
+        </p>
+      ) : null}
     </>
   );
 }

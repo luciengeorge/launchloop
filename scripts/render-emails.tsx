@@ -9,7 +9,7 @@ import { chromium } from "@playwright/test";
 import { KitReadyEmail } from "../src/emails/kit-ready";
 import { LOGO_PNG_BASE64 } from "../src/emails/logo-data";
 import { MagicLinkEmail } from "../src/emails/magic-link";
-import { NewsletterWelcomeEmail } from "../src/emails/newsletter-welcome";
+import { NewsletterCalendarWelcomeEmail, NewsletterWelcomeEmail } from "../src/emails/newsletter-welcome";
 
 const out = process.argv[2] ?? "launchloop-emails";
 const logo = `data:image/png;base64,${LOGO_PNG_BASE64}`;
@@ -20,6 +20,8 @@ const emails = {
   "magic-link": <MagicLinkEmail {...MagicLinkEmail.PreviewProps} />,
   "kit-ready": <KitReadyEmail {...KitReadyEmail.PreviewProps} />,
   "newsletter-welcome": <NewsletterWelcomeEmail {...NewsletterWelcomeEmail.PreviewProps} />,
+  // The welcome email while newsletter-calendar-reward is on.
+  "newsletter-welcome-calendar": <NewsletterCalendarWelcomeEmail {...NewsletterCalendarWelcomeEmail.PreviewProps} />,
 };
 
 async function main() {

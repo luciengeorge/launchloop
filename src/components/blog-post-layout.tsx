@@ -7,14 +7,16 @@ import { BLOG_AUTHOR, blogPosts, longDate, postPath, type BlogPost } from "@/lib
 import { insertBeforeFirstH2 } from "@/lib/blog-inline";
 import { siteUrl } from "@/lib/env";
 import { GUIDES, guidePath } from "@/lib/guides";
-import { isNewsletterInlineOn } from "@/lib/newsletter-flag-server";
+import { newsletterReward } from "@/lib/newsletter";
+import { isNewsletterCalendarOn, isNewsletterInlineOn } from "@/lib/newsletter-flag-server";
 import { PAGES, postPage } from "@/lib/pages";
 import { SITE } from "@/lib/site";
 import { breadcrumbs } from "@/lib/structured-data";
 
 export async function BlogPostLayout({ post, children }: { post: BlogPost; children: React.ReactNode }) {
   // On: one signup after the intro instead of the end-of-post block. Off (or unreadable): the post as it always was.
-  const inline = await isNewsletterInlineOn();
+  const [inline, calendar] = await Promise.all([isNewsletterInlineOn(), isNewsletterCalendarOn()]);
+  const reward = newsletterReward(calendar);
   const base = siteUrl();
   const page = postPage(post);
   const url = `${base}${page.path}`;
@@ -64,10 +66,10 @@ export async function BlogPostLayout({ post, children }: { post: BlogPost; child
         </p>
       </header>
       <div className="mt-10 space-y-5 leading-relaxed [&_h2]:mt-10 [&_h2]:scroll-mt-20 [&_h2]:text-2xl [&_h2]:font-semibold [&_h2]:tracking-tight [&_h3]:mt-6 [&_h3]:font-semibold [&_li]:text-muted-foreground [&_ol]:list-decimal [&_ol]:space-y-2 [&_ol]:pl-5 [&_p]:text-muted-foreground [&_ul]:list-disc [&_ul]:space-y-2 [&_ul]:pl-5 [&_a]:font-medium [&_a]:text-foreground [&_a]:underline [&_a]:underline-offset-4 [&_:not(pre)>code]:rounded [&_:not(pre)>code]:bg-muted [&_:not(pre)>code]:px-1 [&_:not(pre)>code]:py-0.5 [&_:not(pre)>code]:text-sm [&_:not(pre)>code]:text-foreground">
-        {inline ? insertBeforeFirstH2(children, <InlineNewsletter key="inline-newsletter" variant="post" post={post} />) : children}
+        {inline ? insertBeforeFirstH2(children, <InlineNewsletter key="inline-newsletter" variant="post" post={post} reward={reward} />) : children}
       </div>
       <PreviewCta />
-      {inline ? null : <BlogNewsletter post={post} />}
+      {inline ? null : <BlogNewsletter post={post} reward={reward} />}
       <nav aria-label="More from LaunchLoop" className="mt-10 text-sm">
         <h2 className="font-medium">More from the blog</h2>
         <ul className="mt-2 space-y-1">
