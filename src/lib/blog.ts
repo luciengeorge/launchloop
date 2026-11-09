@@ -21,6 +21,46 @@ export const BLOG_FEED_PATH = "/blog/rss.xml";
 /** Newest first, so add new posts at the top. */
 export const BLOG_POSTS: BlogPost[] = [
   {
+    slug: "show-hn-title-checkers-compared",
+    title: "Which Show HN title checker should you use? Compared on the same ten titles",
+    metaTitle: "Which Show HN title checker should you use?",
+    description:
+      "Compare Show HN title checkers on the same ten titles: what each flags, which rule it cites and what it misses. Includes LaunchLoop's own checker.",
+    published: "2026-11-09",
+    updated: "2026-11-09",
+    readingMinutes: 6,
+  },
+  {
+    slug: "betalist-vs-uneed",
+    title: "BetaList or Uneed: which should an indie app launch on?",
+    metaTitle: "BetaList or Uneed for an indie app launch?",
+    description:
+      "BetaList or Uneed for your indie app? Costs, queues and rules quoted from each site's own pages, with the date we read them and what to expect.",
+    published: "2026-11-09",
+    updated: "2026-11-09",
+    readingMinutes: 5,
+  },
+  {
+    slug: "launchloop-alternatives",
+    title: "LaunchLoop alternatives: what other launch kits write",
+    metaTitle: "LaunchLoop alternatives: launch kits compared",
+    description:
+      "Looking for LaunchLoop alternatives? Free launch kits from their own pages, next to what LaunchLoop's free preview returns on the same jobs.",
+    published: "2026-11-09",
+    updated: "2026-11-09",
+    readingMinutes: 5,
+  },
+  {
+    slug: "product-hunt-vs-show-hn",
+    title: "Product Hunt or Show HN: where should a developer launch first?",
+    metaTitle: "Product Hunt or Show HN: which first?",
+    description:
+      "Product Hunt or Show HN for a developer tool? Their own rules side by side, what each asks of a launch, and our checkers run on one launch text.",
+    published: "2026-11-09",
+    updated: "2026-11-09",
+    readingMinutes: 6,
+  },
+  {
     slug: "product-hunt-launch-tools",
     title: "Product Hunt launch tools, tested on one repo",
     metaTitle: "Product Hunt launch tools, tested on one repo",
