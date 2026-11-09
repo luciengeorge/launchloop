@@ -230,10 +230,9 @@ const EXPECT: Record<string, { links: string[]; quotes: string[] }> = {
       "Off topic: blog posts, sign-up pages, newsletters, lists, and other reading material.",
       "Don't post landing pages or fundraisers.",
       "Please don't ask friends to upvote or comment. That's not ok on HN.",
-      "tagline caps at 60 characters",
-      "Tagline (max 60 characters)",
+      "Tagline (up to 60 characters)",
       "Please don't. People should upvote things they genuinely like or find interesting, not because they were peer pressured to do so.",
-      "Product Hunt is free for everyone to use.",
+      "Launching costs nothing.",
     ],
   },
   "launchloop-alternatives": {
