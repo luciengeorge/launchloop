@@ -18,9 +18,8 @@
 | "Off topic: blog posts, sign-up pages, newsletters, lists, and other reading material." | https://news.ycombinator.com/showhn.html | 2026-11-09 |
 | "Don't post landing pages or fundraisers." | https://news.ycombinator.com/showhn.html | 2026-11-09 |
 | "Please don't ask friends to upvote or comment. That's not ok on HN." | https://news.ycombinator.com/showhn.html | 2026-11-09 |
-| "tagline caps at 60 characters" | https://help.producthunt.com/en/articles/17350772-launch-guide | prior log 2026-10-27 |
-| "Tagline (max 60 characters)" | https://www.producthunt.com/launch/preparing-for-launch | prior log 2026-10-27 |
+| "Tagline (up to 60 characters)" | https://www.producthunt.com/launch/preparing-for-launch | 2026-11-09 |
 | "Please don't. People should upvote things they genuinely like or find interesting, not because they were peer pressured to do so." | https://help.producthunt.com/en/articles/484935-can-i-ask-my-community-friends-family-to-upvote-a-product | prior Product Hunt post log |
-| "Product Hunt is free for everyone to use." | https://www.producthunt.com/launch/how-product-hunt-works | via BetaList post quote log |
+| "Launching costs nothing." | https://www.producthunt.com/launch/how-product-hunt-works | 2026-11-09 |
 
 Show HN HTML copies: `/workspace/seo/launchloop/cmp-src/news.ycombinator.com_showhn.html.html`

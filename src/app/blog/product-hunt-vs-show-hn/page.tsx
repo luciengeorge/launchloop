@@ -30,7 +30,7 @@ const FAQ: FaqItem[] = [
   },
   {
     q: "Is Product Hunt free?",
-    a: "Product Hunt's launch guide says Product Hunt is free for everyone to use. Paid options exist for advertising and featured placement, but posting a product does not require a submission fee the way BetaList does.",
+    a: "Product Hunt's How Product Hunt works page says launching costs nothing. Paid options exist for advertising and featured placement, but posting a product does not require a submission fee the way BetaList does.",
   },
   {
     q: "Is Show HN free?",
@@ -89,7 +89,7 @@ export default function ProductHuntVsShowHnPage() {
           </tr>
           <tr className="border-b border-border">
             <th scope="row" className="py-2 pr-4 align-top font-normal">Fee to post</th>
-            <td className="py-2 pr-4 align-top"><q>Product Hunt is free for everyone to use.</q></td>
+            <td className="py-2 pr-4 align-top"><q>Launching costs nothing.</q></td>
             <td className="py-2 align-top">No fee listed</td>
           </tr>
           <tr>
@@ -100,12 +100,10 @@ export default function ProductHuntVsShowHnPage() {
         </tbody>
       </ScrollTable>
       <p>
-        Show HN quotes are from the <a href={SRC.showHn}>Show HN guidelines</a>, re-read on 9 November 2026. Product Hunt&apos;s tagline limit is from its{" "}
-        <a href={SRC.phLaunchGuide}>Launch Guide</a> (<q>tagline caps at 60 characters</q>) and <a href={SRC.phPreparing}>Preparing for launch</a> (
-        <q>Tagline (max 60 characters)</q>), as logged for our earlier Product Hunt posts. The upvote line is from{" "}
-        <a href={SRC.phUpvotes}>Can I ask my community/friends/family to upvote a product?</a>. The free-to-use line is quoted in our{" "}
-        <Link href={postPath({ slug: "how-to-launch-on-betalist" })}>BetaList launch post</Link> from Product Hunt&apos;s{" "}
-        <a href={SRC.phHowItWorks}>How Product Hunt works</a> page.
+        Show HN quotes are from the <a href={SRC.showHn}>Show HN guidelines</a>, re-read on 9 November 2026. Product Hunt&apos;s tagline limit is from{" "}
+        <a href={SRC.phPreparing}>Build your product page</a> (Preparing for launch), which says <q>Tagline (up to 60 characters)</q>, re-read on 9 November 2026. The upvote line is from{" "}
+        <a href={SRC.phUpvotes}>Can I ask my community/friends/family to upvote a product?</a>. The fee line is from Product Hunt&apos;s{" "}
+        <a href={SRC.phHowItWorks}>How Product Hunt works</a> page (<q>Launching costs nothing.</q>), re-read the same day.
       </p>
 
       <h2 id="checkers">One launch text, both checkers</h2>
