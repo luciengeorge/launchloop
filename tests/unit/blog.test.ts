@@ -118,7 +118,7 @@ describe("Product Hunt launch tools post", () => {
     expect(fullTitle(p.metaTitle)).toBe("Product Hunt launch tools, tested on one repo · LaunchLoop");
     expect(p.description).toMatch(/best Product Hunt launch tools/);
     expect(`${p.title} ${p.metaTitle}`).not.toMatch(/best/i);
-    expect(BLOG_POSTS[0].slug).toBe(p.slug);
+    expect(BLOG_POSTS.map((x) => x.slug)).toContain(p.slug);
   });
 
   it("quotes nothing that isn't listed word for word in its quote log", () => {

@@ -202,6 +202,114 @@ const EXPECT: Record<string, { links: string[]; quotes: string[] }> = {
       "All sales are final. We do not offer refunds.",
     ],
   },
+  "product-hunt-vs-show-hn": {
+    links: [
+      "/tools/product-hunt-tagline-checker",
+      "/tools/show-hn-title-checker",
+      "/blog/product-hunt-launch-tools",
+      "/blog/how-to-launch-on-product-hunt",
+      "/blog/how-to-launch-on-betalist",
+      "/blog/betalist-vs-uneed",
+      "/blog/how-to-launch-on-indie-hackers",
+      "/blog/product-hunt-alternatives",
+      "/how-to-write-a-show-hn-post",
+      "/show-hn-launch-checklist",
+      "/product-hunt-launch-checklist",
+      "/#start",
+      "/pricing",
+      "https://news.ycombinator.com/showhn.html",
+      "https://news.ycombinator.com/newsguidelines.html",
+      "https://help.producthunt.com/en/articles/17350772-launch-guide",
+      "https://www.producthunt.com/launch/preparing-for-launch",
+      "https://www.producthunt.com/launch/how-product-hunt-works",
+      "https://help.producthunt.com/en/articles/484935-can-i-ask-my-community-friends-family-to-upvote-a-product",
+      "https://github.com/emilkowalski/sonner",
+    ],
+    quotes: [
+      "If your work isn't ready for users to try out, please don't do a Show HN.",
+      "Off topic: blog posts, sign-up pages, newsletters, lists, and other reading material.",
+      "Don't post landing pages or fundraisers.",
+      "Please don't ask friends to upvote or comment. That's not ok on HN.",
+      "tagline caps at 60 characters",
+      "Tagline (max 60 characters)",
+      "Please don't. People should upvote things they genuinely like or find interesting, not because they were peer pressured to do so.",
+      "Product Hunt is free for everyone to use.",
+    ],
+  },
+  "launchloop-alternatives": {
+    links: [
+      "/#start",
+      "/pricing",
+      "/tools/product-hunt-tagline-checker",
+      "/blog/product-hunt-launch-tools",
+      "/blog/product-hunt-alternatives",
+      "/blog/product-hunt-vs-show-hn",
+      "/blog/betalist-vs-uneed",
+      "https://startkitz.com/",
+      "https://www.overnightcut.com/",
+      "https://phlaunchkit.com/tools/product-hunt-tagline-generator",
+      "https://getmarketingpack.com/product-hunt-launch-kit",
+      "https://launchloop.dev/blog/product-hunt-launch-tools",
+    ],
+    quotes: [
+      "Free to generate. No account required.",
+      "Free $0 one-time",
+      "Product video studio for software teams",
+    ],
+  },
+  "betalist-vs-uneed": {
+    links: [
+      "/blog/product-hunt-alternatives",
+      "/blog/how-to-launch-on-betalist",
+      "/blog/product-hunt-vs-show-hn",
+      "https://betalist.com/help",
+      "https://betalist.com/criteria",
+      "https://betalist.com/agent",
+      "https://betalist.com/boost",
+      "https://betalist.com/submissions/new",
+      "https://www.uneed.best/how-it-works",
+      "https://www.uneed.best/pricing",
+      "https://help.uneed.best/common-questions-and-issues/what-we-accept",
+    ],
+    quotes: [
+      "All submissions are paid. There is no free submission option.",
+      "Current plans and prices are shown at the end of the submission form.",
+      "If your startup isn't selected, you get a full refund automatically.",
+      "We feature around 20 new startups every day.",
+      "Join the free waiting line (free): we assign your launch date automatically, at least 50 days out, on the earliest day with room.",
+      "Closed, invite-only or gated products",
+      "up to 50 free launches from the waiting line, plus every paid launch (Fast-track, Skip the waiting line and relaunches)",
+      "$99 /week",
+      "$199 /month",
+    ],
+  },
+  "show-hn-title-checkers-compared": {
+    links: [
+      "/#start",
+      "/pricing",
+      "/tools/show-hn-title-checker",
+      "/blog/product-hunt-vs-show-hn",
+      "/show-hn-launch-checklist",
+      "https://news.ycombinator.com/showhn.html",
+      "https://news.ycombinator.com/newsguidelines.html",
+      "https://launchranked.com/tools/show-hn-title-scorer",
+      "https://launchranked.com/blog/how-to-post-a-show-hn",
+      "https://reavlo.com/tools/show-hn-title-checker",
+      "https://abacklaunch.com/tools/show-hn-title-scorer",
+      "https://shipx.live/tools/show-hn-title-scorer",
+      "https://discoverlaunches.com/tools/show-hn",
+      "https://launchloop.dev/tools/show-hn-title-checker",
+    ],
+    quotes: [
+      "Off topic: blog posts, sign-up pages, newsletters, lists, and other reading material.",
+      "If your work isn't ready for users to try out, please don't do a Show HN.",
+      'New features and upgrades ("Foo 1.3.1 is out") generally aren\'t substantive enough to be Show HNs. A major overhaul is probably ok.',
+      "Join the waitlist for my budgeting app",
+      "Gridcast 2.4.1 is out with dark mode",
+      "amazing",
+    ],
+  },
+
 };
 
 test("/blog is a real page now, not a redirect, with every post newest first and a Guides section", async ({ page, request }) => {
@@ -356,7 +464,7 @@ for (const p of BLOG_POSTS) {
     expect(p.readingMinutes, `${words} words`).toBe(Math.ceil(words / 200));
 
     await expect(page.locator("h2#sources")).toBeVisible();
-    await expect(body).toContainText("Checked as of October 2026");
+    await expect(body).toContainText(/Checked as of (October|November) 2026/);
     const sources = await page.locator("h2#sources ~ ul a").evaluateAll((links) => links.map((a) => a.getAttribute("href")));
     expect(sources.length).toBeGreaterThan(3);
     for (const href of sources) expect(href).toMatch(/^https:\/\//);
