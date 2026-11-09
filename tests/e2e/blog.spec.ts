@@ -26,6 +26,7 @@ const SELF = (path: string) => new RegExp(`^http://127\\.0\\.0\\.1:\\d+${path.re
 const EXPECT: Record<string, { links: string[]; quotes: string[] }> = {
   "product-hunt-launch-tools": {
     links: [
+      "/blog/launchloop-alternatives",
       "/blog/how-to-launch-on-product-hunt",
       "/blog/product-hunt-alternatives",
       "/tools/product-hunt-tagline-checker",
@@ -67,6 +68,7 @@ const EXPECT: Record<string, { links: string[]; quotes: string[] }> = {
   },
   "how-to-launch-on-betalist": {
     links: [
+      "/blog/betalist-vs-uneed",
       "/blog/how-to-launch-on-product-hunt",
       "/blog/how-to-launch-on-indie-hackers",
       "/product-hunt-launch-checklist",
@@ -110,6 +112,7 @@ const EXPECT: Record<string, { links: string[]; quotes: string[] }> = {
   },
   "how-to-launch-on-product-hunt": {
     links: [
+      "/blog/product-hunt-vs-show-hn",
       "/product-hunt-launch-checklist",
       "/how-to-write-a-product-hunt-tagline",
       "/tools/product-hunt-tagline-checker",
@@ -168,6 +171,8 @@ const EXPECT: Record<string, { links: string[]; quotes: string[] }> = {
   },
   "product-hunt-alternatives": {
     links: [
+      "/blog/product-hunt-vs-show-hn",
+      "/blog/betalist-vs-uneed",
       "/how-to-write-a-show-hn-post",
       "/show-hn-launch-checklist",
       "/how-to-promote-on-reddit",

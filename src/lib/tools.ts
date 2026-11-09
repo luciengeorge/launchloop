@@ -114,5 +114,6 @@ export const SHOW_HN_FAQ: readonly ToolFaqItem[] = [
   {
     q: "Why does it flag something that's fine in my title?",
     a: "The checks look for patterns, such as an all-caps word, a number before a plural or a version number, and can't know what you meant. An acronym or a meaningful number is fine: HN's own guidelines give \"The 5 Platonic Solids\" as an example of a number worth keeping. Treat a warning as a prompt to look again, not a ban.",
+    more: { href: "/blog/show-hn-title-checkers-compared", label: "Compare this checker with others on the same titles." },
   },
 ];

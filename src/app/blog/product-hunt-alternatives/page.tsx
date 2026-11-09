@@ -499,7 +499,9 @@ export default function ProductHuntAlternativesPostPage() {
         <Link href={postPath({ slug: "how-to-launch-on-product-hunt" })}>how to launch on Product Hunt</Link> and the{" "}
         <Link href="/product-hunt-launch-checklist">Product Hunt launch checklist</Link>. Before you submit, check your tagline with the{" "}
         <Link href="/tools/product-hunt-tagline-checker">tagline checker</Link> and your link&apos;s share card with the <Link href="/tools/og-preview">OG image preview</Link>,
-        both free.
+        both free. Choosing between Product Hunt and Show HN first? See{" "}
+        <Link href={postPath({ slug: "product-hunt-vs-show-hn" })}>Product Hunt or Show HN</Link>. Deciding between BetaList and Uneed? See{" "}
+        <Link href={postPath({ slug: "betalist-vs-uneed" })}>BetaList or Uneed</Link>.
       </p>
       <p>
         LaunchLoop isn&apos;t a launch platform. It drafts your launch copy: a LaunchLoop kit writes your Product Hunt listing (name, tagline, description and maker comment),
