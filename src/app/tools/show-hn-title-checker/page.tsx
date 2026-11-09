@@ -230,7 +230,8 @@ export default async function ShowHnTitleCheckerPage() {
           The title gets the click. The text decides the thread. <Link href="/how-to-write-a-show-hn-post">How to write a Show HN post</Link> covers the title format, link or
           text post, what to put in your text and how to reply to comments, quoting HN and its moderators throughout. The{" "}
           <Link href="/show-hn-launch-checklist">Show HN launch checklist</Link> covers whether your project qualifies, getting it ready for a spike, timing and what to do
-          afterwards.
+          afterwards. Want to see how this checker compares with others on the same titles? Read{" "}
+          <Link href="/blog/show-hn-title-checkers-compared">which Show HN title checker you should use</Link>.
         </p>
         <p>
           Launching on Product Hunt the same week? Check your 60-character tagline with the <Link href={TAGLINE_CHECKER.path}>Product Hunt tagline checker</Link>. HN shows

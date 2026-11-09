@@ -102,7 +102,8 @@ export default function ShowHnChecklistPage() {
       </p>
       <p>
         To test a title as you type, paste it into the free <Link href={SHOW_HN_CHECKER.path}>Show HN title checker</Link>. It checks the title and your text against these
-        written rules and quotes the HN sentence behind each check.
+        written rules and quotes the HN sentence behind each check. For a side-by-side of free checkers on the same ten titles, see{" "}
+        <Link href="/blog/show-hn-title-checkers-compared">Show HN title checkers compared</Link>.
       </p>
 
       <h2 id="first-comment">Write the maker&apos;s first comment</h2>

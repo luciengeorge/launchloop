@@ -289,8 +289,11 @@ export default function ShowHnPostGuidePage() {
       <h2 id="next">Next steps</h2>
       <p>
         The <Link href="/show-hn-launch-checklist">Show HN launch checklist</Link> covers what qualifies, getting your app ready for a spike, timing, the voting rules and
-        what to do if the post gets no attention. Launching on Product Hunt the same week? It rewards a different kind of writing: read{" "}
-        <Link href="/how-to-write-a-product-hunt-tagline">how to write a Product Hunt tagline</Link>.
+        what to do if the post gets no attention. Check your draft title with the{" "}
+        <Link href="/tools/show-hn-title-checker">Show HN title checker</Link>, or compare checkers in{" "}
+        <Link href="/blog/show-hn-title-checkers-compared">Show HN title checkers compared</Link>. Launching on Product Hunt the same week? It rewards a different kind of
+        writing: read <Link href="/how-to-write-a-product-hunt-tagline">how to write a Product Hunt tagline</Link>, or the decision page{" "}
+        <Link href="/blog/product-hunt-vs-show-hn">Product Hunt or Show HN</Link>.
       </p>
       <p>
         LaunchLoop drafts your landing copy, Product Hunt post, X thread, LinkedIn post and launch images from your repo. It doesn&apos;t write Show HN posts: that text should

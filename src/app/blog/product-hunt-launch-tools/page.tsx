@@ -551,7 +551,9 @@ export default function ProductHuntLaunchToolsPostPage() {
         LaunchLoop is ours. It isn&apos;t a launch platform and it doesn&apos;t post for you: it drafts launch copy and images from your repo or live site. Its free preview,
         the one tested here, gives a product brief, a Product Hunt tagline, the first post of an X thread and three watermarked images. The paid kit, a one-off payment,
         adds the Product Hunt description and maker comment, the rest of the X thread, landing copy, a LinkedIn post and unwatermarked images. We held it to the same rules
-        as every other tool. Try it with a <Link href="/#start">free preview</Link> or see <Link href="/pricing">pricing</Link>.
+        as every other tool. For a shorter look at other kits next to what LaunchLoop returns, see{" "}
+        <Link href={postPath({ slug: "launchloop-alternatives" })}>LaunchLoop alternatives</Link>. Try it with a <Link href="/#start">free preview</Link> or see{" "}
+        <Link href="/pricing">pricing</Link>.
       </p>
 
       <Faq path={postPath(p)} title="Product Hunt launch tools: FAQ" items={FAQ} />
