@@ -1,0 +1,11 @@
+Run time (UTC): 2026-11-10T11:54:35Z
+URL: https://www.overnightcut.com/tools/launch-copy-writer
+Tool is a form (templates, not AI), not URL-based. Inputs: Product name=Zustand; sentence="manages state in React apps with a small, fast, minimal API"; Who=React developers; Link=github.com/pmndrs/zustand. No login/paywall.
+
+Tagline option 1 (67 of 60 characters): Zustand manages state in React apps with a small, fast, minimal API
+Tagline option 2 (59 of 60 characters): Manages state in React apps with a small, fast, minimal API
+Tagline option 3 (80 of 60 characters): Manages state in React apps with a small, fast, minimal API for React developers
+Description (96 of 500): Zustand manages state in React apps with a small, fast, minimal API. Built for React developers.
+First comment (224 chars): Hi everyone, thanks for checking out Zustand. Zustand manages state in React apps with a small, fast, minimal API. It is for React developers. I would love your honest feedback. What would make Zustand more useful for you?
+X post (137 of 280): Zustand is live on Product Hunt. Zustand manages state in React apps with a small, fast, minimal API. https://github.com/pmndrs/zustand
+LinkedIn post (175 of 3000): We just launched Zustand on Product Hunt. Zustand manages state in React apps with a small, fast, minimal API. https://github.com/pmndrs/zustand I would love your feedback.

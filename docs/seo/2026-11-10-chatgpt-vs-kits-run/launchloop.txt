@@ -1,0 +1,27 @@
+Run time: 2026-11-10T11:51:28Z (UTC)
+URL: [private preview URL, kept off-repo]
+FREE TAGLINE: Hook-based React state without providers or boilerplate
+(55/60 characters)
+
+PRODUCT BRIEF
+Lightweight, hook-based state management for React without context providers or boilerplate
+Who it's for: React developers seeking a simple, scalable state management solution without Redux complexity or Context API overhead
+Problem it solves: Managing state in React often requires wrapping apps in context providers, dealing with boilerplate, or fighting issues like zombie children and context loss. Developers need a simpler way to share state across components without sacrificing performance or adding complexity.
+Features we found:
+Hook-based API: consume state directly in components without providers
+Immutable updates with automatic state merging via set function
+Transient updates: inform components without triggering renders
+Efficient re-rendering: updates only components using changed state slices
+Async action support: call set whenever ready, no special handling needed
+Middleware available: persist, devtools, and other extensions
+Proof points: 58,909 GitHub stars; 11 commits in the last month; Latest ship: v5.1.0; Open source (MIT)
+Stack: React
+
+UNLOCKED SAMPLE - Post 1 of X thread
+I built Zustand because I was tired of wrapping apps in context providers and fighting zombie children.
+
+It's hook-based state management for React. No providers, no boilerplate, just call useStore() and you're done.
+
+58,909 stars on GitHub.
+
+https://zustand-demo.pmnd.rs/

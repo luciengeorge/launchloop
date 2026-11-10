@@ -1,0 +1,106 @@
+Run time: 2026-11-10T11:51:00Z (UTC), ChatGPT logged out
+
+Here’s a Product Hunt launch positioning Zustand around its biggest strength: powerful React state management without the complexity and boilerplate. The tone is developer-friendly, confident, and slightly playful, fitting the bear branding.
+
+1. Tagline
+Recommended
+
+State management in React, minus the boilerplate. 🐻
+
+Alternative taglines:
+
+Simple, fast, and scalable state management for React.
+
+Less boilerplate. More building. Meet Zustand.
+
+Your React app's state, under control.
+
+The bear necessities of state management.
+
+2. Product description
+Writing
+
+Meet Zustand 🐻 — a small, fast, and scalable state management solution for React.
+
+Tired of boilerplate, complicated abstractions, and wrapping your entire app in providers just to manage state?
+
+Zustand makes state management refreshingly simple.
+
+Create a store with a straightforward API, access it from any component using hooks, and update your state without unnecessary ceremony.
+
+Why developers love Zustand:
+
+⚡ Simple API: Create a store in just a few lines of code.
+🪶 Minimal boilerplate: No providers, reducers, or complicated setup required.
+🎯 Optimized rendering: Components subscribe to the state they actually need.
+🔌 Flexible: Use middleware for persistence, Redux DevTools, Immer, and more.
+🌐 Beyond React: Use vanilla stores without depending on React.
+📦 Lightweight: A small library that doesn't get in your way.
+
+Whether you're building a small side project or a complex application, Zustand gives you the tools to manage state without fighting your state manager.
+
+Open source, MIT licensed, and built for the React community.
+
+Give it a try, explore the docs, and help us make state management simpler for everyone!
+
+🐻 GitHub: https://github.com/pmndrs/zustand
+
+3. Maker's first comment
+
+This is where I'd make the launch feel personal rather than overly promotional. Invite developers to try it, share feedback, and discuss their state-management experiences.
+
+Writing
+
+Hey Product Hunt! 👋🐻
+
+We're excited to share Zustand with the community!
+
+We built Zustand around a simple idea: managing state in React shouldn't require a ton of boilerplate or complicated abstractions.
+
+We wanted something that feels natural to use:
+
+Create a store with a simple API.
+Access state anywhere in your React components.
+Update state without unnecessary ceremony.
+Keep things flexible as your application grows.
+
+But simplicity doesn't mean sacrificing power. Zustand also supports middleware, persistence, Redux DevTools, Immer, vanilla stores, and much more.
+
+Zustand is open source, and we're incredibly grateful to everyone who has contributed, used it, and helped shape the project.
+
+We'd love to hear from you:
+
+🐻 What's your biggest frustration with state management in React?
+
+💡 What would you love to see improved or added?
+
+🚀 If you haven't tried Zustand yet, give it a spin and let us know what you think!
+
+Thanks for checking us out and supporting open source. Happy building!
+
+4. My launch recommendations
+
+A few details I'd emphasize on Product Hunt:
+
+Product name: Zustand
+Tagline: State management in React, minus the boilerplate.
+Category: Developer Tools
+Topics: React, JavaScript, Open Source, State Management
+Primary CTA: Try the demo
+Secondary CTA: Explore GitHub
+
+Suggested gallery screenshots:
+
+The bear mascot with the tagline.
+A simple Zustand store creation example.
+A React component consuming the store.
+Middleware features and ecosystem.
+A simple comparison showing less boilerplate.
+
+One strategic thought: Zustand is already an established open-source project, so I'd avoid presenting it as a brand-new library. Position this as an opportunity to introduce more developers to the project, celebrate its community, and invite new contributors.
+
+Project reference: Zustand on GitHub .
+
+The strongest message to carry throughout the launch is:
+
+"State management should help you build your app, not become the app you're building."
