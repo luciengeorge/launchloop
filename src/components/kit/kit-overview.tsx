@@ -17,7 +17,7 @@ export function KitOverview({ kit }: { kit: Kit }) {
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
       <section className="min-w-0 space-y-5 break-words rounded-2xl border border-border bg-card p-6" aria-labelledby="brief-heading">
         <div>
-          <p className="font-mono text-xs uppercase tracking-widest text-primary">Product brief</p>
+          <p className="font-mono text-xs uppercase tracking-widest text-primary-text">Product brief</p>
           <h2 id="brief-heading" className="mt-1 text-xl font-semibold">{brief.oneLiner}</h2>
         </div>
         <dl className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">

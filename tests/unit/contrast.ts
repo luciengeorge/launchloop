@@ -19,8 +19,15 @@ export function contrast(a: string, b: string) {
 
 export const globalsCss = () => readFileSync(path.join(process.cwd(), "src/app/globals.css"), "utf8");
 
+export class MissingTokenError extends Error {
+  name = "MissingTokenError";
+}
+
 /** The literal `oklch(...)` value of `--name` in globals.css's `:root` (or another top-level block, like `.dark`). */
 export function rootToken(name: string, block = ":root") {
-  const body = globalsCss().split(`\n${block} {`)[1]!.split("\n}")[0];
-  return body.match(new RegExp(`--${name}: (oklch\\([^)]+\\));`))![1];
+  const [, rest] = globalsCss().split(`\n${block} {`);
+  if (rest === undefined) throw new MissingTokenError(`globals.css has no ${block} block`);
+  const value = rest.split("\n}")[0].match(new RegExp(`--${name}: (oklch\\([^)]+\\));`))?.[1];
+  if (!value) throw new MissingTokenError(`${block} in globals.css has no --${name}: oklch(...)`);
+  return value;
 }

@@ -32,7 +32,7 @@ function Headline({ text, placeholder = false, className, ...props }: { text: st
         {rest ? (
           <>
             {`${lead} `}
-            <span className="text-primary">{rest}</span>
+            <span className="text-primary-text">{rest}</span>
           </>
         ) : (
           lead

@@ -57,7 +57,7 @@ export function KitPromoNote({ promo, className = "" }: { promo: boolean; classN
   if (!promo) return null;
   return (
     <p className={`rounded-md bg-primary/10 px-3 py-2 text-xs ${className}`} data-testid="launch-promo-note">
-      <span className="font-mono font-semibold text-primary">{LAUNCH_PROMO.code}</span> applied at checkout
+      <span className="font-mono font-semibold text-primary-text">{LAUNCH_PROMO.code}</span> applied at checkout
     </p>
   );
 }

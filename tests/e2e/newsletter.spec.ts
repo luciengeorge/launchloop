@@ -281,8 +281,10 @@ type PhEvent = { event: string; distinct_id?: string; properties: Record<string,
 const phEvents = async (request: APIRequestContext) => (await (await request.get("http://127.0.0.1:3419/ph/_events")).json()) as PhEvent[];
 const signupEvents = async (request: APIRequestContext) => (await phEvents(request)).filter((e) => e.event === "newsletter_subscribed");
 
-// This spec runs in a stock automated browser (navigator.webdriver, HeadlessChrome), like a QA agent's.
-test("a signup from an automated browser is still counted: the server records newsletter_subscribed, though posthog-js drops the page's own events", async ({ page }) => {
+// A stock automated browser (navigator.webdriver, HeadlessChrome), like a QA agent's: launched without the config's AutomationControlled flag.
+test("a signup from an automated browser is still counted: the server records newsletter_subscribed, though posthog-js drops the page's own events", async ({ playwright, baseURL, extraHTTPHeaders }) => {
+  const browser = await playwright.chromium.launch({ args: [] });
+  const page = await browser.newPage({ baseURL, extraHTTPHeaders });
   await page.goto("/");
   await page.waitForLoadState("networkidle");
   const request = page.waitForRequest((r) => r.url().endsWith("/api/newsletter") && r.method() === "POST");
@@ -298,6 +300,7 @@ test("a signup from an automated browser is still counted: the server records ne
   // The browser SDK sent nothing for this page at all, which is why the event had to move to the server.
   await page.goto("/pricing");
   expect((await phEvents(page.request)).filter((e) => e.distinct_id === analyticsId && e.properties.$lib === "web")).toEqual([]);
+  await browser.close();
 });
 
 test("a plain form post (no JavaScript) is counted once, as submitted: form", async ({ request }) => {

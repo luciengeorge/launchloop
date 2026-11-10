@@ -67,6 +67,7 @@ export default defineConfig({
   use: {
     baseURL,
     trace: "retain-on-failure",
+    launchOptions: { args: ["--disable-blink-features=AutomationControlled"] },
   },
   projects: [
     { name: "desktop", use: { ...devices["Desktop Chrome"] }, testIgnore: [/newsletter-mobile\.spec\.ts/, HERO_SPEC, INLINE_SPEC, CALENDAR_SPEC] },

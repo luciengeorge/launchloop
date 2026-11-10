@@ -175,7 +175,7 @@ export function OgPreview({ promo }: { promo: boolean }) {
           <button
             type="button"
             disabled={loading}
-            className="font-medium text-foreground underline underline-offset-4 hover:text-primary"
+            className="font-medium text-foreground underline underline-offset-4 hover:text-primary-text"
             onClick={() => {
               const example = `${window.location.origin}/`;
               setUrl(example);

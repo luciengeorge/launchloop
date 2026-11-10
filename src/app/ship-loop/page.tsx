@@ -44,7 +44,7 @@ export default async function ShipLoopPage() {
       <div className="grid gap-12 lg:grid-cols-[1fr_420px] lg:items-start">
         <div className="space-y-8">
           <div className="space-y-4">
-            <p className="font-mono text-xs uppercase tracking-widest text-primary">Coming soon · Waitlist open</p>
+            <p className="font-mono text-xs uppercase tracking-widest text-primary-text">Coming soon · Waitlist open</p>
             <h1 className="text-balance text-4xl font-semibold tracking-tight sm:text-5xl">You launched once. Now keep shipping in public.</h1>
             <p className="max-w-xl text-lg text-muted-foreground">
               Every time you ship a release, Ship Loop drafts an X post, a LinkedIn post, a changelog blurb and an image in your colours. You get one email. You approve or

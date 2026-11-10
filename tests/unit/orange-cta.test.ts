@@ -8,6 +8,10 @@ test("the brand orange and the focus ring are unchanged", () => {
   expect(rootToken("ring")).toBe("oklch(0.64 0.21 37)");
 });
 
+test("the CTA fill tokens are unchanged: --primary, --primary-hover and --primary-foreground", () => {
+  expect([rootToken("primary"), rootToken("primary-hover"), rootToken("primary-foreground")]).toEqual(["oklch(0.64 0.21 37)", "oklch(0.68 0.18 37)", "oklch(0.145 0 0)"]);
+});
+
 test("the filled orange's label (--primary-foreground) is at least 4.5:1 on it, at rest and on the solid hover", () => {
   expect(contrast(rootToken("primary"), rootToken("primary-foreground"))).toBeGreaterThanOrEqual(4.5);
   expect(contrast(rootToken("primary-hover"), rootToken("primary-foreground"))).toBeGreaterThanOrEqual(4.5);

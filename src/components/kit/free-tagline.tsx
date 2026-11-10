@@ -12,7 +12,7 @@ export function FreeTagline({ tagline }: { tagline: string }) {
       data-testid="free-tagline"
     >
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 id="free-tagline-heading" className="flex items-center gap-2 font-mono text-xs uppercase tracking-widest text-primary">
+        <h2 id="free-tagline-heading" className="flex items-center gap-2 font-mono text-xs uppercase tracking-widest text-primary-text">
           <Gift className="size-4" aria-hidden="true" />
           Your Product Hunt tagline · free
         </h2>

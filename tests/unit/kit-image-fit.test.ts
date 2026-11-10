@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { ELLIPSIS, fitText, textWidth, wrapText } from "@/lib/image-fit";
 import {
   MAX_NAME_LINES,
-  MAX_PILL_LINES,
+  PILL_LINES_AT_MIN,
   MAX_TAGLINE_LINES,
   monogram,
   monogramFontSize,
@@ -231,7 +231,7 @@ describe("kit image layout", () => {
           }
           if (plan.variant !== "x" && plan.tagline) expect(plan.tagline.text.lines.length).toBeLessThanOrEqual(MAX_TAGLINE_LINES);
           if (plan.variant === "x" && plan.headline) expect(plan.headline.text.lines.length).toBeLessThanOrEqual(MAX_TAGLINE_LINES);
-          if (plan.variant === "x") for (const pill of plan.pills) expect(pill.text.lines.length).toBeLessThanOrEqual(MAX_PILL_LINES);
+          if (plan.variant === "x") for (const pill of plan.pills) expect(pill.text.lines.length).toBeLessThanOrEqual(PILL_LINES_AT_MIN);
         });
       }
     }
@@ -276,14 +276,14 @@ describe("kit image layout", () => {
     expect(x.variant === "x" && x.pills.map((p) => [p.text.fontSize, p.text.lines.join(" ")])).toEqual(SHORT.features.map((f) => [30, f]));
   });
 
-  it("x: pills that can't fit on two lines clamp with an ellipsis, and never overlap", () => {
-    const huge = "Extraordinarily long feature description that keeps going well past what any pill can hold on one line, and then some more words, ".repeat(2);
+  it("x: pills too long for the full line budget at 75% are clamped with an ellipsis as a last resort, and never overlap", () => {
+    const huge = "Extraordinarily long feature description that keeps going well past what any pill can hold on one line, and then some more words, ".repeat(3);
     const plan = planKitImage("x", { ...LONG, features: [huge, huge, huge] }, { watermark: true });
     expectNoOverlap(plan);
     if (plan.variant !== "x") throw new Error("expected an x plan");
     expect(plan.pills.length).toBeGreaterThan(0);
     for (const pill of plan.pills) {
-      expect(pill.text.lines).toHaveLength(MAX_PILL_LINES);
+      expect(pill.text.lines).toHaveLength(PILL_LINES_AT_MIN);
       expect(pill.text.lines.at(-1)!.endsWith(ELLIPSIS)).toBe(true);
     }
   });

@@ -61,7 +61,7 @@ export function PreviewPaywall({ kitId, productName, counts, free, launchPromo, 
     >
       <div className="space-y-6 p-6 sm:p-8">
         <div>
-          <p className="flex items-center gap-1.5 font-mono text-xs uppercase tracking-widest text-primary">
+          <p className="flex items-center gap-1.5 font-mono text-xs uppercase tracking-widest text-primary-text">
             <Check className="size-3.5" aria-hidden="true" /> Free preview done
           </p>
           <h2 id="paywall-heading" className="mt-2 text-2xl font-semibold tracking-tight">
@@ -101,7 +101,7 @@ export function PreviewPaywall({ kitId, productName, counts, free, launchPromo, 
           <figure key={sample.title} className="rounded-xl border border-dashed border-primary/40 bg-primary/[0.03] p-4" data-testid="paywall-sample">
             <figcaption className="flex flex-wrap items-center justify-between gap-2">
               <span className="text-xs font-medium">
-                <span className="font-mono uppercase tracking-widest text-primary">Unlocked sample</span>
+                <span className="font-mono uppercase tracking-widest text-primary-text">Unlocked sample</span>
                 <span className="text-muted-foreground"> · {sample.title}</span>
               </span>
               <CopyButton text={sample.text} />

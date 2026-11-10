@@ -178,7 +178,7 @@ export function TaglineChecker({ promo }: { promo: boolean }) {
               <section aria-labelledby={`${ids}-preview`} className="space-y-2">
                 <h2 id={`${ids}-preview`} className="text-sm font-medium">Feed preview</h2>
                 <div className="flex gap-3 rounded-xl border border-border bg-background p-4" data-testid="tagline-preview">
-                  <div aria-hidden="true" className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-lg font-semibold text-primary">
+                  <div aria-hidden="true" className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-lg font-semibold text-primary-text">
                     {(name.trim()[0] ?? "?").toUpperCase()}
                   </div>
                   <div className="min-w-0">
@@ -233,7 +233,7 @@ export function TaglineChecker({ promo }: { promo: boolean }) {
               <button
                 type="button"
                 disabled={loading}
-                className="font-medium text-foreground underline underline-offset-4 hover:text-primary"
+                className="font-medium text-foreground underline underline-offset-4 hover:text-primary-text"
                 onClick={() => {
                   setSource("sample");
                   void generate("sample");

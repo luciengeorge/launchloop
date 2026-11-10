@@ -2,12 +2,14 @@
  * Generated copy must not use dashes (figure ‒, en –, em —, horizontal bar ―) as punctuation. Models reach for them
  * anyway, so every generated text field passes through here.
  *
- * - URLs and `code spans` are set aside first and come back untouched.
+ * - URLs and `code spans` are set aside first and come back untouched. A URL never ends in a dash: one right after it
+ *   is punctuation.
  * - A number range keeps its meaning with a plain hyphen: 2–3, 10–20%, $5–$10, 2020–2024 (en dash, or any dash unspaced).
- * - An en or figure dash next to a token with a digit in it is a range too, and keeps its spacing: "Jan 5 – Feb 3",
+ * - An en or figure dash with a digit within a word of it on both sides is a range too, and keeps its spacing: "Jan 5 – Feb 3",
  *   "9am – 5pm". An em dash there is still punctuation ("Day 1—shipped it" reads "Day 1, shipped it").
+ *   With a digit on one side only it's punctuation too: "Version 2 – the best" reads "Version 2, the best".
  * - An en or figure dash joining two words with no spaces is a compound (client–server, Mon‒Fri) and becomes a hyphen.
- * - A dash at the start of a line is a list marker and becomes "- ".
+ * - A dash at the start of a line, before some text, is a list marker and becomes "- ".
  * - Two or more dashes in one sentence set off an aside, so each becomes a comma.
  * - A single dash becomes a colon when the words after it explain the ones before (three or more words, not starting
  *   with a conjunction), otherwise a comma. A sentence that already has a colon gets a comma instead.
@@ -22,18 +24,20 @@ const DASH = `[${DASH_CHARS}]`;
 const HAS_DASH = new RegExp(DASH);
 // An en dash (spaced or not) or any unspaced dash between numbers; a spaced em dash there is handled as a token range.
 const RANGE = new RegExp(`(\\d[\\d.,]{0,20}%?)(?:[ \\t]{0,8}\\u2013[ \\t]{0,8}|${DASH})([$£€]?\\d)`, "g");
-// An en or figure dash (the range dashes) with a digit in the token just before or just after it. The after token is
+// An en or figure dash (the range dashes) with the one or two tokens on each side of it. The tokens after it are
 // only looked at, not consumed. Em dashes and bars next to a digit ("Day 1—shipped it") stay punctuation.
-const TOKEN_RANGE = new RegExp(`([^\\s${DASH_CHARS}]{0,40})([ \\t]{0,8})[\\u2012\\u2013]([ \\t]{0,8})(?=([^\\s${DASH_CHARS}]{0,40}))`, "g");
+const TOKEN = `[^\\s${DASH_CHARS}]`;
+const TOKEN_RANGE = new RegExp(
+  `((?:(?:${TOKEN}{1,40}[ \\t]{1,8})?${TOKEN}{1,40})?)([ \\t]{0,8})[\\u2012\\u2013]([ \\t]{0,8})(?=(${TOKEN}{0,40}(?:[ \\t]{1,8}${TOKEN}{1,40})?))`,
+  "g",
+);
 const COMPOUND = /([\p{L}\p{N}])[\u2012\u2013]([\p{L}\p{N}])/gu;
-const LIST_MARKER = new RegExp(`^([ \\t]{0,8})${DASH}+[ \\t]{0,8}`, "gm");
+const LIST_MARKER = new RegExp(`^([ \\t]{0,8})${DASH}+[ \\t]{0,8}(?=${TOKEN})`, "gm");
 const PUNCTUATION_DASH = new RegExp(`[ \\t]{0,8}${DASH}+[ \\t]{0,8}`, "g");
 const CONNECTORS = /^(and|but|or|so|yet|nor|then|which|who|whose|because|while|plus|with|without|though|although|if|when|not)\b/i;
-/** URLs and `code spans` are swapped for one private-use character each while dashes are replaced. */
-const PROTECTED = /https?:\/\/\S+|`[^`\n]*`/g;
-const PLACEHOLDER_BASE = 0xe100;
-const PLACEHOLDER = /[\ue100-\uf8ff]/g;
-const HAS_PLACEHOLDER_CHAR = /[\ue100-\uf8ff]/;
+/** URLs and `code spans` are swapped for one private-use character each, not found in the text, while dashes are replaced. */
+const PROTECTED = new RegExp(`https?:\\/\\/\\S*[^\\s${DASH_CHARS}]|\`[^\`\\n]*\``, "g");
+const PRIVATE_USE = /[\ue000-\uf8ff]/g;
 
 function replaceInSentence(sentence: string): string {
   const parts = sentence.split(PUNCTUATION_DASH);
@@ -60,14 +64,20 @@ function replaceInSentence(sentence: string): string {
 /** Removes dash punctuation from one piece of generated copy. Deterministic; plain hyphens and other whitespace are kept. */
 export function sanitizeDashes(text: string): string {
   if (!HAS_DASH.test(text)) return text;
-  const kept: string[] = [];
-  // Text that already holds placeholder characters is left unshielded rather than risk restoring the wrong thing.
-  const shielded = HAS_PLACEHOLDER_CHAR.test(text) ? text : text.replace(PROTECTED, (match) => String.fromCharCode(PLACEHOLDER_BASE + kept.push(match) - 1));
+  const inText = new Set(text.match(PRIVATE_USE));
+  const kept = new Map<string, string>();
+  let code = 0xe000;
+  const shielded = text.replace(PROTECTED, (match) => {
+    while (inText.has(String.fromCharCode(code))) code++;
+    const placeholder = String.fromCharCode(code++);
+    kept.set(placeholder, match);
+    return placeholder;
+  });
   const prepared = shielded
     .replace(LIST_MARKER, "$1- ")
     .replace(RANGE, "$1-$2")
     .replace(TOKEN_RANGE, (match, before: string, spaceBefore: string, spaceAfter: string, after: string) =>
-      /\d/.test(before) || /\d/.test(after) ? `${before}${spaceBefore || spaceAfter ? " - " : "-"}` : match,
+      /\d/.test(before) && /\d/.test(after) ? `${before}${spaceBefore || spaceAfter ? " - " : "-"}` : match,
     )
     .replace(COMPOUND, "$1-$2");
   // Sentence by sentence (and line by line), so a pair of dashes is only an aside within one sentence.
@@ -80,7 +90,7 @@ export function sanitizeDashes(text: string): string {
         .join(""),
     )
     .join("\n");
-  return kept.length ? replaced.replace(PLACEHOLDER, (char) => kept[char.charCodeAt(0) - PLACEHOLDER_BASE] ?? char) : replaced;
+  return kept.size ? replaced.replace(PRIVATE_USE, (char) => kept.get(char) ?? char) : replaced;
 }
 
 /** Keys that hold URLs or identifiers, never copy. */

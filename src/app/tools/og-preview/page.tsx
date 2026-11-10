@@ -218,7 +218,7 @@ export default async function OgPreviewPage() {
         <h2 id="tags">The tags every page needs</h2>
         <p>Put these in the <code>&lt;head&gt;</code> of the HTML your server sends, with your own values:</p>
       </div>
-      <pre className="mt-5 max-w-3xl overflow-x-auto rounded-xl border border-border bg-muted/50 p-4 text-xs leading-relaxed sm:text-sm" data-testid="og-tags-example">
+      <pre className="mt-5 max-w-3xl overflow-x-auto rounded-xl border border-border bg-muted/50 p-4 text-xs leading-relaxed sm:text-sm" data-testid="og-tags-example" tabIndex={0} role="region" aria-label="The tags every page needs">
         <code>{TAGS}</code>
       </pre>
       <div className={`max-w-3xl ${prose}`}>

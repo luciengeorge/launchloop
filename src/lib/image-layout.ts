@@ -6,7 +6,8 @@ import { IMAGE_VARIANTS, type ImageVariant } from "./image-variants";
  * each block occupies. The renderer positions each block absolutely at its box, so the boxes here
  * are the boxes Satori draws. Nothing may overflow its budget: long text shrinks in steps, then
  * truncates at a word boundary, and optional blocks (feature pills, the feature list) are dropped
- * before anything would overlap.
+ * before anything would overlap. A feature line shrinks to 75% of its layout's largest size, then
+ * takes the extra lines that layout allows there, before it is ever truncated.
  *
  * Each size has two layouts: "shot", built around the product screenshot in a browser frame that
  * runs off the canvas edge, and "type", a bolder type-led layout with a large logo tile.
@@ -85,12 +86,14 @@ export function monogramFontSize(text: string, box: Box): number {
 }
 
 export const MAX_FEATURES = 3;
-export const MAX_PILL_LINES = 2;
+/** X feature pills: two lines from 30 px down to 22.5 px (75%), and three at 22.5 px. */
+export const PILL_LINES = 2;
+export const PILL_LINES_AT_MIN = 3;
 export const MAX_NAME_LINES = 2;
 export const MAX_TAGLINE_LINES = 3;
 export const X_NAME_SIZES = [152, 136, 120, 104, 92, 80] as const;
 export const X_HEADLINE_SIZES = [50, 46, 42, 38, 34] as const;
-export const X_PILL_SIZES = [30, 27, 24] as const;
+export const X_PILL_SIZES = [30, 27, 24, 22.5] as const;
 
 const BADGE_TEXT = "Free preview · launchloop.dev";
 
@@ -278,7 +281,9 @@ function planX(c: KitImageContent, m: KitImageMedia): XPlan {
   let packed = packRows([], innerW, 18);
   outer: for (let n = Math.min(MAX_FEATURES, c.features.length); n > 0; n--) {
     for (const size of X_PILL_SIZES) {
-      const candidate = c.features.slice(0, n).map((f) => pill(f, { sizes: [size], maxWidth: innerW, maxLines: MAX_PILL_LINES, padX: 26, padY: 14, dot: 12, gap: 14, border: 2 }));
+      const atMin = size === X_PILL_SIZES[X_PILL_SIZES.length - 1];
+      const candidate = c.features.slice(0, n).map((f) => pill(f, { sizes: [size], maxWidth: innerW, maxLines: atMin ? PILL_LINES_AT_MIN : PILL_LINES, padX: 26, padY: 14, dot: 12, gap: 14, border: 2 }));
+      if (!atMin && candidate.some((p) => p.text.truncated)) continue;
       const rows = packRows(candidate, innerW, 18);
       if (rows.height + sectionGap + minStack <= bottom - top) {
         pills = candidate;
@@ -338,7 +343,8 @@ function planPh(c: KitImageContent, m: KitImageMedia): PhPlan {
     const domainY = H - P - (domainFit?.height ?? 0);
     const top = P + 64 + 36;
     const bottom = domainFit ? domainY - 28 : H - P;
-    const featureSizes = [24, 22, 20] as const;
+    // Two lines from 24 px down to 18 px (75%), and up to four at 18 px.
+    const featureSizes = [24, 22, 20, 18] as const;
     const bullet = 30;
     const itemGap = 16;
     const sectionGap = 34;
@@ -348,7 +354,9 @@ function planPh(c: KitImageContent, m: KitImageMedia): PhPlan {
     let list: FittedText[] = [];
     outer: for (let n = features.length; n > 0; n--) {
       for (const size of featureSizes) {
-        const items = features.slice(0, n).map((f) => text(f, { sizes: [size], maxWidth: colW - bullet - 14, maxLines: 2, lineHeight: 1.3, weight: 600 }));
+        const atMin = size === featureSizes[featureSizes.length - 1];
+        const items = features.slice(0, n).map((f) => text(f, { sizes: [size], maxWidth: colW - bullet - 14, maxLines: atMin ? 4 : 2, lineHeight: 1.3, weight: 600 }));
+        if (!atMin && items.some((t) => t.truncated)) continue;
         const height = items.reduce((h, t) => h + Math.max(bullet, t.height), 0) + itemGap * (items.length - 1);
         if (height <= budget) {
           list = items;
@@ -391,7 +399,8 @@ function planPh(c: KitImageContent, m: KitImageMedia): PhPlan {
   const cardGap = 24;
   const numberLine = 26 * 1.2;
   const innerGap = 14;
-  const featureSizes = [32, 28, 25, 22] as const;
+  // Up to six lines, from 32 px through 24 px (75%) down to 22 px, main's smallest size, so no card that fitted there clamps.
+  const featureSizes = [32, 28, 25, 24, 22] as const;
   const cardChrome = 2 * (cardPad + cardBorder) + numberLine + innerGap;
   const minCards = features.length ? 40 + cardChrome + 2 * featureSizes[featureSizes.length - 1] * 1.2 : 0;
   const stack = nameAndTagline(c, { width: innerW, maxHeight: bottom - top - minCards, gap: 14, nameSizes: [96, 84, 72, 62, 54], nameSpacing: -3, taglineSizes: [36, 32, 29, 26], taglineLines: 2, taglineWidth: 1040, minTaglineLines: 1 });
