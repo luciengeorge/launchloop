@@ -227,7 +227,7 @@ export default function OgImageSizePostPage() {
         Put these in the <code>&lt;head&gt;</code> of the HTML your server sends, with your own values. The first four are what the Open Graph protocol calls{" "}
         <q>The four required properties for every page</q>: <code>og:title</code>, <code>og:type</code>, <code>og:url</code> and <code>og:image</code>.
       </p>
-      <pre className="overflow-x-auto rounded-xl border border-border bg-muted/50 p-4 text-xs leading-relaxed sm:text-sm" data-testid="og-size-tags">
+      <pre className="overflow-x-auto rounded-xl border border-border bg-muted/50 p-4 text-xs leading-relaxed sm:text-sm" data-testid="og-size-tags" tabIndex={0} role="region" aria-label="The meta tags to set">
         <code>{TAGS}</code>
       </pre>
       <ul>
