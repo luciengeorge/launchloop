@@ -273,7 +273,7 @@ describe("kit image layout", () => {
     expect(x.variant === "x" && x.pills.map((p) => [p.text.fontSize, p.text.lines.join(" ")])).toEqual(SHORT.features.map((f) => [30, f]));
   });
 
-  it("x: pills that can't fit on two lines clamp with an ellipsis, and never overlap", () => {
+  it("x: pills too long for the full line budget at 75% are clamped with an ellipsis as a last resort, and never overlap", () => {
     const huge = "Extraordinarily long feature description that keeps going well past what any pill can hold on one line, and then some more words, ".repeat(2);
     const plan = planKitImage("x", { ...LONG, features: [huge, huge, huge] }, { watermark: true });
     expectNoOverlap(plan);
