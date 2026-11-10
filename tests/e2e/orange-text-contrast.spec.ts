@@ -8,33 +8,38 @@ import { contrast, makeSampleKit, setHeroHeadline, uniqueEmail } from "./helpers
 
 const HERO_URL = "http://127.0.0.1:3420";
 const SAMPLE_CTA_FLAG = "exp_hero_sample_cta";
+const HYDRATION_ERROR = /#418|hydrat/i;
 /** main's --primary, --primary-hover and --primary-foreground (oklch(0.64 0.21 37), oklch(0.68 0.18 37), oklch(0.145 0 0)) as the CSS build emits them. */
 const MAIN_CTA_TOKENS = ["lab(56.4149% 62.4398 65.6926)", "lab(61.3761% 52.745 50.01)", "lab(2.75381% 0 0)"];
 
 test.use({ extraHTTPHeaders: { "x-forwarded-for": `203.0.113.${Math.floor(Math.random() * 250) + 1}` } });
 test.afterEach(async ({ page }) => page.unrouteAll({ behavior: "ignoreErrors" }));
 
-/** The live promo can't be switched on (LAUNCH_PROMO_ENDS_AT has passed), so its real markup is put where the page renders it. */
-async function insertPromoMarkup(page: Page, anchor: Locator, html: string, testId: string) {
-  await anchor.evaluate(
+/**
+ * The live promo can't be switched on (LAUNCH_PROMO_ENDS_AT has passed), so its real markup is measured in a static copy
+ * of where the page renders it: the page's stylesheets and each ancestor of `anchor`, attributes and all, in a page with
+ * no scripts. React never owns the copy, so it can't race hydration or report a mismatch.
+ */
+async function promoInStaticCopy(page: Page, anchor: Locator, html: string, testId: string) {
+  const copy = await anchor.evaluate(
     (el, { html, testId }) => {
       const template = document.createElement("template");
       template.innerHTML = html;
-      el.after(template.content.querySelector(`[data-testid="${testId}"]`)!);
+      let markup = template.content.querySelector(`[data-testid="${testId}"]`)!.outerHTML;
+      for (let node = el.parentElement; node && node !== document.documentElement; node = node.parentElement) {
+        const shell = node.cloneNode(false) as Element;
+        const tags = shell.outerHTML;
+        const close = tags.lastIndexOf("</");
+        markup = `${tags.slice(0, close)}${markup}${tags.slice(close)}`;
+      }
+      const styles = [...document.querySelectorAll('link[rel="stylesheet"], style')].map((node) => node.outerHTML).join("");
+      return `<!doctype html><html class="${document.documentElement.className}"><head><base href="${location.origin}/">${styles}</head>${markup}</html>`;
     },
     { html, testId },
   );
-  return page.getByTestId(testId).locator("span.font-mono");
-}
-
-/** Markup put in before React hydrates the hero is thrown away with it; the FAQ accordion only opens once hydrated. */
-async function openHydratedHome(page: Page) {
-  await page.goto("/");
-  const faq = page.getByRole("button", { name: /^What do I get for/ });
-  await expect(async () => {
-    if ((await faq.getAttribute("aria-expanded")) !== "true") await faq.click();
-    await expect(faq).toHaveAttribute("aria-expanded", "true", { timeout: 500 });
-  }).toPass();
+  const staticPage = await page.context().newPage();
+  await staticPage.setContent(copy);
+  return staticPage.getByTestId(testId).locator("span.font-mono");
 }
 
 async function forceSampleCtaTest(page: Page) {
@@ -94,8 +99,8 @@ const ORANGE_TEXT: OrangeText[] = [
   {
     at: "src/components/kit-price.tsx:60",
     what: "home LAUNCH14 note code",
-    open: openHydratedHome,
-    locate: (p) => insertPromoMarkup(p, p.locator("#start p", { hasText: "Free preview, no account needed" }), renderToStaticMarkup(createElement(KitPromoNote, { promo: true })), "launch-promo-note"),
+    open: (p) => p.goto("/"),
+    locate: (p) => promoInStaticCopy(p, p.locator("#start p", { hasText: "Free preview, no account needed" }), renderToStaticMarkup(createElement(KitPromoNote, { promo: true })), "launch-promo-note"),
   },
   {
     at: "src/components/newsletter-form.tsx:200",
@@ -140,7 +145,7 @@ const ORANGE_TEXT: OrangeText[] = [
     what: "unlock panel LAUNCH14 code",
     open: openSampleKit,
     locate: (p) =>
-      insertPromoMarkup(
+      promoInStaticCopy(
         p,
         p.getByTestId("unlock-panel").locator("p", { hasText: "once, no subscription" }),
         renderToStaticMarkup(createElement(UnlockPanel, { kitId: sampleKit!, priceLabel: "£19", launchPromo: { variant: "treatment" }, autoCheckout: false, cancelled: false, saved: false })),
@@ -166,6 +171,13 @@ const settledColor = (target: Locator) =>
 test.describe("every listed orange-text use is at least 4.5:1, and CTA fills are unchanged", () => {
   for (const use of ORANGE_TEXT) {
     test(`${use.at}: ${use.what}`, async ({ page }) => {
+      const hydrationErrors: string[] = [];
+      page.on("pageerror", (error) => {
+        if (HYDRATION_ERROR.test(error.message)) hydrationErrors.push(error.message);
+      });
+      page.on("console", (message) => {
+        if (message.type() === "error" && HYDRATION_ERROR.test(message.text())) hydrationErrors.push(message.text());
+      });
       await use.open(page);
       const target = await use.locate(page);
       await expect(target).toBeVisible();
@@ -186,6 +198,7 @@ test.describe("every listed orange-text use is at least 4.5:1, and CTA fills are
         expect(hovered, `${use.at} hovered`).toBeGreaterThanOrEqual(4.5);
       }
       console.log(`contrast ${use.at}: ${measured.join(", ")}`);
+      expect(hydrationErrors).toEqual([]);
     });
   }
 
