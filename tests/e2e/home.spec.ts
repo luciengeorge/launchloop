@@ -17,7 +17,7 @@ test("HERO_EXPERIMENT unset (production): the home h1 is main's static h1, whate
   await setHeroHeadline(page.request, "test");
   try {
     const html = await (await page.request.get("/")).text();
-    expect(html).toContain('<h1 class="max-w-3xl text-balance text-4xl font-semibold tracking-tight sm:text-6xl">Paste your repo. <span class="text-primary">Get your whole launch.</span></h1>');
+    expect(html).toContain('<h1 class="max-w-3xl text-balance text-4xl font-semibold tracking-tight sm:text-6xl">Paste your repo. <span class="text-primary-text">Get your whole launch.</span></h1>');
     expect(html).not.toMatch(/data-hero|data-reserve|hero-failsafe/);
     expect(h1Tags(html)).toHaveLength(1);
     await page.goto("/");
