@@ -5,6 +5,8 @@ import { IMAGE_VARIANTS, type ImageVariant } from "@/lib/image-variants";
 
 /** Equivalent to sonner's (emilkowalski/sonner, 8e4662b3) feature line that ellipsized in the Product Hunt image on 27 Oct. */
 const SONNER_LINE = "Works out of the box with Next.js App Router, Server Components, Remix, Vite and Astro, with no providers or extra setup";
+/** Seven lines in a PH card at 24 px, six at 22 px. */
+const FITS_CARD_AT_22 = "Works out of the box with Next.js App Router, React Server Components, Remix, Vite and Astro, with no providers or extra setup needed";
 /** Three lines at today's smallest pill size (24 px), two at 75% of the 30 px base. */
 const TWO_LINES_AT_75 =
   "Syncs every bookmark from X, GitHub, YouTube, Pinterest, Reddit and your browser on its own, then searches all of them by meaning across text, images and video, so the thing you saved last year turns up in a few seconds";
@@ -58,6 +60,15 @@ describe("feature lines in the kit images", () => {
     expect(text.lines.join(" ")).toBe(SONNER_LINE);
     expect(text.lines.length).toBeLessThanOrEqual(6);
     expect(text.fontSize).toBeGreaterThanOrEqual(CARD_BASE * 0.75);
+  });
+
+  it("PH cards still go down to 22 px: a line that only fits there, as on main, is drawn whole", () => {
+    const plan = planKitImage("ph", sonner(FITS_CARD_AT_22), { watermark: true });
+    if (plan.variant !== "ph" || plan.layout !== "type") throw new Error("expected the type-led PH layout");
+    const { text } = plan.cards[0].text;
+    expect(ellipsized(text), JSON.stringify(text.lines)).toBe(false);
+    expect(text.lines.join(" ")).toBe(FITS_CARD_AT_22);
+    expect(text.fontSize).toBe(22);
   });
 
   it("an X pill shrinks toward 75% of its base to stay on two lines, with no ellipsis", () => {

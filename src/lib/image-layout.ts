@@ -399,8 +399,8 @@ function planPh(c: KitImageContent, m: KitImageMedia): PhPlan {
   const cardGap = 24;
   const numberLine = 26 * 1.2;
   const innerGap = 14;
-  // Up to six lines, from 32 px down to 24 px (75%).
-  const featureSizes = [32, 28, 25, 24] as const;
+  // Up to six lines, from 32 px through 24 px (75%) down to 22 px, main's smallest size, so no card that fitted there clamps.
+  const featureSizes = [32, 28, 25, 24, 22] as const;
   const cardChrome = 2 * (cardPad + cardBorder) + numberLine + innerGap;
   const minCards = features.length ? 40 + cardChrome + 2 * featureSizes[featureSizes.length - 1] * 1.2 : 0;
   const stack = nameAndTagline(c, { width: innerW, maxHeight: bottom - top - minCards, gap: 14, nameSizes: [96, 84, 72, 62, 54], nameSpacing: -3, taglineSizes: [36, 32, 29, 26], taglineLines: 2, taglineWidth: 1040, minTaglineLines: 1 });
