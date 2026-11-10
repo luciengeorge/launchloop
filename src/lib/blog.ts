@@ -21,6 +21,16 @@ export const BLOG_FEED_PATH = "/blog/rss.xml";
 /** Newest first, so add new posts at the top. */
 export const BLOG_POSTS: BlogPost[] = [
   {
+    slug: "chatgpt-vs-product-hunt-launch-kits",
+    title: "Can ChatGPT write your Product Hunt launch copy, or do you need a launch kit?",
+    metaTitle: "Can ChatGPT write Product Hunt launch copy?",
+    description:
+      "We ran one repo through ChatGPT and launch kits, then counted every character against Product Hunt's limits. See what each wrote and what to edit.",
+    published: "2026-11-10",
+    updated: "2026-11-10",
+    readingMinutes: 9,
+  },
+  {
     slug: "show-hn-title-checkers-compared",
     title: "Which Show HN title checker should you use? Compared on the same ten titles",
     metaTitle: "Which Show HN title checker should you use?",
