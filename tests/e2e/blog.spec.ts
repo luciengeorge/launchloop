@@ -24,8 +24,55 @@ const SELF = (path: string) => new RegExp(`^http://127\\.0\\.0\\.1:\\d+${path.re
 
 /** Per post: links the copy must make, and quotes that must appear verbatim. */
 const EXPECT: Record<string, { links: string[]; quotes: string[] }> = {
+  "chatgpt-vs-product-hunt-launch-kits": {
+    links: [
+      "/#start",
+      "/pricing",
+      "/tools/product-hunt-tagline-checker",
+      "/how-to-write-a-product-hunt-tagline",
+      "/blog/product-hunt-launch-tools",
+      "/blog/launchloop-alternatives",
+      "/blog/how-to-launch-on-product-hunt",
+      "/product-hunt-launch-checklist",
+      "/tools/og-preview",
+      "https://github.com/pmndrs/zustand",
+      "https://github.com/pmndrs/zustand/tree/9fed2eb2f3af672da9f7bf694b996df3831fc207",
+      "https://zustand.docs.pmnd.rs",
+      "https://startkitz.com/",
+      "https://startkitz.com/product-hunt-launch-kit",
+      "https://www.overnightcut.com/tools/launch-copy-writer",
+      "https://shipproof.io/tools/launch-copy",
+      "https://www.producthunt.com/launch/preparing-for-launch",
+      "https://help.producthunt.com/en/articles/17350772-launch-guide",
+      "https://help.producthunt.com/en/articles/479557-how-to-post-a-product",
+      "https://launchloop.dev/blog/product-hunt-launch-tools",
+      "https://launchloop.dev/pricing",
+    ],
+    quotes: [
+      "Tagline (up to 60 characters)",
+      "Description (max 500 characters)",
+      "260 characters max",
+      "within 260 characters",
+      "State management in React, minus the boilerplate. 🐻",
+      "Simple, fast, and scalable state management for React.",
+      "Less boilerplate. More building. Meet Zustand.",
+      "Your React app's state, under control.",
+      "The bear necessities of state management.",
+      "Hook-based React state without providers or boilerplate",
+      "Simplify State",
+      "Streamline React with Zustand",
+      "Zustand: Simplifying React state management with a minimal API.",
+      "Zustand manages state in React apps with a small, fast, minimal API",
+      "Manages state in React apps with a small, fast, minimal API",
+      "Manages state in React apps with a small, fast, minimal API for React developers",
+      "Zustand manages state in React apps with a small, fast, minimal API. Built for React developers.",
+      "Turn every launch into lasting social proof",
+      "Zustand makes state management refreshingly simple.",
+    ],
+  },
   "product-hunt-launch-tools": {
     links: [
+      "/blog/chatgpt-vs-product-hunt-launch-kits",
       "/blog/launchloop-alternatives",
       "/blog/how-to-launch-on-product-hunt",
       "/blog/product-hunt-alternatives",
@@ -242,6 +289,7 @@ const EXPECT: Record<string, { links: string[]; quotes: string[] }> = {
   },
   "launchloop-alternatives": {
     links: [
+      "/blog/chatgpt-vs-product-hunt-launch-kits",
       "/#start",
       "/pricing",
       "/tools/product-hunt-tagline-checker",

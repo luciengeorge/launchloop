@@ -44,9 +44,9 @@ export default function LaunchloopAlternativesPage() {
     <BlogPostLayout post={p}>
       <p>
         People searching for LaunchLoop alternatives usually want another way to turn a repo or URL into launch copy. This page names those products from their own pages, says
-        plainly what LaunchLoop does, and points at our longer free-tier test where we already ran tools on one repo. LaunchLoop is ours. We do not rank winners here. We swapped this
-        page in for a ChatGPT-versus-kits post because that second post needed a new test run on a second repo we have not frozen and logged yet; inventing those results would break
-        our sourcing rule.
+        plainly what LaunchLoop does, and points at our longer free-tier test where we already ran tools on one repo. LaunchLoop is ours. We do not rank winners here. We later ran the
+        ChatGPT-versus-kits test on a second repo: see{" "}
+        <Link href={postPath({ slug: "chatgpt-vs-product-hunt-launch-kits" })}>Can ChatGPT write Product Hunt launch copy?</Link>.
       </p>
 
       <h2 id="what-launchloop-does">What LaunchLoop does</h2>
@@ -127,7 +127,8 @@ export default function LaunchloopAlternativesPage() {
       <h2 id="next">Next steps</h2>
       <p>
         Run one public repo through each free path you are considering. Keep the first output only, and count characters with the same rule the platform uses. Then edit in your own
-        words before you post.
+        words before you post. For ChatGPT next to these kits on one frozen repo, read{" "}
+        <Link href={postPath({ slug: "chatgpt-vs-product-hunt-launch-kits" })}>Can ChatGPT write Product Hunt launch copy?</Link>.
       </p>
 
       <Faq path={postPath(p)} title="LaunchLoop alternatives: FAQ" items={FAQ} />

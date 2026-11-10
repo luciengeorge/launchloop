@@ -552,8 +552,9 @@ export default function ProductHuntLaunchToolsPostPage() {
         the one tested here, gives a product brief, a Product Hunt tagline, the first post of an X thread and three watermarked images. The paid kit, a one-off payment,
         adds the Product Hunt description and maker comment, the rest of the X thread, landing copy, a LinkedIn post and unwatermarked images. We held it to the same rules
         as every other tool. For a shorter look at other kits next to what LaunchLoop returns, see{" "}
-        <Link href={postPath({ slug: "launchloop-alternatives" })}>LaunchLoop alternatives</Link>. Try it with a <Link href="/#start">free preview</Link> or see{" "}
-        <Link href="/pricing">pricing</Link>.
+        <Link href={postPath({ slug: "launchloop-alternatives" })}>LaunchLoop alternatives</Link>. For ChatGPT versus those kits on a second repo, see{" "}
+        <Link href={postPath({ slug: "chatgpt-vs-product-hunt-launch-kits" })}>Can ChatGPT write Product Hunt launch copy?</Link>. Try it with a{" "}
+        <Link href="/#start">free preview</Link> or see <Link href="/pricing">pricing</Link>.
       </p>
 
       <Faq path={postPath(p)} title="Product Hunt launch tools: FAQ" items={FAQ} />

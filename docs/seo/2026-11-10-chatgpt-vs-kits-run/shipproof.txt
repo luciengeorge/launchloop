@@ -1,0 +1,103 @@
+Run time (UTC): 2026-11-10T11:55:41Z
+URL: https://shipproof.io/tools/launch-copy (found via https://shipproof.io/tools -> "AI Launch Copy Generator"; "Free tool — no signup required")
+Inputs: Product name=Zustand; pitch="A small, fast, minimal state management library for React"; problem="State management in React is often complex and boilerplate-heavy"; audience=React developers. Default 3 platforms (Product Hunt, Twitter/X, Reddit).
+NOTE: output ignored the inputs and is about ShipProof itself (no mention of Zustand).
+
+== PRODUCT HUNT ==
+Platform tip: Keep tagline under 60 chars. Description should highlight the problem, solution, and why now.
+TAGLINE: Turn every launch into lasting social proof
+DESCRIPTION:
+ShipProof is the all-in-one launch toolkit for indie hackers.
+
+🚀 Ship — Generate platform-ready launch copy for PH, Reddit, HN, Twitter/X, and IndieHackers with AI. What used to take a full Sunday now takes 2 minutes.
+
+📥 Collect — Paste a tweet URL, a PH comment, or a Reddit reply. ShipProof pulls in the content, attributes the source, and tags it. Never lose great feedback again.
+
+📊 Display — Embed a Wall of Love on your landing page with two lines of code. Auto-scrolling marquee, masonry grid, or carousel — your pick.
+
+Each cycle makes your next launch stronger. Start free today.
+MAKER COMMENT:
+Hey PH! 👋
+
+I built ShipProof because I kept losing great comments people left about my projects. Someone would praise my tool on Twitter, I'd screenshot it, then lose the file. Sound familiar?
+
+ShipProof closes the loop: generate launch content → collect praise → display it everywhere.
+
+The free plan gives you everything to try the full flow. Would love your feedback!
+FIRST COMMENT:
+Thanks for checking out ShipProof! Happy to answer any questions about the product, tech stack (Next.js + Go + Claude API), or my experience launching as a solo founder. 🙌
+
+== TWITTER / X ==
+Platform tip: Start with a hook. End with a CTA. Use line breaks for readability.
+LAUNCH THREAD:
+🧵 I just launched ShipProof — the all-in-one launch toolkit for indie hackers.
+
+It turns every launch into lasting social proof.
+
+Here's the story 👇
+
+---
+
+1/ The problem: Every time I launched something, I spent an entire Sunday writing posts for 5 different platforms.
+
+Then the good comments came in... and I lost them in browser tabs.
+
+---
+
+2/ ShipProof fixes this with a flywheel:
+
+🚀 Ship — AI generates platform-ready copy for PH, Reddit, HN, Twitter, IndieHackers
+📥 Collect — Paste a URL, it pulls the content automatically
+📊 Display — Embed a Wall of Love on your site
+
+---
+
+3/ The best part? Each launch cycle makes the next one stronger.
+
+More social proof → more trust → more users → more feedback → repeat.
+
+---
+
+4/ It's free to start:
+✅ 1 product
+✅ 5 proofs
+✅ AI launch copy generation
+✅ Wall of Love page
+✅ Embeddable widget
+
+No credit card required.
+
+---
+
+5/ Try it now → shipproof.io
+
+I'd love your feedback. What platform do you struggle with most when launching? 👇
+
+== REDDIT ==
+Platform tip: Sound like a real person, not a marketer. Share your story. Be honest about what's early.
+POST TITLE: I built a tool that generates launch posts for 5 platforms and collects social proof automatically
+POST BODY:
+Hey everyone,
+
+I've been building in public for a while and one thing always frustrated me: writing launch posts.
+
+Every platform has different expectations. Product Hunt wants polished descriptions. Reddit wants authenticity. HN wants technical depth. Twitter wants hooks. IndieHackers wants the story.
+
+Writing for all of them used to take me an entire Sunday.
+
+So I built ShipProof.
+
+**What it does:**
+- Generates platform-specific launch copy using AI (not generic cross-posting)
+- Collects praise/testimonials — paste a URL and it pulls the content
+- Displays social proof on your site with a 2-line embed code
+
+**The idea is a flywheel:** Ship → Collect → Display → Ship again (with more proof each time).
+
+**It's free to start** — 1 product, 5 proofs, AI generation included.
+
+I'd love feedback from this community. What could be better? What's missing?
+
+Link: shipproof.io
+
+Post-output CTA: "Ready to launch? Save your content & track results. Sign up free to save generated content, collect social proof post-launch, and display it on your site." [Save & Start Collecting Proof →] [↻ Generate again]

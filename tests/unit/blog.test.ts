@@ -274,3 +274,39 @@ describe("OG image size post", () => {
     expect(OG_PREVIEW.updated).toBe("2026-10-26");
   });
 });
+
+describe("ChatGPT vs launch kits post", () => {
+  const p = post("chatgpt-vs-product-hunt-launch-kits");
+  const root = path.join(import.meta.dirname, "../..");
+  const source = readFileSync(path.join(root, "src/app/blog/chatgpt-vs-product-hunt-launch-kits/page.tsx"), "utf8");
+  const log = readFileSync(path.join(root, "docs/seo/2026-11-10-chatgpt-vs-product-hunt-launch-kits.md"), "utf8");
+  const decode = (s: string) =>
+    s.replace(/\{" "\}/g, " ").replace(/&apos;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/\s+/g, " ").trim();
+
+  it("has the approved title and slug and is dated 10 November 2026", () => {
+    expect(p).toMatchObject({
+      slug: "chatgpt-vs-product-hunt-launch-kits",
+      title: "Can ChatGPT write your Product Hunt launch copy, or do you need a launch kit?",
+      published: "2026-11-10",
+      updated: "2026-11-10",
+    });
+    expect(fullTitle(p.metaTitle)).toBe("Can ChatGPT write Product Hunt launch copy? · LaunchLoop");
+    expect(`${p.title} ${p.metaTitle}`).not.toMatch(/\bbest\b/i);
+    expect(BLOG_POSTS.map((x) => x.slug)).toContain(p.slug);
+  });
+
+  it("quotes nothing that isn't listed word for word in its quote log", () => {
+    const quotes = [...source.matchAll(/<q>([\s\S]*?)<\/q>/g)].map((m) => decode(m[1]));
+    expect(quotes.length).toBeGreaterThan(10);
+    const table = log.split("## Every quote on the page")[1];
+    expect(table, "the log has an 'Every quote on the page' table").toBeTruthy();
+    const logged = table.replace(/\s+/g, " ");
+    for (const q of quotes) expect(logged, q).toContain(`"${q}"`);
+  });
+
+  it("gives raw counts only, has no dashes in its own copy, and does not show competitor screenshots", () => {
+    expect(source).not.toMatch(/\d\s?%|per ?cent/i);
+    expect(source).not.toMatch(DASHES);
+    expect(source).not.toMatch(/\.(png|jpg|jpeg|webp)/i);
+  });
+});
