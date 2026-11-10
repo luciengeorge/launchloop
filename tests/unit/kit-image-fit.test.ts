@@ -116,11 +116,14 @@ describe("fitText", () => {
     expect(fit.truncated).toBe(false);
   });
 
-  it("uses the smallest size, within the line cap and the width, when even that size overflows", () => {
+  it("truncates at a word boundary with an ellipsis when even the smallest size overflows", () => {
     const text = `${LONG.headline} ${LONG.headline}`;
     const fit = fitText(text, { sizes: [60, 50], maxWidth: 900, maxLines: 3, lineHeight: 1.1, weight: 600 });
     expect(fit.fontSize).toBe(50);
-    expect(fit.lines.length).toBeLessThanOrEqual(3);
+    expect(fit.lines).toHaveLength(3);
+    expect(fit.truncated).toBe(true);
+    expect(fit.lines[2].endsWith(ELLIPSIS)).toBe(true);
+    expect(text.startsWith(fit.lines.join(" ").slice(0, -1))).toBe(true);
     for (const line of fit.lines) expect(textWidth(line, 50, 0, 600)).toBeLessThanOrEqual(900);
   });
 
