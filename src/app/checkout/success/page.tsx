@@ -33,7 +33,7 @@ async function GuestSuccess({ searchParams }: Pick<PageProps<"/checkout/success"
   return (
     <div className="space-y-6 rounded-2xl border border-border bg-card p-6 shadow-sm" data-testid="guest-success">
       <div>
-        <p className="flex items-center gap-1.5 font-mono text-xs uppercase tracking-widest text-primary">
+        <p className="flex items-center gap-1.5 font-mono text-xs uppercase tracking-widest text-primary-text">
           <Check className="size-3.5" aria-hidden="true" /> Payment received
         </p>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight">Your {kit.brief.name} launch kit is ready</h1>

@@ -60,7 +60,7 @@ export default async function Home() {
             </Suspense>
           ) : (
             <h1 className="max-w-3xl text-balance text-4xl font-semibold tracking-tight sm:text-6xl">
-              Paste your repo. <span className="text-primary">Get your whole launch.</span>
+              Paste your repo. <span className="text-primary-text">Get your whole launch.</span>
             </h1>
           )}
           <p className="mt-5 max-w-2xl text-pretty text-lg text-muted-foreground">
@@ -78,16 +78,16 @@ export default async function Home() {
             </span>
           </p>
           <KitPromoNote promo={promo} className="mt-2" />
-          <Link href="/pricing" className="mt-2 text-sm font-medium text-foreground underline underline-offset-4 hover:text-primary">
+          <Link href="/pricing" className="mt-2 text-sm font-medium text-foreground underline underline-offset-4 hover:text-primary-text">
             See what&apos;s in the <KitPrice promo={promo} /> kit
           </Link>
           <p className="mt-6 text-sm text-muted-foreground">
             Only need one piece?{" "}
-            <Link href={TAGLINE_CHECKER.path} className="font-medium text-foreground underline underline-offset-4 hover:text-primary">
+            <Link href={TAGLINE_CHECKER.path} className="font-medium text-foreground underline underline-offset-4 hover:text-primary-text">
               Try the free tagline checker
             </Link>{" "}
             or{" "}
-            <Link href={OG_PREVIEW.path} className="font-medium text-foreground underline underline-offset-4 hover:text-primary">
+            <Link href={OG_PREVIEW.path} className="font-medium text-foreground underline underline-offset-4 hover:text-primary-text">
               preview your link card
             </Link>
           </p>
@@ -99,7 +99,7 @@ export default async function Home() {
 
       <section id="kit" className="mx-auto max-w-6xl px-4 py-20 sm:px-6" aria-labelledby="kit-heading">
         <div className="max-w-2xl">
-          <p className="font-mono text-xs uppercase tracking-widest text-primary">The Launch Kit</p>
+          <p className="font-mono text-xs uppercase tracking-widest text-primary-text">The Launch Kit</p>
           <h2 id="kit-heading" className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
             Everything in the <KitPrice promo={promo} /> Launch Kit
           </h2>
@@ -129,7 +129,7 @@ export default async function Home() {
           <ol className="mt-10 grid gap-6 md:grid-cols-3">
             {STEPS.map((step, i) => (
               <li key={step.title} className="relative rounded-2xl border border-border bg-background p-6">
-                <span className="font-mono text-sm text-primary">0{i + 1}</span>
+                <span className="font-mono text-sm text-primary-text">0{i + 1}</span>
                 <h3 className="mt-3 text-lg font-medium">{step.title}</h3>
                 <p className="mt-2 text-sm text-muted-foreground">{step.body}</p>
               </li>
@@ -179,7 +179,7 @@ export default async function Home() {
             </AccordionItem>
           ))}
         </Accordion>
-        <Link href="/faq" className="mt-6 inline-block text-sm font-medium underline underline-offset-4 hover:text-primary">
+        <Link href="/faq" className="mt-6 inline-block text-sm font-medium underline underline-offset-4 hover:text-primary-text">
           Read all FAQs
         </Link>
       </section>

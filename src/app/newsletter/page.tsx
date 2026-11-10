@@ -55,7 +55,7 @@ export default async function NewsletterPage() {
               <article className="relative rounded-2xl border border-border bg-card p-6 transition-colors hover:border-primary/60">
                 <p className="text-xs text-muted-foreground">Issue {issue.number}</p>
                 <h3 className="mt-1 text-xl font-semibold tracking-tight">
-                  <Link href={issuePath(issue)} className="after:absolute after:inset-0 hover:text-primary">
+                  <Link href={issuePath(issue)} className="after:absolute after:inset-0 hover:text-primary-text">
                     {issue.subject}
                   </Link>
                 </h3>

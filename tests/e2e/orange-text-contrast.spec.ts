@@ -77,10 +77,10 @@ const ORANGE_TEXT: OrangeText[] = [
   { at: "src/app/page.tsx:102", what: "home 'The Launch Kit' eyebrow", open: (p) => p.goto("/"), locate: (p) => p.getByText("The Launch Kit", { exact: true }) },
   { at: "src/app/page.tsx:132", what: "home step number", open: (p) => p.goto("/"), locate: (p) => p.getByRole("region", { name: "How it works" }).getByText("01", { exact: true }) },
   { at: "src/app/page.tsx:182", what: "home 'Read all FAQs' link", open: (p) => p.goto("/"), locate: (p) => p.getByRole("link", { name: "Read all FAQs" }), hover: "only" },
-  { at: "src/components/home-hero.tsx:70", what: "hero sample CTA, control arm", open: (p) => p.goto("/"), locate: (p) => p.locator("#start").getByRole("button", { name: "Try a sample app" }), hover: "only" },
-  { at: "src/components/home-hero.tsx:74", what: "hero sample CTA, test arm", open: forceSampleCtaTest, locate: (p) => p.locator("#start").getByRole("button", { name: "Try a sample app" }), hover: "also" },
-  { at: "src/components/home-hero.tsx:89", what: "hero 'See an example kit', test arm", open: forceSampleCtaTest, locate: (p) => p.getByTestId("example-kit-link"), hover: "only" },
-  { at: "src/components/home-hero.tsx:65", what: "pricing sample CTA (no experiment)", open: (p) => p.goto("/pricing"), locate: (p) => p.getByRole("button", { name: "Try a sample app" }), hover: "only" },
+  { at: "src/components/home-hero.tsx:69", what: "hero sample CTA, control arm", open: (p) => p.goto("/"), locate: (p) => p.locator("#start").getByRole("button", { name: "Try a sample app" }), hover: "only" },
+  { at: "src/components/home-hero.tsx:73", what: "hero sample CTA, test arm", open: forceSampleCtaTest, locate: (p) => p.locator("#start").getByRole("button", { name: "Try a sample app" }), hover: "also" },
+  { at: "src/components/home-hero.tsx:88", what: "hero 'See an example kit', test arm", open: forceSampleCtaTest, locate: (p) => p.getByTestId("example-kit-link"), hover: "only" },
+  { at: "src/components/home-hero.tsx:64", what: "pricing sample CTA (no experiment)", open: (p) => p.goto("/pricing"), locate: (p) => p.getByRole("button", { name: "Try a sample app" }), hover: "only" },
   {
     at: "src/components/hero-headline.tsx:35",
     what: "hero experiment headline accent",
@@ -170,16 +170,22 @@ test.describe("every listed orange-text use is at least 4.5:1, and CTA fills are
       const target = await use.locate(page);
       await expect(target).toBeVisible();
       await target.scrollIntoViewIfNeeded();
+      const measured: string[] = [];
       if (use.hover !== "only") {
         await page.mouse.move(0, 0);
         await settledColor(target);
-        expect(await contrast(target), `${use.at} at rest`).toBeGreaterThanOrEqual(4.5);
+        const rest = await contrast(target);
+        measured.push(`${rest.toFixed(2)} at rest`);
+        expect(rest, `${use.at} at rest`).toBeGreaterThanOrEqual(4.5);
       }
       if (use.hover) {
         await target.hover();
         await settledColor(target);
-        expect(await contrast(target), `${use.at} hovered`).toBeGreaterThanOrEqual(4.5);
+        const hovered = await contrast(target);
+        measured.push(`${hovered.toFixed(2)} hovered`);
+        expect(hovered, `${use.at} hovered`).toBeGreaterThanOrEqual(4.5);
       }
+      console.log(`contrast ${use.at}: ${measured.join(", ")}`);
     });
   }
 

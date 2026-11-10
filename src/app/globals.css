@@ -36,6 +36,7 @@
   --color-primary-foreground: var(--primary-foreground);
   --color-primary: var(--primary);
   --color-primary-hover: var(--primary-hover);
+  --color-primary-text: var(--primary-text);
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
@@ -61,6 +62,8 @@
   --primary-foreground: oklch(0.145 0 0);
   /* Solid and lighter, so the dark label gains contrast on hover whatever is behind the button. */
   --primary-hover: oklch(0.68 0.18 37);
+  /* The orange as text on light surfaces, never as a fill: about 5.7:1 on --background, where --primary is 3.5:1. */
+  --primary-text: oklch(0.52 0.16 37);
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);

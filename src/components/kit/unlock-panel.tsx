@@ -221,7 +221,7 @@ export function UnlockPanel({ kitId, priceLabel, launchPromo, email, autoCheckou
       </p>
       {promo ? (
         <p className="mt-2 rounded-md bg-primary/10 px-3 py-2 text-xs" data-testid="launch-promo">
-          <span className="font-mono font-semibold text-primary">{LAUNCH_PROMO.code}</span> takes £5 off, applied for you at checkout. Launch offer for first-time buyers, while it
+          <span className="font-mono font-semibold text-primary-text">{LAUNCH_PROMO.code}</span> takes £5 off, applied for you at checkout. Launch offer for first-time buyers, while it
           lasts.
         </p>
       ) : null}

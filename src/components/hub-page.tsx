@@ -53,7 +53,7 @@ export async function HubPage({
           <li key={item.path}>
             <article className="relative rounded-2xl border border-border bg-card p-6 transition-colors hover:border-primary/60">
               <h2 className="text-xl font-semibold tracking-tight">
-                <Link href={item.path} className="after:absolute after:inset-0 hover:text-primary">
+                <Link href={item.path} className="after:absolute after:inset-0 hover:text-primary-text">
                   {item.title}
                 </Link>
               </h2>
@@ -82,12 +82,12 @@ export async function HubPage({
         <ul className="mt-3 space-y-2 text-sm">
           {related.items.map((item) => (
             <li key={item.path}>
-              <Link href={item.path} className="font-medium underline underline-offset-4 hover:text-primary">{item.title}</Link>
+              <Link href={item.path} className="font-medium underline underline-offset-4 hover:text-primary-text">{item.title}</Link>
               <span className="text-muted-foreground">: {item.description}</span>
             </li>
           ))}
           <li>
-            <Link href={related.hubPath} className="font-medium underline underline-offset-4 hover:text-primary">{related.hubLabel}</Link>
+            <Link href={related.hubPath} className="font-medium underline underline-offset-4 hover:text-primary-text">{related.hubLabel}</Link>
           </li>
         </ul>
       </section>

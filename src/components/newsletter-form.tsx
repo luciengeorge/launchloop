@@ -197,7 +197,7 @@ export function NewsletterForm({
 function Subscribed({ welcome, reward }: { welcome: WelcomeOutcome; reward: NewsletterReward }) {
   const magnet = LEAD_MAGNETS[reward];
   const link = (text: string, href: string = magnet.path) => (
-    <Link href={href} className="font-medium text-foreground underline underline-offset-4 hover:text-primary">
+    <Link href={href} className="font-medium text-foreground underline underline-offset-4 hover:text-primary-text">
       {text}
     </Link>
   );

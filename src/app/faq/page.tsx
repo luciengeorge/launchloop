@@ -60,7 +60,7 @@ export default async function FaqPage() {
         ))}
       </div>
       <p className="mt-12">
-        <Link href="/#start" className="font-medium text-primary underline underline-offset-4">
+        <Link href="/#start" className="font-medium text-primary-text underline underline-offset-4">
           Get your free preview
         </Link>
       </p>
