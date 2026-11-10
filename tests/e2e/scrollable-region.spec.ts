@@ -26,11 +26,14 @@ for (const { path, testId } of PAGES) {
     await pre.focus();
     await expect(pre).toBeFocused();
   });
-
-  test(`${path}: axe scrollable-region-focusable stays clean when the tags <pre> doesn't overflow`, async ({ page }) => {
-    await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto(path);
-    await expect(page.getByTestId(testId)).toBeVisible();
-    expect(await unfocusableRegions(page)).toEqual([]);
-  });
 }
+
+// The OG preview tool's <pre> is capped at max-w-3xl, so it overflows at every width; the blog post's fits on a wide screen.
+test("/blog/og-image-size: axe scrollable-region-focusable stays clean when the tags <pre> doesn't overflow", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/blog/og-image-size");
+  const pre = page.getByTestId("og-size-tags");
+  await expect(pre).toBeVisible();
+  expect(await pre.evaluate((el) => el.scrollWidth <= el.clientWidth), "the <pre> fits at 1440 px").toBe(true);
+  expect(await unfocusableRegions(page)).toEqual([]);
+});
