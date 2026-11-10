@@ -131,6 +131,29 @@ describe("sanitizeDashes", () => {
     const text = "Find any screenshot by the words in it";
     expect(sanitizeDashes(text)).toBe(text);
   });
+
+  it("a dash right after a URL stays outside it and is cleaned like any other", () => {
+    expect(sanitizeDashes("see https://x.dev/a\u2013 next")).toBe("see https://x.dev/a, next");
+    expect(sanitizeDashes("See https://ex.com/docs\u2014")).toBe("See https://ex.com/docs");
+  });
+
+  it("a range needs a digit on both sides of the dash", () => {
+    expect(sanitizeDashes("Version 2 \u2013 the best")).toBe("Version 2, the best");
+    expect(sanitizeDashes("2\u20133 days")).toBe("2-3 days");
+    expect(sanitizeDashes("Jan 5 \u2013 Feb 3")).toBe("Jan 5 - Feb 3");
+  });
+
+  it("no line is left ending in a dash, and a leading bullet is kept", () => {
+    expect(sanitizeDashes("word \u2014")).toBe("word");
+    expect(sanitizeDashes("\u2013 \u2013 \u2013")).toBe("");
+    expect(sanitizeDashes("Ship it\n\u2014")).toBe("Ship it\n");
+    expect(sanitizeDashes("- already a bullet")).toBe("- already a bullet");
+    expect(sanitizeDashes("\u2014 item")).toBe("- item");
+  });
+
+  it("text that already holds a private-use character still has its URLs protected", () => {
+    expect(sanitizeDashes("\uE100 see https://ex.com/a\u2013b \u2014 then ship")).toBe("\uE100 see https://ex.com/a\u2013b, then ship");
+  });
 });
 
 describe("sanitizeGenerated", () => {
