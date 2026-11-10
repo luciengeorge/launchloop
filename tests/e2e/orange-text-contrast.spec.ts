@@ -8,17 +8,10 @@ import { contrast, makeSampleKit, setHeroHeadline, uniqueEmail } from "./helpers
 
 const HERO_URL = "http://127.0.0.1:3420";
 const SAMPLE_CTA_FLAG = "exp_hero_sample_cta";
+/** main's --primary, --primary-hover and --primary-foreground (oklch(0.64 0.21 37), oklch(0.68 0.18 37), oklch(0.145 0 0)) as the CSS build emits them. */
+const MAIN_CTA_TOKENS = ["lab(56.4149% 62.4398 65.6926)", "lab(61.3761% 52.745 50.01)", "lab(2.75381% 0 0)"];
 
-test.use({
-  // posthog-js drops a likely bot's flags and events (HeadlessChrome UA), and the sample CTA's test arm needs its flag.
-  userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36",
-  extraHTTPHeaders: { "x-forwarded-for": `203.0.113.${Math.floor(Math.random() * 250) + 1}` },
-});
-test.beforeEach(async ({ context }) => {
-  await context.addInitScript(() => {
-    Object.defineProperty(Navigator.prototype, "userAgentData", { get: () => undefined });
-  });
-});
+test.use({ extraHTTPHeaders: { "x-forwarded-for": `203.0.113.${Math.floor(Math.random() * 250) + 1}` } });
 test.afterEach(async ({ page }) => page.unrouteAll({ behavior: "ignoreErrors" }));
 
 /** The live promo can't be switched on (LAUNCH_PROMO_ENDS_AT has passed), so its real markup is put where the page renders it. */
@@ -32,6 +25,16 @@ async function insertPromoMarkup(page: Page, anchor: Locator, html: string, test
     { html, testId },
   );
   return page.getByTestId(testId).locator("span.font-mono");
+}
+
+/** Markup put in before React hydrates the hero is thrown away with it; the FAQ accordion only opens once hydrated. */
+async function openHydratedHome(page: Page) {
+  await page.goto("/");
+  const faq = page.getByRole("button", { name: /^What do I get for/ });
+  await expect(async () => {
+    if ((await faq.getAttribute("aria-expanded")) !== "true") await faq.click();
+    await expect(faq).toHaveAttribute("aria-expanded", "true", { timeout: 500 });
+  }).toPass();
 }
 
 async function forceSampleCtaTest(page: Page) {
@@ -83,14 +86,15 @@ const ORANGE_TEXT: OrangeText[] = [
     what: "hero experiment headline accent",
     open: (p) => setHeroHeadline(p.request, null).then(() => p.goto(HERO_URL)),
     locate: async (p) => {
+      await expect(p.locator("[data-hero-pending]")).toHaveCount(0);
       await expect(p.getByRole("heading", { level: 1 })).toHaveCount(1);
-      return p.getByRole("heading", { level: 1 }).getByText("Get your whole launch.");
+      return p.locator("h1[data-hero-ready]").getByText("Get your whole launch.");
     },
   },
   {
     at: "src/components/kit-price.tsx:60",
     what: "home LAUNCH14 note code",
-    open: (p) => p.goto("/"),
+    open: openHydratedHome,
     locate: (p) => insertPromoMarkup(p, p.locator("#start p", { hasText: "Free preview, no account needed" }), renderToStaticMarkup(createElement(KitPromoNote, { promo: true })), "launch-promo-note"),
   },
   {
@@ -108,7 +112,7 @@ const ORANGE_TEXT: OrangeText[] = [
   },
   { at: "src/components/hub-page.tsx:56", what: "guides hub card title", open: (p) => p.goto("/guides"), locate: (p) => p.locator("article h2 a").first(), hover: "only" },
   { at: "src/components/hub-page.tsx:85", what: "guides hub related link", open: (p) => p.goto("/guides"), locate: (p) => p.getByRole("region", { name: "Free tools" }).getByRole("listitem").first().getByRole("link"), hover: "only" },
-  { at: "src/components/hub-page.tsx:90", what: "guides hub 'All free tools' link", open: (p) => p.goto("/guides"), locate: (p) => p.getByRole("link", { name: "All free tools" }), hover: "only" },
+  { at: "src/components/hub-page.tsx:90", what: "guides hub 'All free tools' link", open: (p) => p.goto("/guides"), locate: (p) => p.locator("#main").getByRole("link", { name: "All free tools" }), hover: "only" },
   { at: "src/app/newsletter/page.tsx:58", what: "newsletter archive issue title", open: (p) => p.goto("/newsletter"), locate: (p) => p.locator("article h3 a").first(), hover: "only" },
   { at: "src/app/faq/page.tsx:63", what: "FAQ 'Get your free preview' link", open: (p) => p.goto("/faq"), locate: (p) => p.getByRole("link", { name: "Get your free preview" }), hover: "also" },
   { at: "src/app/ship-loop/page.tsx:47", what: "Ship Loop eyebrow", open: (p) => p.goto("/ship-loop"), locate: (p) => p.getByText("Coming soon · Waitlist open", { exact: true }) },
@@ -116,7 +120,7 @@ const ORANGE_TEXT: OrangeText[] = [
   {
     at: "src/components/tools/tagline-checker.tsx:181",
     what: "tagline tool feed preview initial",
-    open: (p) => p.goto("/tools/product-hunt-tagline-checker").then(() => p.getByLabel("Tagline").fill("Turn your repo into a launch kit")),
+    open: (p) => p.goto("/tools/product-hunt-tagline-checker").then(() => p.getByLabel("Tagline", { exact: true }).fill("Turn your repo into a launch kit")),
     locate: (p) => p.getByTestId("tagline-preview").locator("div[aria-hidden]").first(),
   },
   {
@@ -182,7 +186,7 @@ test.describe("every listed orange-text use is at least 4.5:1, and CTA fills are
   test("CTA fills are byte-identical: --primary, --primary-hover, --primary-foreground, and the header CTA at rest and hovered", async ({ page }) => {
     await page.goto("/");
     const tokens = await page.evaluate(() => ["--primary", "--primary-hover", "--primary-foreground"].map((name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim()));
-    expect(tokens).toEqual(["oklch(0.64 0.21 37)", "oklch(0.68 0.18 37)", "oklch(0.145 0 0)"]);
+    expect(tokens).toEqual(MAIN_CTA_TOKENS);
 
     const resolved = (color: string) =>
       page.evaluate((c) => {
@@ -195,10 +199,11 @@ test.describe("every listed orange-text use is at least 4.5:1, and CTA fills are
       }, color);
     const cta = page.getByRole("banner").getByRole("link", { name: /Get (my )?(launch )?kit/ });
     const fill = () => cta.evaluate((el) => ({ background: getComputedStyle(el).backgroundColor, label: getComputedStyle(el).color }));
+    const [primary, primaryHover, primaryForeground] = MAIN_CTA_TOKENS;
     await page.mouse.move(0, 0);
     await settledColor(cta);
-    expect(await fill()).toEqual({ background: await resolved("oklch(0.64 0.21 37)"), label: await resolved("oklch(0.145 0 0)") });
+    expect(await fill()).toEqual({ background: await resolved(primary), label: await resolved(primaryForeground) });
     await cta.hover();
-    await expect.poll(fill).toEqual({ background: await resolved("oklch(0.68 0.18 37)"), label: await resolved("oklch(0.145 0 0)") });
+    await expect.poll(fill).toEqual({ background: await resolved(primaryHover), label: await resolved(primaryForeground) });
   });
 });
