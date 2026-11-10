@@ -21,20 +21,27 @@ function gapBeforeStruckPrice(trigger: Locator) {
   });
 }
 
-/**
- * True once React has hydrated this node: React stores its fiber on the DOM node under a "__reactFiber$..." key.
- * Swapping the node's HTML before then races hydration, which can put React's own markup back.
- */
-const isHydrated = (locator: Locator) => locator.evaluate((el) => Object.keys(el).some((key) => key.startsWith("__reactFiber$")));
+const HYDRATION_ERROR = /#418|hydrat/i;
 
 // The e2e server always runs with the promo off, so this puts the promo markup into the real accordion trigger (real CSS, flex).
 test("the home FAQ keeps the space before 'was £19 now £14' at phone width", async ({ page }) => {
+  const hydrationErrors: string[] = [];
+  page.on("pageerror", (error) => {
+    if (HYDRATION_ERROR.test(error.message)) hydrationErrors.push(error.message);
+  });
+  page.on("console", (message) => {
+    if (message.type() === "error" && HYDRATION_ERROR.test(message.text())) hydrationErrors.push(message.text());
+  });
   await page.setViewportSize({ width: 375, height: 812 });
   await page.goto("/");
   const trigger = page.getByRole("button", { name: /^What do I get for/ });
   await expect(trigger).toBeVisible();
+  // Swapping the question's HTML before React has hydrated it races hydration. The accordion only opens once it has.
+  await expect(async () => {
+    if ((await trigger.getAttribute("aria-expanded")) !== "true") await trigger.click();
+    await expect(trigger).toHaveAttribute("aria-expanded", "true", { timeout: 500 });
+  }, "the FAQ accordion responds to a click").toPass();
   const question = trigger.getByTestId("faq-question");
-  await expect.poll(() => isHydrated(question), { message: "the FAQ question has hydrated" }).toBe(true);
   await question.evaluate((el, html) => {
     el.innerHTML = html;
   }, renderToStaticMarkup(<PricedText text={PRICED_QUESTION} promo />));
@@ -42,4 +49,5 @@ test("the home FAQ keeps the space before 'was £19 now £14' at phone width", a
   expect(await gapBeforeStruckPrice(trigger)).toBeGreaterThan(2);
   // The question text and the price are one flex item, not several.
   expect(await trigger.evaluate((el) => [...el.childNodes].filter((n) => n.nodeType === Node.TEXT_NODE && n.textContent!.trim()).length)).toBe(0);
+  expect(hydrationErrors).toEqual([]);
 });
