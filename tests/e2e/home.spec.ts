@@ -108,7 +108,7 @@ test("Ship Loop links carry a Soon badge instead of '(soon)' text", async ({ pag
   await page.goto("/");
   const regions = isMobile ? [page.getByRole("contentinfo")] : [page.getByRole("banner"), page.getByRole("contentinfo")];
   for (const region of regions) {
-    const link = region.getByRole("link", { name: "Ship Loop (coming soon)", exact: true });
+    const link = region.getByRole("link", { name: "Ship Loop Soon", exact: true });
     await expect(link).toBeVisible();
     await expect(link).toHaveAttribute("href", "/ship-loop");
     await expect(link.getByText("Soon", { exact: true })).toBeVisible();

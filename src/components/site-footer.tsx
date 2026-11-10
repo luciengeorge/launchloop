@@ -7,7 +7,7 @@ import { SITE } from "@/lib/site";
 import { TOOLS } from "@/lib/tools";
 import { FooterNewsletter } from "./footer-newsletter";
 import { Logo } from "./logo";
-import { SHIP_LOOP_LINK_LABEL, SoonBadge } from "./soon-badge";
+import { SoonBadge } from "./soon-badge";
 
 /**
  * Directory badges, as each directory's embed gives them. Both listings are checked by a bot that loads the home page
@@ -43,7 +43,7 @@ export async function SiteFooter() {
             <li><Link href="/#start" className="hover:text-foreground">Get a launch kit</Link></li>
             <li><Link href="/pricing" className="hover:text-foreground">Pricing</Link></li>
             <li>
-              <Link href="/ship-loop" aria-label={SHIP_LOOP_LINK_LABEL} className="inline-flex items-center gap-1.5 hover:text-foreground">
+              <Link href="/ship-loop" className="inline-flex items-center gap-1.5 hover:text-foreground">
                 Ship Loop
                 <SoonBadge />
               </Link>
