@@ -18,7 +18,7 @@ test.describe("HeroHeadline", () => {
     expect(HERO_HEADLINE_CONTROL).toBe("Paste your repo. Get your whole launch.");
     for (const served of [null, { variant: "control" as const }, { variant: "control" as const, fallback: "timeout" as const }, { variant: "control" as const, fallback: "unassigned" as const }]) {
       expect(text(<HeroHeadline served={served} />)).toBe(HERO_HEADLINE_CONTROL);
-      expect(h1(<HeroHeadline served={served} />)).toContain('<span class="[grid-area:1/1]">Paste your repo. <span class="text-primary">Get your whole launch.</span></span>');
+      expect(h1(<HeroHeadline served={served} />)).toContain('<span class="[grid-area:1/1]">Paste your repo. <span class="text-primary-text">Get your whole launch.</span></span>');
     }
   });
 
@@ -29,7 +29,7 @@ test.describe("HeroHeadline", () => {
     expect(lead).toBe("Your repo in.");
     expect(rest).toBe("All your launch\u00a0posts out.");
     expect(text(<HeroHeadline served={{ variant: "test" }} />)).toBe(HERO_HEADLINE_TEST);
-    expect(h1(<HeroHeadline served={{ variant: "test" }} />)).toContain(`${lead} <span class="text-primary">${rest}</span>`);
+    expect(h1(<HeroHeadline served={{ variant: "test" }} />)).toContain(`${lead} <span class="text-primary-text">${rest}</span>`);
   });
 
   test("each arm reserves the other's headline, so both boxes are as tall as the taller one", () => {

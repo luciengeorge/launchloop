@@ -68,7 +68,7 @@ async function openGuestSuccess(page: Page) {
 
 type OrangeText = { at: string; what: string; open: (page: Page) => Promise<unknown>; locate: (page: Page) => Locator | Promise<Locator>; hover?: "only" | "also" };
 
-/** Every orange text use in src (text-primary, hover:text-primary and the color-mix tint), and the page it's on. */
+/** Every orange text use in src (text-primary-text and hover:text-primary-text), and the page it's on. */
 const ORANGE_TEXT: OrangeText[] = [
   { at: "src/app/page.tsx:63", what: "home hero accent", open: (p) => p.goto("/"), locate: (p) => p.getByRole("heading", { level: 1 }).getByText("Get your whole launch.") },
   { at: "src/app/page.tsx:81", what: "home 'See what's in the kit' link", open: (p) => p.goto("/"), locate: (p) => p.getByRole("link", { name: /^See what's in the/ }), hover: "only" },
