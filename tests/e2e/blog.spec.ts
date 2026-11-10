@@ -726,6 +726,24 @@ test("at 375 px the BetaList comparison table scrolls sideways, says so, and scr
   await expect.poll(() => region.evaluate((el) => el.scrollLeft)).toBeGreaterThan(0);
 });
 
+test("at 375 px the BetaList scroll cue hides once the table is scrolled, and shows again back at the start", async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 800 });
+  await page.goto(postPath(BLOG_POSTS.find((p) => p.slug === "how-to-launch-on-betalist")!));
+  const region = page.getByRole("region", { name: "Comparison table: BetaList vs other pre-launch options" });
+  const hint = page.getByTestId("compared-scroll-hint");
+  await expect(hint).toBeVisible();
+  expect(await region.evaluate((el) => el.scrollLeft)).toBe(0);
+
+  await region.evaluate((el) => el.scrollTo({ left: 120 }));
+  await expect.poll(() => region.evaluate((el) => el.scrollLeft)).toBeGreaterThan(0);
+  await expect(hint).toBeHidden();
+
+  await region.evaluate((el) => el.scrollTo({ left: 0 }));
+  await expect.poll(() => region.evaluate((el) => el.scrollLeft)).toBe(0);
+  await expect(hint).toBeVisible();
+  await expect(hint).toHaveText("Scroll sideways to see all columns →");
+});
+
 test.describe("the Product Hunt launch tools post", () => {
   const path = "/blog/product-hunt-launch-tools";
   const label = "Comparison table: Product Hunt launch tools tested on one repo";
