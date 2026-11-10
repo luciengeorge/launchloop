@@ -1,5 +1,5 @@
 Run time: 2026-11-10T11:51:28Z (UTC)
-URL: https://launchloop.dev/kit/ODwFqyQSWD99ISlp13MQ4Q
+URL: [private preview URL, kept off-repo]
 FREE TAGLINE: Hook-based React state without providers or boilerplate
 (55/60 characters)
 

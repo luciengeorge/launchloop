@@ -23,6 +23,7 @@ const SRC = {
   phLaunchGuide: "https://help.producthunt.com/en/articles/17350772-launch-guide",
   phHowToPost: "https://help.producthunt.com/en/articles/479557-how-to-post-a-product",
   phPreparing: "https://www.producthunt.com/launch/preparing-for-launch",
+  phBuildPage: "https://help.producthunt.com/en/articles/17834537-4-build-your-product-page",
   launchTools: "https://launchloop.dev/blog/product-hunt-launch-tools",
   pricing: "https://launchloop.dev/pricing",
 } as const;
@@ -30,7 +31,7 @@ const SRC = {
 const FAQ: FaqItem[] = [
   {
     q: "Can ChatGPT write a Product Hunt tagline, description and maker comment?",
-    a: "In this run, yes: the free, logged-out answer included all three, plus extra launch advice we did not treat as listing fields. The recommended tagline fitted 60 characters. The description and maker comment were far longer than Product Hunt's 260-character figure, and the description was also over 500, so they would need cutting before you paste them.",
+    a: "In this run, yes: the free, logged-out answer included all three, plus extra launch advice we did not treat as listing fields. The recommended tagline fitted 60 characters. The description was over the live 500-character limit, and also over the 260-character figure Product Hunt published as of 27 October 2026, so it would need cutting before you paste it.",
   },
   {
     q: "Do these kits read a GitHub repo?",
@@ -38,7 +39,7 @@ const FAQ: FaqItem[] = [
   },
   {
     q: "Do the free outputs fit Product Hunt's limits?",
-    a: "It depends on the field and the tool. Every tool in this run produced at least one tagline of 60 characters or fewer, and some also produced taglines over 60. Only ChatGPT, Overnight Cut and ShipProof gave a Product Hunt description and a maker comment for free. ChatGPT's and ShipProof's descriptions were over both 260 and 500 characters. Overnight Cut's description fitted both. We did not buy any paid kit, so LaunchLoop's and StartKitz's description and maker comment are not in the table.",
+    a: "It depends on the field and the tool. Every tool in this run produced at least one tagline of 60 characters or fewer, and some also produced taglines over 60. Only ChatGPT, Overnight Cut and ShipProof gave a Product Hunt description and a maker comment for free. ChatGPT's and ShipProof's descriptions were over the live 500-character limit, and over the 260-character figure as of 27 October 2026. Overnight Cut's description fitted both. We did not buy any paid kit, so LaunchLoop's and StartKitz's description and maker comment are not in the table.",
   },
   {
     q: "Is LaunchLoop's Product Hunt description in this comparison?",
@@ -57,10 +58,12 @@ export default function ChatgptVsKitsPage() {
 
       <h2 id="ph-limits">What Product Hunt asks for</h2>
       <p>
-        Preparing for launch, re-used from our 9 November 2026 source check, says <q>Tagline (up to 60 characters)</q> and <q>Description (max 500 characters)</q>. The{" "}
-        <a href={SRC.phLaunchGuide}>Launch Guide</a> says <q>260 characters max</q> and <a href={SRC.phHowToPost}>How to post a product</a> says <q>within 260 characters</q>. Product
-        Hunt&apos;s own pages disagree, so we report each description against both 260 and 500. None of those pages, in the checks we re-use, states a maker comment limit, so we give
-        maker comment counts only, with no pass or fail.
+        <a href={SRC.phPreparing}>Preparing for launch</a>, re-read on 10 November 2026, says <q>Tagline (up to 60 characters)</q> and <q>Description (up to 500 characters)</q>. The
+        same two lines appear in Product Hunt&apos;s current help article, <a href={SRC.phBuildPage}>4. Build your product page</a>. As of 27 October 2026, the{" "}
+        <a href={SRC.phLaunchGuide}>Launch Guide</a> said <q>260 characters max</q> and <a href={SRC.phHowToPost}>How to post a product</a> said <q>within 260 characters</q>. On 10
+        November 2026 that Launch Guide URL returned 404, and How to post a product no longer contains the 260-character line; it now points at the current Build your product page
+        article. We still note whether each description would have fitted the older 260-character figure, dated to that 27 October 2026 check. Preparing for launch also says, of the
+        Maker comment, <q>You have up to 5,000 characters</q>.
       </p>
 
       <h2 id="method">How we tested</h2>
@@ -171,7 +174,7 @@ export default function ChatgptVsKitsPage() {
           <tr className="border-b border-border text-foreground">
             <th scope="col" className="py-2 pr-4 font-medium">Tool</th>
             <th scope="col" className="py-2 pr-4 font-medium">Description characters</th>
-            <th scope="col" className="py-2 pr-4 font-medium">Fits 260 / 500?</th>
+            <th scope="col" className="py-2 pr-4 font-medium">Fits 500? (260 as of 27 Oct 2026)</th>
             <th scope="col" className="py-2 font-medium">Maker comment characters</th>
           </tr>
         </thead>
@@ -180,7 +183,7 @@ export default function ChatgptVsKitsPage() {
             <th scope="row" className="py-2 pr-4 align-top font-normal">ChatGPT</th>
             <td className="py-2 pr-4 align-top">1181 (full first-output description, including line breaks and the GitHub link)</td>
             <td className="py-2 pr-4 align-top">Over both</td>
-            <td className="py-2 align-top">1003 (counts only; no Product Hunt limit quoted)</td>
+            <td className="py-2 align-top">1003 (under the live 5,000-character limit)</td>
           </tr>
           <tr className="border-b border-border">
             <th scope="row" className="py-2 pr-4 align-top font-normal">Overnight Cut</th>
@@ -189,7 +192,7 @@ export default function ChatgptVsKitsPage() {
             </td>
             <td className="py-2 pr-4 align-top">Fits both</td>
             <td className="py-2 align-top">
-              222. The text was{" "}
+              222. Overnight Cut&apos;s UI showed 224 of 500; our trimmed count is 222. The text was{" "}
               <q>
                 Hi everyone, thanks for checking out Zustand. Zustand manages state in React apps with a small, fast, minimal API. It is for React developers. I would love your honest
                 feedback. What would make Zustand more useful for you?
@@ -200,7 +203,7 @@ export default function ChatgptVsKitsPage() {
             <th scope="row" className="py-2 pr-4 align-top font-normal">ShipProof</th>
             <td className="py-2 pr-4 align-top">588. The description is about ShipProof, not Zustand.</td>
             <td className="py-2 pr-4 align-top">Over both</td>
-            <td className="py-2 align-top">370. The maker comment is also about ShipProof.</td>
+            <td className="py-2 align-top">370 (under the live 5,000-character limit). The maker comment is also about ShipProof.</td>
           </tr>
         </tbody>
       </ScrollTable>
@@ -224,10 +227,10 @@ export default function ChatgptVsKitsPage() {
 
       <h2 id="when-each-helps">When ChatGPT is enough, and when a kit still leaves an edit pass</h2>
       <p>
-        It depends on the job, not on a score. In this run, ChatGPT was the only free path that returned a tagline, a description and a maker comment about Zustand. Those last two
-        fields were much longer than Product Hunt&apos;s 260-character figure, so they would still need a human cut. A kit that reads a repo or URL can pull facts from the project,
-        but its free path may stop at a tagline, a brief or social posts. A template form will only rephrase what you type, and it may go over 60 characters. If a generator ignores
-        the inputs, the first output shows that, as it did for ShipProof here. In every case, check the tagline in the{" "}
+        It depends on the job, not on a score. In this run, ChatGPT was the only free path that returned a tagline, a description and a maker comment about Zustand. That
+        description was over the live 500-character limit, and over the 260-character figure as of 27 October 2026, so it would still need a human cut. A kit that reads a repo or URL
+        can pull facts from the project, but its free path may stop at a tagline, a brief or social posts. A template form will only rephrase what you type, and it may go over 60
+        characters. If a generator ignores the inputs, the first output shows that, as it did for ShipProof here. In every case, check the tagline in the{" "}
         <Link href={TAGLINE_CHECKER.path}>Product Hunt tagline checker</Link> and read{" "}
         <Link href="/how-to-write-a-product-hunt-tagline">how to write a Product Hunt tagline</Link> before you paste it.
       </p>
@@ -250,8 +253,9 @@ export default function ChatgptVsKitsPage() {
 
       <h2 id="sources">Sources</h2>
       <p>
-        Checked as of November 2026. The tool runs and the Zustand commit were recorded on 10 November 2026. Product Hunt&apos;s tagline and description quotes are re-used from our 9
-        November 2026 and 27 October 2026 source checks of those same pages, not a new fetch. Screenshots of each run are in the source log and are not shown on this page.
+        Checked as of November 2026. The tool runs and the Zustand commit were recorded on 10 November 2026. Product Hunt&apos;s live tagline, description and maker-comment quotes
+        were re-read on 10 November 2026. The 260-character quotes are from our 27 October 2026 source check of pages that no longer carry those lines. Screenshots of each run are in
+        the source log and are not shown on this page. The LaunchLoop preview screenshot was removed from the log because it showed a signed-in email address.
       </p>
       <ul>
         <li><a href={SRC.repo}>pmndrs/zustand</a> at <a href={SRC.commit}>commit 9fed2eb</a></li>
@@ -259,7 +263,11 @@ export default function ChatgptVsKitsPage() {
         <li><a href={SRC.startkitz}>StartKitz</a> and <a href={SRC.startkitzKit}>Product Hunt launch kit</a></li>
         <li><a href={SRC.overnight}>Overnight Cut launch-copy writer</a></li>
         <li><a href={SRC.shipproof}>ShipProof AI Launch Copy Generator</a></li>
-        <li><a href={SRC.phPreparing}>Preparing for launch</a>, <a href={SRC.phLaunchGuide}>Launch Guide</a> and <a href={SRC.phHowToPost}>How to post a product</a>, Product Hunt</li>
+        <li>
+          <a href={SRC.phPreparing}>Preparing for launch</a> and <a href={SRC.phBuildPage}>4. Build your product page</a>, Product Hunt (re-read 10 November 2026);{" "}
+          <a href={SRC.phHowToPost}>How to post a product</a>; and the{" "}
+          <a href={SRC.phLaunchGuide}>Launch Guide article that returned 404</a> on 10 November 2026 (source of the 27 October 2026 260-character quote)
+        </li>
         <li><a href={SRC.launchTools}>Product Hunt launch tools, tested on one repo</a></li>
         <li><a href={SRC.pricing}>LaunchLoop pricing</a></li>
       </ul>
