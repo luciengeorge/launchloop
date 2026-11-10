@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { expect, test } from "@playwright/test";
 import { ELLIPSIS, textWidth } from "@/lib/image-fit";
@@ -75,7 +75,9 @@ function seedSonnerKit({ paid, screenshot }: { paid: boolean; screenshot: boolea
     paid,
     attempts: 0,
   };
-  writeFileSync(path.join(process.cwd(), ".data-test", `dev_kit_${id}.json`), JSON.stringify({ value: kit }));
+  const dir = path.join(process.cwd(), ".data-test");
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(path.join(dir, `dev_kit_${id}.json`), JSON.stringify({ value: kit }));
   return id;
 }
 
@@ -129,7 +131,8 @@ test("a long feature line is drawn whole, with no ellipsis, inside its feature b
 
         const plan = planKitImage(variant, SONNER, { screenshot: screenshot ? { width: 1600, height: 1000 } : undefined, watermark: !paid });
         const features = featureLayouts(plan);
-        if (variant !== "og" && !features.some(({ block }) => block.text.lines.join(" ") === LONG_FEATURE)) problems.push(`${where}: the long feature isn't drawn whole`);
+        const drawsFeatures = plan.variant === "ph" || (plan.variant === "x" && plan.layout === "type");
+        if (drawsFeatures && !features.some(({ block }) => block.text.lines.join(" ") === LONG_FEATURE)) problems.push(`${where}: the long feature isn't drawn whole`);
         for (const { label, block, box } of features) {
           if (block.text.lines.some((line) => line.includes(ELLIPSIS))) problems.push(`${where} ${label}: ${JSON.stringify(block.text.lines)}`);
           if (!contains(box, textBounds(block))) problems.push(`${where} ${label}: text ${JSON.stringify(textBounds(block))} leaves ${JSON.stringify(box)}`);
