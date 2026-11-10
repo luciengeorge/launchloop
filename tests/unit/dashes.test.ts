@@ -132,9 +132,10 @@ describe("sanitizeDashes", () => {
     expect(sanitizeDashes(text)).toBe(text);
   });
 
-  it("a dash right after a URL stays outside it and is cleaned like any other", () => {
+  it("a dash right after a URL stays outside it and is cleaned like any other; a dash inside a URL stays inside", () => {
     expect(sanitizeDashes("see https://x.dev/a\u2013 next")).toBe("see https://x.dev/a, next");
     expect(sanitizeDashes("See https://ex.com/docs\u2014")).toBe("See https://ex.com/docs");
+    expect(sanitizeDashes("see https://x.dev/a\u2013b\u2013 next")).toBe("see https://x.dev/a\u2013b, next");
   });
 
   it("a range needs a digit on both sides of the dash", () => {
