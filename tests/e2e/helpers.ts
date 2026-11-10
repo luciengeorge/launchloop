@@ -77,32 +77,52 @@ export const MAIN_H1_HEIGHTS = [
 /**
  * WCAG contrast of an element's text against its background, as the browser renders them: a translucent fill is
  * composited over its nearest painted ancestors (up to the first opaque one), not over the page's background.
+ *
+ * Colours are composited on an 8-bit canvas, so a ratio can be off by about 1-2% from the exact value. Only the element
+ * and its ancestors are read: a painted sibling drawn behind the text (the home grid, an absolutely placed layer) is not
+ * seen. A background image, an opacity other than 1 or a filter anywhere in the walked chain can't be measured this
+ * way, so they throw UnsupportedContrastError rather than return a wrong number.
  */
 export const contrast = (target: Locator) =>
   target.evaluate((el) => {
-    // Let the browser resolve oklch/color-mix: paint each colour and read the sRGB pixel back.
+    class UnsupportedContrastError extends Error {
+      name = "UnsupportedContrastError";
+    }
+    // Let the browser resolve oklch/color-mix: paint each colour and read the sRGB pixel back. Each colour is set on a
+    // cleared fillStyle, so one the canvas can't parse paints nothing instead of repeating the previous colour.
     const ctx = document.createElement("canvas").getContext("2d", { willReadFrequently: true })!;
-    const alpha = (color: string) => {
-      ctx.clearRect(0, 0, 1, 1);
+    const fill = (color: string) => {
+      ctx.fillStyle = "#0000";
       ctx.fillStyle = color;
       ctx.fillRect(0, 0, 1, 1);
+    };
+    const alpha = (color: string) => {
+      ctx.clearRect(0, 0, 1, 1);
+      fill(color);
       return ctx.getImageData(0, 0, 1, 1).data[3];
     };
     const paint = (...colors: string[]) => {
-      for (const color of ["#fff", ...colors]) {
-        ctx.fillStyle = color;
-        ctx.fillRect(0, 0, 1, 1);
-      }
+      ctx.clearRect(0, 0, 1, 1);
+      for (const color of ["#fff", ...colors]) fill(color);
       const [r, g, b] = [...ctx.getImageData(0, 0, 1, 1).data].map((v) => (v / 255 <= 0.04045 ? v / 255 / 12.92 : ((v / 255 + 0.055) / 1.055) ** 2.4));
       return 0.2126 * r + 0.7152 * g + 0.0722 * b;
     };
+    const measurable = (node: Element) => {
+      const { backgroundImage, opacity, filter } = getComputedStyle(node);
+      const tag = `<${node.tagName.toLowerCase()}>`;
+      if (backgroundImage !== "none") throw new UnsupportedContrastError(`background-image ${backgroundImage} on ${tag}`);
+      if (opacity !== "1") throw new UnsupportedContrastError(`opacity ${opacity} on ${tag}`);
+      if (filter !== "none") throw new UnsupportedContrastError(`filter ${filter} on ${tag}`);
+    };
+    measurable(el);
     // Innermost first, stopping at the first opaque fill; painted outermost first.
     const backdrop: string[] = [];
     for (let node = el.parentElement; node; node = node.parentElement) {
-      const fill = getComputedStyle(node).backgroundColor;
-      const a = alpha(fill);
+      measurable(node);
+      const color = getComputedStyle(node).backgroundColor;
+      const a = alpha(color);
       if (a === 0) continue;
-      backdrop.unshift(fill);
+      backdrop.unshift(color);
       if (a === 255) break;
     }
     const style = getComputedStyle(el);
