@@ -1,6 +1,5 @@
 /**
- * Decorative envelope that opens and lifts a letter on a loop. Paint order matters: the open flap sits behind the letter,
- * the pocket and closed flap in front of it. Animation lives in globals.css and only runs without prefers-reduced-motion.
+ * Static decorative envelope. Paint order keeps the letter behind the pocket and closed flap.
  */
 export function EnvelopeAnimation({ className = "" }: { className?: string }) {
   return (

@@ -385,7 +385,7 @@ export function UnlockPanelPlaceholder({ email, autoCheckout, cancelled, saved }
       <h3 className="text-sm font-medium text-muted-foreground">The full kit</h3>
       <p className="mt-1">
         <span className="text-4xl font-semibold tracking-tight">
-          <span className="inline-block h-10 w-16 animate-pulse rounded-md bg-muted align-bottom" aria-label="Loading price" />
+          <span className="inline-block h-10 w-16 rounded-md bg-muted align-bottom" aria-label="Loading price" />
         </span>
         <span className="ml-1.5 text-sm text-muted-foreground">once, no subscription</span>
       </p>

@@ -32,7 +32,7 @@ export async function SiteHeader() {
             <Link
               key={item.href}
               href={item.href}
-              className={`whitespace-nowrap transition-colors hover:text-foreground ${item.className ?? ""}`}
+              className={`whitespace-nowrap hover:text-foreground ${item.className ?? ""}`}
             >
               {item.label}
               {item.soon ? <SoonBadge /> : null}
@@ -45,7 +45,7 @@ export async function SiteHeader() {
             <ul className="mx-auto max-w-6xl px-4 py-2 text-sm text-muted-foreground sm:px-6">
               {NAV.map((item) => (
                 <li key={item.href}>
-                  <Link href={item.href} className="flex h-11 items-center gap-1.5 whitespace-nowrap transition-colors hover:text-foreground">
+                  <Link href={item.href} className="flex h-11 items-center gap-1.5 whitespace-nowrap hover:text-foreground">
                     {item.label}
                     {item.soon ? <SoonBadge /> : null}
                   </Link>

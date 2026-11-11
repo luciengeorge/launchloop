@@ -185,7 +185,6 @@
   }
 
   .envelope {
-    --envelope-ease: cubic-bezier(0.645, 0.045, 0.355, 1);
     overflow: visible;
     stroke: var(--primary);
     stroke-width: 2.5;
@@ -222,67 +221,34 @@
     transform-origin: center top;
   }
 
-  @media (prefers-reduced-motion: no-preference) {
-    .envelope {
-      animation: envelope-float 3s ease-in-out infinite alternate;
-    }
-    .envelope-flap-closed {
-      animation: envelope-flap-closed 5s var(--envelope-ease) infinite;
-    }
-    .envelope-flap-open {
-      animation: envelope-flap-open 5s var(--envelope-ease) infinite;
-    }
-    .envelope-letter {
-      animation: envelope-letter 5s var(--envelope-ease) infinite;
-    }
-  }
 }
 
-@keyframes envelope-float {
-  to {
-    transform: translateY(-4px);
-  }
+/* Override Sonner's height/shadow tween without changing its drag tracking or adding motion. */
+.toaster[data-sonner-toaster] {
+  transition: transform 200ms ease-out;
 }
-/* The flap flips in two halves: the closed flap folds flat, then the open flap unfolds behind the letter. */
-@keyframes envelope-flap-closed {
-  0%,
-  12% {
-    transform: scaleY(1);
-  }
-  20%,
-  80% {
-    transform: scaleY(0);
-  }
-  88%,
-  100% {
-    transform: scaleY(1);
-  }
+.toaster[data-sonner-toaster] .cn-toast[data-sonner-toast][data-styled]:not([data-swiping="true"]) {
+  transition: transform 200ms ease-out, opacity 200ms ease-out;
 }
-@keyframes envelope-flap-open {
-  0%,
-  20% {
-    transform: scaleY(0);
-  }
-  28%,
-  72% {
-    transform: scaleY(1);
-  }
-  80%,
-  100% {
-    transform: scaleY(0);
-  }
+.toaster[data-sonner-toaster] [data-sonner-toast] > *,
+.toaster[data-sonner-toaster] [data-sonner-toast] [data-button],
+.toaster[data-sonner-toaster] [data-sonner-toast] [data-close-button] {
+  transition: opacity 150ms ease-out;
 }
-@keyframes envelope-letter {
-  0%,
-  28% {
-    transform: translateY(0);
-  }
-  42%,
-  58% {
-    transform: translateY(-28px);
-  }
-  72%,
-  100% {
-    transform: translateY(0);
+.toaster[data-sonner-toaster] [data-sonner-toast][data-promise="true"] [data-icon] > svg {
+  animation-duration: 200ms;
+  animation-timing-function: ease-out;
+}
+
+/* Stop visual motion without disabling the delayed, zero-duration hero visibility failsafe. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0s !important;
+    transition-delay: 0s !important;
+    scroll-behavior: auto !important;
   }
 }

@@ -1,0 +1,35 @@
+.kit-checklist-confetti {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  pointer-events: none;
+}
+
+.kit-checklist-confetti-piece {
+  position: absolute;
+  left: 50%;
+  top: 35%;
+  width: 6px;
+  height: 10px;
+  animation: checklist-confetti 200ms ease-out 1 both;
+}
+
+@keyframes checklist-confetti {
+  from {
+    transform: translate(0, 0) rotate(0deg);
+    opacity: 1;
+  }
+  to {
+    transform: translate(var(--confetti-x), var(--confetti-y)) rotate(var(--confetti-rotation));
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kit-checklist-confetti {
+    display: none;
+  }
+  .kit-checklist-confetti-piece {
+    animation: none;
+  }
+}

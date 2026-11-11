@@ -7,7 +7,7 @@ import { hasSessionHint } from "@/lib/session-hint";
 import { KitPrice } from "./kit-price";
 import { StartLink } from "./start-link";
 
-const linkCls = "inline-flex h-8 shrink-0 items-center whitespace-nowrap text-sm leading-5 text-muted-foreground transition-colors hover:text-foreground";
+const linkCls = "inline-flex h-8 shrink-0 items-center whitespace-nowrap text-sm leading-5 text-muted-foreground hover:text-foreground";
 const ctaCls = buttonVariants({ size: "lg", className: "px-3 sm:px-4" });
 
 // Login and logout are full page loads, so this only needs to catch pages restored from the back/forward cache.

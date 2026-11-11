@@ -1,51 +1,62 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useSyncExternalStore, type CSSProperties } from "react";
+import "./confetti.css";
 
-/** Small dependency-free confetti burst. Renders nothing when the user prefers reduced motion. */
-export function Confetti({ fire }: { fire: number }) {
-  const ref = useRef<HTMLCanvasElement>(null);
-  useEffect(() => {
-    if (!fire || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const canvas = ref.current;
-    const ctx = canvas?.getContext("2d");
-    if (!canvas || !ctx) return;
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = innerWidth * dpr;
-    canvas.height = innerHeight * dpr;
-    ctx.scale(dpr, dpr);
-    const colours = ["#f2541b", "#ffb547", "#10b981", "#3b82f6", "#a855f7"];
-    const parts = Array.from({ length: 140 }, () => ({
-      x: innerWidth / 2 + (Math.random() - 0.5) * 120,
-      y: innerHeight * 0.35,
-      vx: (Math.random() - 0.5) * 14,
-      vy: -Math.random() * 14 - 4,
-      r: Math.random() * Math.PI,
-      vr: (Math.random() - 0.5) * 0.3,
-      w: 6 + Math.random() * 6,
-      c: colours[Math.floor(Math.random() * colours.length)],
-    }));
-    const start = performance.now();
-    let frame = 0;
-    const tick = (now: number) => {
-      ctx.clearRect(0, 0, innerWidth, innerHeight);
-      for (const p of parts) {
-        p.vy += 0.35;
-        p.x += p.vx;
-        p.y += p.vy;
-        p.r += p.vr;
-        ctx.save();
-        ctx.translate(p.x, p.y);
-        ctx.rotate(p.r);
-        ctx.fillStyle = p.c;
-        ctx.fillRect(-p.w / 2, -p.w / 4, p.w, p.w / 2);
-        ctx.restore();
-      }
-      if (now - start < 2600) frame = requestAnimationFrame(tick);
-      else ctx.clearRect(0, 0, innerWidth, innerHeight);
+const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
+const reducedMotion = () => window.matchMedia(REDUCED_MOTION).matches;
+const serverReducedMotion = () => true;
+
+/** Claim before checking motion so a skipped celebration cannot replay later in this tab session. */
+export function claimChecklistConfetti(kitId: string): boolean {
+  try {
+    const key = `launchloop:confetti:${kitId}`;
+    if (sessionStorage.getItem(key) !== null) return false;
+    sessionStorage.setItem(key, "seen");
+  } catch {
+    // Fail closed if session storage is unavailable: a revisit must not replay the burst.
+    return false;
+  }
+  return !reducedMotion();
+}
+
+const PIECES = [
+  [-110, -70, -120], [-75, -115, 95], [-40, -90, -80], [0, -125, 110],
+  [40, -90, -95], [75, -115, 85], [110, -70, 120], [-95, 25, -100],
+  [-50, 55, 90], [0, 70, -80], [50, 55, 100], [95, 25, -110],
+];
+const COLOURS = ["#f2541b", "#ffb547", "#10b981", "#3b82f6", "#a855f7"];
+
+/** One short CSS burst, with no mounted decoration before or after it or under reduced motion. */
+export function Confetti({ active, onComplete }: { active: boolean; onComplete: () => void }) {
+  const subscribe = useCallback((notify: () => void) => {
+    const media = window.matchMedia(REDUCED_MOTION);
+    const change = () => {
+      if (media.matches) onComplete();
+      notify();
     };
-    frame = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frame);
-  }, [fire]);
-  return <canvas ref={ref} aria-hidden="true" data-testid="confetti" className="pointer-events-none fixed inset-0 z-50 h-full w-full" />;
+    media.addEventListener("change", change);
+    return () => media.removeEventListener("change", change);
+  }, [onComplete]);
+  const reduced = useSyncExternalStore(subscribe, reducedMotion, serverReducedMotion);
+  useEffect(() => {
+    if (!active || reduced) return;
+    // Also expire if route hiding or interrupted CSS prevents animationend from firing.
+    const timer = setTimeout(onComplete, 200);
+    return () => clearTimeout(timer);
+  }, [active, reduced, onComplete]);
+  if (!active || reduced) return null;
+
+  return (
+    <div aria-hidden="true" data-testid="confetti" className="kit-checklist-confetti" onAnimationEnd={onComplete}>
+      {PIECES.map(([x, y, rotation], index) => (
+        <i key={index} className="kit-checklist-confetti-piece" style={{
+          "--confetti-x": `${x}px`,
+          "--confetti-y": `${y}px`,
+          "--confetti-rotation": `${rotation}deg`,
+          backgroundColor: COLOURS[index % COLOURS.length],
+        } as CSSProperties} />
+      ))}
+    </div>
+  );
 }
