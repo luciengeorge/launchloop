@@ -12,6 +12,7 @@ import { IMAGE_VARIANTS, kitImageUrl } from "@/lib/image-variants";
 import { charLength } from "@/lib/limits";
 import { PIPELINE_STAGES, TASK_GROUPS, currentStageIndex, type KitTask, type TaskGroup } from "@/lib/tasks";
 import { xLength } from "@/lib/x-length";
+import { claimChecklistConfetti, Confetti } from "./confetti";
 
 interface Props {
   kitId: string;
@@ -31,6 +32,8 @@ export function KitChecklist({ kitId, productName, tasks, locked, persist, initi
   const [done, setDone] = useState<Set<string>>(() => new Set(initialDone));
   const [activeStage, setActiveStage] = useState<TaskGroup>(() => TASK_GROUPS[currentStageIndex(tasks, new Set(initialDone))] ?? "Brief");
   const [manualStage, setManualStage] = useState(false);
+  const [confetti, setConfetti] = useState(false);
+  const stopConfetti = useCallback(() => setConfetti(false), []);
 
   useEffect(() => {
     if (persist !== "local" || locked) return;
@@ -58,6 +61,7 @@ export function KitChecklist({ kitId, productName, tasks, locked, persist, initi
       if (nextDone) {
         const nextCompleted = countable.filter((t) => next.has(t.id)).length;
         if (nextCompleted === total) {
+          if (claimChecklistConfetti(kitId)) setConfetti(true);
           toast.success(`${productName} is ready to launch. Every step done!`);
         } else if (nextCompleted % 5 === 0) toast(CHEERS[(nextCompleted / 5) % CHEERS.length]);
         // Advance when finishing the last task of this stage
@@ -99,6 +103,7 @@ export function KitChecklist({ kitId, productName, tasks, locked, persist, initi
 
   return (
     <div className="space-y-6" data-testid="launch-pipeline">
+      <Confetti active={confetti} onComplete={stopConfetti} />
       <ProgressHero percent={percent} completed={completed} total={total} locked={locked} persist={persist} />
       {percent === 100 && !locked ? (
         <p className="flex items-center gap-2 rounded-xl bg-emerald-500/10 px-4 py-3 text-sm font-medium text-emerald-800" role="status" data-testid="all-done">
