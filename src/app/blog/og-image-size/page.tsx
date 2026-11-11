@@ -336,6 +336,10 @@ export default function OgImageSizePostPage() {
 
       <h2 id="launch-images">Images for launch day</h2>
       <p>
+        Writing the announcement too? Use our <Link href={postPath({ slug: "linkedin-product-launch-post" })}>LinkedIn product launch post examples and copyable template</Link>
+        {" "}alongside the image check.
+      </p>
+      <p>
         The OG image is the card for a shared link. A launch post on X or LinkedIn can carry its own attached image as well, and its size is a house style choice rather
         than a platform rule: none of the docs above set a size for it. LaunchLoop&apos;s house style is a 1600×900 image for launch posts.
       </p>
