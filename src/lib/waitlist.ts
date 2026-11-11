@@ -22,6 +22,9 @@ export const SHIPLOOP_WAITLIST_ASK_FLAG = "shiploop_waitlist_ask";
 /** /api/waitlist's answer when it couldn't store the signup, and the form's message for a 5xx that isn't the API's. */
 export const WAITLIST_SERVER_ERROR = "Couldn't add you right now. Please try again.";
 
+/** /api/waitlist's 429, and the form's message for a 429 that isn't the API's (a gateway's), so both read the same. */
+export const WAITLIST_RATE_LIMITED_ERROR = "Too many attempts. Try again later.";
+
 export const isWaitlistSource = (v: unknown): v is WaitlistSource => typeof v === "string" && (WAITLIST_SOURCES as readonly string[]).includes(v);
 
 export interface WaitlistResponse {
@@ -46,7 +49,7 @@ export function waitlistErrorReason(status: number): WaitlistErrorReason {
 export const WAITLIST_ERROR_MESSAGES: Record<WaitlistErrorReason, string> = {
   network: "We couldn't reach LaunchLoop. Check your connection and try again.",
   invalid_email: "Enter a valid email address.",
-  rate_limited: "Too many attempts. Try again in a little while.",
+  rate_limited: WAITLIST_RATE_LIMITED_ERROR,
   server_error: WAITLIST_SERVER_ERROR,
   http_error: WAITLIST_SERVER_ERROR,
 };

@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { singleFlight } from "@/lib/request-guards";
 import { SITE } from "@/lib/site";
 import { useQueryParam } from "@/lib/use-query-param";
 import { WAITLIST_ERROR_MESSAGES, type WaitlistErrorReason, type WaitlistSource } from "@/lib/waitlist";
@@ -30,9 +31,18 @@ export function WaitlistForm({ source, kitId, className = "" }: { source: Waitli
   const root = useRef<HTMLDivElement>(null);
   const form = useRef<HTMLFormElement>(null);
   const input = useRef<HTMLInputElement>(null);
+  const status = useRef<HTMLParagraphElement>(null);
 
   const [viewed] = useState(() => waitlistViewTracker({ source, kitId }));
   useEffect(() => viewed.observe(root.current), [viewed]);
+
+  // One POST at a time: in flight from the first submit's call, before React re-renders the button as busy.
+  const [join] = useState(() => singleFlight(joinWaitlist));
+
+  // Joined in this page (not the no-JS redirect's ?joined=): focus moves from the form that's gone to what replaced it.
+  useEffect(() => {
+    if (state === "joined" || state === "duplicate") status.current?.focus();
+  }, [state]);
 
   // Set by the no-JS form post's redirect.
   const redirected = useQueryParam("joined");
@@ -43,9 +53,12 @@ export function WaitlistForm({ source, kitId, className = "" }: { source: Waitli
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    // A second submit (a double click, Try again pressed twice) while the first is out: no second POST.
+    if (join.inFlight()) return;
+    const email = String(new FormData(e.currentTarget).get("email") ?? "");
     setState("loading");
     setFailure(null);
-    const result = await joinWaitlist(String(new FormData(e.currentTarget).get("email") ?? ""), { source, kitId });
+    const result = await join(email, { source, kitId });
     if (result.ok) {
       setState(result.duplicate ? "duplicate" : "joined");
       return;
@@ -66,7 +79,7 @@ export function WaitlistForm({ source, kitId, className = "" }: { source: Waitli
   return (
     <div ref={root} className={className}>
       {shown === "joined" || shown === "duplicate" ? (
-        <p className="rounded-lg bg-primary/10 px-4 py-3 text-sm font-medium" role="status" data-testid="waitlist-status" data-state={shown}>
+        <p ref={status} tabIndex={-1} className="rounded-lg bg-primary/10 px-4 py-3 text-sm font-medium outline-none" role="status" data-testid="waitlist-status" data-state={shown}>
           {shown === "joined" ? "You're on the waitlist." : "You're already on the waitlist."} We&apos;ll email you when Ship Loop launches.
         </p>
       ) : (
