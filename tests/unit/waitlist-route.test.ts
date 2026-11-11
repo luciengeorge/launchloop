@@ -8,7 +8,7 @@ vi.mock("@/lib/observability", () => ({ captureException: vi.fn(), captureExcept
 
 const { captureException } = await import("@/lib/observability");
 const { POST } = await import("@/app/api/waitlist/route");
-const { WAITLIST_MEMBERS_KEY, WAITLIST_TAG } = await import("@/lib/waitlist");
+const { WAITLIST_ERROR_MESSAGES, WAITLIST_MEMBERS_KEY, WAITLIST_TAG } = await import("@/lib/waitlist");
 
 let ip = 0;
 const join = (body: Record<string, string>) =>
@@ -60,6 +60,16 @@ describe("POST /api/waitlist", () => {
     const res = await join({ email: "maker@launchloop.dev" });
     expect(res.status).toBe(500);
     expect(captureException).toHaveBeenCalledWith(expect.any(Error), { stage: "api.waitlist" });
+  });
+
+  it("a 429 says the same 'try again' as the form's own rate-limit copy", async () => {
+    const send = () =>
+      POST(new Request("http://localhost/api/waitlist", { method: "POST", headers: { "Content-Type": "application/json", "x-forwarded-for": "203.0.113.9" }, body: JSON.stringify({ email: "not-an-email" }) }));
+    for (let i = 0; i < 10; i++) expect((await send()).status).toBe(400);
+    const limited = await send();
+    expect(limited.status).toBe(429);
+    expect(await limited.json()).toEqual({ error: WAITLIST_ERROR_MESSAGES.rate_limited });
+    expect(WAITLIST_ERROR_MESSAGES.rate_limited).toBe("Too many attempts. Try again later.");
   });
 
   it("an invalid email is rejected and nothing is stored", async () => {

@@ -1,4 +1,5 @@
 import { isTestVisit, track, type WaitlistEventContext } from "./analytics";
+import { withTimeout } from "./request-guards";
 import { WAITLIST_ERROR_MESSAGES, waitlistErrorReason, type WaitlistErrorReason, type WaitlistResponse, type WaitlistSource } from "./waitlist";
 
 /** Where a waitlist ask is shown: the surface, and the kit when it's on a kit's page. */
@@ -16,16 +17,20 @@ export type WaitlistResult = { ok: true; duplicate: boolean } | { ok: false; sta
 
 /**
  * POSTs /api/waitlist. waitlist_signup goes out only once the server has answered 2xx; any other answer, or none,
- * sends waitlist_error with the status and a reason derived from it. The email is never in either event.
+ * sends waitlist_error with the status and a reason derived from it. The email is never in either event. No answer
+ * (headers and body) within REQUEST_TIMEOUT_MS aborts it, and that's a network failure like no connection.
  */
 export async function joinWaitlist(email: string, surface: WaitlistSurface, fetcher: typeof fetch = fetch): Promise<WaitlistResult> {
-  let res: Response;
+  let answer: { res: Response; data: Partial<WaitlistResponse> & { error?: unknown } };
   try {
-    res = await fetcher("/api/waitlist", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, source: surface.source }) });
+    answer = await withTimeout(async (signal) => {
+      const res = await fetcher("/api/waitlist", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, source: surface.source }), signal });
+      return { res, data: (await res.json().catch(() => ({}))) as typeof answer.data };
+    });
   } catch {
     return failed(0, surface);
   }
-  const data = (await res.json().catch(() => ({}))) as Partial<WaitlistResponse> & { error?: unknown };
+  const { res, data } = answer;
   // Only our JSON's own message: a plain-text 500 or a gateway's HTML page gets the friendly copy, never "Request failed".
   if (!res.ok) return failed(res.status, surface, typeof data.error === "string" && data.error.trim() ? data.error : undefined);
   const duplicate = data.duplicate === true;

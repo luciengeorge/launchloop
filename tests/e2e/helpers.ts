@@ -1,4 +1,4 @@
-import { expect, type APIRequestContext, type Locator, type Page } from "@playwright/test";
+import { expect, type APIRequestContext, type Locator, type Page, type Request, type Route } from "@playwright/test";
 import { NEWSLETTER_ERRORS } from "../../src/lib/newsletter";
 
 export const uniqueEmail = (tag: string) => `${tag}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@example.com`;
@@ -218,4 +218,89 @@ export async function expectNewsletterSurvivesNetworkFailure(page: Page, scope: 
   await submit.click();
   await expect(scope.getByRole("status")).toHaveAttribute("data-welcome", "sent");
   await expect(scope.getByRole("alert")).toHaveCount(0);
+}
+
+type WaitlistAnswer = { status: number; json: unknown };
+const JOINED: WaitlistAnswer = { status: 200, json: { ok: true, duplicate: false } };
+const WAITLIST_JOINED_TEXT = "You're on the waitlist. We'll email you when Ship Loop launches.";
+
+/**
+ * Holds every POST /api/waitlist unanswered, as a hung server, until `release` answers the held ones still waiting
+ * (one the form gave up on is gone) and every later one. `requests`: every POST the page sent.
+ */
+export async function holdWaitlist(page: Page) {
+  const requests: Request[] = [];
+  const held: Route[] = [];
+  let answer: WaitlistAnswer | null = null;
+  await page.route("**/api/waitlist", async (route) => {
+    requests.push(route.request());
+    if (answer) return route.fulfill(answer);
+    held.push(route);
+  });
+  return {
+    requests,
+    async release(next: WaitlistAnswer = JOINED) {
+      answer = next;
+      for (const route of held.splice(0)) await route.fulfill(next).catch(() => {});
+    },
+  };
+}
+
+/**
+ * A join the server never answers, in a waitlist form inside `scope`: "Joining…" until the 15s timeout, then the
+ * network error with a working Try again, and the form usable again. Needs page.clock installed before the page loaded.
+ */
+export async function expectHungJoinRecovers(page: Page, scope: Locator, email: string) {
+  const waitlist = await holdWaitlist(page);
+  const field = scope.getByRole("textbox", { name: "Email" });
+  await field.fill(email);
+  await scope.getByRole("button", { name: "Join the waitlist" }).click();
+  const joining = scope.getByRole("button", { name: "Joining…" });
+  await expect(joining).toBeDisabled();
+  await page.clock.fastForward(14_000);
+  await expect(joining).toBeDisabled();
+  await expect(scope.getByRole("alert")).toHaveCount(0);
+
+  await page.clock.fastForward(1_000);
+  await expect(scope.getByRole("alert")).toHaveText("We couldn't reach LaunchLoop. Check your connection and try again.");
+  await expect(scope.getByRole("button", { name: "Join the waitlist" })).toBeEnabled();
+  await expect(field).toBeEditable();
+  await expect(field).toHaveValue(email);
+  expect(waitlist.requests).toHaveLength(1);
+
+  await waitlist.release();
+  await scope.getByRole("button", { name: "Try again" }).click();
+  const status = scope.getByTestId("waitlist-status");
+  await expect(status).toHaveText(WAITLIST_JOINED_TEXT);
+  await expect(status).toBeFocused();
+  expect(waitlist.requests).toHaveLength(2);
+  expect(waitlist.requests[1]!.postDataJSON()).toMatchObject({ email });
+}
+
+/**
+ * Exactly one POST for a burst of submits in a waitlist form inside `scope`: `first` is a real double click, or two
+ * submits in the same task (before React can re-render the button as busy); then two more while that one is out.
+ */
+export async function expectOneJoinPerBurst(page: Page, scope: Locator, email: string, first: "dblclick" | "same-task") {
+  const waitlist = await holdWaitlist(page);
+  await scope.getByRole("textbox", { name: "Email" }).fill(email);
+  const form = scope.getByTestId("waitlist-form");
+  const submitTwice = () =>
+    form.evaluate((el: HTMLFormElement) => {
+      el.requestSubmit();
+      el.requestSubmit();
+    });
+  if (first === "dblclick") await scope.getByRole("button", { name: "Join the waitlist" }).dblclick();
+  else await submitTwice();
+  await expect(scope.getByRole("button", { name: "Joining…" })).toBeDisabled();
+  await submitTwice();
+  await page.waitForTimeout(500);
+  expect(waitlist.requests).toHaveLength(1);
+
+  await waitlist.release();
+  const status = scope.getByTestId("waitlist-status");
+  await expect(status).toHaveText(WAITLIST_JOINED_TEXT);
+  await expect(status).toBeFocused();
+  expect(waitlist.requests).toHaveLength(1);
+  expect(waitlist.requests[0]!.postDataJSON()).toMatchObject({ email });
 }

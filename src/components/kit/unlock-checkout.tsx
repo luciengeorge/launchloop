@@ -3,7 +3,8 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { track } from "@/lib/analytics";
 import { PAYWALL_EARLY_CTA_FLAG, SITE_HEADER_PX, type PaywallEarlyCta } from "@/lib/paywall-cta";
-import { runCheckout, singleFlight, trackUnlockClicked, trackUnlockShown, type CheckoutFailure, type CheckoutOutcome, type UnlockContext, type UnlockCtaPosition } from "@/lib/unlock-checkout";
+import { singleFlight } from "@/lib/request-guards";
+import { runCheckout, trackUnlockClicked, trackUnlockShown, type CheckoutFailure, type CheckoutOutcome, type UnlockContext, type UnlockCtaPosition } from "@/lib/unlock-checkout";
 
 interface CheckoutState {
   /** A checkout is starting or the page is on its way to Stripe: every unlock button waits. */
