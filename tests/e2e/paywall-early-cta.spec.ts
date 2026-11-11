@@ -871,9 +871,10 @@ test.describe("events", () => {
     expect(Date.now() - started).toBeLessThan(3000);
     await expect(page.getByTestId("early-unlock-cta")).toHaveCount(0);
     await expect(stickyBar(page)).toHaveCount(0);
+    // The preview's earlier fallback can flush after navigation. Wait for the timeout, not the first flag event.
     await expect
-      .poll(async () => (await phEvents(page.request)).slice(before).find((e) => e.event === "flag_fallback" && e.properties.flag === FLAG)?.properties)
-      .toMatchObject({ variant: "control", reason: "timeout", fallback: true });
+      .poll(async () => (await phEvents(page.request)).slice(before).filter((e) => e.event === "flag_fallback" && e.properties.flag === FLAG).map((e) => e.properties))
+      .toContainEqual(expect.objectContaining({ variant: "control", reason: "timeout", fallback: true }));
     expect((await phEvents(page.request)).filter((e) => e.event === "$feature_flag_called" && e.properties.$feature_flag === FLAG)).toEqual([]);
   });
 });
