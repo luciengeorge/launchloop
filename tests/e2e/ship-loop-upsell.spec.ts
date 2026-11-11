@@ -238,7 +238,7 @@ test("the ask is the buyer's alone: signed out or signed in as someone else, ?pa
   const anon = await signedOut.newPage();
   await anon.goto(accountPaid);
   await anon.waitForURL(/\/login\?next=/);
-  expect(new URL(anon.url()).searchParams.get("next")).toBe(`/account/kits/${kitId}`);
+  expect(new URL(anon.url()).searchParams.get("next")).toBe(accountPaid);
   await noAsk(anon, "signed out, /account");
   await anon.goto(privatePaid);
   await expect(anon.getByTestId("stage-tab-Product Hunt")).toBeVisible();
