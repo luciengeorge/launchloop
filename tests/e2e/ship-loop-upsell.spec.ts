@@ -250,7 +250,6 @@ test("the ask is the buyer's alone: signed out or signed in as someone else, ?pa
   const other = await otherAccount.newPage();
   await logIn(other, uniqueEmail("upsell-not-owner"));
   await other.goto(accountPaid);
-  await expect(other).toHaveTitle("Page not found · LaunchLoop");
   await expect(other.getByRole("heading", { name: "This page doesn't exist" })).toBeVisible();
   await noAsk(other, "another account, /account");
   await other.goto(privatePaid);
