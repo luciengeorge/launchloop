@@ -54,7 +54,9 @@ test("sticky bar: hidden (and out of the tab order) until the browser decides, n
   expect(html).toContain('data-visible="false"');
   const bar = html.match(/^<aside[^>]*>/)![0];
   expect(bar).toContain("invisible");
-  expect(bar).toContain("translate-y-full");
+  expect(bar).toContain("[transform:translateY(100%)]");
+  expect(bar).toContain("transition-[transform]");
+  expect(bar).not.toContain("transition-[translate,visibility]");
   expect(bar).toContain("lg:hidden");
   expect(bar).toContain("fixed");
   expect(text(html)).toContain("Unlock the full kit, £19");

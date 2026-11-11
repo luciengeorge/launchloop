@@ -127,7 +127,7 @@ export function UnlockCtaPlaceholder() {
       <div className={ROW}>
         <p>
           <span className="text-2xl font-semibold tracking-tight">
-            <span className="inline-block h-8 w-12 animate-pulse rounded-md bg-muted align-bottom" aria-label="Loading price" />
+            <span className="inline-block h-8 w-12 rounded-md bg-muted align-bottom" aria-label="Loading price" />
           </span>
           <span className="ml-1.5 text-sm text-muted-foreground">once, no subscription</span>
         </p>
@@ -185,8 +185,8 @@ export function StickyUnlockBar(props: Props) {
       data-testid="sticky-unlock-bar"
       data-visible={visible}
       className={cn(
-        "fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_24px_-12px_rgb(0_0_0/0.25)] transition-[translate,visibility] duration-200 ease-out motion-reduce:transition-none lg:hidden",
-        visible ? "visible translate-y-0" : "invisible translate-y-full",
+        "fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_24px_-12px_rgb(0_0_0/0.25)] transition-[transform] duration-200 ease-out motion-reduce:transition-none lg:hidden",
+        visible ? "visible [transform:translateY(0)]" : "invisible [transform:translateY(100%)]",
       )}
     >
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-3 py-3 sm:gap-3 sm:px-6">

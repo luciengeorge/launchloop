@@ -43,7 +43,7 @@ async function failCheckoutOnce(page: Page, fail: Parameters<Page["route"]>[1]) 
   });
 }
 
-/** The label is at least 4.5:1 on the button, at rest and hovered (the button has transition-all). */
+/** The label is at least 4.5:1 on the button, at rest and hovered. */
 async function expectReadable(page: Page, button: Locator, name: string) {
   await button.scrollIntoViewIfNeeded();
   // Off the button (a click leaves the mouse on it) and past the transition, so "rest" isn't half hovered.

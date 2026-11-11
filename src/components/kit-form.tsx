@@ -70,7 +70,7 @@ export function KitForm({ promo }: { promo: boolean }) {
         setError(null);
       }
       const anchor = document.getElementById("start") ?? inputRef.current;
-      anchor?.scrollIntoView({ behavior: "smooth", block: "start" });
+      anchor?.scrollIntoView({ block: "start" });
       inputRef.current?.focus({ preventScroll: true });
     };
     const fromUrl = () => {
@@ -181,7 +181,7 @@ export function KitForm({ promo }: { promo: boolean }) {
           void submit(url);
         }}
         // The borderless input draws no ring of its own, so the form shows it, also when focus is moved there by a button.
-        className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-2 shadow-lg shadow-primary/5 transition-shadow has-[input:focus-visible]:border-ring has-[input:focus-visible]:ring-3 has-[input:focus-visible]:ring-ring/50 sm:flex-row"
+        className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-2 shadow-lg shadow-primary/5 has-[input:focus-visible]:border-ring has-[input:focus-visible]:ring-3 has-[input:focus-visible]:ring-ring/50 sm:flex-row"
         aria-label="Generate a launch kit"
       >
         <label htmlFor="app-url" className="sr-only">

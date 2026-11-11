@@ -340,3 +340,14 @@ test.describe("without JavaScript", () => {
     await expect(headline(page)).toHaveAttribute("aria-level", "1");
   });
 });
+
+test("reduced motion preserves the delayed zero-duration headline failsafe", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await setHeroHeadline(page.request, "test", 1800);
+  await page.goto("/", { waitUntil: "commit" });
+  await expect(headline(page)).toBeVisible();
+  await expect(headline(page)).toHaveText(HERO_HEADLINE_CONTROL);
+  await page.waitForLoadState("load");
+  await expect(page.locator("h1[data-hero-failsafe]")).toHaveText(HERO_HEADLINE_CONTROL);
+  expect((await watched(page)).__seenHeadlines).toEqual([HERO_HEADLINE_CONTROL]);
+});

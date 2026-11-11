@@ -61,7 +61,7 @@ const EMAIL_US_HREF = `mailto:${SITE.email}?subject=${encodeURIComponent("Paymen
 
 function focusSavePreview() {
   const field = document.getElementById(SAVE_PREVIEW_FIELD_ID);
-  field?.scrollIntoView({ block: "center", behavior: "smooth" });
+  field?.scrollIntoView({ block: "center" });
   field?.focus({ preventScroll: true });
 }
 

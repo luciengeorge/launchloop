@@ -50,7 +50,7 @@ export function MobileMenu({ children }: { children: React.ReactNode }) {
         aria-controls={panelId}
         onClick={() => setOpen((o) => !o)}
         // 44px hit area in a 32px slot: the negative margin keeps the row's layout and the header's height.
-        className="-mx-1.5 inline-flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
+        className="-mx-1.5 inline-flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
       >
         {open ? <X className="size-5" aria-hidden="true" /> : <Menu className="size-5" aria-hidden="true" />}
       </button>
