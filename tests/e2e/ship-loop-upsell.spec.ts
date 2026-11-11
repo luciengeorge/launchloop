@@ -207,9 +207,19 @@ test("the ask stays while the buyer types: a router.refresh() that reads the kil
 
   await setWaitlistAsk(page, kitId, false);
   // What GenerationPoller does as each section lands: the server renders the page again, and reads the flag again.
-  const refreshed = page.waitForResponse((res) => res.request().headers()["rsc"] === "1" && new URL(res.url()).pathname === `/account/kits/${kitId}`);
+  // Read the RSC payload as it passes through: the browser's copy of a streamed refresh can be gone before it's read.
+  let refreshBody: string | undefined;
+  await page.route(
+    (url) => url.pathname === `/account/kits/${kitId}`,
+    async (route) => {
+      if (route.request().headers()["rsc"] !== "1") return route.fallback();
+      const response = await route.fetch();
+      refreshBody ??= await response.text();
+      await route.fulfill({ response });
+    },
+  );
   await page.evaluate(() => (window as unknown as { next: { router: { refresh(): void } } }).next.router.refresh());
-  expect(await (await refreshed).text(), "the refresh's render read the kill switch as off").toContain('"enabled":false');
+  await expect.poll(() => refreshBody, "the refresh's render read the kill switch as off").toContain('"enabled":false');
   await page.waitForTimeout(500);
   await expect(upsell).toBeVisible();
   await expect(field).toHaveValue("half-typed@exam");
