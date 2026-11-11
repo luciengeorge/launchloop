@@ -24,6 +24,17 @@ const SELF = (path: string) => new RegExp(`^http://127\\.0\\.0\\.1:\\d+${path.re
 
 /** Per post: links the copy must make, and quotes that must appear verbatim. */
 const EXPECT: Record<string, { links: string[]; quotes: string[] }> = {
+  "linkedin-product-launch-post": {
+    links: [
+      "/#start", "/pricing", "/tools/og-preview", "/blog/og-image-size",
+      "/blog/chatgpt-vs-product-hunt-launch-kits",
+      "https://www.linkedin.com/help/linkedin/answer/a528176",
+      "https://www.linkedin.com/help/linkedin/answer/a525301",
+      "https://www.linkedin.com/help/linkedin/answer/a521928",
+      "https://www.linkedin.com/help/linkedin/answer/a6233775",
+    ],
+    quotes: ["Posts can contain up to 3,000 characters."],
+  },
   "chatgpt-vs-product-hunt-launch-kits": {
     links: [
       "/#start",

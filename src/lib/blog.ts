@@ -21,6 +21,16 @@ export const BLOG_FEED_PATH = "/blog/rss.xml";
 /** Newest first, so add new posts at the top. */
 export const BLOG_POSTS: BlogPost[] = [
   {
+    slug: "linkedin-product-launch-post",
+    title: "LinkedIn product launch posts: structures and examples",
+    metaTitle: "LinkedIn product launch posts: examples",
+    description:
+      "Write a LinkedIn product launch post with a copyable template and three repo-based examples. Includes sourced character limits and a link-preview check.",
+    published: "2026-11-11",
+    updated: "2026-11-11",
+    readingMinutes: 9,
+  },
+  {
     slug: "chatgpt-vs-product-hunt-launch-kits",
     title: "Can ChatGPT write your Product Hunt launch copy, or do you need a launch kit?",
     metaTitle: "Can ChatGPT write Product Hunt launch copy?",
