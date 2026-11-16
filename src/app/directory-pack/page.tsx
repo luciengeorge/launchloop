@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { PackOffer } from "@/components/directory-pack/pack-offer";
 import { JsonLd } from "@/components/json-ld";
-import { directoryCount } from "@/lib/directories";
 import { siteUrl } from "@/lib/env";
 import { PAGES } from "@/lib/pages";
 import { directoryPackOffer } from "@/lib/payments";
@@ -19,7 +18,7 @@ export default function DirectoryPackPage() {
   const base = siteUrl();
   const offer = directoryPackOffer();
   const inside = [
-    { title: `${directoryCount()} researched directories`, detail: "Launch boards, communities, alternatives catalogues, review sites and evergreen directories, ranked for a solo founder." },
+    { title: "A researched database of startup directories", detail: "Launch boards, communities, alternatives catalogues, review sites and evergreen directories, ranked for a solo founder." },
     { title: "Free, freemium or paid", detail: "Which route each one has, and the cheapest way to get listed where it's known." },
     { title: "Badge and backlink rules", detail: "Whether the free route needs a badge or a link back, whether the link is followed, and Domain Rating (DR) with its source." },
     { title: "Approval time and notes", detail: "Queues, the account you need, gotchas, and what happened when we submitted ourselves." },

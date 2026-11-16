@@ -12,9 +12,11 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   // Kit images are rendered from API routes, server actions and pages (via the ZIP); all need the fonts.
-  // The directory database is read with fs at request time by the pack's pages and API.
+  // The directory CSV is read with fs by the free page, the pack's pages and its API (the access CSV and listings routes).
   outputFileTracingIncludes: {
     "/*": ["./assets/fonts/*.ttf"],
+    "/free-startup-directories": ["./data/directory-pack/*.csv"],
+    "/directory-pack": ["./data/directory-pack/*.csv"],
     "/directory-pack/**": ["./data/directory-pack/*.csv"],
     "/api/directory-pack/**": ["./data/directory-pack/*.csv"],
   },

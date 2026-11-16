@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { parseDirectories } from "@/lib/directory-csv";
+import type { Kit } from "@/lib/schema";
 
 const m = vi.hoisted(() => {
   const pending: Promise<unknown>[] = [];
@@ -47,6 +48,7 @@ vi.mock("@/lib/store", async () => {
 vi.mock("@/lib/analytics-server", () => ({ captureServerEvent: m.captureServerEvent, eventUuid: (seed: string) => `uuid:${seed}`, resolveDistinctId: () => "ph_1" }));
 vi.mock("@/lib/email", async (importOriginal) => ({ ...(await importOriginal<object>()), sendEmail: m.sendEmail }));
 vi.mock("@/lib/zip", () => ({ buildKitZip: vi.fn(), zipFileName: vi.fn() }));
+vi.mock("@/lib/fulfil", async (importOriginal) => ({ ...(await importOriginal<object>()), fulfilKit: vi.fn(async () => {}) }));
 vi.mock("@/lib/observability", async (importOriginal) => ({ ...(await importOriginal<object>()), captureException: vi.fn(), captureMessage: vi.fn() }));
 
 const { POST: checkout } = await import("@/app/api/checkout/route");
@@ -54,6 +56,8 @@ const { POST: webhook } = await import("@/app/api/stripe/webhook/route");
 const { GET: checkoutReturn } = await import("@/app/api/checkout/return/route");
 const { GET: downloadCsv } = await import("@/app/api/directory-pack/[id]/csv/route");
 const { POST: writeListings } = await import("@/app/api/directory-pack/[id]/listings/route");
+const { getKit } = await import("@/lib/kits");
+const { store } = await import("@/lib/store");
 
 const ROWS = parseDirectories(readFileSync(path.join(process.cwd(), "data/directory-pack/directories.csv"), "utf8"));
 const PACK_ID = "packUnitTest0123456789";
@@ -101,7 +105,7 @@ describe("without a paid unlock", () => {
     for (const res of [await csvFor(id), await listingsFor(id, PRODUCT)]) {
       expect(res.status).toBe(403);
       const body = await res.text();
-      for (const row of ROWS) expect(body).not.toContain(row.notes);
+      for (const row of ROWS) expect(body).not.toContain(row.url);
       expect(body).not.toContain("rank,name");
     }
   });
@@ -162,5 +166,57 @@ describe("after payment", () => {
     const [header, first] = csv.split("\r\n");
     expect(header.endsWith(",your_link,tagline,description")).toBe(true);
     expect(first).toContain(`https://snapshelf.app/?utm_source=${ROWS[0].utm_source}&utm_medium=directory`);
+  });
+});
+
+describe("entitlements are per product", () => {
+  async function seedKit(id: string) {
+    const kit = {
+      id,
+      createdAt: new Date().toISOString(),
+      status: "preview",
+      source: { input: "sample", commitsAnalysed: 0, readmeFound: false, packageJsonFound: false, pageScraped: false, warnings: [] },
+      brief: { name: "Snapshelf", oneLiner: "", audience: "", problem: "", features: [], proofPoints: [], stack: [], tone: "" },
+      palette: { background: "", foreground: "", accent: "", accentForeground: "", muted: "", source: "default" },
+      preview: { tagline: "t", xPost: "x" },
+      digest: "",
+      llm: "mock",
+      paid: false,
+      attempts: 0,
+    } satisfies Kit;
+    await store().set(`kit:${id}`, kit);
+  }
+  const kitEvent = (kitId: string, packId: string) => {
+    const event = paidEvent({ product: "kit", kitId, packId, price_id: "inline" });
+    event.data.object.amount_total = 1900;
+    return event;
+  };
+
+  it("a kit payment unlocks that kit and no pack, even with a pack id in its metadata", async () => {
+    await seedKit("kitIsolation01234567");
+    expect((await deliver(kitEvent("kitIsolation01234567", "packFromKitEvent012345"))).status).toBe(200);
+    expect((await getKit("kitIsolation01234567"))?.paid).toBe(true);
+    expect((await csvFor("packFromKitEvent012345")).status).toBe(403);
+  });
+
+  it("a pack payment unlocks that pack and no kit, even with a kit id in its metadata", async () => {
+    await seedKit("kitIsolation76543210");
+    expect((await deliver(paidEvent({ packId: "packIsolation012345678", kitId: "kitIsolation76543210" }))).status).toBe(200);
+    expect((await csvFor("packIsolation012345678")).status).toBe(200);
+    expect((await getKit("kitIsolation76543210"))?.paid).toBe(false);
+  });
+
+  it("the same id in both namespaces: paying for the kit never opens the pack, and paying for the pack never pays the kit", async () => {
+    const id = "sharedIdBothProducts01";
+    await seedKit(id);
+    await deliver(kitEvent(id, ""));
+    expect((await csvFor(id)).status).toBe(403);
+
+    const other = "sharedIdBothProducts02";
+    await seedKit(other);
+    m.retrieveSession.mockResolvedValueOnce(paidEvent({ packId: other, kitId: other }).data.object);
+    const res = await checkoutReturn(new Request("http://x/api/checkout/return?session_id=cs_test_shared"));
+    expect(new URL(res.headers.get("location")!).pathname).toBe(`/directory-pack/access/${other}`);
+    expect((await getKit(other))?.paid).toBe(false);
   });
 });

@@ -6,11 +6,13 @@ import { parseDirectories, submitUrl } from "../../src/lib/directory-csv";
 import { PRODUCTS } from "../../src/lib/products";
 import { uniqueEmail } from "./helpers";
 
-const ROWS = parseDirectories(readFileSync("data/directory-pack/directories.csv", "utf8"));
+/** The e2e servers read this fixture (DIRECTORY_PACK_CSV in playwright.config.ts): the committed top 20 plus rows the public pages must never show. */
+const ROWS = parseDirectories(readFileSync("tests/fixtures/directory-pack/directories.csv", "utf8"));
 const FREE = ROWS.slice(0, 20);
+const HIDDEN = ROWS.slice(20);
 const NOTES = ROWS.map((r) => r.notes).filter(Boolean);
-/** Paid-only text: every row's notes, and a link to any directory past the free top 20 (the footer's own badges link elsewhere on those sites). */
-const PAID_ONLY = [...NOTES, ...ROWS.slice(20).map((r) => `href="${r.url}"`)];
+/** Paid-only text: every row's notes, and the name and url of every row past the free top 20. */
+const PAID_ONLY = [...NOTES, ...HIDDEN.flatMap((r) => [r.name, r.url])];
 const PUBLIC_PAGES = ["/free-startup-directories", "/directory-pack"];
 
 async function staticChunks(dir: string): Promise<string[]> {
@@ -87,10 +89,17 @@ test("pack waitlist signup is tagged for the pack", async ({ page }) => {
   await expect(offer.getByTestId("waitlist-status")).toHaveText("You're on the waitlist. We'll email you when the Directory Launch Pack launches.");
 });
 
-test("paid data never reaches unpaid visitors: not in the public pages' HTML, not in any client chunk, and the APIs answer 403", async ({ page, request }) => {
+test("paid data never reaches unpaid visitors: not in the public pages' HTML or RSC payload, not in any client chunk, and the APIs answer 403", async ({ page, request }) => {
+  expect(HIDDEN.length).toBeGreaterThanOrEqual(5);
   for (const path of PUBLIC_PAGES) {
-    const html = await (await request.get(path)).text();
-    for (const text of PAID_ONLY) expect(html.includes(text), `${path} leaks ${text.slice(0, 40)}`).toBe(false);
+    const html = await request.get(path);
+    const rsc = await request.get(path, { headers: { RSC: "1" } });
+    expect(rsc.headers()["content-type"]).toContain("text/x-component");
+    const bodies = { html: await html.text(), rsc: await rsc.text() };
+    for (const [kind, body] of Object.entries(bodies)) {
+      expect(body, `${path} ${kind} renders the page`).toContain(path === "/directory-pack" ? "Directory Launch Pack" : FREE[19].name);
+      for (const text of PAID_ONLY) expect(body.includes(text), `${path} ${kind} leaks ${text.slice(0, 40)}`).toBe(false);
+    }
   }
   const chunks = await staticChunks(path.join(".next-test", "static"));
   expect(chunks.length).toBeGreaterThan(10);
@@ -108,7 +117,8 @@ test("paid data never reaches unpaid visitors: not in the public pages' HTML, no
   // The check above means something: the same text is on the page once the pack is paid.
   const { url } = await buyPack(request);
   const paid = await (await request.get(url)).text();
-  expect(paid).toContain(ROWS[0].notes.slice(0, 40));
+  for (const row of HIDDEN) expect(paid).toContain(row.name);
+  expect(paid).toContain(HIDDEN[0].notes);
 });
 
 test("after payment: every row and column, the CSV download, and listing copy per directory within its limits", async ({ page, request }) => {

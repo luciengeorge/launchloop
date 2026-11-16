@@ -120,8 +120,10 @@ describe("freeDirectoryRow", () => {
     expect(free({ pricing: "free" }).freeRoute).toBe("Free listing");
   });
 
-  it("gives every free-page row a last-verified date", () => {
-    expect(parseDirectories(shipped).slice(0, 20).map((r) => freeDirectoryRow(r).lastVerified)).not.toContain("");
+  it("the committed file is the free tier only, with notes blanked: this repo is public", () => {
+    const rows = parseDirectories(shipped);
+    expect(rows).toHaveLength(20);
+    expect(rows.map((r) => r.notes)).toEqual(rows.map(() => ""));
   });
 });
 

@@ -1,0 +1,27 @@
+rank,name,url,submit_url,category,pricing,price_usd,badge_required,backlink_required,dofollow,dr,approval_time,tagline_max,description_max,notes,utm_source
+1,DEV Community (#showdev),https://dev.to/,https://dev.to/new,community,free,0,no,no,yes,91,instant on publish,,,,devcommunity
+2,Pitchwall,https://pitchwall.co/,https://pitchwall.co/submit,launchpad,freemium,0,no,no,yes,75,at least 30 days,,,,pitchwall
+3,Launch Llama Tools,https://tools.launchllama.co/,https://tools.launchllama.co/submit,launchpad,freemium,0,no,no,yes,74,about 4 weeks,,,,launchllamatools
+4,Launching Next,https://www.launchingnext.com/,https://www.launchingnext.com/submit/,launchpad,freemium,0,no,no,yes,57,$99 upgrade = within 1 business day; free queue time not stated,,,,launchingnext
+5,Hacker News (Show HN),https://news.ycombinator.com/,https://news.ycombinator.com/submit,community,free,0,no,no,no,91,,,,,hackernews
+6,Reddit,https://www.reddit.com/,,community,free,0,no,no,unknown,95,,,,,reddit
+7,Hashnode,https://hashnode.com/,,community,freemium,0,no,no,unknown,83,instant on publish,,,,hashnode
+8,Indie Hackers,https://www.indiehackers.com/,,community,freemium,0,no,no,no,82,,,,,indiehackers
+9,Product Hunt,https://www.producthunt.com/,,launchpad,free,0,no,no,no,92,,60,260,,producthunt
+10,Uneed,https://www.uneed.best/,https://www.uneed.best/submit-a-tool,launchpad,freemium,0,no,no,no,77,"at least 50 days out, date assigned automatically on the free waiting line (uneed.best/how-it-works, read 16 Nov 2026)",,,,uneed
+11,RankInPublic,https://rankinpublic.xyz/,https://rankinpublic.xyz/launch,launchpad,free,0,no,no,yes,52,weekly tournaments,,,,rankinpublic
+12,TinyLaunch,https://www.tinylaunch.com/,https://www.tinylaunch.com/submit,launchpad,freemium,0,no,no,no,75,free weeks booked ahead (first free week 23 Nov 2026 as of 21 Oct),60,10000,,tinylaunch
+13,ScrollLaunch,https://www.scrolllaunch.com/,https://www.scrolllaunch.com/pricing,launchpad,freemium,0,no,no,no,74,,,,,scrolllaunch
+14,SaaSHub,https://www.saashub.com/,https://www.saashub.com/services/submit,alternatives,freemium,0,no,no,yes,81,"about 32 days (LaunchGrill, third party)",,,,saashub
+15,Aura++,https://auraplusplus.com/,https://auraplusplus.com/projects/submit,launchpad,freemium,0,no,no,no,73,,,,,aura
+16,BetterLaunch,https://www.betterlaunch.co/,https://www.betterlaunch.co/submit-your-startup,launchpad,freemium,0,no,no,no,70,a Monday 45+ days out (14 days sooner if you vote),,,,betterlaunch
+17,SideProjectors,https://www.sideprojectors.com/,https://www.sideprojectors.com/project/new,marketplace,freemium,0,no,no,yes,72,"about 1 day (our submission, Nov 2026)",,,,sideprojectors
+18,StartupBase,https://startupbase.io/,https://startupbase.io/submit,launchpad,freemium,0,no,no,no,75,10+ weeks without badge; 4 to 5 weeks with badge,,,,startupbase
+19,What Launched Today,https://whatlaunched.today/,https://whatlaunched.today/dashboard/submit,launchpad,freemium,0,no,no,yes,32,standard launch queue,,,,whatlaunchedtoday
+20,Peerlist Launchpad,https://peerlist.io/,,community,free,0,no,no,no,78,"weekly, opens Mondays",,,,peerlistlaunchpad
+21,Fixture Hidden Directory 21,https://hidden-directory-21.example/,https://hidden-directory-21.example/submit,launchpad,freemium,0,no,no,yes,51,about a week,,,Fixture hidden note 21: only buyers see this. checked 2026-11-16 (home 200),hiddendirectory21
+22,Fixture Hidden Directory 22,https://hidden-directory-22.example/,,launchpad,freemium,0,no,no,yes,52,about a week,,,Fixture hidden note 22: only buyers see this. checked 2026-11-16 (home 200),hiddendirectory22
+23,Fixture Hidden Directory 23,https://hidden-directory-23.example/,https://hidden-directory-23.example/submit,launchpad,freemium,0,no,no,yes,53,about a week,,,Fixture hidden note 23: only buyers see this. checked 2026-11-16 (home 200),hiddendirectory23
+24,Fixture Hidden Directory 24,https://hidden-directory-24.example/,,launchpad,freemium,0,no,no,yes,54,about a week,,,Fixture hidden note 24: only buyers see this. checked 2026-11-16 (home 200),hiddendirectory24
+25,Fixture Hidden Directory 25,https://hidden-directory-25.example/,https://hidden-directory-25.example/submit,launchpad,freemium,0,no,no,yes,55,about a week,,,Fixture hidden note 25: only buyers see this. checked 2026-11-16 (home 200),hiddendirectory25
+26,Fixture Hidden Directory 26,https://hidden-directory-26.example/,,launchpad,freemium,0,no,no,yes,56,about a week,,,Fixture hidden note 26: only buyers see this. checked 2026-11-16 (home 200),hiddendirectory26

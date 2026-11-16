@@ -14,6 +14,8 @@ export const env = {
   stripePriceKit: read("STRIPE_PRICE_KIT"),
   /** One-time Price for the Directory Launch Pack. Unset: the pack is "Coming soon" with a waitlist, and checkout refuses it. */
   stripeDirectoryPackPriceId: read("STRIPE_DIRECTORY_PACK_PRICE_ID"),
+  /** Tests only: e2e points the directory loader at a fixture with rows past the free 20. */
+  directoryPackCsv: read("DIRECTORY_PACK_CSV"),
   /** Promotion code id (promo_…) for LAUNCH14. Optional: without it Checkout looks the code up by name. */
   stripePromoLaunch14: read("STRIPE_PROMO_LAUNCH14"),
 
