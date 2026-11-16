@@ -33,14 +33,17 @@ export default function DirectoryPackPage() {
       <nav aria-label="Breadcrumb" className="text-sm text-muted-foreground">
         <Link href="/" className="hover:text-foreground">Home</Link> <span aria-hidden="true">/</span> <span aria-current="page">Directory Launch Pack</span>
       </nav>
-      <div className="mt-4 grid gap-10 lg:grid-cols-[1fr_22rem] lg:items-start">
+      <header className="mt-4 max-w-3xl space-y-4">
+        <h1 className="text-balance text-4xl font-semibold tracking-tight">Directory Launch Pack</h1>
+        <p className="text-lg text-muted-foreground">
+          The researched list of startup directories we use for our own submissions, with the rules for each one and listing copy written for your product. No guessing which sites are worth a form.
+        </p>
+      </header>
+      <div className="mt-8 grid gap-10 lg:grid-cols-[1fr_22rem] lg:items-start">
+        <div className="lg:sticky lg:top-20 lg:order-last">
+          <PackOffer offer={offer} source="directory_pack_page" />
+        </div>
         <div className="space-y-8">
-          <header className="space-y-4">
-            <h1 className="text-balance text-4xl font-semibold tracking-tight">Directory Launch Pack</h1>
-            <p className="text-lg text-muted-foreground">
-              The researched list of startup directories we use for our own submissions, with the rules for each one and listing copy written for your product. No guessing which sites are worth a form.
-            </p>
-          </header>
           <section aria-labelledby="inside">
             <h2 id="inside" className="text-2xl font-semibold tracking-tight">What&apos;s inside</h2>
             <ul className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -55,9 +58,6 @@ export default function DirectoryPackPage() {
           <p className="text-muted-foreground">
             Want to start with the free part? <Link href={PAGES.freeDirectories.path} className={link}>Free startup directories</Link> lists our top 20 with queues, badge rules and the date we last checked.
           </p>
-        </div>
-        <div className="lg:sticky lg:top-20">
-          <PackOffer offer={offer} source="directory_pack_page" />
         </div>
       </div>
     </div>
