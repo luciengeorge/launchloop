@@ -33,6 +33,9 @@ test("robots, sitemap and llms.txt", async ({ request }) => {
   expect(text).toMatch(/^# LaunchLoop/);
   // The e2e build has the launch promo off, so the kit is at its list price.
   expect(text).toContain(`Launch Kit: ${PRODUCTS.kit.priceLabel} once`);
+  expect(text).toContain("/free-startup-directories");
+  expect(text).toContain("/directory-pack");
+  expect(text).not.toContain(PRODUCTS.directoryPack.priceLabel);
 });
 
 test("IndexNow key file is served at /<key>.txt with exactly the key", async ({ request }) => {
