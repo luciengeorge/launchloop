@@ -37,6 +37,10 @@ for (const promo of [false, true]) {
       expect(text).toContain(`## What the Launch Kit contains (${kitPriceLabel(promo)}, one-off)`);
       expect(text).toContain(`- Launch Kit: ${kitPriceLabel(promo)}`);
       expect(text).toContain("a free waitlist only, with nothing to buy");
+      expect(text).toContain(
+        `- [Directory Launch Pack](${BASE}/directory-pack): ${PRODUCTS.directoryPack.priceLabel} one-off for 152 researched startup directories, with submit links, rules and listing copy written for each one.`,
+      );
+      expect(text.split("\n").find((line) => line.includes("Directory Launch Pack"))).not.toMatch(/coming soon/i);
       if (promo) expect(text).toContain(`full price ${PRODUCTS.kit.priceLabel}; ${LAUNCH_PROMO.code} is applied at checkout`);
       else expect(text).not.toContain(LAUNCH_PROMO.code);
     }

@@ -48,12 +48,7 @@ export async function SiteFooter() {
                 <SoonBadge />
               </Link>
             </li>
-            <li>
-              <Link href={PAGES.directoryPack.path} className="inline-flex items-center gap-1.5 hover:text-foreground">
-                Directory Launch Pack
-                <SoonBadge />
-              </Link>
-            </li>
+            <li><Link href={PAGES.directoryPack.path} className="hover:text-foreground">Directory Launch Pack</Link></li>
             <li><Link href="/faq" className="hover:text-foreground">FAQ</Link></li>
           </ul>
         </nav>

@@ -124,6 +124,8 @@ test("paid data never reaches unpaid visitors: not in the public pages' HTML or 
   expect((await request.post(`/api/directory-pack/${stranger}/listings`, { data: { name: "x" } })).status()).toBe(403);
   await page.goto(`/directory-pack/access/${stranger}`);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("We couldn't find a paid pack at this link");
+  await expect(page).toHaveTitle("Pack not found · LaunchLoop");
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", "noindex, nofollow");
   for (const text of PAID_ONLY) expect((await page.content()).includes(text)).toBe(false);
 
   // The check above means something: the same text is on the page once the pack is paid.
@@ -138,6 +140,8 @@ test("after payment: every row and column, the CSV download, and listing copy pe
   const { packId, url } = await buyPack(request);
   await page.goto(url);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Your Directory Launch Pack");
+  await expect(page).toHaveTitle("Your Directory Launch Pack · LaunchLoop");
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", "noindex, nofollow");
   const cards = page.getByTestId("directory-row");
   await expect(cards).toHaveCount(ROWS.length);
   const first = cards.first();

@@ -2,11 +2,13 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { PackView } from "@/components/directory-pack/pack-view";
 import { Skeleton } from "@/components/ui/skeleton";
+import { getPack } from "@/lib/directory-pack";
 
-export const metadata: Metadata = {
-  title: "Your Directory Launch Pack",
-  robots: { index: false, follow: false },
-};
+/** The title matches what the page shows: an unpaid or unknown id gets the not-found state. */
+export async function generateMetadata({ params }: PageProps<"/directory-pack/access/[id]">): Promise<Metadata> {
+  const pack = await getPack((await params).id);
+  return { title: pack ? "Your Directory Launch Pack" : "Pack not found", robots: { index: false, follow: false } };
+}
 
 export default function DirectoryPackAccessPage({ params }: PageProps<"/directory-pack/access/[id]">) {
   return (
