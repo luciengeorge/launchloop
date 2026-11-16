@@ -19,6 +19,7 @@
 /.next-test-hero/
 /.next-test-inline/
 /.next-test-calendar/
+/.next-test-priced/
 /out/
 
 # production
@@ -50,6 +51,7 @@ next-env.d.ts
 /.data-test-hero/
 /.data-test-inline/
 /.data-test-calendar/
+/.data-test-priced/
 
 # playwright
 /test-results/

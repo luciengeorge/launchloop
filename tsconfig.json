@@ -43,13 +43,16 @@
     ".next-test-inline/types/**/*.ts",
     ".next-test-inline/dev/types/**/*.ts",
     ".next-test-calendar/types/**/*.ts",
-    ".next-test-calendar/dev/types/**/*.ts"
+    ".next-test-calendar/dev/types/**/*.ts",
+    ".next-test-priced/types/**/*.ts",
+    ".next-test-priced/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",
     ".next-test",
     ".next-test-hero",
     ".next-test-inline",
-    ".next-test-calendar"
+    ".next-test-calendar",
+    ".next-test-priced"
   ]
 }
