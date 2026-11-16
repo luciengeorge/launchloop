@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import { expect, test } from "@playwright/test";
@@ -5,7 +6,7 @@ import { parseDirectories, submitUrl } from "../../src/lib/directory-csv";
 import { PRODUCTS } from "../../src/lib/products";
 import { uniqueEmail } from "./helpers";
 
-const ROWS = parseDirectories(await readFile("data/directory-pack/directories.csv", "utf8"));
+const ROWS = parseDirectories(readFileSync("data/directory-pack/directories.csv", "utf8"));
 const FREE = ROWS.slice(0, 20);
 /** Paid-only text: every row's notes, and every directory past the free top 20. */
 const PAID_ONLY = [...ROWS.map((r) => r.notes).filter(Boolean), ...ROWS.slice(20).map((r) => r.url)];
@@ -46,19 +47,17 @@ test("free page: the brief's title, meta and H1, the top 20 from the CSV in rank
   }
   await expect(page.getByText(/^Last reviewed: /)).toBeVisible();
 
-  const faq = await page.locator('script[type="application/ld+json"]').evaluateAll((nodes) =>
-    nodes.flatMap((n) => {
-      const data = JSON.parse(n.textContent ?? "{}") as { "@type"?: string; mainEntity?: { name: string; acceptedAnswer: { text: string } }[] };
-      return data["@type"] === "FAQPage" ? [data] : [];
-    }),
-  );
+  type Node = { "@type"?: string; "@id"?: string; "@graph"?: Node[]; mainEntity?: { name: string; acceptedAnswer: { text: string } }[] };
+  const nodes = await page.locator('script[type="application/ld+json"]').evaluateAll((scripts) => scripts.map((n) => JSON.parse(n.textContent ?? "{}") as Node));
+  const faq = nodes.flatMap((n) => n["@graph"] ?? [n]).filter((n) => n["@type"] === "FAQPage");
   expect(faq).toHaveLength(1);
+  expect(faq[0]["@id"]).toMatch(/\/free-startup-directories#faq$/);
   const questions = faq[0].mainEntity!;
-  expect(questions).toHaveLength(7);
-  for (const q of questions) {
-    const section = page.locator("#faq").locator("div", { has: page.getByRole("heading", { level: 3, name: q.name, exact: true }) }).last();
-    await expect(section.locator("p")).toHaveText(q.acceptedAnswer.text);
-  }
+  expect(questions.map((q) => q.name)).toEqual(await page.locator("#faq h3").allTextContents());
+  // The brief's JSON-LD drops the visible answers' link sentences and quote marks; otherwise they're the same words.
+  const plain = (text: string) => text.replace(/["\u201c\u201d]/g, "");
+  for (const [i, q] of questions.entries()) expect(plain((await page.locator("#faq h3 + p").nth(i).textContent()) ?? "")).toContain(plain(q.acceptedAnswer.text));
+  expect(JSON.stringify(nodes)).not.toContain(PRODUCTS.directoryPack.priceLabel);
   await expect(page.locator("main").getByRole("link", { name: "Product Hunt alternatives" }).first()).toHaveAttribute("href", "/blog/product-hunt-alternatives");
 });
 
