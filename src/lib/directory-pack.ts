@@ -2,7 +2,7 @@ import "server-only";
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import { generateListingCopy, listingLimits, type ListingCopy } from "./copy";
-import { allDirectories } from "./directories";
+import type { Directory } from "./directory-csv";
 import { directoryPackReadyEmail, sendEmail } from "./email";
 import type { PaidOrder } from "./fulfil";
 import { isValidKitId } from "./kit-exists";
@@ -76,8 +76,8 @@ export async function fulfilPack(id: string): Promise<void> {
 const briefFor = (p: ListingProduct): Brief => ({ name: p.name, oneLiner: p.oneLiner, audience: p.audience, problem: "", features: p.features, proofPoints: [], stack: [], tone: "plain", url: p.url });
 
 /** The kit's copy generator, run once over every directory's limits. */
-export async function writeListings(pack: DirectoryPack, product: ListingProduct): Promise<DirectoryPack> {
-  const { listings } = await generateListingCopy(briefFor(product), (await allDirectories()).map(listingLimits));
+export async function writeListings(pack: DirectoryPack, product: ListingProduct, rows: Directory[]): Promise<DirectoryPack> {
+  const { listings } = await generateListingCopy(briefFor(product), rows.map(listingLimits));
   const next = { ...pack, product, listings };
   await store().set(packKey(pack.id), next);
   return next;

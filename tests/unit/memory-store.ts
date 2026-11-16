@@ -78,6 +78,10 @@ export class MemoryStore implements KeyValueStore {
     return [...entries].sort((a, b) => a[0] - b[0]).map(([, member]) => member);
   }
 
+  async zCard(key: string): Promise<number> {
+    return ((await this.get<unknown[]>(key)) ?? []).length;
+  }
+
   async hGetAllMany(keys: string[]): Promise<(Record<string, string> | null)[]> {
     this.check();
     return keys.map((key) => (this.read(key)?.value as Record<string, string>) ?? null);

@@ -276,7 +276,24 @@ Preview keys carry the `preview:` prefix. The contact is also added to the Resen
 - **Listing copy**: the buyer enters their product once; `generateListingCopy` (the kit generator) writes one tagline and description per distinct `tagline_max`/`description_max` pair, and each row is fitted to its own limits (Product Hunt's 60/260 when blank). Each row shows its `submit_url` (or `url`) and the buyer's URL with `utm_source` from the row and `utm_medium=directory`.
 - **Public page columns** come from `freeDirectoryRow`: `last_verified` and the `our_submission` status word, never notes. Link type stays "not checked" because the CSV doesn't record a checked live listing.
 - **The full list lives in Redis**, since this repo is public and only holds the free top 20 (notes blank, no `our_submission_detail`). Paid reads (the access page, its CSV and listings) load `dirpack:v1:row:<rank>` hashes in `dirpack:v1:index` order through the same schema, after the unlock check. With nothing seeded, or Redis unreachable, they serve the committed top 20 and log `[launchloop:warn] Directory pack: no rows from Redis…`. The free page never reads Redis. The sales page shows the count only when Redis has rows at request time.
-- **Seeding** (once merged and QA'd): `npm run seed:directory-pack -- <path/to/directories.csv>` validates and prints counts (dry run); add `--write` to replace every `dirpack:v1:` key in one MULTI/EXEC. It writes to the Redis in `KV_REST_API_URL`/`KV_REST_API_TOKEN`, under the prefix `VERCEL_ENV` selects (production: none).
+- **Unavailable list fails closed.** On Vercel (and any production build outside mock mode), an empty index or unreachable Redis never serves the committed 20 to buyers: the access page says the pack is temporarily unavailable with no rows, the CSV and listings APIs answer 503 `pack_unavailable` with `Retry-After` (listings before its rate limit), and Sentry gets a throttled `directoryPack.unavailable:<reason>`. Only local `next dev` and the mock-mode e2e builds fall back to the committed file, with a `[launchloop:warn]` line.
+
+### Seeding the full list
+
+`scripts/seed-directory-pack.ts` validates a CSV against the schema (errors name the line and field, never a value) and prints counts only, never row data. CI dry-runs it on the e2e fixture.
+
+```bash
+# Dry run (the default): validates, prints counts, writes nothing and needs no Redis.
+npm run seed:directory-pack -- /path/outside/the/repo/directories.csv
+
+# Write, once merged and QA'd: production Redis credentials, and --env naming the environment VERCEL_ENV selects.
+vercel env pull .env.production.local --environment=production
+set -a; . ./.env.production.local; set +a
+VERCEL_ENV=production npm run seed:directory-pack -- /path/outside/the/repo/directories.csv --write --env production
+rm .env.production.local
+```
+
+`--write` refuses to run without `KV_REST_API_URL`/`KV_REST_API_TOKEN` (or the `UPSTASH_REDIS_REST_*` pair), when `--env` is missing or isn't the environment `VERCEL_ENV` selects (production writes unprefixed keys, preview `preview:`, anything else `dev:`), or when the file is inside the repo. It prints the Redis host (never the token), then replaces every `dirpack:v1:` key in one MULTI/EXEC: the old index's rows, every row it is about to write, and the index, then the new hashes and index. Re-runs are idempotent.
 
 ## Error logging
 

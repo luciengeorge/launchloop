@@ -27,6 +27,7 @@ export interface KeyValueStore {
   sMembers(key: string): Promise<string[]>;
   /** Sorted set members, lowest score first. */
   zRange(key: string): Promise<string[]>;
+  zCard(key: string): Promise<number>;
   /** HGETALL for each key in one round trip; null where there's no hash. */
   hGetAllMany(keys: string[]): Promise<(Record<string, string> | null)[]>;
   /** Applies every write or none (MULTI/EXEC on Redis). */
@@ -152,6 +153,10 @@ class FileStore implements KeyValueStore {
     return Promise.all(keys.map((key) => this.get<Record<string, string>>(key)));
   }
 
+  async zCard(key: string): Promise<number> {
+    return ((await this.get<unknown[]>(key)) ?? []).length;
+  }
+
   transaction(writes: StoreWrite[]): Promise<void> {
     return this.serial(async () => {
       for (const w of writes) {
@@ -245,6 +250,10 @@ class RedisRestStore implements KeyValueStore {
     return (await this.command<string[] | null>(["ZRANGE", key, 0, -1])) ?? [];
   }
 
+  zCard(key: string): Promise<number> {
+    return this.command<number>(["ZCARD", key]);
+  }
+
   async hGetAllMany(keys: string[]): Promise<(Record<string, string> | null)[]> {
     if (!keys.length) return [];
     const results = await this.batch<string[]>("pipeline", keys.map((key) => ["HGETALL", key]));
@@ -298,6 +307,9 @@ class PrefixedStore implements KeyValueStore {
   }
   zRange(key: string) {
     return this.inner.zRange(this.k(key));
+  }
+  zCard(key: string) {
+    return this.inner.zCard(this.k(key));
   }
   hGetAllMany(keys: string[]) {
     return this.inner.hGetAllMany(keys.map((key) => this.k(key)));

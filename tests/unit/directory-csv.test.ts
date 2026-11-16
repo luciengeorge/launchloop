@@ -65,21 +65,28 @@ describe("parseDirectories", () => {
 
   it.each([
     ["a wrong header", `${HEADER.replace("dr,", "domain_rating,")}\n${GOOD_ROW}`, /header/],
-    ["pricing outside free|freemium|paid", `${HEADER}\n${GOOD_ROW.replace(",freemium,", ",cheap,")}`, /rank 1: pricing/],
-    ["a yes|no|unknown column with another value", `${HEADER}\n${GOOD_ROW.replace(",yes,57,", ",maybe,57,")}`, /rank 1: dofollow/],
-    ["a non-integer dr", `${HEADER}\n${GOOD_ROW.replace(",57,", ",5.7,")}`, /rank 1: dr/],
-    ["a non-integer tagline_max", `${HEADER}\n${GOOD_ROW.replace(",60,260,", ",sixty,260,")}`, /rank 1: tagline_max/],
+    ["pricing outside free|freemium|paid", `${HEADER}\n${GOOD_ROW.replace(",freemium,", ",cheap,")}`, /line 2: pricing/],
+    ["a yes|no|unknown column with another value", `${HEADER}\n${GOOD_ROW.replace(",yes,57,", ",maybe,57,")}`, /line 2: dofollow/],
+    ["a non-integer dr", `${HEADER}\n${GOOD_ROW.replace(",57,", ",5.7,")}`, /line 2: dr/],
+    ["a non-integer tagline_max", `${HEADER}\n${GOOD_ROW.replace(",60,260,", ",sixty,260,")}`, /line 2: tagline_max/],
     ["a missing column", `${HEADER}\n${GOOD_ROW.replace(",launchingnext", "")}`, /line 2: 15 columns/],
-    ["a url that isn't http(s)", `${HEADER}\n${GOOD_ROW.replace("https://www.launchingnext.com/,", "launchingnext.com,")}`, /rank 1: url/],
-    ["a duplicate rank", `${HEADER}\n${GOOD_ROW}\n${GOOD_ROW}`, /rank 1: duplicate rank/],
-    ["an empty name", `${HEADER}\n${GOOD_ROW.replace("Launching Next", "")}`, /rank 1: name/],
-    ["a last_verified that isn't YYYY-MM-DD", `${FULL_HEADER}\n${GOOD_ROW},16 Nov 2026,submitted`, /rank 1: last_verified/],
+    ["a url that isn't http(s)", `${HEADER}\n${GOOD_ROW.replace("https://www.launchingnext.com/,", "launchingnext.com,")}`, /line 2: url/],
+    ["a duplicate rank", `${HEADER}\n${GOOD_ROW}\n${GOOD_ROW}`, /line 3: duplicate rank/],
+    ["an empty name", `${HEADER}\n${GOOD_ROW.replace("Launching Next", "")}`, /line 2: name/],
+    ["a last_verified that isn't YYYY-MM-DD", `${FULL_HEADER}\n${GOOD_ROW},16 Nov 2026,submitted`, /line 2: last_verified/],
     ["only one of the optional columns", `${HEADER},last_verified\n${GOOD_ROW},2026-11-16`, /header/],
-    ["a sentence in our_submission instead of a status word", `${FULL_HEADER}\n${GOOD_ROW},2026-11-16,submitted on a Tuesday`, /rank 1: our_submission/],
+    ["a sentence in our_submission instead of a status word", `${FULL_HEADER}\n${GOOD_ROW},2026-11-16,submitted on a Tuesday`, /line 2: our_submission/],
     ["the detail column without the two before it", `${HEADER},our_submission_detail\n${GOOD_ROW},went fine`, /header/],
   ])("fails on %s", (_label, csv, reason) => {
     expect(() => parseDirectories(csv)).toThrow(DirectoryCsvError);
     expect(issuesOf(csv).join("\n")).toMatch(reason);
+  });
+
+  it("names the row number and field, never the value: errors reach logs and the seed output", () => {
+    const csv = `${FULL_HEADER}\n${GOOD_ROW.replace(",freemium,", ",cheap,").replace(",57,", ",5.7,")},16 Nov 2026,submitted on a Tuesday`;
+    const issues = issuesOf(csv).join("\n");
+    expect(issues).toMatch(/line 2: pricing/);
+    for (const value of ["cheap", "5.7", "16 Nov 2026", "Tuesday", "Launching Next", "launchingnext"]) expect(issues).not.toContain(value);
   });
 });
 
@@ -142,11 +149,13 @@ describe("freeDirectoryRow", () => {
     expect(rows.filter((r) => r.our_submission).length).toBeGreaterThan(0);
   });
 
-  it.each([["committed file", shipped], ["e2e fixture", fixture]])("the %s holds only status words in our_submission and no our_submission_detail: the sentences are paid content", (_label, csv) => {
-    for (const r of parseDirectories(csv)) {
-      expect(["", ...SUBMISSION_STATUSES], r.name).toContain(r.our_submission);
-      expect(r.our_submission_detail, r.name).toBe("");
-    }
+  it.each([
+    ["committed file", shipped, 0],
+    ["e2e fixture (its free 20)", fixture, 20],
+  ])("the %s holds only status words in our_submission and no public our_submission_detail: the sentences are paid content", (_label, csv, publicRows) => {
+    const rows = parseDirectories(csv);
+    for (const r of rows) expect(["", ...SUBMISSION_STATUSES], r.name).toContain(r.our_submission);
+    for (const r of publicRows ? rows.slice(0, publicRows) : rows) expect(r.our_submission_detail, r.name).toBe("");
   });
 
   it("a private file may carry the buyers-only sentence in our_submission_detail", () => {

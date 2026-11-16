@@ -108,7 +108,7 @@ function csvRecords(text: string): string[][] {
   return records;
 }
 
-/** Every row, in file order. Throws DirectoryCsvError listing each bad row by rank (or line) and why. */
+/** Every row, in file order. Throws DirectoryCsvError listing each bad row by line and field. */
 export function parseDirectories(text: string): Directory[] {
   const [header, ...records] = csvRecords(text.replace(/^\uFEFF/, ""));
   const columns = HEADERS.find((c) => header?.join(",") === c.join(","));
@@ -131,10 +131,11 @@ function validate(raws: { raw: Record<string, string>; where: string }[], issues
   const ranks = new Set<number>();
   for (const { raw: given, where } of raws) {
     const raw: Record<string, string> = { last_verified: "", our_submission: "", our_submission_detail: "", ...given };
-    const label = /^\d+$/.test(raw.rank ?? "") ? `rank ${raw.rank}` : where;
+    const label = where;
     const parsed = rowSchema.safeParse(raw);
     if (!parsed.success) {
-      for (const issue of parsed.error.issues) issues.push(`${label}: ${issue.path.join(".")} ${issue.message} (got "${raw[String(issue.path[0])]}")`);
+      // Row number and field only: these errors reach logs and the seed script's output, so they never echo a value.
+      for (const issue of parsed.error.issues) issues.push(`${label}: ${issue.path.join(".")} ${issue.message}`);
       continue;
     }
     if (ranks.has(parsed.data.rank)) issues.push(`${label}: duplicate rank`);

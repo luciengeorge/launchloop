@@ -20,6 +20,8 @@ export const env = {
    * only the e2e builds force mock mode.
    */
   directoryPackCsv: read("VERCEL_ENV") || (read("NODE_ENV") === "production" && !forceMock) ? undefined : read("TEST_DIRECTORY_PACK_CSV"),
+  /** Buyers may get the committed top 20 when Redis has no list: local `next dev` and the mock-mode e2e builds only, never on Vercel. */
+  directoryPackLocalFallback: !read("VERCEL_ENV") && (read("NODE_ENV") === "development" || forceMock),
   /** Promotion code id (promo_…) for LAUNCH14. Optional: without it Checkout looks the code up by name. */
   stripePromoLaunch14: read("STRIPE_PROMO_LAUNCH14"),
 

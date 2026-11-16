@@ -10,8 +10,9 @@ import { uniqueEmail } from "./helpers";
 const ROWS = parseDirectories(readFileSync("tests/fixtures/directory-pack/directories.csv", "utf8"));
 const FREE = ROWS.slice(0, 20);
 const HIDDEN = ROWS.slice(20);
-const NOTES = ROWS.map((r) => r.notes).filter(Boolean);
-/** Paid-only text: every row's notes, and the name and url of every row past the free top 20. */
+/** Free text only buyers see: every row's notes and our_submission_detail (the fixture's rows 21+ carry made-up details). */
+const NOTES = ROWS.flatMap((r) => [r.notes, r.our_submission_detail]).filter(Boolean);
+/** Paid-only text: that free text, and the name and url of every row past the free top 20. */
 const PAID_ONLY = [...NOTES, ...HIDDEN.flatMap((r) => [r.name, r.url])];
 const PUBLIC_PAGES = ["/free-startup-directories", "/directory-pack"];
 
@@ -75,6 +76,12 @@ test("price not set: both pages say Coming soon with the pack waitlist, show no 
     await expect(page.getByRole("button", { name: /buy/i })).toHaveCount(0);
     expect(await page.content()).not.toContain(PRODUCTS.directoryPack.priceLabel);
   }
+  // The site header keeps the kit CTA while the pack has no price.
+  await page.goto("/");
+  const header = page.getByRole("banner");
+  await expect(header.getByRole("link", { name: "Get my launch kit, £19" })).toHaveAttribute("href", "/?plan=kit#start");
+  await expect(header.getByTestId("nav-pack-cta")).toHaveCount(0);
+  await expect(header.locator('a[href="/directory-pack"]')).toHaveCount(0);
   const res = await request.post("/api/checkout", { data: { product: "directoryPack" } });
   expect(res.status()).toBe(503);
   expect(await res.json()).toMatchObject({ code: "not_on_sale" });
@@ -93,6 +100,7 @@ test("pack waitlist signup is tagged for the pack", async ({ page }) => {
 
 test("paid data never reaches unpaid visitors: not in the public pages' HTML or RSC payload, not in any client chunk, and the APIs answer 403", async ({ page, request }) => {
   expect(HIDDEN.length).toBeGreaterThanOrEqual(5);
+  expect(HIDDEN.every((r) => r.our_submission_detail)).toBe(true);
   for (const path of PUBLIC_PAGES) {
     const html = await request.get(path);
     const rsc = await request.get(path, { headers: { RSC: "1" } });
@@ -121,6 +129,7 @@ test("paid data never reaches unpaid visitors: not in the public pages' HTML or 
   const paid = await (await request.get(url)).text();
   for (const row of HIDDEN) expect(paid).toContain(row.name);
   expect(paid).toContain(HIDDEN[0].notes);
+  for (const row of HIDDEN) expect(paid).toContain(row.our_submission_detail);
 });
 
 test("after payment: every row and column, the CSV download, and listing copy per directory within its limits", async ({ page, request }) => {

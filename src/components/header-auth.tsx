@@ -20,14 +20,24 @@ function subscribe(onChange: () => void) {
   };
 }
 
-/** `placeholder`: the copy SignedInLinks keeps invisible, so it carries no test ids. */
-function SignedOutLinks({ promo, placeholder = false }: { promo: boolean; placeholder?: boolean }) {
+/**
+ * `placeholder`: the copy SignedInLinks keeps invisible, so it carries no test ids. `packCta`: the Directory Launch Pack is
+ * on sale (directoryPackOffer), so the CTA sells it instead of the kit.
+ */
+function SignedOutLinks({ promo, packCta, placeholder = false }: { promo: boolean; packCta: boolean; placeholder?: boolean }) {
   return (
     <>
       <Link href="/login" className={linkCls} data-testid={placeholder ? undefined : "nav-login"}>
         Log in
       </Link>
-      {promo ? (
+      {packCta ? (
+        <Link href="/directory-pack" className={ctaCls} data-testid={placeholder ? undefined : "nav-pack-cta"}>
+          {/* Like the kit CTA: the short label where the full one doesn't fit, hidden rather than sr-only. */}
+          <span>
+            Get the <span className="max-sm:hidden md:max-lg:hidden">directory </span>pack
+          </span>
+        </Link>
+      ) : promo ? (
         // Two prices don't fit beside the logo and "Log in" on a phone, or beside the nav links from md to lg, with the full label.
         <StartLink plan="kit" className={ctaCls}>
           <span className="sm:max-md:hidden lg:hidden">Get kit, </span>
@@ -51,11 +61,11 @@ function SignedOutLinks({ promo, placeholder = false }: { promo: boolean; placeh
  * The signed-in links are narrower than the server-rendered signed-out ones. Keeping those in the layout, invisible,
  * holds the group's width, so the swap after hydration doesn't move it or the nav (a layout shift).
  */
-export function SignedInLinks({ promo }: { promo: boolean }) {
+export function SignedInLinks({ promo, packCta }: { promo: boolean; packCta: boolean }) {
   return (
     <div className="grid justify-items-end">
       <div className="invisible col-start-1 row-start-1 flex items-center gap-2.5 sm:gap-4" aria-hidden="true" inert>
-        <SignedOutLinks promo={promo} placeholder />
+        <SignedOutLinks promo={promo} packCta={packCta} placeholder />
       </div>
       <div className="col-start-1 row-start-1 flex items-center gap-2.5 sm:gap-4">
         {/* flex, not block: a block form adds a 16px line box and the button would sit on its baseline, not centred. */}
@@ -77,7 +87,7 @@ export function SignedInLinks({ promo }: { promo: boolean }) {
  * (including CDN-cached ones like the home page) can stay fully static. The server always renders the signed-out
  * state; the real session is still checked by /account and every API that needs it.
  */
-export function HeaderAuth({ promo }: { promo: boolean }) {
+export function HeaderAuth({ promo, packCta }: { promo: boolean; packCta: boolean }) {
   const signedIn = useSyncExternalStore(subscribe, hasSessionHint, () => false);
-  return signedIn ? <SignedInLinks promo={promo} /> : <SignedOutLinks promo={promo} />;
+  return signedIn ? <SignedInLinks promo={promo} packCta={packCta} /> : <SignedOutLinks promo={promo} packCta={packCta} />;
 }

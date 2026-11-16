@@ -6,14 +6,14 @@ const count = (html: string, needle: string) => html.split(needle).length - 1;
 
 for (const promo of [false, true]) {
   test(`promo ${promo ? "on" : "off"}: the server (signed-out) header has one of each test id`, () => {
-    const html = renderToStaticMarkup(<HeaderAuth promo={promo} />);
+    const html = renderToStaticMarkup(<HeaderAuth promo={promo} packCta={false} />);
     expect(count(html, 'data-testid="nav-login"')).toBe(1);
     expect(count(html, 'data-testid="kit-price-promo"')).toBe(promo ? 1 : 0);
     expect(html).not.toContain("nav-my-kits");
   });
 
   test(`promo ${promo ? "on" : "off"}: the signed-in links' invisible signed-out copy carries no test ids`, () => {
-    const html = renderToStaticMarkup(<SignedInLinks promo={promo} />);
+    const html = renderToStaticMarkup(<SignedInLinks promo={promo} packCta={false} />);
     expect(count(html, 'data-testid="nav-my-kits"')).toBe(1);
     expect(count(html, 'data-testid="nav-logout"')).toBe(1);
     expect(html).not.toContain('data-testid="nav-login"');
@@ -23,3 +23,29 @@ for (const promo of [false, true]) {
     expect(count(html, ">Log in<")).toBe(1);
   });
 }
+
+const text = (html: string) => html.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+const ctaOf = (html: string) => html.match(/<a[^>]*class="[^"]*px-3 sm:px-4[^"]*"[^>]*>.*?<\/a>/)?.[0] ?? "";
+
+test("price not set: the CTA is the kit's, as before (Get my launch kit, £19 to the kit form), and nothing links the pack", () => {
+  const html = renderToStaticMarkup(<HeaderAuth promo={false} packCta={false} />);
+  const cta = ctaOf(html);
+  expect(cta).toContain('href="/?plan=kit#start"');
+  expect(text(cta)).toBe("Get my launch kit, £19");
+  expect(html).not.toContain("/directory-pack");
+  expect(html).not.toContain("nav-pack-cta");
+});
+
+test("price set: the CTA links /directory-pack and says Get the directory pack, with no kit price", () => {
+  for (const promo of [false, true]) {
+    const html = renderToStaticMarkup(<HeaderAuth promo={promo} packCta />);
+    const cta = ctaOf(html);
+    expect(cta).toContain('href="/directory-pack"');
+    expect(cta).toContain('data-testid="nav-pack-cta"');
+    expect(text(cta)).toBe("Get the directory pack");
+    expect(html).not.toContain("£");
+  }
+  const signedIn = renderToStaticMarkup(<SignedInLinks promo={false} packCta />);
+  expect(signedIn).not.toContain('data-testid="nav-pack-cta"');
+  expect(text(signedIn)).toContain("Get the directory pack");
+});

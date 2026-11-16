@@ -8,7 +8,7 @@ const m = vi.hoisted(() => {
   const pending: Promise<unknown>[] = [];
   return {
     pending,
-    env: { stripeSecretKey: "sk_test_unit", stripeWebhookSecret: "whsec_unit", authSecret: "unit-auth-secret", llmProvider: "mock", stripeDirectoryPackPriceId: undefined as string | undefined },
+    env: { stripeSecretKey: "sk_test_unit", stripeWebhookSecret: "whsec_unit", authSecret: "unit-auth-secret", llmProvider: "mock", directoryPackLocalFallback: true, stripeDirectoryPackPriceId: undefined as string | undefined },
     after: vi.fn((fn: () => unknown) => void pending.push(Promise.resolve().then(fn))),
     createSession: vi.fn<(params: Record<string, unknown>) => Promise<{ id: string; url: string }>>(async () => ({ id: "cs_test_pack", url: "https://checkout.stripe.com/c/pay/cs_test_pack" })),
     retrievePrice: vi.fn(async (id: string) => ({ id, type: "one_time" })),

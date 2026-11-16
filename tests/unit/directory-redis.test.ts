@@ -1,18 +1,27 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DirectoryCsvError, parseDirectories } from "@/lib/directory-csv";
 import { MemoryStore } from "./memory-store";
 
-const m = vi.hoisted(() => ({ store: undefined as unknown, warn: vi.fn() }));
+const m = vi.hoisted(() => ({ store: undefined as unknown, warn: vi.fn(), sentry: vi.fn(), localFallback: false }));
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/store", () => ({ store: () => m.store, storeKind: () => "memory" }));
-vi.mock("@/lib/observability", async (importOriginal) => ({ ...(await importOriginal<object>()), captureMessage: m.warn, captureException: vi.fn() }));
+vi.mock("@/lib/observability", async (importOriginal) => ({ ...(await importOriginal<object>()), captureMessage: m.warn, captureException: vi.fn(), captureExceptionThrottled: m.sentry }));
+vi.mock("@/lib/env", async (importOriginal) => {
+  const real = await importOriginal<{ env: Record<string, unknown> }>();
+  return { ...real, env: new Proxy(real.env, { get: (target, key) => (key === "directoryPackLocalFallback" ? m.localFallback : Reflect.get(target, key)) }) };
+});
+vi.mock("@/lib/email", async (importOriginal) => ({ ...(await importOriginal<object>()), sendEmail: vi.fn(async () => ({ id: "mock", mock: true })) }));
 
-const { DIRECTORY_INDEX_KEY, directoryRowKey, seedDirectoryPack } = await import("@/lib/directory-redis");
-const { allDirectories, freeDirectories, redisDirectoryCount } = await import("@/lib/directories");
+const { DIRECTORY_INDEX_KEY, directoryRowKey, seedDirectoryPack, seedWriteProblem } = await import("@/lib/directory-redis");
+const { DirectoryPackUnavailableError, allDirectories, freeDirectories, redisDirectoryCount } = await import("@/lib/directories");
 const { GET: downloadCsv } = await import("@/app/api/directory-pack/[id]/csv/route");
+const { POST: writeListings } = await import("@/app/api/directory-pack/[id]/listings/route");
+const { recordPackPayment } = await import("@/lib/directory-pack");
+const { PackView } = await import("@/components/directory-pack/pack-view");
 
 const COMMITTED = parseDirectories(readFileSync(path.join(process.cwd(), "data/directory-pack/directories.csv"), "utf8"));
 const FIXTURE_CSV = readFileSync(path.join(process.cwd(), "tests/fixtures/directory-pack/directories.csv"), "utf8");
@@ -24,7 +33,17 @@ beforeEach(() => {
   mem = new MemoryStore();
   m.store = mem;
   m.warn.mockReset();
+  m.sentry.mockReset();
+  m.localFallback = false;
 });
+
+const PACK_ID = "packRedisUnitTest01234";
+const csvFor = (id: string) => downloadCsv(new Request(`http://x/api/directory-pack/${id}/csv`), { params: Promise.resolve({ id }) });
+const listingsFor = (id: string) =>
+  writeListings(
+    new Request(`http://x/api/directory-pack/${id}/listings`, { method: "POST", body: JSON.stringify({ name: "Snapshelf", url: "https://snapshelf.app/", oneLiner: "Find any screenshot by the words in it" }) }),
+    { params: Promise.resolve({ id }) },
+  );
 
 const log = () => {
   const lines: string[] = [];
@@ -59,6 +78,14 @@ describe("seedDirectoryPack", () => {
     expect(mem.keys()).toHaveLength(21);
   });
 
+  it("deletes every row key it is about to write, so a stray key can't leak into an HSET", async () => {
+    await mem.transaction([{ op: "hset", key: directoryRowKey(1), fields: { stray_field: "left over" } }]);
+    await seedDirectoryPack(FIXTURE_CSV, { write: true, store: () => mem, print: () => {} });
+    const [first] = await mem.hGetAllMany([directoryRowKey(1)]);
+    expect(first).not.toHaveProperty("stray_field");
+    expect(await allDirectories()).toEqual(FIXTURE);
+  });
+
   it("refuses a malformed CSV before touching the store", async () => {
     const bad = FIXTURE_CSV.replace(",launchpad,freemium,", ",launchpad,cheap,");
     await expect(seedDirectoryPack(bad, { write: true, store: () => mem, print: () => {} })).rejects.toThrow(DirectoryCsvError);
@@ -74,17 +101,45 @@ describe("reading the pack", () => {
     expect(m.warn).not.toHaveBeenCalled();
   });
 
-  it("an empty index falls back to the committed top 20, flagged in the logs", async () => {
+  it("local dev and e2e only: an empty index falls back to the committed top 20, flagged in the logs", async () => {
+    m.localFallback = true;
     expect(await allDirectories()).toEqual(COMMITTED);
     expect(m.warn).toHaveBeenCalledWith(expect.stringContaining("committed top 20"), expect.objectContaining({ reason: "index_empty" }));
     expect(await redisDirectoryCount()).toBeNull();
   });
 
-  it("unreachable Redis falls back to the committed top 20, flagged in the logs, and the count is unknown", async () => {
+  it("local dev and e2e only: unreachable Redis falls back to the committed top 20, flagged in the logs, and the count is unknown", async () => {
+    m.localFallback = true;
     mem.failing = true;
     expect(await allDirectories()).toEqual(COMMITTED);
     expect(m.warn).toHaveBeenCalledWith(expect.stringContaining("committed top 20"), expect.objectContaining({ reason: "redis_unreachable" }));
     expect(await redisDirectoryCount()).toBeNull();
+  });
+
+  it.each([
+    ["an empty index", "index_empty"],
+    ["unreachable Redis", "redis_unreachable"],
+  ])("anywhere else, %s fails closed: no rows, and a throttled report to Sentry", async (_label, reason) => {
+    if (reason === "redis_unreachable") mem.failing = true;
+    await expect(allDirectories()).rejects.toBeInstanceOf(DirectoryPackUnavailableError);
+    expect(m.sentry).toHaveBeenCalledWith(`directoryPack.unavailable:${reason}`, expect.any(Error), expect.objectContaining({ reason }));
+    expect(m.warn).not.toHaveBeenCalled();
+  });
+
+  it("fails closed for a paid buyer: the page says temporarily unavailable with no rows, and the CSV and listings APIs answer 503 with Retry-After", async () => {
+    await recordPackPayment({ product: "directoryPack", packId: PACK_ID, ref: "cs_test_redis" });
+    const html = renderToStaticMarkup(await PackView({ id: PACK_ID }));
+    expect(html).toContain("temporarily unavailable");
+    expect(html).toContain('data-testid="pack-unavailable"');
+    for (const row of COMMITTED) expect(html).not.toContain(row.name);
+
+    for (const res of [await csvFor(PACK_ID), await listingsFor(PACK_ID)]) {
+      expect(res.status).toBe(503);
+      expect(Number(res.headers.get("retry-after"))).toBeGreaterThan(0);
+      expect(await res.json()).toMatchObject({ code: "pack_unavailable" });
+    }
+    // The listings check runs before the rate limit, so an outage doesn't use up the buyer's daily runs.
+    expect(mem.keys().filter((key) => key.startsWith("rl:"))).toEqual([]);
   });
 
   it("a malformed row in Redis errors the request instead of serving it", async () => {
@@ -110,5 +165,24 @@ describe("reading the pack", () => {
     const body = await res.text();
     for (const row of HIDDEN) expect(body).not.toContain(row.name);
     expect(zRange).not.toHaveBeenCalled();
+  });
+});
+
+describe("seedWriteProblem", () => {
+  const repoRoot = process.cwd();
+  const outside = "/cursor/stores/bot/launchloop-directory-pack/directories.csv";
+
+  it("allows a write that names the detected environment, from a file outside the repo", () => {
+    expect(seedWriteProblem({ target: "production", detected: "production", file: outside, repoRoot })).toBeNull();
+  });
+
+  it.each([
+    ["no --env", { target: undefined, detected: "production", file: outside }, /--env production\|preview\|development/],
+    ["an unknown --env", { target: "prod", detected: "production", file: outside }, /--env production\|preview\|development/],
+    ["an --env that isn't the detected one", { target: "production", detected: "development", file: outside }, /doesn't match this environment \(development/],
+    ["a file inside the repo", { target: "development", detected: "development", file: "tests/fixtures/directory-pack/directories.csv" }, /inside the repo/],
+    ["a repo file given by absolute path", { target: "development", detected: "development", file: path.join(process.cwd(), "data/directory-pack/directories.csv") }, /inside the repo/],
+  ])("refuses %s", (_label, args, problem) => {
+    expect(seedWriteProblem({ ...args, repoRoot })).toMatch(problem);
   });
 });
