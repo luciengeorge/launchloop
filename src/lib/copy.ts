@@ -2,6 +2,7 @@ import "server-only";
 import { LIMITS, charLength, containsVoteBegging, fitToLimit, stripVoteBegging } from "./limits";
 import { LlmError, NO_DASHES_RULE, OUTPUT_TOKENS, generateStructured } from "./llm";
 import { z } from "zod";
+import type { Directory } from "./directory-csv";
 import { kitContentSchema, previewSchema, type Brief, type KitContent, type KitSection, type Preview } from "./schema";
 import { checkTagline, taglineProblems } from "./tagline-check";
 import { xLength } from "./x-length";
@@ -352,6 +353,70 @@ export async function generateTaglines(brief: Brief): Promise<{ taglines: string
   const taglines = pickTaglines(value.taglines, brief, []);
   if (!taglines.length) throw new LlmError("No usable tagline came back");
   return { taglines, provider };
+}
+
+export interface ListingCopy {
+  tagline: string;
+  description: string;
+}
+
+export interface ListingLimits {
+  tagline: number;
+  description: number;
+}
+
+/** A directory's own limits, or Product Hunt's when the row leaves them blank. */
+export const listingLimits = (row: Pick<Directory, "tagline_max" | "description_max">): ListingLimits => ({
+  tagline: row.tagline_max ?? LIMITS.phTagline,
+  description: row.description_max ?? LIMITS.phDescription,
+});
+
+const limitsKey = (l: ListingLimits) => `${l.tagline}x${l.description}`;
+
+export const fitListing = (copy: ListingCopy, limits: ListingLimits): ListingCopy => ({
+  tagline: fitToLimit(cleanTagline(copy.tagline), limits.tagline),
+  description: fitToLimit(stripVoteBegging(copy.description), limits.description),
+});
+
+/** A row's copy, fitted to its limits. A row whose limits weren't generated (the CSV changed since) is cut from the first listing. */
+export function listingFor(listings: Record<string, ListingCopy>, row: Pick<Directory, "tagline_max" | "description_max">): ListingCopy {
+  const limits = listingLimits(row);
+  return fitListing(listings[limitsKey(limits)] ?? Object.values(listings)[0], limits);
+}
+
+function mockListing(brief: Brief, limits: ListingLimits): ListingCopy {
+  const facts = [sentence(brief.oneLiner), ...brief.features.slice(0, 3).map((f) => sentence(firstClause(f))), ...(brief.audience ? [`Built for ${brief.audience}.`] : [])];
+  return { tagline: trimToPhrase(firstClause(brief.oneLiner), limits.tagline), description: fitToLimit(facts.join(" "), limits.description) };
+}
+
+const listingsSchema = z.object({ listings: z.array(z.object({ tagline: z.string(), description: z.string() })) });
+
+function listingsRubric(v: z.infer<typeof listingsSchema>, limits: ListingLimits[]): string[] {
+  const problems: string[] = [];
+  if (v.listings.length !== limits.length) problems.push(`listings has ${v.listings.length} items; it must have exactly ${limits.length}.`);
+  v.listings.forEach((l, i) => {
+    if (!limits[i]) return;
+    checkText(`listings[${i}].tagline`, l.tagline, limits[i].tagline, problems);
+    checkText(`listings[${i}].description`, l.description, limits[i].description, problems);
+  });
+  return problems;
+}
+
+/** Directory listing copy, one tagline and description per distinct pair of limits, keyed for listingFor. */
+export async function generateListingCopy(brief: Brief, limits: ListingLimits[]): Promise<{ listings: Record<string, ListingCopy>; provider: string }> {
+  const pairs = [...new Map(limits.map((l) => [limitsKey(l), l])).values()];
+  const { value, provider } = await generateStructured({
+    schema: listingsSchema,
+    system: SYSTEM,
+    speed: "fast",
+    stage: "kit",
+    user: `Product brief:\n${briefJson(brief)}\n\nWrite startup directory listings as JSON { "listings": [exactly ${pairs.length} × { "tagline", "description" }] }, one for each pair of limits below, in this order. Tagline: what it does and for whom, no product name, no trailing period. Description: third person, present tense, facts from the brief only, no links.\n${pairs.map((l, i) => `${i + 1}. tagline max ${l.tagline} characters, description max ${l.description} characters`).join("\n")}`,
+    mock: () => ({ listings: pairs.map((l) => mockListing(brief, l)) }),
+    rubric: (v) => listingsRubric(v, pairs),
+    maxOutputTokens: 300 + 150 * pairs.length,
+  });
+  if (!value.listings.length) throw new LlmError("No directory listings came back");
+  return { listings: Object.fromEntries(pairs.map((l, i) => [limitsKey(l), fitListing(value.listings[i] ?? value.listings[0], l)])), provider };
 }
 
 const SECTION_PREFIX: Record<KitSection, string> = { landing: "landing.", productHunt: "productHunt.", xThread: "xThread", linkedin: "linkedin" };

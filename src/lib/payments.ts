@@ -7,7 +7,7 @@ import { env, isStripeMock } from "./env";
 import { withAnalyticsId, type ExperimentKey, type Experiments } from "./experiments";
 import { captureException, captureMessage } from "./observability";
 import { assertOneTimePrice, launchPromoDue, sessionParams, type SessionInput } from "./checkout-session";
-import { LAUNCH_PROMO, chargedPence, isProductId, type ProductId } from "./products";
+import { LAUNCH_PROMO, PRODUCTS, chargedPence, isProductId, type ProductId } from "./products";
 
 let client: Stripe | null = null;
 export function stripe(): Stripe | null {
@@ -16,14 +16,18 @@ export function stripe(): Stripe | null {
   return client;
 }
 
-const priceIds: Record<ProductId, string | undefined> = {
+const priceIds = (): Record<ProductId, string | undefined> => ({
   kit: env.stripePriceKit,
-};
+  directoryPack: env.stripeDirectoryPackPriceId,
+});
+
+/** What the pack's pages may show: its price and a Buy button only once STRIPE_DIRECTORY_PACK_PRICE_ID is set, else null (Coming soon). */
+export const directoryPackOffer = (): { priceLabel: string } | null => (env.stripeDirectoryPackPriceId ? { priceLabel: PRODUCTS.directoryPack.priceLabel } : null);
 
 /** What Checkout charges, for analytics. "inline" means no STRIPE_PRICE_* is set. */
 export function checkoutPrice(product: ProductId, promo = false) {
   return {
-    price_id: priceIds[product] ?? "inline",
+    price_id: priceIds()[product] ?? "inline",
     amount: chargedPence(product, promo),
     currency: "gbp",
     ...(promo ? { promo_code: LAUNCH_PROMO.code } : {}),
@@ -34,6 +38,8 @@ export interface CheckoutRequest {
   product: ProductId;
   origin: string;
   kitId?: string;
+  /** The Directory Launch Pack's unlock id, made at checkout. The pack is only stored once it's paid for. */
+  packId?: string;
   email?: string;
   /** The account's existing Stripe customer (from ensureStripeCustomer). Otherwise Checkout creates one for `email` or whatever the buyer enters. */
   customer?: string;
@@ -66,7 +72,7 @@ export class CheckoutUnavailableError extends Error {
 
 /** Returns where to send the buyer: Stripe Checkout, or the local mock checkout in test mode. Throws CheckoutUnavailableError in production without Stripe. */
 export async function createCheckoutUrl(params: CheckoutRequest): Promise<CheckoutResult> {
-  const { product, origin, kitId, email, customer, analyticsId, isLoggedIn, experiments, fallbacks, attribution } = params;
+  const { product, origin, kitId, packId, email, customer, analyticsId, isLoggedIn, experiments, fallbacks, attribution } = params;
   // experiments[exp_launch14_promo] is the server's resolution for the kit (resolveKitPromo in /api/checkout).
   const promo = launchPromoDue(product, experiments);
   const s = stripe();
@@ -76,6 +82,7 @@ export async function createCheckoutUrl(params: CheckoutRequest): Promise<Checko
       product,
       aid: analyticsId,
       ...(kitId ? { kitId } : {}),
+      ...(packId ? { packId } : {}),
       ...(email ? { email } : {}),
       ...(promo ? { promo: LAUNCH_PROMO.code } : {}),
     });
@@ -92,11 +99,12 @@ export async function createCheckoutUrl(params: CheckoutRequest): Promise<Checko
     ...experiments,
     ...(fallbacks.length ? { fallbacks: fallbacks.join(",") } : {}),
     ...(kitId ? { kitId, ...attributionMetadata(attribution) } : {}),
+    ...(packId ? { packId } : {}),
   };
-  const cancelPath = kitId ? `/kit/${kitId}?checkout=cancelled` : "/ship-loop?checkout=cancelled";
+  const cancelPath = kitId ? `/kit/${kitId}?checkout=cancelled` : "/directory-pack?checkout=cancelled";
   const input: SessionInput = {
     product,
-    priceId: priceIds[product],
+    priceId: priceIds()[product],
     metadata,
     customer,
     email,
@@ -132,7 +140,7 @@ const CHECKOUT_REUSE_MS = 10 * 60 * 1000;
  * "keys can only be used with the same parameters" error.
  */
 export function checkoutIdempotencyKey(params: Stripe.Checkout.SessionCreateParams, now = Date.now()): string {
-  const target = params.metadata?.kitId ?? params.metadata?.product ?? "";
+  const target = params.metadata?.kitId ?? params.metadata?.packId ?? params.metadata?.product ?? "";
   const buyer = params.customer ?? params.customer_email ?? "guest";
   const promo = params.discounts?.length ? "promo" : "full";
   const bucket = Math.floor(now / CHECKOUT_REUSE_MS);

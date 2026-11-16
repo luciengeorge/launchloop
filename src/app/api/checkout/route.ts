@@ -5,13 +5,14 @@ import { getSession } from "@/lib/auth";
 import { ensureStripeCustomer } from "@/lib/billing";
 import { isStripeMock } from "@/lib/env";
 import { after } from "next/server";
-import { CHECKOUT_UNAVAILABLE_MESSAGE, checkoutRejection } from "@/lib/checkout-session";
+import { CHECKOUT_UNAVAILABLE_MESSAGE, DIRECTORY_PACK_NOT_ON_SALE, checkoutRejection } from "@/lib/checkout-session";
+import { newPackId } from "@/lib/directory-pack";
 import { EXPERIMENTS, featureProperties, parseExperiments, parseFallbacks } from "@/lib/experiments";
 import { generateDraft } from "@/lib/generation";
 import { resolveKitPromo } from "@/lib/kit-promo";
 import { getKit } from "@/lib/kits";
 import { captureException, captureMessage } from "@/lib/observability";
-import { CheckoutUnavailableError, checkoutPrice, createCheckoutUrl } from "@/lib/payments";
+import { CheckoutUnavailableError, checkoutPrice, createCheckoutUrl, directoryPackOffer } from "@/lib/payments";
 import { clientIp, sharedRateLimit } from "@/lib/rate-limit";
 
 /** Signed-out kit checkouts create live Stripe sessions without a login, so they're capped per IP. */
@@ -29,6 +30,7 @@ export async function POST(req: Request) {
     const limit = await sharedRateLimit(`checkout:${clientIp(req)}`, [{ limit: GUEST_CHECKOUTS_PER_HOUR, seconds: 60 * 60 }]);
     if (!limit.ok) return Response.json({ error: "Too many checkout attempts. Try again in a few minutes.", code: "rate_limited" }, { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } });
   }
+  if (body.product === "directoryPack") return startPackCheckout(req, session?.email, email, body.analyticsId);
   const kit = typeof body.kitId === "string" ? await getKit(body.kitId) : null;
   if (!kit) return Response.json({ error: "That kit doesn't exist any more. Generate a new preview." }, { status: 404 });
   if (kit.paid) return Response.json({ url: session ? `/account/kits/${kit.id}` : `/kit/${kit.id}` });
@@ -93,6 +95,29 @@ export async function POST(req: Request) {
     return Response.json({ url, promo });
   } catch (error) {
     captureException(error, { stage: "api.checkout", product, kitId });
+    if (error instanceof CheckoutUnavailableError) return Response.json({ error: CHECKOUT_UNAVAILABLE_MESSAGE, code: "checkout_unavailable" }, { status: 503 });
+    return Response.json({ error: "Couldn't start checkout. Please try again." }, { status: 502 });
+  }
+}
+
+/** The pack's Checkout: no kit, promo or experiments. Refused until its price is set, so nothing can buy it before then. */
+async function startPackCheckout(req: Request, accountEmail: string | undefined, email: string | undefined, rawAnalyticsId: unknown) {
+  const product = "directoryPack" as const;
+  if (!directoryPackOffer()) return Response.json({ error: DIRECTORY_PACK_NOT_ON_SALE, code: "not_on_sale" }, { status: 503 });
+  const analyticsId = resolveDistinctId(rawAnalyticsId);
+  const isLoggedIn = !!accountEmail;
+  try {
+    const customer = accountEmail && !isStripeMock() ? await ensureStripeCustomer(accountEmail) : undefined;
+    const { url, promo } = await createCheckoutUrl({ product, origin: new URL(req.url).origin, packId: newPackId(), email, customer, analyticsId, isLoggedIn, experiments: {}, fallbacks: [] });
+    after(() =>
+      captureServerEvent("checkout_started", {
+        distinctId: analyticsId,
+        properties: { plan: product, ...checkoutPrice(product), ...featureProperties({}, []), isLoggedIn, mock: isStripeMock() },
+      }),
+    );
+    return Response.json({ url, promo });
+  } catch (error) {
+    captureException(error, { stage: "api.checkout", product });
     if (error instanceof CheckoutUnavailableError) return Response.json({ error: CHECKOUT_UNAVAILABLE_MESSAGE, code: "checkout_unavailable" }, { status: 503 });
     return Response.json({ error: "Couldn't start checkout. Please try again." }, { status: 502 });
   }

@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { singleFlight } from "@/lib/request-guards";
 import { SITE } from "@/lib/site";
 import { useQueryParam } from "@/lib/use-query-param";
-import { WAITLIST_ERROR_MESSAGES, type WaitlistErrorReason, type WaitlistSource } from "@/lib/waitlist";
+import { WAITLIST_ERROR_MESSAGES, WAITLIST_FOR, type WaitlistErrorReason, type WaitlistSource } from "@/lib/waitlist";
 import { joinWaitlist, waitlistViewTracker } from "@/lib/waitlist-client";
 
 type State = "idle" | "loading" | "joined" | "duplicate";
@@ -16,16 +16,17 @@ interface Failure {
   message: string;
 }
 
-const FALLBACK_MAILTO = `mailto:${SITE.email}?subject=${encodeURIComponent("Ship Loop waitlist")}`;
-
 /**
- * Ship Loop waitlist email capture, tagged shiploop_waitlist by /api/waitlist. Free: no price and no checkout.
+ * Waitlist email capture for Ship Loop or the Directory Launch Pack, as `source` says (WAITLIST_FOR); /api/waitlist tags it
+ * for that list. Free: no price and no checkout.
  * Records waitlist_cta_viewed once it's on screen, then waitlist_signup or waitlist_error from the server's answer.
  * `kitId` ties the events to the kit whose page shows it.
  */
 export function WaitlistForm({ source, kitId, className = "" }: { source: WaitlistSource; kitId?: string; className?: string }) {
   const [state, setState] = useState<State>("idle");
   const [failure, setFailure] = useState<Failure | null>(null);
+  const { label, name } = WAITLIST_FOR[source];
+  const fallbackMailto = `mailto:${SITE.email}?subject=${encodeURIComponent(`${label} waitlist`)}`;
   const inputId = useId();
   const errorId = useId();
   const root = useRef<HTMLDivElement>(null);
@@ -80,10 +81,10 @@ export function WaitlistForm({ source, kitId, className = "" }: { source: Waitli
     <div ref={root} className={className}>
       {shown === "joined" || shown === "duplicate" ? (
         <p ref={status} tabIndex={-1} className="rounded-lg bg-primary/10 px-4 py-3 text-sm font-medium outline-none" role="status" data-testid="waitlist-status" data-state={shown}>
-          {shown === "joined" ? "You're on the waitlist." : "You're already on the waitlist."} We&apos;ll email you when Ship Loop launches.
+          {shown === "joined" ? "You're on the waitlist." : "You're already on the waitlist."} We&apos;ll email you when {name} launches.
         </p>
       ) : (
-        <form ref={form} onSubmit={onSubmit} method="post" action="/api/waitlist" className="space-y-2" aria-label="Join the Ship Loop waitlist" data-testid="waitlist-form">
+        <form ref={form} onSubmit={onSubmit} method="post" action="/api/waitlist" className="space-y-2" aria-label={`Join the ${label} waitlist`} data-testid="waitlist-form">
           <input type="hidden" name="source" value={source} />
           <label htmlFor={inputId} className="sr-only">
             Email
@@ -115,7 +116,7 @@ export function WaitlistForm({ source, kitId, className = "" }: { source: Waitli
                 <Button type="button" variant="outline" className="h-11 px-4" onClick={retry}>
                   {fixEmail ? "Edit your email" : "Try again"}
                 </Button>
-                <a href={FALLBACK_MAILTO} className="inline-flex min-h-11 items-center text-sm font-medium text-foreground underline underline-offset-4 hover:decoration-2">
+                <a href={fallbackMailto} className="inline-flex min-h-11 items-center text-sm font-medium text-foreground underline underline-offset-4 hover:decoration-2">
                   Or email {SITE.email}
                 </a>
               </div>

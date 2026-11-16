@@ -12,7 +12,7 @@ const m = vi.hoisted(() => {
     createSession: vi.fn<(params: Record<string, unknown>) => Promise<{ id: string; url: string }>>(async () => ({ id: "cs_test_pack", url: "https://checkout.stripe.com/c/pay/cs_test_pack" })),
     retrievePrice: vi.fn(async (id: string) => ({ id, type: "one_time" })),
     retrieveSession: vi.fn<(id: string) => Promise<Record<string, unknown>>>(),
-    sendEmail: vi.fn(async () => ({ id: "mock", mock: true })),
+    sendEmail: vi.fn<(email: { to: string; text: string }) => Promise<{ id: string; mock: boolean }>>(async () => ({ id: "mock", mock: true })),
     captureServerEvent: vi.fn(async () => {}),
   };
 });
@@ -46,6 +46,7 @@ vi.mock("@/lib/store", async () => {
 });
 vi.mock("@/lib/analytics-server", () => ({ captureServerEvent: m.captureServerEvent, eventUuid: (seed: string) => `uuid:${seed}`, resolveDistinctId: () => "ph_1" }));
 vi.mock("@/lib/email", async (importOriginal) => ({ ...(await importOriginal<object>()), sendEmail: m.sendEmail }));
+vi.mock("@/lib/zip", () => ({ buildKitZip: vi.fn(), zipFileName: vi.fn() }));
 vi.mock("@/lib/observability", async (importOriginal) => ({ ...(await importOriginal<object>()), captureException: vi.fn(), captureMessage: vi.fn() }));
 
 const { POST: checkout } = await import("@/app/api/checkout/route");

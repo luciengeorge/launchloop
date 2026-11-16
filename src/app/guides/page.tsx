@@ -16,7 +16,10 @@ export default async function GuidesPage() {
       crumb="Guides"
       heading="Launch guides"
       intro="Step-by-step guides for getting an app in front of people: what to prepare, the limits each platform enforces, and the rules that get launches penalised."
-      items={guides.map((g) => ({ path: guidePath(g), title: g.title, description: g.description, updated: g.updated }))}
+      items={[
+        ...guides.map((g) => ({ path: guidePath(g), title: g.title, description: g.description, updated: g.updated })),
+        { path: PAGES.freeDirectories.path, title: "20 free startup directories", description: PAGES.freeDirectories.description, updated: PAGES.freeDirectories.updated },
+      ]}
       related={{
         heading: "Free tools",
         hubPath: PAGES.tools.path,

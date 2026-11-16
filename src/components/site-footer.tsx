@@ -60,6 +60,7 @@ export async function SiteFooter() {
             {GUIDES.map((g) => (
               <li key={g.slug}><Link href={guidePath(g)} className="hover:text-foreground">{g.title}</Link></li>
             ))}
+            <li><Link href={PAGES.freeDirectories.path} className="hover:text-foreground">Free startup directories</Link></li>
             <li><Link href={PAGES.tools.path} className="hover:text-foreground">All free tools</Link></li>
             <li><Link href={PAGES.guides.path} className="hover:text-foreground">All guides</Link></li>
             <li><Link href={PAGES.blog.path} className="hover:text-foreground">Blog</Link></li>

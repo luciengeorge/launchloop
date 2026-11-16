@@ -4,6 +4,7 @@ import { launchChecklist } from "./copy";
 import { assemble, generateDraft, getDraft } from "./generation";
 import { kitFailedEmail, kitReadyEmail, sendEmail } from "./email";
 import { assignPaidKit, type KitOwnership } from "./accounts";
+import { recordPackPayment } from "./directory-pack";
 import { testProperties } from "./attribution";
 import { getStoredBillingCustomer, recordBillingCustomer } from "./billing";
 import { getKit, normaliseEmail, updateKit } from "./kits";
@@ -30,6 +31,8 @@ export interface PaidOrder {
   product: ProductId;
   ref: string;
   kitId?: string;
+  /** The Directory Launch Pack's unlock id. */
+  packId?: string;
   email?: string;
   /** Stripe customer id, when Checkout created one. */
   customerId?: string;
@@ -41,8 +44,22 @@ export interface RecordedPayment {
   ownership: KitOwnership;
 }
 
-/** Records a paid kit (the only thing Checkout sells). Fast and idempotent; heavy work happens in `fulfilKit`. */
+/** Records a paid kit or Directory Launch Pack. Fast and idempotent; heavy work happens in `fulfilKit` / `fulfilPack`. */
 export async function recordPayment(order: PaidOrder): Promise<RecordedPayment> {
+  switch (order.product) {
+    case "kit":
+      return recordKitPayment(order);
+    case "directoryPack":
+      await recordPackPayment(order);
+      return { ownership: "none" };
+    default: {
+      const unhandled: never = order.product;
+      throw new Error(`Unhandled product ${String(unhandled)}`);
+    }
+  }
+}
+
+async function recordKitPayment(order: PaidOrder): Promise<RecordedPayment> {
   if (!order.kitId) throw new Error(`Kit payment ${order.ref} has no kitId`);
   // If the speculative draft is done, unlock in the same write so the kit is visible on the redirect.
   const ready = assemble((await getDraft(order.kitId)).sections);

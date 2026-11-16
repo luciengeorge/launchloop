@@ -5,6 +5,7 @@ import { MockCheckoutForm } from "@/components/mock-checkout-form";
 import { Skeleton } from "@/components/ui/skeleton";
 import { deployEnv } from "@/lib/deploy-env";
 import { isStripeMock } from "@/lib/env";
+import { isValidKitId } from "@/lib/kit-exists";
 import { getKit } from "@/lib/kits";
 import { LAUNCH_PROMO, PRODUCTS, chargedPence, isProductId } from "@/lib/products";
 
@@ -33,7 +34,8 @@ async function MockCheckout({ searchParams }: Pick<PageProps<"/checkout/mock">, 
 
   const kitId = typeof query.kitId === "string" ? query.kitId : undefined;
   const kit = product === "kit" && kitId ? await getKit(kitId) : null;
-  if (product === "kit" && !kit) notFound();
+  const packId = product === "directoryPack" && typeof query.packId === "string" && isValidKitId(query.packId) ? query.packId : undefined;
+  if (product === "kit" ? !kit : !packId) notFound();
   const item = PRODUCTS[product];
   const promo = product === "kit" && query.promo === LAUNCH_PROMO.code;
   const charged = `£${chargedPence(product, promo) / 100}`;
@@ -58,6 +60,7 @@ async function MockCheckout({ searchParams }: Pick<PageProps<"/checkout/mock">, 
       <MockCheckoutForm
         product={product}
         kitId={kit?.id}
+        packId={packId}
         priceLabel={charged}
         promo={promo ? LAUNCH_PROMO.code : undefined}
         defaultEmail={typeof query.email === "string" ? query.email : undefined}

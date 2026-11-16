@@ -12,6 +12,8 @@ export const env = {
   stripeSecretKey: forceMock ? undefined : read("STRIPE_SECRET_KEY"),
   stripeWebhookSecret: read("STRIPE_WEBHOOK_SECRET"),
   stripePriceKit: read("STRIPE_PRICE_KIT"),
+  /** One-time Price for the Directory Launch Pack. Unset: the pack is "Coming soon" with a waitlist, and checkout refuses it. */
+  stripeDirectoryPackPriceId: read("STRIPE_DIRECTORY_PACK_PRICE_ID"),
   /** Promotion code id (promo_…) for LAUNCH14. Optional: without it Checkout looks the code up by name. */
   stripePromoLaunch14: read("STRIPE_PROMO_LAUNCH14"),
 

@@ -2,6 +2,7 @@ import "server-only";
 import { Resend } from "resend";
 import { deploymentUrl, env, isEmailMock } from "./env";
 import { render } from "@react-email/render";
+import { DirectoryPackReadyEmail } from "../emails/directory-pack-ready";
 import { KitFailedEmail } from "../emails/kit-failed";
 import { KitReadyEmail } from "../emails/kit-ready";
 import { LOGO_CID, LOGO_PNG_BASE64 } from "../emails/logo-data";
@@ -10,6 +11,7 @@ import { NewsletterCalendarWelcomeEmail, NewsletterWelcomeEmail } from "../email
 import { LEAD_MAGNETS, welcomeLink } from "./newsletter";
 import { isNewsletterCalendarOn } from "./newsletter-flag-server";
 import { formatPaidAmount } from "./money";
+import type { DirectoryPack } from "./directory-pack";
 import type { Kit } from "./schema";
 import { store } from "./store";
 
@@ -142,5 +144,15 @@ export async function kitFailedEmail(params: { to: string; kit: Kit }): Promise<
     ...(await renderEmail(
       <KitFailedEmail productName={kit.brief.name} accountUrl={`${deploymentUrl()}/account/kits/${kit.id}`} amountPaid={formatPaidAmount(kit.paidAmount)} receiptRef={kit.paymentRef} />,
     )),
+  };
+}
+
+export async function directoryPackReadyEmail(params: { to: string; pack: DirectoryPack }): Promise<OutgoingEmail> {
+  const { pack } = params;
+  const packUrl = `${deploymentUrl()}/directory-pack/access/${pack.id}`;
+  return {
+    to: params.to,
+    subject: "Payment received: your Directory Launch Pack",
+    ...(await renderEmail(<DirectoryPackReadyEmail packUrl={packUrl} amountPaid={formatPaidAmount(pack.paidAmount)} receiptRef={pack.paymentRef} />)),
   };
 }

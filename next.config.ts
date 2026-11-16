@@ -12,7 +12,12 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   // Kit images are rendered from API routes, server actions and pages (via the ZIP); all need the fonts.
-  outputFileTracingIncludes: { "/*": ["./assets/fonts/*.ttf"] },
+  // The directory database is read with fs at request time by the pack's pages and API.
+  outputFileTracingIncludes: {
+    "/*": ["./assets/fonts/*.ttf"],
+    "/directory-pack/**": ["./data/directory-pack/*.csv"],
+    "/api/directory-pack/**": ["./data/directory-pack/*.csv"],
+  },
   redirects() {
     return [
       { source: "/product-hunt-tagline-checker", destination: "/tools/product-hunt-tagline-checker", permanent: true },

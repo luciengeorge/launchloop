@@ -5,6 +5,7 @@ import { attributionProperties, testProperties } from "@/lib/attribution";
 import { env } from "@/lib/env";
 import { featureProperties, parseExperiments, parseFallbacks } from "@/lib/experiments";
 import type { KitOwnership } from "@/lib/accounts";
+import { fulfilPack } from "@/lib/directory-pack";
 import { fulfilKit, recordPayment, type RecordedPayment } from "@/lib/fulfil";
 import { captureException, captureExceptionThrottled, logEvent } from "@/lib/observability";
 import { deployEnv, stripeEventDecision } from "@/lib/deploy-env";
@@ -60,6 +61,7 @@ export async function POST(req: Request) {
 
   const product = session.metadata?.product;
   const kitId = session.metadata?.kitId;
+  const packId = session.metadata?.packId;
   if (!isPaidSession(session)) {
     // An async payment method (bank debit) settles later as checkout.session.async_payment_succeeded.
     await markHandled(event.id);
@@ -78,13 +80,14 @@ export async function POST(req: Request) {
     recorded = await recordPayment({
       product,
       kitId,
+      packId,
       email: session.customer_details?.email ?? session.customer_email ?? undefined,
       ref: session.id,
       customerId: typeof session.customer === "string" ? session.customer : session.customer?.id,
       paidAmount: sessionPaidAmount(session),
     });
   } catch (error) {
-    captureException(error, { stage: "stripe.webhook.record", sessionId: session.id, eventId: event.id, product, kitId });
+    captureException(error, { stage: "stripe.webhook.record", sessionId: session.id, eventId: event.id, product, kitId, packId });
     after(() => trackFailure(event.id, session, product, "record", error));
     log("record_failed");
     // Not marked as handled, and non-2xx, so Stripe delivers it again. Recording is idempotent.
@@ -102,6 +105,7 @@ export async function POST(req: Request) {
       }),
     );
   }
+  if (product === "directoryPack" && packId) after(() => fulfilPack(packId));
   after(() => trackCompleted(s, session, product));
   log("fulfilled", recorded.ownership);
   return Response.json({ received: true });
