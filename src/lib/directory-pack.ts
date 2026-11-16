@@ -77,7 +77,7 @@ const briefFor = (p: ListingProduct): Brief => ({ name: p.name, oneLiner: p.oneL
 
 /** The kit's copy generator, run once over every directory's limits. */
 export async function writeListings(pack: DirectoryPack, product: ListingProduct): Promise<DirectoryPack> {
-  const { listings } = await generateListingCopy(briefFor(product), allDirectories().map(listingLimits));
+  const { listings } = await generateListingCopy(briefFor(product), (await allDirectories()).map(listingLimits));
   const next = { ...pack, product, listings };
   await store().set(packKey(pack.id), next);
   return next;

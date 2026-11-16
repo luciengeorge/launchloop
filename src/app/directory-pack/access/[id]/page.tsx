@@ -40,7 +40,7 @@ async function PackView({ params }: Pick<PageProps<"/directory-pack/access/[id]"
       </div>
     );
   }
-  const rows = allDirectories();
+  const rows = await allDirectories();
   return (
     <div className="space-y-10">
       <header className="space-y-3">
@@ -85,6 +85,7 @@ function DirectoryCard({ row, pack }: { row: Directory; pack: DirectoryPack }) {
     ["Approval time", shown(row.approval_time)],
     ["Last verified", shown(row.last_verified)],
     ["Our submission", shown(row.our_submission)],
+    ...(row.our_submission_detail ? ([["Submission detail", row.our_submission_detail]] as [string, string][]) : []),
     ["Tagline max", shown(row.tagline_max)],
     ["Description max", shown(row.description_max)],
     ["UTM source", row.utm_source],

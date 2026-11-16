@@ -2,8 +2,9 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { keyPrefix, kvMissingInProduction } from "./deploy-env";
-import { env } from "./env";
+// Explicit extensions so scripts/seed-directory-pack.ts can import this under plain Node.
+import { keyPrefix, kvMissingInProduction } from "./deploy-env.ts";
+import { env } from "./env.ts";
 
 /**
  * Minimal key-value store. Uses Upstash Redis / Vercel KV over REST when
@@ -24,7 +25,15 @@ export interface KeyValueStore {
   sAdd(key: string, member: string): Promise<void>;
   sRem(key: string, member: string): Promise<void>;
   sMembers(key: string): Promise<string[]>;
+  /** Sorted set members, lowest score first. */
+  zRange(key: string): Promise<string[]>;
+  /** HGETALL for each key in one round trip; null where there's no hash. */
+  hGetAllMany(keys: string[]): Promise<(Record<string, string> | null)[]>;
+  /** Applies every write or none (MULTI/EXEC on Redis). */
+  transaction(writes: StoreWrite[]): Promise<void>;
 }
+
+export type StoreWrite = { op: "del"; key: string } | { op: "hset"; key: string; fields: Record<string, string> } | { op: "zadd"; key: string; score: number; member: string };
 
 class FileStore implements KeyValueStore {
   constructor(private dir: string) {}
@@ -133,6 +142,25 @@ class FileStore implements KeyValueStore {
   async sMembers(key: string): Promise<string[]> {
     return (await this.get<string[]>(key)) ?? [];
   }
+
+  async zRange(key: string): Promise<string[]> {
+    const entries = (await this.get<[number, string][]>(key)) ?? [];
+    return [...entries].sort((a, b) => a[0] - b[0]).map(([, member]) => member);
+  }
+
+  hGetAllMany(keys: string[]): Promise<(Record<string, string> | null)[]> {
+    return Promise.all(keys.map((key) => this.get<Record<string, string>>(key)));
+  }
+
+  transaction(writes: StoreWrite[]): Promise<void> {
+    return this.serial(async () => {
+      for (const w of writes) {
+        if (w.op === "del") await fs.rm(this.file(w.key), { force: true });
+        else if (w.op === "hset") await this.set(w.key, { ...(await this.get<Record<string, string>>(w.key)), ...w.fields });
+        else await this.set(w.key, [...((await this.get<[number, string][]>(w.key)) ?? []).filter(([, m]) => m !== w.member), [w.score, w.member]]);
+      }
+    });
+  }
 }
 
 class RedisRestStore implements KeyValueStore {
@@ -197,6 +225,39 @@ class RedisRestStore implements KeyValueStore {
   async sMembers(key: string): Promise<string[]> {
     return (await this.command<string[] | null>(["SMEMBERS", key])) ?? [];
   }
+
+  /** Upstash's /pipeline (one round trip) or /multi-exec (one round trip, atomic). */
+  private async batch<R>(endpoint: "pipeline" | "multi-exec", commands: (string | number)[][]): Promise<R[]> {
+    const res = await fetch(`${this.url.replace(/\/$/, "")}/${endpoint}`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${this.token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(commands),
+      cache: "no-store",
+    });
+    if (!res.ok) throw new Error(`KV ${endpoint} failed with ${res.status}`);
+    const body = (await res.json()) as { result: R; error?: string }[];
+    const failed = body.find((r) => r.error);
+    if (failed) throw new Error(`KV error: ${failed.error}`);
+    return body.map((r) => r.result);
+  }
+
+  async zRange(key: string): Promise<string[]> {
+    return (await this.command<string[] | null>(["ZRANGE", key, 0, -1])) ?? [];
+  }
+
+  async hGetAllMany(keys: string[]): Promise<(Record<string, string> | null)[]> {
+    if (!keys.length) return [];
+    const results = await this.batch<string[]>("pipeline", keys.map((key) => ["HGETALL", key]));
+    return results.map((flat) => (flat?.length ? Object.fromEntries(Array.from({ length: flat.length / 2 }, (_, i) => [flat[2 * i], flat[2 * i + 1]])) : null));
+  }
+
+  async transaction(writes: StoreWrite[]): Promise<void> {
+    if (!writes.length) return;
+    await this.batch(
+      "multi-exec",
+      writes.map((w) => (w.op === "del" ? ["DEL", w.key] : w.op === "hset" ? ["HSET", w.key, ...Object.entries(w.fields).flat()] : ["ZADD", w.key, w.score, w.member])),
+    );
+  }
 }
 
 /** Namespaces every key by deployment env so previews and dev never touch production data. */
@@ -234,6 +295,15 @@ class PrefixedStore implements KeyValueStore {
   }
   sMembers(key: string) {
     return this.inner.sMembers(this.k(key));
+  }
+  zRange(key: string) {
+    return this.inner.zRange(this.k(key));
+  }
+  hGetAllMany(keys: string[]) {
+    return this.inner.hGetAllMany(keys.map((key) => this.k(key)));
+  }
+  transaction(writes: StoreWrite[]) {
+    return this.inner.transaction(writes.map((w) => ({ ...w, key: this.k(w.key) })));
   }
 }
 

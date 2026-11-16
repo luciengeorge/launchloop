@@ -1,4 +1,4 @@
-import type { KeyValueStore } from "@/lib/store";
+import type { KeyValueStore, StoreWrite } from "@/lib/store";
 
 /** In-memory KeyValueStore with TTLs on the (fakeable) clock. `failing` makes every call reject, like Upstash being down. */
 export class MemoryStore implements KeyValueStore {
@@ -71,5 +71,27 @@ export class MemoryStore implements KeyValueStore {
 
   async sMembers(key: string): Promise<string[]> {
     return (await this.get<string[]>(key)) ?? [];
+  }
+
+  async zRange(key: string): Promise<string[]> {
+    const entries = (await this.get<[number, string][]>(key)) ?? [];
+    return [...entries].sort((a, b) => a[0] - b[0]).map(([, member]) => member);
+  }
+
+  async hGetAllMany(keys: string[]): Promise<(Record<string, string> | null)[]> {
+    this.check();
+    return keys.map((key) => (this.read(key)?.value as Record<string, string>) ?? null);
+  }
+
+  /** All or nothing, like MULTI/EXEC: the writes apply to a copy that replaces the data only when every one succeeded. */
+  async transaction(writes: StoreWrite[]): Promise<void> {
+    this.check();
+    const next = new Map(this.data);
+    for (const w of writes) {
+      if (w.op === "del") next.delete(w.key);
+      else if (w.op === "hset") next.set(w.key, { value: { ...(next.get(w.key)?.value as Record<string, string>), ...w.fields } });
+      else next.set(w.key, { value: [...((next.get(w.key)?.value as [number, string][]) ?? []).filter(([, m]) => m !== w.member), [w.score, w.member]] });
+    }
+    this.data = next;
   }
 }

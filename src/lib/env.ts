@@ -15,10 +15,11 @@ export const env = {
   /** One-time Price for the Directory Launch Pack. Unset: the pack is "Coming soon" with a waitlist, and checkout refuses it. */
   stripeDirectoryPackPriceId: read("STRIPE_DIRECTORY_PACK_PRICE_ID"),
   /**
-   * Tests only: e2e points the directory loader at a fixture with rows past the free 20. Ignored on Vercel production, and
-   * on any production build unless MOCK_MODE=true: `next start` sets NODE_ENV=production, and only the e2e builds force mock mode.
+   * Tests only: e2e points the directory loader at a fixture with rows past the free 20. Ignored on any Vercel deployment
+   * (VERCEL_ENV set at all), and on any production build unless MOCK_MODE=true: `next start` sets NODE_ENV=production, and
+   * only the e2e builds force mock mode.
    */
-  directoryPackCsv: read("VERCEL_ENV") === "production" || (read("NODE_ENV") === "production" && !forceMock) ? undefined : read("TEST_DIRECTORY_PACK_CSV"),
+  directoryPackCsv: read("VERCEL_ENV") || (read("NODE_ENV") === "production" && !forceMock) ? undefined : read("TEST_DIRECTORY_PACK_CSV"),
   /** Promotion code id (promo_…) for LAUNCH14. Optional: without it Checkout looks the code up by name. */
   stripePromoLaunch14: read("STRIPE_PROMO_LAUNCH14"),
 
