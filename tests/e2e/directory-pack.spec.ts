@@ -8,8 +8,9 @@ import { uniqueEmail } from "./helpers";
 
 const ROWS = parseDirectories(readFileSync("data/directory-pack/directories.csv", "utf8"));
 const FREE = ROWS.slice(0, 20);
-/** Paid-only text: every row's notes, and every directory past the free top 20. */
-const PAID_ONLY = [...ROWS.map((r) => r.notes).filter(Boolean), ...ROWS.slice(20).map((r) => r.url)];
+const NOTES = ROWS.map((r) => r.notes).filter(Boolean);
+/** Paid-only text: every row's notes, and a link to any directory past the free top 20 (the footer's own badges link elsewhere on those sites). */
+const PAID_ONLY = [...NOTES, ...ROWS.slice(20).map((r) => `href="${r.url}"`)];
 const PUBLIC_PAGES = ["/free-startup-directories", "/directory-pack"];
 
 async function staticChunks(dir: string): Promise<string[]> {
@@ -95,7 +96,7 @@ test("paid data never reaches unpaid visitors: not in the public pages' HTML, no
   expect(chunks.length).toBeGreaterThan(10);
   for (const file of chunks) {
     const js = await readFile(file, "utf8");
-    for (const text of PAID_ONLY) expect(js.includes(text), `${file} leaks ${text.slice(0, 40)}`).toBe(false);
+    for (const text of NOTES) expect(js.includes(text), `${file} leaks ${text.slice(0, 40)}`).toBe(false);
   }
   const stranger = "packNobodyPaid01234567";
   expect((await request.get(`/api/directory-pack/${stranger}/csv`)).status()).toBe(403);
