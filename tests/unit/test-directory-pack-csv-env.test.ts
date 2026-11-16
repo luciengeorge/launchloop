@@ -22,7 +22,9 @@ describe("TEST_DIRECTORY_PACK_CSV", () => {
   it.each([
     ["VERCEL_ENV=production", { VERCEL_ENV: "production" }],
     ["VERCEL_ENV=production, even in mock mode", { VERCEL_ENV: "production", MOCK_MODE: "true" }],
-    ["NODE_ENV=production (a Vercel preview, or next start)", { NODE_ENV: "production" }],
+    ["NODE_ENV=production (next start without mock mode)", { NODE_ENV: "production" }],
+    ["any VERCEL_ENV, even preview in mock mode", { VERCEL_ENV: "preview", MOCK_MODE: "true" }],
+    ["any VERCEL_ENV, even development", { VERCEL_ENV: "development", NODE_ENV: "test" }],
   ])("is ignored with %s", async (_label, vars) => {
     expect(await directoryPackCsv({ TEST_DIRECTORY_PACK_CSV: FIXTURE, ...vars })).toBeUndefined();
   });
