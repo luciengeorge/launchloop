@@ -64,6 +64,8 @@ test("free page: the brief's title, meta and H1, the top 20 from the CSV in rank
   for (const [i, q] of questions.entries()) expect(plain((await page.locator("#faq h3 + p").nth(i).textContent()) ?? "")).toContain(plain(q.acceptedAnswer.text));
   expect(JSON.stringify(nodes)).not.toContain(PRODUCTS.directoryPack.priceLabel);
   await expect(page.locator("main").getByRole("link", { name: "Product Hunt alternatives" }).first()).toHaveAttribute("href", "/blog/product-hunt-alternatives");
+  await expect(page.locator("main").getByRole("link", { name: "Directory Launch Pack" }).first()).toHaveAttribute("href", "/directory-pack");
+  await expect(page.locator("main").getByRole("link", { name: "OG preview tool" })).toHaveAttribute("href", "/tools/og-preview");
 });
 
 test("price not set: both pages say Coming soon with the pack waitlist, show no price and no Buy button, and checkout refuses", async ({ page, request }) => {

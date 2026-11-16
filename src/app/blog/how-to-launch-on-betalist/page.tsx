@@ -548,7 +548,7 @@ export default function BetaListLaunchPostPage() {
       </p>
 
       <p>
-        If you want a free listing instead of, or after, BetaList, start with our <Link href="/free-startup-directories">free startup directories</Link>.
+        If you want a free listing instead of, or after, BetaList, start with our <Link href="/free-startup-directories">free startup directories</Link>. A longer researched list, the <Link href="/directory-pack">Directory Launch Pack</Link>, is coming soon.
       </p>
 
       <h2 id="next">Next steps</h2>
