@@ -71,7 +71,16 @@ function faq(offer: { priceLabel: string } | null): { q: string; a: string; answ
       a: `${pack} This top-20 page stays free. The Launch Kit, which drafts your launch copy from a public repo or live URL, is ${kit} once and is on the pricing page today.`,
       answer: (
         <>
-          {pack} This top-20 page stays free. The Launch Kit, which drafts your launch copy from a public repo or live URL, is {kit} once and is on the{" "}
+          {offer ? (
+            <>
+              Yes: the <Link href={PAGES.directoryPack.path} className={link}>Directory Launch Pack</Link> is a longer researched list with submit links, rules and a reusable fact sheet, for {offer.priceLabel} once.
+            </>
+          ) : (
+            <>
+              We are putting together a <Link href={PAGES.directoryPack.path} className={link}>Directory Launch Pack</Link>: a longer researched list with submit links, rules and a reusable fact sheet. It is not on sale yet.
+            </>
+          )}{" "}
+          This top-20 page stays free. The Launch Kit, which drafts your launch copy from a public repo or live URL, is {kit} once and is on the{" "}
           <Link href="/pricing" className={link}>pricing page</Link> today.
         </>
       ),
@@ -180,7 +189,7 @@ export default function FreeStartupDirectoriesPage() {
           <section aria-labelledby="pack">
             <h2 id="pack">The longer list (Directory Launch Pack)</h2>
             <p>
-              The 20 rows above are the short, free list. The Directory Launch Pack is the longer researched list we already use for our own submissions: more directories, the submit link, the free and paid routes, queue and badge rules, and a fact sheet you can reuse on each form.{" "}
+              The 20 rows above are the short, free list. The <Link href={PAGES.directoryPack.path} className={link}>Directory Launch Pack</Link> is the longer researched list we already use for our own submissions: more directories, the submit link, the free and paid routes, queue and badge rules, and a fact sheet you can reuse on each form.{" "}
               {offer ? `It is ${offer.priceLabel} once, not a subscription.` : "We are putting that pack together now."}
             </p>
             <p>

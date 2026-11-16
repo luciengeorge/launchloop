@@ -73,7 +73,8 @@ export default function ProductHuntAlternativesPostPage() {
         Product Hunt isn&apos;t the only place to launch. This is a guide to eleven others that indie makers use, from DevHunt and BetaList to Show HN and two subreddits. For
         each one it covers what the site is for, how to submit, whether it is free, what the paid options cost, and its rules, using only what the site&apos;s own pages say.
         Prices are as the sites showed them on 21 October 2026, and they change, so check before you pay. For a short free list of directories, with queues and
-        last-checked dates, see our <Link href="/free-startup-directories">free startup directories</Link>.
+        last-checked dates, see our <Link href="/free-startup-directories">free startup directories</Link>. The{" "}
+        <Link href="/directory-pack">Directory Launch Pack</Link>, a longer researched list with submit links and rules, is coming soon.
       </p>
       <p>
         There are no scores or rankings here. The sites are grouped by the kind of product they fit: developer tools, products still in beta, general launch boards, and
