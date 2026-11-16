@@ -21,6 +21,9 @@ export const DIRECTORY_COLUMNS = [
   "utm_source",
 ] as const;
 
+/** Optional trailing columns: the free page's public facts, so it never reads notes. A file may leave both out. */
+export const OPTIONAL_DIRECTORY_COLUMNS = ["last_verified", "our_submission"] as const;
+
 /** The public top-20 on /free-startup-directories. */
 export const FREE_LIST_SIZE = 20;
 
@@ -51,6 +54,10 @@ const rowSchema = z.object({
   description_max: wholeOrBlank,
   notes: z.string(),
   utm_source: z.string().regex(/^[a-z0-9_.-]+$/, "must be a lowercase slug"),
+  /** The day the row was last checked (the "checked YYYY-MM-DD" in our notes). */
+  last_verified: z.string().regex(/^(\d{4}-\d{2}-\d{2})?$/, "must be YYYY-MM-DD or blank"),
+  /** What happened when we submitted LaunchLoop (the "Our experience:" sentence in our notes), or blank. */
+  our_submission: z.string(),
 });
 
 export type Directory = z.output<typeof rowSchema>;
@@ -93,17 +100,18 @@ function csvRecords(text: string): string[][] {
 /** Every row, in file order. Throws DirectoryCsvError listing each bad row by rank (or line) and why. */
 export function parseDirectories(text: string): Directory[] {
   const [header, ...records] = csvRecords(text.replace(/^\uFEFF/, ""));
-  if (header?.join(",") !== DIRECTORY_COLUMNS.join(",")) throw new DirectoryCsvError([`header must be exactly: ${DIRECTORY_COLUMNS.join(",")}`]);
+  const columns = [DIRECTORY_COLUMNS, ALL_COLUMNS].find((c) => header?.join(",") === c.join(","));
+  if (!columns) throw new DirectoryCsvError([`header must be exactly: ${DIRECTORY_COLUMNS.join(",")} (optionally followed by ,${OPTIONAL_DIRECTORY_COLUMNS.join(",")})`]);
   const issues: string[] = [];
   const rows: Directory[] = [];
   const ranks = new Set<number>();
   records.forEach((record, i) => {
     const where = `line ${i + 2}`;
-    if (record.length !== DIRECTORY_COLUMNS.length) {
-      issues.push(`${where}: ${record.length} columns, expected ${DIRECTORY_COLUMNS.length}`);
+    if (record.length !== columns.length) {
+      issues.push(`${where}: ${record.length} columns, expected ${columns.length}`);
       return;
     }
-    const raw = Object.fromEntries(DIRECTORY_COLUMNS.map((column, j) => [column, record[j].trim()]));
+    const raw: Record<string, string> = { last_verified: "", our_submission: "", ...Object.fromEntries(columns.map((column, j) => [column, record[j].trim()])) };
     const label = /^\d+$/.test(raw.rank) ? `rank ${raw.rank}` : where;
     const parsed = rowSchema.safeParse(raw);
     if (!parsed.success) {
@@ -123,14 +131,16 @@ const csvField = (value: string | number | null) => {
   return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
 };
 
+const ALL_COLUMNS = [...DIRECTORY_COLUMNS, ...OPTIONAL_DIRECTORY_COLUMNS];
+
 /** The database as CSV, every column, with `extra` columns (the buyer's link and copy) appended when given. */
 export function directoriesCsv(rows: Directory[], extra?: (row: Directory) => Record<string, string>): string {
   const extraColumns = extra && rows.length ? Object.keys(extra(rows[0])) : [];
   const lines = [
-    [...DIRECTORY_COLUMNS, ...extraColumns].join(","),
+    [...ALL_COLUMNS, ...extraColumns].join(","),
     ...rows.map((row) => {
       const added = extra ? extra(row) : {};
-      return [...DIRECTORY_COLUMNS.map((c) => row[c]), ...extraColumns.map((c) => added[c])].map(csvField).join(",");
+      return [...ALL_COLUMNS.map((c) => row[c]), ...extraColumns.map((c) => added[c])].map(csvField).join(",");
     }),
   ];
   return `${lines.join("\r\n")}\r\n`;
@@ -156,7 +166,7 @@ const TYPES: Record<string, DirectoryType> = {
   "software-reviews": "review site",
 };
 
-/** A free-page row: only these derived columns are public. Notes contribute their check date and our submission status, never their text. */
+/** A free-page row: only these derived columns are public. Nothing comes from notes. */
 export interface FreeDirectoryRow {
   rank: number;
   name: string;
@@ -172,8 +182,8 @@ export interface FreeDirectoryRow {
   ourSubmission: "" | "submitted" | "queued" | "live" | "skipped";
 }
 
-function ourSubmission(notes: string): FreeDirectoryRow["ourSubmission"] {
-  const experience = /Our experience: ([^.]*)/.exec(notes)?.[1] ?? "";
+/** The brief's fixed set, from the our_submission text. */
+function ourSubmission(experience: string): FreeDirectoryRow["ourSubmission"] {
   if (/\blive\b/.test(experience)) return "live";
   if (/\b(booked|queued|pending|free date)\b/.test(experience)) return "queued";
   if (/\bskipped\b/.test(experience)) return "skipped";
@@ -212,7 +222,7 @@ export function freeDirectoryRow(row: Directory): FreeDirectoryRow {
     badge: badgeRule(row),
     linkType: "not checked",
     submit: submitUrl(row),
-    lastVerified: /checked (\d{4}-\d{2}-\d{2})/.exec(row.notes)?.[1] ?? "",
-    ourSubmission: ourSubmission(row.notes),
+    lastVerified: row.last_verified,
+    ourSubmission: ourSubmission(row.our_submission),
   };
 }

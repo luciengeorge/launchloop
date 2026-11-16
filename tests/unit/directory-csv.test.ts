@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { DIRECTORY_COLUMNS, DirectoryCsvError, directoriesCsv, freeDirectoryRow, parseDirectories, submitUrl, utmLink, type Directory } from "@/lib/directory-csv";
 
 const HEADER = "rank,name,url,submit_url,category,pricing,price_usd,badge_required,backlink_required,dofollow,dr,approval_time,tagline_max,description_max,notes,utm_source";
+const FULL_HEADER = `${HEADER},last_verified,our_submission`;
 const shipped = readFileSync(path.join(process.cwd(), "data/directory-pack/directories.csv"), "utf8");
 const GOOD_ROW = '1,Launching Next,https://www.launchingnext.com/,https://www.launchingnext.com/submit/,launchpad,freemium,0,no,no,yes,57,"about 1 day, reviewed",60,260,"Our experience: submitted. checked 2026-11-16 (home 200)",launchingnext';
 
@@ -18,8 +19,8 @@ const issuesOf = (csv: string) => {
 };
 
 describe("the shipped directories.csv", () => {
-  it("has exactly the agreed header", () => {
-    expect(shipped.split(/\r?\n/)[0]).toBe(HEADER);
+  it("has exactly the agreed header, with the two optional public columns", () => {
+    expect(shipped.split(/\r?\n/)[0]).toBe(FULL_HEADER);
     expect(DIRECTORY_COLUMNS.join(",")).toBe(HEADER);
   });
 
@@ -54,6 +55,8 @@ describe("parseDirectories", () => {
       description_max: null,
       notes: "Our experience: submitted. checked 2026-11-16 (home 200)",
       utm_source: "launchingnext",
+      last_verified: "",
+      our_submission: "",
     } satisfies Directory);
   });
 
@@ -67,6 +70,8 @@ describe("parseDirectories", () => {
     ["a url that isn't http(s)", `${HEADER}\n${GOOD_ROW.replace("https://www.launchingnext.com/,", "launchingnext.com,")}`, /rank 1: url/],
     ["a duplicate rank", `${HEADER}\n${GOOD_ROW}\n${GOOD_ROW}`, /rank 1: duplicate rank/],
     ["an empty name", `${HEADER}\n${GOOD_ROW.replace("Launching Next", "")}`, /rank 1: name/],
+    ["a last_verified that isn't YYYY-MM-DD", `${FULL_HEADER}\n${GOOD_ROW},16 Nov 2026,submitted`, /rank 1: last_verified/],
+    ["only one of the optional columns", `${HEADER},last_verified\n${GOOD_ROW},2026-11-16`, /header/],
   ])("fails on %s", (_label, csv, reason) => {
     expect(() => parseDirectories(csv)).toThrow(DirectoryCsvError);
     expect(issuesOf(csv).join("\n")).toMatch(reason);
@@ -89,9 +94,9 @@ describe("links", () => {
 });
 
 describe("freeDirectoryRow", () => {
-  const [row] = parseDirectories(`${HEADER}\n${GOOD_ROW}`);
+  const [row] = parseDirectories(`${FULL_HEADER}\n${GOOD_ROW},2026-11-16,submitted`);
 
-  it("maps a row to the brief's columns, with nothing from notes but the check date and our submission", () => {
+  it("maps a row to the brief's columns, with the check date and our submission from their own columns", () => {
     expect(freeDirectoryRow(row)).toEqual({
       rank: 1,
       name: "Launching Next",
@@ -107,23 +112,29 @@ describe("freeDirectoryRow", () => {
     });
   });
 
+  it("never reads notes: blank columns stay blank whatever the notes say", () => {
+    expect(freeDirectoryRow({ ...row, last_verified: "", our_submission: "", notes: "Our experience: skipped. checked 2020-01-01" })).toMatchObject({ lastVerified: "", ourSubmission: "" });
+  });
+
   it("says 'not stated' for an unknown wait or badge rule, and reads queued, live and skipped submissions", () => {
     const free = (patch: Partial<Directory>) => freeDirectoryRow({ ...row, ...patch });
     expect(free({ approval_time: "", badge_required: "unknown" })).toMatchObject({ queue: "not stated", badge: "not stated" });
     expect(free({ backlink_required: "yes" }).badge).toBe("yes");
-    expect(free({ notes: "Our experience: booked for 23 Nov. checked 2026-11-16" }).ourSubmission).toBe("queued");
-    expect(free({ notes: "Our experience: submitted 11 Nov as showcase, approved and live 12 Nov. checked 2026-11-16" }).ourSubmission).toBe("live");
-    expect(free({ notes: "Our experience: skipped because workplace verification shows employer. checked 2026-11-16" }).ourSubmission).toBe("skipped");
-    expect(free({ notes: "Our experience: a new account could not create posts yet. checked 2026-11-16" }).ourSubmission).toBe("");
+    expect(free({ our_submission: "booked for 23 Nov" }).ourSubmission).toBe("queued");
+    expect(free({ our_submission: "submitted 11 Nov as showcase, approved and live 12 Nov" }).ourSubmission).toBe("live");
+    expect(free({ our_submission: "skipped because workplace verification shows employer" }).ourSubmission).toBe("skipped");
+    expect(free({ our_submission: "a new account could not create posts yet" }).ourSubmission).toBe("");
     expect(free({ category: "software-reviews" }).type).toBe("review site");
     expect(free({ category: "startup-database" }).type).toBe("evergreen directory");
     expect(free({ pricing: "free" }).freeRoute).toBe("Free listing");
   });
 
-  it("the committed file is the free tier only, with notes blanked: this repo is public", () => {
+  it("the committed file is the free tier only, with notes blanked (this repo is public) and a last_verified date on every row", () => {
     const rows = parseDirectories(shipped);
     expect(rows).toHaveLength(20);
     expect(rows.map((r) => r.notes)).toEqual(rows.map(() => ""));
+    for (const r of rows) expect(freeDirectoryRow(r).lastVerified, r.name).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(rows.filter((r) => r.our_submission).length).toBeGreaterThan(0);
   });
 });
 
@@ -131,7 +142,7 @@ describe("directoriesCsv", () => {
   it("writes the header and every column, so the download parses back to the same rows", () => {
     const rows = parseDirectories(shipped);
     const csv = directoriesCsv(rows);
-    expect(csv.split("\r\n")[0]).toBe(HEADER);
+    expect(csv.split("\r\n")[0]).toBe(FULL_HEADER);
     expect(parseDirectories(csv)).toEqual(rows);
   });
 
@@ -139,7 +150,7 @@ describe("directoriesCsv", () => {
     const [row] = parseDirectories(`${HEADER}\n${GOOD_ROW}`);
     const csv = directoriesCsv([row], () => ({ your_link: "https://snapshelf.app/?utm_source=launchingnext", tagline: 'Find any screenshot, "fast"', description: "Search, tag, share." }));
     const [header, line] = csv.split("\r\n");
-    expect(header).toBe(`${HEADER},your_link,tagline,description`);
+    expect(header).toBe(`${FULL_HEADER},your_link,tagline,description`);
     expect(line.endsWith(',https://snapshelf.app/?utm_source=launchingnext,"Find any screenshot, ""fast""","Search, tag, share."')).toBe(true);
   });
 });

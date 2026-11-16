@@ -47,6 +47,7 @@ test("free page: the brief's title, meta and H1, the top 20 from the CSV in rank
     const link = rows.nth(i).getByRole("link", { name: row.name, exact: true });
     await expect(link).toHaveAttribute("href", row.url);
     await expect(rows.nth(i).getByRole("link", { name: "Submit" })).toHaveAttribute("href", submitUrl(row));
+    await expect(rows.nth(i).locator("td").nth(6)).toHaveText(row.last_verified);
   }
   await expect(page.getByText(/^Last reviewed: /)).toBeVisible();
 
