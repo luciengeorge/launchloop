@@ -1,9 +1,7 @@
 import { listingFor } from "@/lib/copy";
 import { allDirectories } from "@/lib/directories";
 import { directoriesCsv, utmLink } from "@/lib/directory-csv";
-import { getPack } from "@/lib/directory-pack";
-
-export const PACK_LOCKED = { error: "This link isn't a paid Directory Launch Pack." };
+import { PACK_LOCKED, getPack } from "@/lib/directory-pack";
 
 /** The whole database for a paid pack, with the buyer's UTM link and listing copy once they've added their product. */
 export async function GET(_req: Request, { params }: RouteContext<"/api/directory-pack/[id]/csv">) {

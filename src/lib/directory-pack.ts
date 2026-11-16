@@ -43,6 +43,9 @@ const packKey = (id: string) => `dirpack:${id}`;
 export const newPackId = () => randomBytes(16).toString("base64url");
 export const packPath = (id: string) => `/directory-pack/access/${id}`;
 
+/** The pack APIs' 403 for any id that isn't a paid pack. */
+export const PACK_LOCKED = { error: "This link isn't a paid Directory Launch Pack." };
+
 /** The pack, only if it's been paid for. */
 export async function getPack(id: string): Promise<DirectoryPack | null> {
   return isValidKitId(id) ? store().get<DirectoryPack>(packKey(id)) : null;
