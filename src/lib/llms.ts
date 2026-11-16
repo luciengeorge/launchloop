@@ -48,7 +48,7 @@ The kit is delivered on a results page, as a ZIP download and by email.
 - [Blog](${base}${PAGES.blog.path}): launch how-tos sourced from each platform's own rules and guidance, newest first ([RSS](${base}${BLOG_FEED_PATH}))
 - [Free tools](${base}/tools): every free tool in one list
 - [Free startup directories](${base}${PAGES.freeDirectories.path}): a free top-20 of directories with a free submit path, with queues, badge rules and last-checked dates.
-- [Directory Launch Pack](${base}${PAGES.directoryPack.path}): a researched database of startup directories with submit links, rules and listing copy written for each one. Coming soon.
+- [Directory Launch Pack](${base}${PAGES.directoryPack.path}): ${PRODUCTS.directoryPack.priceLabel} one-off for 152 researched startup directories, with submit links, rules and listing copy written for each one.
 - [Privacy](${base}/privacy)
 - [Terms](${base}/terms)
 

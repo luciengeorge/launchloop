@@ -35,7 +35,10 @@ test("robots, sitemap and llms.txt", async ({ request }) => {
   expect(text).toContain(`Launch Kit: ${PRODUCTS.kit.priceLabel} once`);
   expect(text).toContain("/free-startup-directories");
   expect(text).toContain("/directory-pack");
-  expect(text).not.toContain(PRODUCTS.directoryPack.priceLabel);
+  // The pack is live: its line gives the price from config and the directory count, and no longer says it's coming.
+  const pack = text.split("\n").find((line) => line.startsWith("- [Directory Launch Pack]"));
+  expect(pack).toContain(`/directory-pack): ${PRODUCTS.directoryPack.priceLabel} one-off for 152 researched startup directories`);
+  expect(pack).not.toMatch(/coming soon/i);
 });
 
 test("IndexNow key file is served at /<key>.txt with exactly the key", async ({ request }) => {

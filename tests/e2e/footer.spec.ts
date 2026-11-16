@@ -131,3 +131,12 @@ test("the badges' accessible names start with their alt text and say they open a
   await page.goto("/");
   for (const { name } of BADGES) await expect(badgeLink(page, name)).toHaveAccessibleName(`${name} (opens in a new tab)`);
 });
+
+test("the footer lists the Directory Launch Pack as live, linking /directory-pack with no Soon badge; Ship Loop keeps its badge", async ({ page }) => {
+  await page.goto("/");
+  const product = page.getByRole("contentinfo").getByRole("navigation", { name: "Product" });
+  const pack = product.getByRole("link", { name: "Directory Launch Pack", exact: true });
+  await expect(pack).toHaveAttribute("href", "/directory-pack");
+  await expect(pack).toHaveText("Directory Launch Pack");
+  await expect(product.getByRole("link", { name: /Ship Loop/ })).toContainText("Soon");
+});
