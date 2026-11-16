@@ -70,12 +70,13 @@ test.describe("Checkout session params", () => {
 });
 
 test.describe("/api/checkout product guard", () => {
-  test("only the kit gets through", () => {
+  test("only the kit and the Directory Launch Pack get through", () => {
     expect(checkoutRejection("kit")).toBeNull();
+    expect(checkoutRejection("directoryPack")).toBeNull();
   });
 
-  test("every Ship Loop product, and anything else that isn't the kit, is a 400 with the waitlist message", () => {
-    for (const product of ["shiploop_monthly", "shiploop_yearly", "shiploop_preorder", "shiploop", "Kit", "", undefined, null, 42, { product: "kit" }]) {
+  test("every Ship Loop product, and anything else that isn't on sale, is a 400 with the waitlist message", () => {
+    for (const product of ["shiploop_monthly", "shiploop_yearly", "shiploop_preorder", "shiploop", "Kit", "directory_pack", "", undefined, null, 42, { product: "kit" }]) {
       expect(checkoutRejection(product), JSON.stringify(product)).toEqual({ status: 400, error: SHIP_LOOP_WAITLIST_ONLY, code: "waitlist_only" });
     }
     expect(SHIP_LOOP_WAITLIST_ONLY).toBe("Ship Loop isn't on sale. Join the waitlist, we'll email you when it launches.");

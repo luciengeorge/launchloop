@@ -8,7 +8,7 @@ vi.mock("@/lib/observability", () => ({ captureException: vi.fn(), captureExcept
 
 const { captureException } = await import("@/lib/observability");
 const { POST } = await import("@/app/api/waitlist/route");
-const { WAITLIST_ERROR_MESSAGES, WAITLIST_MEMBERS_KEY, WAITLIST_TAG } = await import("@/lib/waitlist");
+const { DIRECTORY_PACK_WAITLIST, WAITLIST_ERROR_MESSAGES, WAITLIST_MEMBERS_KEY, WAITLIST_TAG } = await import("@/lib/waitlist");
 
 let ip = 0;
 const join = (body: Record<string, string>) =>
@@ -70,6 +70,16 @@ describe("POST /api/waitlist", () => {
     expect(limited.status).toBe(429);
     expect(await limited.json()).toEqual({ error: WAITLIST_ERROR_MESSAGES.rate_limited });
     expect(WAITLIST_ERROR_MESSAGES.rate_limited).toBe("Too many attempts. Try again later.");
+  });
+
+  it.each(["directory_pack_page", "free_directories_page"])("a %s signup joins the Directory Launch Pack list, apart from Ship Loop's", async (source) => {
+    await join({ email: "maker@launchloop.dev", source: "ship_loop_page" });
+    const res = await join({ email: "Maker@launchloop.dev", source });
+    expect(await res.json()).toEqual({ ok: true, duplicate: false });
+    expect(await mem.get("contact:directory_pack_waitlist:maker@launchloop.dev")).toMatchObject({ tag: DIRECTORY_PACK_WAITLIST.tag, signup_source: source });
+    expect(await mem.sMembers(DIRECTORY_PACK_WAITLIST.membersKey)).toEqual(["maker@launchloop.dev"]);
+    expect(await mem.get("contact:waitlist:maker@launchloop.dev")).toMatchObject({ tag: WAITLIST_TAG, signup_source: "ship_loop_page" });
+    expect(await mem.sMembers(WAITLIST_MEMBERS_KEY)).toEqual(["maker@launchloop.dev"]);
   });
 
   it("an invalid email is rejected and nothing is stored", async () => {

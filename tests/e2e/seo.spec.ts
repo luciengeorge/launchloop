@@ -127,11 +127,13 @@ test("sitemap lists every indexable page once, with lastmod, and no redirecting 
     "/blog/product-hunt-alternatives",
     "/privacy",
     "/terms",
+    "/directory-pack",
+    "/free-startup-directories",
   ];
   expect(paths).toEqual(expect.arrayContaining(expected));
   expect(new Set(paths).size).toBe(paths.length);
   expect(xml.match(/<lastmod>\d{4}-\d{2}-\d{2}/g)?.length).toBe(paths.length);
-  for (const path of ["/product-hunt-tagline-checker", "/og-preview", "/blog/rss.xml", "/login", "/account"]) expect(paths).not.toContain(path);
+  for (const path of ["/product-hunt-tagline-checker", "/og-preview", "/blog/rss.xml", "/login", "/account", "/directory-pack/access"]) expect(paths).not.toContain(path);
   for (const path of paths) expect((await request.get(path, { maxRedirects: 0 })).status(), path).toBe(200);
 });
 
