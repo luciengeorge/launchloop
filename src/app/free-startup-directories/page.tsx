@@ -144,8 +144,8 @@ export default function FreeStartupDirectoriesPage() {
                   <td className="py-3 pr-4">
                     <a href={row.submit} className={link} rel="noopener">Submit<span className="sr-only"> to {row.name}</span></a>
                   </td>
-                  <td className="py-3 pr-4 whitespace-nowrap">{row.lastVerified ? <time dateTime={row.lastVerified}>{row.lastVerified}</time> : "not stated"}</td>
-                  <td className="py-3 pr-4">{row.ourSubmission}</td>
+                  <td className="py-3 pr-4 whitespace-nowrap" data-testid="last-verified">{row.lastVerified ? <time dateTime={row.lastVerified}>{row.lastVerified}</time> : "not stated"}</td>
+                  <td className="py-3 pr-4" data-testid="our-submission">{row.ourSubmission}</td>
                 </tr>
               ))}
             </tbody>

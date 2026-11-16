@@ -6,16 +6,16 @@ rank,name,url,submit_url,category,pricing,price_usd,badge_required,backlink_requ
 5,Hacker News (Show HN),https://news.ycombinator.com/,https://news.ycombinator.com/submit,community,free,0,no,no,no,91,,,,,hackernews,2026-11-16,
 6,Reddit,https://www.reddit.com/,,community,free,0,no,no,unknown,95,,,,,reddit,2026-11-16,
 7,Hashnode,https://hashnode.com/,,community,freemium,0,no,no,unknown,83,instant on publish,,,,hashnode,2026-11-16,
-8,Indie Hackers,https://www.indiehackers.com/,,community,freemium,0,no,no,no,82,,,,,indiehackers,2026-11-16,a new account could not create posts yet
+8,Indie Hackers,https://www.indiehackers.com/,,community,freemium,0,no,no,no,82,,,,,indiehackers,2026-11-16,
 9,Product Hunt,https://www.producthunt.com/,,launchpad,free,0,no,no,no,92,,60,260,,producthunt,2026-11-16,
-10,Uneed,https://www.uneed.best/,https://www.uneed.best/submit-a-tool,launchpad,freemium,0,no,no,no,77,"at least 50 days out, date assigned automatically on the free waiting line (uneed.best/how-it-works, read 16 Nov 2026)",,,,uneed,2026-11-16,"submitted 5 Nov, free date 8 Feb 2027, no badge asked"
+10,Uneed,https://www.uneed.best/,https://www.uneed.best/submit-a-tool,launchpad,freemium,0,no,no,no,77,"at least 50 days out, date assigned automatically on the free waiting line (uneed.best/how-it-works, read 16 Nov 2026)",,,,uneed,2026-11-16,queued
 11,RankInPublic,https://rankinpublic.xyz/,https://rankinpublic.xyz/launch,launchpad,free,0,no,no,yes,52,weekly tournaments,,,,rankinpublic,2026-11-16,
-12,TinyLaunch,https://www.tinylaunch.com/,https://www.tinylaunch.com/submit,launchpad,freemium,0,no,no,no,75,free weeks booked ahead (first free week 23 Nov 2026 as of 21 Oct),60,10000,,tinylaunch,2026-11-16,booked for 23 Nov
+12,TinyLaunch,https://www.tinylaunch.com/,https://www.tinylaunch.com/submit,launchpad,freemium,0,no,no,no,75,free weeks booked ahead (first free week 23 Nov 2026 as of 21 Oct),60,10000,,tinylaunch,2026-11-16,queued
 13,ScrollLaunch,https://www.scrolllaunch.com/,https://www.scrolllaunch.com/pricing,launchpad,freemium,0,no,no,no,74,,,,,scrolllaunch,2026-11-16,
 14,SaaSHub,https://www.saashub.com/,https://www.saashub.com/services/submit,alternatives,freemium,0,no,no,yes,81,"about 32 days (LaunchGrill, third party)",,,,saashub,2026-11-16,
 15,Aura++,https://auraplusplus.com/,https://auraplusplus.com/projects/submit,launchpad,freemium,0,no,no,no,73,,,,,aura,2026-11-16,
 16,BetterLaunch,https://www.betterlaunch.co/,https://www.betterlaunch.co/submit-your-startup,launchpad,freemium,0,no,no,no,70,a Monday 45+ days out (14 days sooner if you vote),,,,betterlaunch,2026-11-16,submitted
-17,SideProjectors,https://www.sideprojectors.com/,https://www.sideprojectors.com/project/new,marketplace,freemium,0,no,no,yes,72,"about 1 day (our submission, Nov 2026)",,,,sideprojectors,2026-11-16,"submitted 11 Nov as showcase, approved and live 12 Nov"
-18,StartupBase,https://startupbase.io/,https://startupbase.io/submit,launchpad,freemium,0,no,no,no,75,10+ weeks without badge; 4 to 5 weeks with badge,,,,startupbase,2026-11-16,the standard queue unlocks only after 3 upvotes and 1 comment on other launches
-19,What Launched Today,https://whatlaunched.today/,https://whatlaunched.today/dashboard/submit,launchpad,freemium,0,no,no,yes,32,standard launch queue,,,,whatlaunchedtoday,2026-11-16,"submitted, pending"
-20,Peerlist Launchpad,https://peerlist.io/,,community,free,0,no,no,no,78,"weekly, opens Mondays",,,,peerlistlaunchpad,2026-11-16,skipped because workplace verification shows employer
+17,SideProjectors,https://www.sideprojectors.com/,https://www.sideprojectors.com/project/new,marketplace,freemium,0,no,no,yes,72,"about 1 day (our submission, Nov 2026)",,,,sideprojectors,2026-11-16,live
+18,StartupBase,https://startupbase.io/,https://startupbase.io/submit,launchpad,freemium,0,no,no,no,75,10+ weeks without badge; 4 to 5 weeks with badge,,,,startupbase,2026-11-16,
+19,What Launched Today,https://whatlaunched.today/,https://whatlaunched.today/dashboard/submit,launchpad,freemium,0,no,no,yes,32,standard launch queue,,,,whatlaunchedtoday,2026-11-16,queued
+20,Peerlist Launchpad,https://peerlist.io/,,community,free,0,no,no,no,78,"weekly, opens Mondays",,,,peerlistlaunchpad,2026-11-16,skipped

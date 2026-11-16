@@ -49,7 +49,7 @@ const serverEnv = {
   NEXT_PUBLIC_SENTRY_DSN: "",
   SENTRY_TEST_TOKEN: "playwright-sentry-token",
   // 26 rows: the committed top 20 plus fixture rows the leak test must never find on the public pages.
-  DIRECTORY_PACK_CSV: "tests/fixtures/directory-pack/directories.csv",
+  TEST_DIRECTORY_PACK_CSV: "tests/fixtures/directory-pack/directories.csv",
 };
 
 /**

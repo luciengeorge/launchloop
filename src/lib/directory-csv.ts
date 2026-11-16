@@ -56,7 +56,10 @@ const rowSchema = z.object({
   utm_source: z.string().regex(/^[a-z0-9_.-]+$/, "must be a lowercase slug"),
   /** The day the row was last checked (the "checked YYYY-MM-DD" in our notes). */
   last_verified: z.string().regex(/^(\d{4}-\d{2}-\d{2})?$/, "must be YYYY-MM-DD or blank"),
-  /** What happened when we submitted LaunchLoop (the "Our experience:" sentence in our notes), or blank. */
+  /**
+   * What happened when we submitted LaunchLoop: a SUBMISSION_STATUSES word, or blank. The private file may hold the full
+   * "Our experience:" sentence (shown to buyers); the committed public file holds status words only (directory-csv.test.ts).
+   */
   our_submission: z.string(),
 });
 
@@ -157,6 +160,11 @@ export function utmLink(productUrl: string, row: Pick<Directory, "utm_source">):
 }
 
 /** The SEO brief's fixed set of types. */
+/** The free page's "Our submission" values (the SEO brief's fixed set). */
+export const SUBMISSION_STATUSES = ["submitted", "queued", "live", "skipped"] as const;
+export type SubmissionStatus = (typeof SUBMISSION_STATUSES)[number];
+const isSubmissionStatus = (v: string): v is SubmissionStatus => (SUBMISSION_STATUSES as readonly string[]).includes(v);
+
 export type DirectoryType = "launch board" | "alternatives catalogue" | "community" | "review site" | "evergreen directory";
 
 const TYPES: Record<string, DirectoryType> = {
@@ -179,16 +187,7 @@ export interface FreeDirectoryRow {
   linkType: "not checked";
   submit: string;
   lastVerified: string;
-  ourSubmission: "" | "submitted" | "queued" | "live" | "skipped";
-}
-
-/** The brief's fixed set, from the our_submission text. */
-function ourSubmission(experience: string): FreeDirectoryRow["ourSubmission"] {
-  if (/\blive\b/.test(experience)) return "live";
-  if (/\b(booked|queued|pending|free date)\b/.test(experience)) return "queued";
-  if (/\bskipped\b/.test(experience)) return "skipped";
-  if (/\bsubmitted\b/.test(experience)) return "submitted";
-  return "";
+  ourSubmission: SubmissionStatus | "";
 }
 
 function badgeRule({ badge_required, backlink_required }: Pick<Directory, "badge_required" | "backlink_required">): FreeDirectoryRow["badge"] {
@@ -223,6 +222,6 @@ export function freeDirectoryRow(row: Directory): FreeDirectoryRow {
     linkType: "not checked",
     submit: submitUrl(row),
     lastVerified: row.last_verified,
-    ourSubmission: ourSubmission(row.our_submission),
+    ourSubmission: isSubmissionStatus(row.our_submission) ? row.our_submission : "",
   };
 }

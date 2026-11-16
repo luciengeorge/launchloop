@@ -6,7 +6,7 @@ import { parseDirectories, submitUrl } from "../../src/lib/directory-csv";
 import { PRODUCTS } from "../../src/lib/products";
 import { uniqueEmail } from "./helpers";
 
-/** The e2e servers read this fixture (DIRECTORY_PACK_CSV in playwright.config.ts): the committed top 20 plus rows the public pages must never show. */
+/** The e2e servers read this fixture (TEST_DIRECTORY_PACK_CSV in playwright.config.ts): the committed top 20 plus rows the public pages must never show. */
 const ROWS = parseDirectories(readFileSync("tests/fixtures/directory-pack/directories.csv", "utf8"));
 const FREE = ROWS.slice(0, 20);
 const HIDDEN = ROWS.slice(20);
@@ -47,7 +47,8 @@ test("free page: the brief's title, meta and H1, the top 20 from the CSV in rank
     const link = rows.nth(i).getByRole("link", { name: row.name, exact: true });
     await expect(link).toHaveAttribute("href", row.url);
     await expect(rows.nth(i).getByRole("link", { name: "Submit" })).toHaveAttribute("href", submitUrl(row));
-    await expect(rows.nth(i).locator("td").nth(6)).toHaveText(row.last_verified);
+    await expect(rows.nth(i).getByTestId("last-verified")).toHaveText(row.last_verified);
+    await expect(rows.nth(i).getByTestId("our-submission")).toHaveText(row.our_submission);
   }
   await expect(page.getByText(/^Last reviewed: /)).toBeVisible();
 
@@ -129,7 +130,9 @@ test("after payment: every row and column, the CSV download, and listing copy pe
   const cards = page.getByTestId("directory-row");
   await expect(cards).toHaveCount(ROWS.length);
   const first = cards.first();
-  for (const value of [ROWS[0].name, ROWS[0].category, ROWS[0].pricing, String(ROWS[0].dr), ROWS[0].approval_time, ROWS[0].utm_source]) await expect(first).toContainText(value);
+  for (const value of [ROWS[0].name, ROWS[0].category, ROWS[0].pricing, String(ROWS[0].dr), ROWS[0].approval_time, ROWS[0].last_verified, ROWS[0].utm_source]) await expect(first).toContainText(value);
+  const submitted = ROWS.findIndex((r) => r.our_submission);
+  await expect(cards.nth(submitted)).toContainText(`Our submission${ROWS[submitted].our_submission}`);
   for (const [i, row] of ROWS.entries()) await expect(cards.nth(i).getByRole("link", { name: `Submit to ${row.name}` })).toHaveAttribute("href", submitUrl(row));
 
   const csv = await request.get(`/api/directory-pack/${packId}/csv`);

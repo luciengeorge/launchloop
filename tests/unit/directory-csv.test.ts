@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { DIRECTORY_COLUMNS, DirectoryCsvError, directoriesCsv, freeDirectoryRow, parseDirectories, submitUrl, utmLink, type Directory } from "@/lib/directory-csv";
+import { DIRECTORY_COLUMNS, SUBMISSION_STATUSES, DirectoryCsvError, directoriesCsv, freeDirectoryRow, parseDirectories, submitUrl, utmLink, type Directory } from "@/lib/directory-csv";
 
 const HEADER = "rank,name,url,submit_url,category,pricing,price_usd,badge_required,backlink_required,dofollow,dr,approval_time,tagline_max,description_max,notes,utm_source";
 const FULL_HEADER = `${HEADER},last_verified,our_submission`;
@@ -116,14 +116,13 @@ describe("freeDirectoryRow", () => {
     expect(freeDirectoryRow({ ...row, last_verified: "", our_submission: "", notes: "Our experience: skipped. checked 2020-01-01" })).toMatchObject({ lastVerified: "", ourSubmission: "" });
   });
 
-  it("says 'not stated' for an unknown wait or badge rule, and reads queued, live and skipped submissions", () => {
+  it("says 'not stated' for an unknown wait or badge rule, and reads the status word as it is", () => {
     const free = (patch: Partial<Directory>) => freeDirectoryRow({ ...row, ...patch });
     expect(free({ approval_time: "", badge_required: "unknown" })).toMatchObject({ queue: "not stated", badge: "not stated" });
     expect(free({ backlink_required: "yes" }).badge).toBe("yes");
-    expect(free({ our_submission: "booked for 23 Nov" }).ourSubmission).toBe("queued");
-    expect(free({ our_submission: "submitted 11 Nov as showcase, approved and live 12 Nov" }).ourSubmission).toBe("live");
-    expect(free({ our_submission: "skipped because workplace verification shows employer" }).ourSubmission).toBe("skipped");
-    expect(free({ our_submission: "a new account could not create posts yet" }).ourSubmission).toBe("");
+    for (const status of SUBMISSION_STATUSES) expect(free({ our_submission: status }).ourSubmission).toBe(status);
+    // A private file's full sentence is for buyers: the free page never shows or interprets it.
+    expect(free({ our_submission: "submitted 11 Nov as showcase, approved and live 12 Nov" }).ourSubmission).toBe("");
     expect(free({ category: "software-reviews" }).type).toBe("review site");
     expect(free({ category: "startup-database" }).type).toBe("evergreen directory");
     expect(free({ pricing: "free" }).freeRoute).toBe("Free listing");
@@ -135,6 +134,10 @@ describe("freeDirectoryRow", () => {
     expect(rows.map((r) => r.notes)).toEqual(rows.map(() => ""));
     for (const r of rows) expect(freeDirectoryRow(r).lastVerified, r.name).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(rows.filter((r) => r.our_submission).length).toBeGreaterThan(0);
+  });
+
+  it("the committed file's our_submission holds only status words or blank: the full sentences are paid content", () => {
+    for (const r of parseDirectories(shipped)) expect(["", ...SUBMISSION_STATUSES], r.name).toContain(r.our_submission);
   });
 });
 
