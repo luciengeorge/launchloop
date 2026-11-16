@@ -72,7 +72,8 @@ export default function ProductHuntAlternativesPostPage() {
       <p>
         Product Hunt isn&apos;t the only place to launch. This is a guide to eleven others that indie makers use, from DevHunt and BetaList to Show HN and two subreddits. For
         each one it covers what the site is for, how to submit, whether it is free, what the paid options cost, and its rules, using only what the site&apos;s own pages say.
-        Prices are as the sites showed them on 21 October 2026, and they change, so check before you pay.
+        Prices are as the sites showed them on 21 October 2026, and they change, so check before you pay. For a short free list of directories, with queues and
+        last-checked dates, see our <Link href="/free-startup-directories">free startup directories</Link>.
       </p>
       <p>
         There are no scores or rankings here. The sites are grouped by the kind of product they fit: developer tools, products still in beta, general launch boards, and
@@ -497,7 +498,8 @@ export default function ProductHuntAlternativesPostPage() {
         post</Link>, <Link href="/how-to-promote-on-reddit">how to promote your app on Reddit</Link>,{" "}
         <Link href={postPath({ slug: "how-to-launch-on-indie-hackers" })}>how to launch on Indie Hackers</Link>,{" "}
         <Link href={postPath({ slug: "how-to-launch-on-product-hunt" })}>how to launch on Product Hunt</Link> and the{" "}
-        <Link href="/product-hunt-launch-checklist">Product Hunt launch checklist</Link>. Before you submit, check your tagline with the{" "}
+        <Link href="/product-hunt-launch-checklist">Product Hunt launch checklist</Link>, and our <Link href="/free-startup-directories">20 free startup directories</Link>. Before you submit, check your
+        tagline with the{" "}
         <Link href="/tools/product-hunt-tagline-checker">tagline checker</Link> and your link&apos;s share card with the <Link href="/tools/og-preview">OG image preview</Link>,
         both free. Choosing between Product Hunt and Show HN first? See{" "}
         <Link href={postPath({ slug: "product-hunt-vs-show-hn" })}>Product Hunt or Show HN</Link>. Deciding between BetaList and Uneed? See{" "}

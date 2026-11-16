@@ -293,7 +293,8 @@ export default function ShowHnPostGuidePage() {
         <Link href="/tools/show-hn-title-checker">Show HN title checker</Link>, or compare checkers in{" "}
         <Link href="/blog/show-hn-title-checkers-compared">Show HN title checkers compared</Link>. Launching on Product Hunt the same week? It rewards a different kind of
         writing: read <Link href="/how-to-write-a-product-hunt-tagline">how to write a Product Hunt tagline</Link>, or the decision page{" "}
-        <Link href="/blog/product-hunt-vs-show-hn">Product Hunt or Show HN</Link>.
+        <Link href="/blog/product-hunt-vs-show-hn">Product Hunt or Show HN</Link>. After the Show HN, not on the same morning, work through a few{" "}
+        <Link href="/free-startup-directories">free startup directories</Link>.
       </p>
       <p>
         LaunchLoop drafts your landing copy, Product Hunt post, X thread, LinkedIn post and launch images from your repo. It doesn&apos;t write Show HN posts: that text should

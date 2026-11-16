@@ -48,7 +48,8 @@ export default function BetalistVsUneedPage() {
       <p>
         BetaList and Uneed both list new products, but they fit different stages. This page is a head-to-head from each site&apos;s own pages, re-read on 9 November 2026, with every
         claim next to its quote and link. LaunchLoop is ours; we are not affiliated with either board. For the wider list of boards, see{" "}
-        <Link href={postPath({ slug: "product-hunt-alternatives" })}>Product Hunt alternatives</Link>. Peerlist, DevHunt and Microlaunch are summarised there.
+        <Link href={postPath({ slug: "product-hunt-alternatives" })}>Product Hunt alternatives</Link>. Peerlist, DevHunt and Microlaunch are summarised there. For a short free-directory list, see{" "}
+        <Link href="/free-startup-directories">free startup directories</Link>.
       </p>
 
       <h2 id="short-answer">Short answer</h2>
@@ -141,7 +142,8 @@ export default function BetalistVsUneedPage() {
       <h2 id="next">Next steps</h2>
       <p>
         If you are still choosing a board, open the criteria and pricing links below before you pay. For Product Hunt or Show HN instead, read{" "}
-        <Link href={postPath({ slug: "product-hunt-vs-show-hn" })}>Product Hunt or Show HN</Link>. LaunchLoop drafts listing copy; it does not submit to BetaList or Uneed. Start
+        <Link href={postPath({ slug: "product-hunt-vs-show-hn" })}>Product Hunt or Show HN</Link>. For a short free-directory list, see{" "}
+        <Link href="/free-startup-directories">free startup directories</Link>. LaunchLoop drafts listing copy; it does not submit to BetaList or Uneed. Start
         with a <Link href="/#start">free preview</Link> or see <Link href="/pricing">pricing</Link>.
       </p>
 

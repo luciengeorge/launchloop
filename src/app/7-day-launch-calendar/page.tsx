@@ -68,7 +68,8 @@ export default function LaunchCalendarPage() {
   return (
     <GuideLayout guide={g}>
       <p>
-        A day-by-day plan for the week before a launch. It covers Product Hunt, your share card, BetaList, Indie Hackers and a couple of free directories. Each task points
+        A day-by-day plan for the week before a launch. It covers Product Hunt, your share card, BetaList, Indie Hackers and{" "}
+        <Link href="/free-startup-directories">a couple of free directories</Link>. Each task points
         back to a LaunchLoop guide or to the platform&apos;s own rules.
       </p>
       <p>
@@ -149,7 +150,7 @@ export default function LaunchCalendarPage() {
         </Task>
       </Tasks>
 
-      <h2 id="day-4">Day 4: BetaList and one free directory</h2>
+      <h2 id="day-4">Day 4: BetaList and <Link href="/free-startup-directories">one free directory</Link></h2>
       <Tasks>
         <Task id="day-4-fit" title="Confirm BetaList still fits." from={["betaList", "alternatives"]}>
           It wants unreleased or recently launched technology startups. It turns away free hosting subdomains, blogs, courses, consultancies and products that have already

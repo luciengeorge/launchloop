@@ -231,7 +231,8 @@ export default function IndieHackersLaunchPostPage() {
       <p>
         Launching in several places the same week? Each community has its own rules: <Link href="/how-to-promote-on-reddit">how to promote your app on Reddit</Link>, the{" "}
         <Link href="/show-hn-launch-checklist">Show HN launch checklist</Link> and{" "}
-        <Link href={postPath({ slug: "how-to-launch-on-product-hunt" })}>how to launch on Product Hunt</Link>.
+        <Link href={postPath({ slug: "how-to-launch-on-product-hunt" })}>how to launch on Product Hunt</Link>. Once your post is up, list the product on a few{" "}
+        <Link href="/free-startup-directories">free startup directories</Link> as well: they add to the community post, they don&apos;t replace it.
       </p>
       <p>
         LaunchLoop drafts your landing copy, Product Hunt post, X thread, LinkedIn post and launch images from your repo. It doesn&apos;t write Indie Hackers posts: the lessons

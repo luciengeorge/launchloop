@@ -66,6 +66,7 @@ export default function VibeCodedLaunchPage() {
           <strong>Communities:</strong> Indie Hackers, relevant subreddits and Discords, <Link href="/show-hn-launch-checklist">Show HN</Link>. Read the self-promotion rules
           first (see <Link href="/how-to-promote-on-reddit">how to promote your app on Reddit</Link>) and never ask for upvotes.
         </li>
+        <li><strong>Directories:</strong> once you have a live URL, list it on a few <Link href="/free-startup-directories">free startup directories</Link>.</li>
       </ul>
 
       <h2 id="build-in-public">4. Keep launching</h2>

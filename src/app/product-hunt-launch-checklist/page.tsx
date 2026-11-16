@@ -95,7 +95,8 @@ export default function ProductHuntChecklistPage() {
 
       <p>
         If you built your app with an AI builder, read <Link href="/how-to-launch-a-vibe-coded-app">how to launch a vibe-coded app</Link> for the pre-launch fixes those tools tend to
-        skip. To get the whole listing, threads and images drafted from your repo, see <Link href="/pricing">pricing</Link>.
+        skip. To get the whole listing, threads and images drafted from your repo, see <Link href="/pricing">pricing</Link>. Listing on other sites the same week? Start
+        with our <Link href="/free-startup-directories">free startup directories</Link>.
       </p>
     </GuideLayout>
   );
