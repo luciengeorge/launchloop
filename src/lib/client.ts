@@ -1,5 +1,6 @@
 import { analyticsId, firstTouch, isTestVisit, pageAnalyticsId } from "./analytics";
 import type { ExperimentKey, Served } from "./experiments";
+import type { ProductId } from "./products";
 import type { PreviewLimits } from "./site";
 
 /**
@@ -42,11 +43,12 @@ export interface CheckoutStart {
  * Creates a Checkout session (the server records checkout_started) and returns where to send the buyer.
  * `served` is what this page showed for other experiments, logged as is. The kit promo
  * (exp_launch14_promo) is never sent: the server resolves it and decides LAUNCH14.
- * Kit only: Ship Loop is a free waitlist, and /api/checkout rejects anything else. `signal` aborts the request.
+ * The kit or the Directory Launch Pack (no kitId): Ship Loop is a free waitlist, and /api/checkout rejects anything else.
+ * `signal` aborts the request.
  */
 export async function startCheckout(
-  product: "kit",
-  kitId: string,
+  product: ProductId,
+  kitId?: string,
   served: Partial<Record<ExperimentKey, Served>> = {},
   { signal }: { signal?: AbortSignal } = {},
 ): Promise<CheckoutStart> {

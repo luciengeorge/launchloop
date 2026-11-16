@@ -48,6 +48,7 @@ All are optional locally. See [`.env.example`](.env.example) for the full annota
 | `STRIPE_SECRET_KEY` | Real Stripe Checkout (use `sk_test_…` for test mode) |
 | `STRIPE_WEBHOOK_SECRET` | Verifying `/api/stripe/webhook` |
 | `STRIPE_PRICE_KIT` | Optional: a dashboard Price instead of the inline £19 |
+| `STRIPE_DIRECTORY_PACK_PRICE_ID` | A one-time Price for the Directory Launch Pack. Unset: the pack shows "Coming soon" and its waitlist, no price or Buy button anywhere, and `/api/checkout` answers 503 `not_on_sale` |
 | `STRIPE_PROMO_LAUNCH14` | Optional: the LAUNCH14 promotion code id (`promo_…`). Without it, Checkout looks up the active code named `LAUNCH14` (see "Experiments") |
 | `RESEND_API_KEY`, `RESEND_FROM`, `RESEND_REPLY_TO` | Sending kit and sign-in emails |
 | `RESEND_SEGMENT_ID` or `RESEND_AUDIENCE_ID` | Storing newsletter, waitlist and buyer contacts in Resend |
@@ -265,6 +266,15 @@ Preview keys carry the `preview:` prefix. The contact is also added to the Resen
   - `waitlist_cta_viewed`: the form is at least half on screen, once per mount.
   - `waitlist_signup` (`duplicate`): only after `/api/waitlist` answers 2xx.
   - `waitlist_error` (`status`, `reason`): any other answer (`invalid_email` for 400, `rate_limited` for 429, `server_error` for 5xx, `http_error` otherwise), or `status: 0`, `reason: "network"` when the request got no response. The form shows the error with a retry (or "Edit your email" for a 400) and a link to email hello@launchloop.dev.
+
+## Directory Launch Pack
+
+`/directory-pack` sells the directory database and `/free-startup-directories` is its free top 20 (SEO page, copy from Growth's brief). The data is `data/directory-pack/directories.csv` (header and value rules in `src/lib/directory-csv.ts`; `tests/unit/directory-csv.test.ts` fails on a malformed file). Only `src/lib/directories.ts` (server-only) reads it.
+
+- **Not on sale until `STRIPE_DIRECTORY_PACK_PRICE_ID` is set** (`directoryPackOffer()`): until then both pages show "Coming soon" with the waitlist form tagged for the pack (`contact:directory_pack_waitlist:<email>`, set `contacts:directory_pack_waitlist`), apart from Ship Loop's list. The price lives in `PRODUCTS.directoryPack`.
+- **Payment** is the kit's path with product `directoryPack`: `/api/checkout` makes a pack id, the webhook or Checkout return records `dirpack:<id>` once paid, and the buyer lands on `/directory-pack/access/<id>` (noindex, the private link, also emailed). Unpaid ids get no data: the page says so and `/api/directory-pack/<id>/csv` and `/listings` answer 403.
+- **Listing copy**: the buyer enters their product once; `generateListingCopy` (the kit generator) writes one tagline and description per distinct `tagline_max`/`description_max` pair, and each row is fitted to its own limits (Product Hunt's 60/260 when blank). Each row shows its `submit_url` (or `url`) and the buyer's URL with `utm_source` from the row and `utm_medium=directory`.
+- **Public page columns** come from `freeDirectoryRow`: notes only give the check date and our submission status. Link type stays "not checked" because the CSV doesn't record a checked live listing.
 
 ## Error logging
 

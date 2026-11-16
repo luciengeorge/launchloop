@@ -1,4 +1,4 @@
-export type ProductId = "kit";
+export type ProductId = "kit" | "directoryPack";
 
 export interface Product {
   id: ProductId;
@@ -16,13 +16,32 @@ export const PRODUCTS: Record<ProductId, Product> = {
     amountPence: 1900,
     priceLabel: "£19",
   },
+  /** Not approved for sale: nothing shows this price or a Buy button until STRIPE_DIRECTORY_PACK_PRICE_ID is set (see directoryPackOffer). */
+  directoryPack: {
+    id: "directoryPack",
+    name: "LaunchLoop Directory Launch Pack",
+    description: "The researched startup directory database with submit links and rules, plus listing copy written for each directory.",
+    amountPence: 2900,
+    priceLabel: "£29",
+  },
 };
 
 export const isProductId = (v: unknown): v is ProductId => typeof v === "string" && v in PRODUCTS;
 
-/** Analytics `product_type`. Ship Loop is a waitlist, so every purchase is the kit. */
-export type ProductType = "kit" | "shiploop";
-export const productType = (product: ProductId): ProductType => (product === "kit" ? "kit" : "shiploop");
+/** Analytics `product_type`. Ship Loop is a waitlist, so it's never a purchase. */
+export type ProductType = "kit" | "directory_pack" | "shiploop";
+export function productType(product: ProductId): ProductType {
+  switch (product) {
+    case "kit":
+      return "kit";
+    case "directoryPack":
+      return "directory_pack";
+    default: {
+      const unhandled: never = product;
+      return unhandled;
+    }
+  }
+}
 
 /**
  * The exp_launch14_promo treatment: Stripe promotion code LAUNCH14 (£5 off the kit, once).

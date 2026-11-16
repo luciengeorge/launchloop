@@ -383,7 +383,8 @@ export default function ProductHuntLaunchPostPage() {
         after. Write the tagline with <Link href="/how-to-write-a-product-hunt-tagline">how to write a Product Hunt tagline</Link> and check it in the{" "}
         <Link href={TAGLINE_CHECKER.path}>tagline checker</Link>. Still choosing between Product Hunt and Show HN? See{" "}
         <Link href={postPath({ slug: "product-hunt-vs-show-hn" })}>Product Hunt or Show HN</Link>. Built it with an AI builder? Read{" "}
-        <Link href="/how-to-launch-a-vibe-coded-app">how to launch a vibe-coded app</Link> first.
+        <Link href="/how-to-launch-a-vibe-coded-app">how to launch a vibe-coded app</Link> first. If you also want a short list of free directories to submit to in the
+        same week, see <Link href="/free-startup-directories">free startup directories</Link>.
       </p>
       <p>
         LaunchLoop reads your repo or live site and drafts your Product Hunt tagline, description and first comment, plus an X thread, a LinkedIn post and launch images, all

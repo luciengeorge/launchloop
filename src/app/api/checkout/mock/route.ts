@@ -6,7 +6,9 @@ import { deployEnv } from "@/lib/deploy-env";
 import { getSession } from "@/lib/auth";
 import { isStripeMock } from "@/lib/env";
 import { withAnalyticsId } from "@/lib/experiments";
+import { fulfilPack, packPath } from "@/lib/directory-pack";
 import { fulfilKit, recordPayment } from "@/lib/fulfil";
+import { isValidKitId } from "@/lib/kit-exists";
 import { getKit } from "@/lib/kits";
 import { checkoutPrice, kitSuccessPath } from "@/lib/payments";
 import { checkoutRejection } from "@/lib/checkout-session";
@@ -20,7 +22,7 @@ export async function POST(req: Request) {
   if (deployEnv() === "production") return Response.json({ error: "Mock checkout is not available in production." }, { status: 404 });
   if (!isStripeMock()) return Response.json({ error: "Mock checkout is disabled when Stripe is configured." }, { status: 404 });
 
-  const body = (await req.json().catch(() => ({}))) as { product?: unknown; kitId?: unknown; email?: unknown; analyticsId?: unknown; promo?: unknown; isTest?: unknown };
+  const body = (await req.json().catch(() => ({}))) as { product?: unknown; kitId?: unknown; packId?: unknown; email?: unknown; analyticsId?: unknown; promo?: unknown; isTest?: unknown };
   const rejected = checkoutRejection(body.product);
   if (rejected) return Response.json({ error: rejected.error, code: rejected.code }, { status: rejected.status });
   if (!isEmail(body.email)) return Response.json({ error: "Enter a valid email so we can send your receipt." }, { status: 400 });
@@ -35,6 +37,16 @@ export async function POST(req: Request) {
         properties: { plan: product, kitId: kit?.id, ...attributionProperties(withTestTraffic(kit?.attribution, body.isTest === true)), ...checkoutPrice(product, promo), isLoggedIn, mock: true, stripeSessionId: ref },
       }),
     );
+
+  if (body.product === "directoryPack") {
+    if (typeof body.packId !== "string" || !isValidKitId(body.packId)) return Response.json({ error: "Pack not found." }, { status: 404 });
+    const packId = body.packId;
+    const { amount, currency } = checkoutPrice("directoryPack");
+    await recordPayment({ product: "directoryPack", packId, email: body.email, ref, paidAmount: { amount, currency } });
+    after(() => fulfilPack(packId));
+    track("directoryPack");
+    return Response.json({ url: withAnalyticsId(packPath(packId), body.analyticsId) });
+  }
 
   const kit = typeof body.kitId === "string" ? await getKit(body.kitId) : null;
   if (!kit) return Response.json({ error: "Kit not found." }, { status: 404 });

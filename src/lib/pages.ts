@@ -95,6 +95,21 @@ export const PAGES = {
     updated: "2026-10-27",
     card: { eyebrow: "Privacy", headline: "What we collect and why" },
   }),
+  freeDirectories: core({
+    path: "/free-startup-directories",
+    title: "Free startup directories to launch on, 2026",
+    description: "A free top-20 of startup directories you can submit to in 2026, with queues, badge rules and the date we last checked. No invented traffic figures.",
+    updated: "2026-11-16",
+    card: { eyebrow: "Free list", headline: "Free startup directories: 20 places to launch in 2026" },
+  }),
+  directoryPack: core({
+    path: "/directory-pack",
+    title: "Directory Launch Pack: submit links and rules",
+    description:
+      "A researched database of startup directories with submit links, free and paid routes, badge and backlink rules, and listing copy written for each one.",
+    updated: "2026-11-16",
+    card: { eyebrow: "Directory Launch Pack", headline: "Every directory, its rules and your listing copy" },
+  }),
   terms: core({
     path: "/terms",
     title: "Terms of service: previews, kits and refunds",

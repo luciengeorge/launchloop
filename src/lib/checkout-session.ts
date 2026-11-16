@@ -25,12 +25,16 @@ export const CHECKOUT_UNAVAILABLE_MESSAGE =
   "Checkout is offline for a few minutes. Your preview is saved: try again shortly, or email hello@launchloop.dev and we'll send you a payment link.";
 
 /**
- * The kit is the only thing Checkout sells. Ship Loop (monthly, yearly, pre-order or anything else) is a free waitlist,
- * so every other product gets a 400 with the waitlist message before Stripe is touched.
+ * Checkout sells the kit and the Directory Launch Pack (the pack only once its price is set, see /api/checkout). Ship Loop
+ * (monthly, yearly, pre-order or anything else) is a free waitlist, so every other product gets a 400 with the waitlist
+ * message before Stripe is touched.
  */
 export function checkoutRejection(product: unknown): { status: 400; error: string; code: "waitlist_only" } | null {
-  return product === "kit" ? null : { status: 400, error: SHIP_LOOP_WAITLIST_ONLY, code: "waitlist_only" };
+  return product === "kit" || product === "directoryPack" ? null : { status: 400, error: SHIP_LOOP_WAITLIST_ONLY, code: "waitlist_only" };
 }
+
+/** /api/checkout's 503 for the pack while STRIPE_DIRECTORY_PACK_PRICE_ID is unset. */
+export const DIRECTORY_PACK_NOT_ON_SALE = "The Directory Launch Pack isn't on sale yet. Join the waitlist and we'll email you when it is.";
 
 /** LAUNCH14 is only for kit sessions in the exp_launch14_promo treatment. */
 export const launchPromoDue = (product: ProductId, experiments: Experiments) => product === "kit" && experiments[EXPERIMENTS.launchPromo] === "treatment";

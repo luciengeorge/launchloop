@@ -212,7 +212,8 @@ export default function ShowHnChecklistPage() {
         <Link href="/product-hunt-launch-checklist">Product Hunt launch checklist</Link> and read <Link href="/how-to-write-a-product-hunt-tagline">how to write a Product Hunt
         tagline</Link>. Both sites ban asking for upvotes. If you built with an AI builder, <Link href="/how-to-launch-a-vibe-coded-app">how to launch a vibe-coded app</Link>{" "}
         covers the pre-launch fixes those tools tend to skip. Sharing it on Reddit as well? Subreddits set their own self-promotion rules, so read{" "}
-        <Link href="/how-to-promote-on-reddit">how to promote your app on Reddit</Link> first.
+        <Link href="/how-to-promote-on-reddit">how to promote your app on Reddit</Link> first. After the Show HN, not on the same morning, work through a few{" "}
+        <Link href="/free-startup-directories">free startup directories</Link>.
       </p>
       <p>
         LaunchLoop drafts your landing copy, Product Hunt post, X thread, LinkedIn post and launch images from your repo, so you can spend launch day in the HN thread. Your

@@ -4,7 +4,7 @@ import { resend } from "./email";
 import { captureException } from "./observability";
 import { store } from "./store";
 
-export type ContactSource = "newsletter" | "waitlist" | "kit";
+export type ContactSource = "newsletter" | "waitlist" | "directory_pack_waitlist" | "kit";
 
 export { isEmail } from "./email-address";
 

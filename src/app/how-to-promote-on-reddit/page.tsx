@@ -231,7 +231,7 @@ export default function RedditPromotionPage() {
         <Link href="/show-hn-launch-checklist">Show HN launch checklist</Link> covers the rest. For Product Hunt, follow the{" "}
         <Link href="/product-hunt-launch-checklist">Product Hunt launch checklist</Link> and read <Link href="/how-to-write-a-product-hunt-tagline">how to write a Product Hunt
         tagline</Link>. Built with Cursor, Lovable, Bolt or v0? <Link href="/how-to-launch-a-vibe-coded-app">How to launch a vibe-coded app</Link> covers the fixes to make
-        before any of it.
+        before any of it. For somewhere to list it outside Reddit once the subreddit rules are covered, see our <Link href="/free-startup-directories">free startup directories</Link>.
       </p>
       <p>
         LaunchLoop drafts your landing copy, Product Hunt post, X thread, LinkedIn post and launch images from your repo, so you have more time for the threads that matter. Your

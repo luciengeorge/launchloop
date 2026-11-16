@@ -547,6 +547,10 @@ export default function BetaListLaunchPostPage() {
         table. LaunchLoop, which publishes this post, isn&apos;t either: it isn&apos;t a launch board.
       </p>
 
+      <p>
+        If you want a free listing instead of, or after, BetaList, start with our <Link href="/free-startup-directories">free startup directories</Link>.
+      </p>
+
       <h2 id="next">Next steps</h2>
       <p>
         Planning the public launch after BetaList? Start with <Link href={postPath({ slug: "how-to-launch-on-product-hunt" })}>how to launch on Product Hunt</Link> and the{" "}

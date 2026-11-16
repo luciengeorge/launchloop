@@ -12,7 +12,14 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   // Kit images are rendered from API routes, server actions and pages (via the ZIP); all need the fonts.
-  outputFileTracingIncludes: { "/*": ["./assets/fonts/*.ttf"] },
+  // The directory CSV is read with fs by the free page, the pack's pages and its API (the access CSV and listings routes).
+  outputFileTracingIncludes: {
+    "/*": ["./assets/fonts/*.ttf"],
+    "/free-startup-directories": ["./data/directory-pack/*.csv"],
+    "/directory-pack": ["./data/directory-pack/*.csv"],
+    "/directory-pack/**": ["./data/directory-pack/*.csv"],
+    "/api/directory-pack/**": ["./data/directory-pack/*.csv"],
+  },
   redirects() {
     return [
       { source: "/product-hunt-tagline-checker", destination: "/tools/product-hunt-tagline-checker", permanent: true },

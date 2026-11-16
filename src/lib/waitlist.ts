@@ -1,4 +1,4 @@
-/** Pure: shared by the Ship Loop waitlist form and /api/waitlist. */
+/** Pure: shared by the waitlist form (Ship Loop and the Directory Launch Pack) and /api/waitlist. */
 
 /** Every Ship Loop waitlist signup is stored with this tag, whichever surface it came from. */
 export const WAITLIST_TAG = "shiploop_waitlist";
@@ -10,8 +10,38 @@ export const WAITLIST_TAG = "shiploop_waitlist";
 export const WAITLIST_MEMBERS_KEY = "contacts:waitlist";
 
 /** Where the signup happened. */
-export const WAITLIST_SOURCES = ["ship_loop_page", "kit_upsell"] as const;
+export const WAITLIST_SOURCES = ["ship_loop_page", "kit_upsell", "directory_pack_page", "free_directories_page"] as const;
 export type WaitlistSource = (typeof WAITLIST_SOURCES)[number];
+
+export interface Waitlist {
+  /** Stored as `contact:<contactSource>:<email>`, so one email's signups to different lists don't overwrite each other. */
+  contactSource: "waitlist" | "directory_pack_waitlist";
+  tag: string;
+  membersKey: string;
+  /** "Join the <label> waitlist". */
+  label: string;
+  /** "We'll email you when <name> launches." */
+  name: string;
+  /** Where the no-JS form post lands. */
+  page: string;
+}
+
+export const SHIP_LOOP_WAITLIST: Waitlist = { contactSource: "waitlist", tag: WAITLIST_TAG, membersKey: WAITLIST_MEMBERS_KEY, label: "Ship Loop", name: "Ship Loop", page: "/ship-loop" };
+export const DIRECTORY_PACK_WAITLIST: Waitlist = {
+  contactSource: "directory_pack_waitlist",
+  tag: "directory_pack_waitlist",
+  membersKey: "contacts:directory_pack_waitlist",
+  label: "Directory Launch Pack",
+  name: "the Directory Launch Pack",
+  page: "/directory-pack",
+};
+
+export const WAITLIST_FOR: Record<WaitlistSource, Waitlist> = {
+  ship_loop_page: SHIP_LOOP_WAITLIST,
+  kit_upsell: SHIP_LOOP_WAITLIST,
+  directory_pack_page: DIRECTORY_PACK_WAITLIST,
+  free_directories_page: DIRECTORY_PACK_WAITLIST,
+};
 
 /**
  * Kill switch for the free Ship Loop waitlist ask on the kit success page: a PostHog boolean flag (id 331856, project

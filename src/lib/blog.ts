@@ -108,7 +108,7 @@ export const BLOG_POSTS: BlogPost[] = [
       "How to launch on BetaList from its own pages: who it is for, what it rejects, how submission and paid plans work, review times and the day you are featured.",
     published: "2026-10-25",
     updated: "2026-10-27",
-    readingMinutes: 23,
+    readingMinutes: 24,
   },
   {
     slug: "product-hunt-alternatives",

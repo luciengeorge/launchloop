@@ -133,7 +133,7 @@ describe("the calendar guide", () => {
   });
 
   it("cites a LaunchLoop page that exists for every task that names one, and links nowhere else", () => {
-    const known = new Set([...GUIDES.map(guidePath), ...BLOG_POSTS.map(postPath), ...TOOLS.map((t) => t.path)]);
+    const known = new Set([...GUIDES.map(guidePath), ...BLOG_POSTS.map(postPath), ...TOOLS.map((t) => t.path), PAGES.freeDirectories.path]);
     const hrefs = root.querySelectorAll("a").map((a) => a.getAttribute("href")!);
     expect(hrefs.length).toBeGreaterThan(30);
     for (const href of hrefs) expect(known.has(href), href).toBe(true);
