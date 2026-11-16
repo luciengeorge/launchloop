@@ -15,11 +15,11 @@ export const metadata: Metadata = pageMetadata(page);
 
 const link = "font-medium text-foreground underline underline-offset-4 hover:decoration-2";
 
-export default function DirectoryPackPage() {
+export default async function DirectoryPackPage() {
   const base = siteUrl();
   const offer = directoryPackOffer();
   const inside = [
-    { title: `${directoryCount()} researched directories`, detail: "Launch boards, communities, alternatives catalogues, review sites and evergreen directories, ranked for a solo founder." },
+    { title: `${await directoryCount()} researched directories`, detail: "Launch boards, communities, alternatives catalogues, review sites and evergreen directories, ranked for a solo founder." },
     { title: "Free, freemium or paid", detail: "Which route each one has, and the cheapest way to get listed where it's known." },
     { title: "Badge and backlink rules", detail: "Whether the free route needs a badge or a link back, whether the link is followed, and Domain Rating (DR) with its source." },
     { title: "Approval time and notes", detail: "Queues, the account you need, gotchas, and what happened when we submitted ourselves." },

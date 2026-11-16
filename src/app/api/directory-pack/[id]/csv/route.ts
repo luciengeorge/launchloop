@@ -9,7 +9,7 @@ export async function GET(_req: Request, { params }: RouteContext<"/api/director
   if (!pack) return Response.json(PACK_LOCKED, { status: 403 });
   const { product, listings } = pack;
   const csv = directoriesCsv(
-    allDirectories(),
+    await allDirectories(),
     product && listings ? (row) => ({ your_link: utmLink(product.url, row), ...listingFor(listings, row) }) : undefined,
   );
   return new Response(csv, {

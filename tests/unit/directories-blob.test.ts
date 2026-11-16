@@ -51,7 +51,7 @@ describe("DIRECTORY_PACK_BLOB_URL set", () => {
   });
 
   it("loads the full database from the private blob, through the schema", async () => {
-    m.get.mockResolvedValue({ statusCode: 200, stream: stream(REMOTE) });
+    m.get.mockImplementation(async () => ({ statusCode: 200, stream: stream(REMOTE) }));
     const rows = await allDirectories();
     expect(rows).toEqual(parseDirectories(REMOTE));
     expect(await directoryCount()).toBe(LOCAL_ROWS.length + 1);

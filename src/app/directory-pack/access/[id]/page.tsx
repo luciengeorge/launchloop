@@ -40,7 +40,7 @@ async function PackView({ params }: Pick<PageProps<"/directory-pack/access/[id]"
       </div>
     );
   }
-  const rows = allDirectories();
+  const rows = await allDirectories();
   return (
     <div className="space-y-10">
       <header className="space-y-3">
