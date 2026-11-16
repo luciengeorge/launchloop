@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { isLaunchPromoOn } from "@/lib/launch-promo-server";
+import { directoryPackOffer } from "@/lib/payments";
 import { PAGES } from "@/lib/pages";
 import { HeaderAuth } from "./header-auth";
 import { OG_PREVIEW, TAGLINE_CHECKER } from "@/lib/tools";
@@ -40,7 +41,7 @@ export async function SiteHeader() {
           ))}
         </nav>
         <div className="flex items-center gap-2.5 sm:gap-4">
-          <HeaderAuth promo={promo} />
+          <HeaderAuth promo={promo} packCta={!!directoryPackOffer()} />
           <MobileMenu>
             <ul className="mx-auto max-w-6xl px-4 py-2 text-sm text-muted-foreground sm:px-6">
               {NAV.map((item) => (

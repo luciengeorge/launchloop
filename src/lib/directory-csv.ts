@@ -21,8 +21,17 @@ export const DIRECTORY_COLUMNS = [
   "utm_source",
 ] as const;
 
-/** Optional trailing columns: the free page's public facts, so it never reads notes. A file may leave both out. */
-export const OPTIONAL_DIRECTORY_COLUMNS = ["last_verified", "our_submission"] as const;
+/**
+ * Optional trailing columns. last_verified and our_submission are the free page's public facts (so it never reads notes);
+ * our_submission_detail is buyers only and stays out of the committed public file (directory-csv.test.ts).
+ */
+export const OPTIONAL_DIRECTORY_COLUMNS = ["last_verified", "our_submission", "our_submission_detail"] as const;
+const ALL_COLUMNS = [...DIRECTORY_COLUMNS, ...OPTIONAL_DIRECTORY_COLUMNS];
+const HEADERS = [DIRECTORY_COLUMNS, ALL_COLUMNS.slice(0, -1), ALL_COLUMNS];
+
+/** The free page's "Our submission" values (the SEO brief's fixed set). */
+export const SUBMISSION_STATUSES = ["submitted", "queued", "live", "skipped"] as const;
+export type SubmissionStatus = (typeof SUBMISSION_STATUSES)[number];
 
 /** The public top-20 on /free-startup-directories. */
 export const FREE_LIST_SIZE = 20;
@@ -56,11 +65,10 @@ const rowSchema = z.object({
   utm_source: z.string().regex(/^[a-z0-9_.-]+$/, "must be a lowercase slug"),
   /** The day the row was last checked (the "checked YYYY-MM-DD" in our notes). */
   last_verified: z.string().regex(/^(\d{4}-\d{2}-\d{2})?$/, "must be YYYY-MM-DD or blank"),
-  /**
-   * What happened when we submitted LaunchLoop: a SUBMISSION_STATUSES word, or blank. The private file may hold the full
-   * "Our experience:" sentence (shown to buyers); the committed public file holds status words only (directory-csv.test.ts).
-   */
-  our_submission: z.string(),
+  /** What happened when we submitted LaunchLoop, as a status word, or blank. */
+  our_submission: z.enum(["", ...SUBMISSION_STATUSES], { error: "must be submitted, queued, live, skipped or blank" }),
+  /** The full "Our experience:" sentence behind our_submission. Buyers only. */
+  our_submission_detail: z.string(),
 });
 
 export type Directory = z.output<typeof rowSchema>;
@@ -100,41 +108,51 @@ function csvRecords(text: string): string[][] {
   return records;
 }
 
-/** Every row, in file order. Throws DirectoryCsvError listing each bad row by rank (or line) and why. */
+/** Every row, in file order. Throws DirectoryCsvError listing each bad row by line and field. */
 export function parseDirectories(text: string): Directory[] {
   const [header, ...records] = csvRecords(text.replace(/^\uFEFF/, ""));
-  const columns = [DIRECTORY_COLUMNS, ALL_COLUMNS].find((c) => header?.join(",") === c.join(","));
-  if (!columns) throw new DirectoryCsvError([`header must be exactly: ${DIRECTORY_COLUMNS.join(",")} (optionally followed by ,${OPTIONAL_DIRECTORY_COLUMNS.join(",")})`]);
+  const columns = HEADERS.find((c) => header?.join(",") === c.join(","));
+  if (!columns) throw new DirectoryCsvError([`header must be exactly: ${DIRECTORY_COLUMNS.join(",")} (optionally followed by ,last_verified,our_submission and then ,our_submission_detail)`]);
   const issues: string[] = [];
-  const rows: Directory[] = [];
-  const ranks = new Set<number>();
+  const raws: { raw: Record<string, string>; where: string }[] = [];
   records.forEach((record, i) => {
     const where = `line ${i + 2}`;
-    if (record.length !== columns.length) {
-      issues.push(`${where}: ${record.length} columns, expected ${columns.length}`);
-      return;
-    }
-    const raw: Record<string, string> = { last_verified: "", our_submission: "", ...Object.fromEntries(columns.map((column, j) => [column, record[j].trim()])) };
-    const label = /^\d+$/.test(raw.rank) ? `rank ${raw.rank}` : where;
+    if (record.length !== columns.length) issues.push(`${where}: ${record.length} columns, expected ${columns.length}`);
+    else raws.push({ raw: Object.fromEntries(columns.map((column, j) => [column, record[j].trim()])), where });
+  });
+  return validate(raws, issues);
+}
+
+/** Rows stored as string fields (one Redis hash per directory), checked by the same schema as the CSV. */
+export const parseDirectoryRecords = (records: Record<string, string>[]): Directory[] => validate(records.map((raw, i) => ({ raw, where: `record ${i + 1}` })), []);
+
+function validate(raws: { raw: Record<string, string>; where: string }[], issues: string[]): Directory[] {
+  const rows: Directory[] = [];
+  const ranks = new Set<number>();
+  for (const { raw: given, where } of raws) {
+    const raw: Record<string, string> = { last_verified: "", our_submission: "", our_submission_detail: "", ...given };
+    const label = where;
     const parsed = rowSchema.safeParse(raw);
     if (!parsed.success) {
-      for (const issue of parsed.error.issues) issues.push(`${label}: ${issue.path.join(".")} ${issue.message} (got "${raw[String(issue.path[0])]}")`);
-      return;
+      // Row number and field only: these errors reach logs and the seed script's output, so they never echo a value.
+      for (const issue of parsed.error.issues) issues.push(`${label}: ${issue.path.join(".")} ${issue.message}`);
+      continue;
     }
     if (ranks.has(parsed.data.rank)) issues.push(`${label}: duplicate rank`);
     ranks.add(parsed.data.rank);
     rows.push(parsed.data);
-  });
+  }
   if (issues.length) throw new DirectoryCsvError(issues);
   return rows;
 }
+
+/** A row as string fields, for one Redis hash per directory. */
+export const directoryRecord = (row: Directory): Record<string, string> => Object.fromEntries(ALL_COLUMNS.map((c) => [c, row[c] === null ? "" : String(row[c])]));
 
 const csvField = (value: string | number | null) => {
   const text = value === null ? "" : String(value);
   return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
 };
-
-const ALL_COLUMNS = [...DIRECTORY_COLUMNS, ...OPTIONAL_DIRECTORY_COLUMNS];
 
 /** The database as CSV, every column, with `extra` columns (the buyer's link and copy) appended when given. */
 export function directoriesCsv(rows: Directory[], extra?: (row: Directory) => Record<string, string>): string {
@@ -158,12 +176,6 @@ export function utmLink(productUrl: string, row: Pick<Directory, "utm_source">):
   url.searchParams.set("utm_medium", "directory");
   return url.toString();
 }
-
-/** The SEO brief's fixed set of types. */
-/** The free page's "Our submission" values (the SEO brief's fixed set). */
-export const SUBMISSION_STATUSES = ["submitted", "queued", "live", "skipped"] as const;
-export type SubmissionStatus = (typeof SUBMISSION_STATUSES)[number];
-const isSubmissionStatus = (v: string): v is SubmissionStatus => (SUBMISSION_STATUSES as readonly string[]).includes(v);
 
 export type DirectoryType = "launch board" | "alternatives catalogue" | "community" | "review site" | "evergreen directory";
 
@@ -222,6 +234,6 @@ export function freeDirectoryRow(row: Directory): FreeDirectoryRow {
     linkType: "not checked",
     submit: submitUrl(row),
     lastVerified: row.last_verified,
-    ourSubmission: isSubmissionStatus(row.our_submission) ? row.our_submission : "",
+    ourSubmission: row.our_submission,
   };
 }

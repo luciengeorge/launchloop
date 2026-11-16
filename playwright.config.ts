@@ -22,6 +22,10 @@ const INLINE_SPEC = /newsletter-inline\.spec\.ts/;
 const CALENDAR_PORT = 3423;
 const calendarURL = `http://127.0.0.1:${CALENDAR_PORT}`;
 const CALENDAR_SPEC = /newsletter-calendar\.spec\.ts/;
+/** A fifth build with STRIPE_DIRECTORY_PACK_PRICE_ID set (a fake id: mock mode never calls Stripe), for the pack's priced state. */
+const PRICED_PORT = 3424;
+const pricedURL = `http://127.0.0.1:${PRICED_PORT}`;
+const PRICED_SPEC = /directory-pack-priced\.spec\.ts/;
 
 const serverEnv = {
   MOCK_MODE: "true",
@@ -72,13 +76,14 @@ export default defineConfig({
     launchOptions: { args: ["--disable-blink-features=AutomationControlled"] },
   },
   projects: [
-    { name: "desktop", use: { ...devices["Desktop Chrome"] }, testIgnore: [/newsletter-mobile\.spec\.ts/, HERO_SPEC, INLINE_SPEC, CALENDAR_SPEC] },
+    { name: "desktop", use: { ...devices["Desktop Chrome"] }, testIgnore: [/newsletter-mobile\.spec\.ts/, HERO_SPEC, INLINE_SPEC, CALENDAR_SPEC, PRICED_SPEC] },
     { name: "mobile", use: { ...devices["Pixel 7"] }, testMatch: /(home|tagline-checker|og-preview|newsletter-mobile|orange-cta)\.spec\.ts/ },
     { name: "hero-desktop", use: { ...devices["Desktop Chrome"], baseURL: heroURL }, testMatch: HERO_SPEC },
     { name: "hero-mobile", use: { ...devices["Pixel 7"], baseURL: heroURL }, testMatch: HERO_SPEC },
     { name: "inline-desktop", use: { ...devices["Desktop Chrome"], baseURL: inlineURL }, testMatch: INLINE_SPEC },
     { name: "inline-mobile", use: { ...devices["Pixel 7"], baseURL: inlineURL }, testMatch: INLINE_SPEC },
     { name: "calendar-desktop", use: { ...devices["Desktop Chrome"], baseURL: calendarURL }, testMatch: CALENDAR_SPEC },
+    { name: "priced-desktop", use: { ...devices["Desktop Chrome"], baseURL: pricedURL }, testMatch: PRICED_SPEC },
   ],
   webServer: [
     {
@@ -121,6 +126,13 @@ export default defineConfig({
         NEWSLETTER_INLINE: "on",
         NEWSLETTER_CALENDAR: "on",
       },
+    },
+    {
+      command: `rm -rf .data-test-priced && npx next build && npx next start -p ${PRICED_PORT}`,
+      url: pricedURL,
+      timeout: 240_000,
+      reuseExistingServer: !process.env.CI,
+      env: { ...serverEnv, NEXT_DIST_DIR: ".next-test-priced", DATA_DIR: ".data-test-priced", NEXT_PUBLIC_SITE_URL: pricedURL, STRIPE_DIRECTORY_PACK_PRICE_ID: "price_e2e_directory_pack" },
     },
   ],
 });

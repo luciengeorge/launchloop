@@ -25,6 +25,8 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
+      - name: Seed script dry run on the fixture (no Redis)
+        run: npm run seed:directory-pack -- tests/fixtures/directory-pack/directories.csv
       - run: npm run build
         env:
           MOCK_MODE: "true"

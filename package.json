@@ -14,7 +14,8 @@
     "test": "playwright test -c playwright.unit.config.ts && vitest run",
     "test:e2e": "playwright test",
     "test:e2e:install": "playwright install --with-deps chromium",
-    "indexnow": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/indexnow.mts"
+    "indexnow": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/indexnow.mts",
+    "seed:directory-pack": "node --experimental-transform-types --disable-warning=ExperimentalWarning --conditions=react-server --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/seed-directory-pack.ts"
   },
   "dependencies": {
     "@ai-sdk/gateway": "^4.0.114",
