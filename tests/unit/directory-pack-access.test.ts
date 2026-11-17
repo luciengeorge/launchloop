@@ -14,7 +14,7 @@ const m = vi.hoisted(() => {
     retrievePrice: vi.fn(async (id: string) => ({ id, type: "one_time" })),
     retrieveSession: vi.fn<(id: string) => Promise<Record<string, unknown>>>(),
     sendEmail: vi.fn<(email: { to: string; text: string }) => Promise<{ id: string; mock: boolean }>>(async () => ({ id: "mock", mock: true })),
-    captureServerEvent: vi.fn(async () => {}),
+    captureServerEvent: vi.fn<(event: string, params: { distinctId: string; properties: Record<string, unknown> }) => Promise<void>>(async () => {}),
   };
 });
 
@@ -112,7 +112,41 @@ describe("without a paid unlock", () => {
 });
 
 describe("checkout", () => {
-  const start = () => checkout(new Request("http://x/api/checkout", { method: "POST", headers: { "Content-Type": "application/json", "x-forwarded-for": "203.0.113.20" }, body: JSON.stringify({ product: "directoryPack", analyticsId: "ph_1" }) }));
+  const start = (extra: Record<string, unknown> = {}) =>
+    checkout(new Request("http://x/api/checkout", { method: "POST", headers: { "Content-Type": "application/json", "x-forwarded-for": "203.0.113.20" }, body: JSON.stringify({ product: "directoryPack", analyticsId: "ph_1", ...extra }) }));
+  const started = async () => {
+    await flush();
+    const calls = m.captureServerEvent.mock.calls.filter(([event]) => event === "checkout_started");
+    expect(calls).toHaveLength(1);
+    return calls[0][1].properties;
+  };
+  const ATTRIBUTION_KEYS = ["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content", "referring_domain", "is_test"];
+
+  it("checkout_started carries is_test and the first-touch UTMs, as the kit's does", async () => {
+    m.env.stripeDirectoryPackPriceId = "price_pack_test";
+    const attribution = { utm_source: "producthunt", utm_medium: "launch", utm_campaign: "ph-day", referring_domain: "www.producthunt.com", stray: "dropped" };
+    expect((await start({ isTest: true, attribution })).status).toBe(200);
+    const properties = await started();
+    expect(properties).toMatchObject({ plan: "directoryPack", is_test: true, utm_source: "producthunt", utm_medium: "launch", utm_campaign: "ph-day", referring_domain: "producthunt.com" });
+    expect(properties).not.toHaveProperty("stray");
+    expect(properties).toMatchObject({ price_id: "price_pack_test", amount: 2900, currency: "gbp", isLoggedIn: false, mock: false });
+  });
+
+  it("with no UTMs and isTest false, like the kit's: no is_test and no utm_* or referring_domain at all", async () => {
+    m.env.stripeDirectoryPackPriceId = "price_pack_test";
+    expect((await start({ isTest: false })).status).toBe(200);
+    const properties = await started();
+    expect(properties.plan).toBe("directoryPack");
+    for (const key of ATTRIBUTION_KEYS) expect(properties, key).not.toHaveProperty(key);
+  });
+
+  it("isTest is taken from the request body only when it is exactly true, as the kit path does", async () => {
+    m.env.stripeDirectoryPackPriceId = "price_pack_test";
+    await start({ isTest: "true", attribution: { utm_source: "hn" } });
+    const properties = await started();
+    expect(properties).toMatchObject({ utm_source: "hn" });
+    expect(properties).not.toHaveProperty("is_test");
+  });
 
   it("is not on sale without STRIPE_DIRECTORY_PACK_PRICE_ID: a 503, and Stripe is never called", async () => {
     const res = await start();

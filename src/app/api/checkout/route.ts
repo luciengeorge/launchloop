@@ -1,4 +1,4 @@
-import { attributionProperties, testProperties, withTestTraffic } from "@/lib/attribution";
+import { attributionProperties, parseAttribution, testProperties, withTestTraffic } from "@/lib/attribution";
 import { isEmail } from "@/lib/audience";
 import { captureServerEvent, resolveDistinctId } from "@/lib/analytics-server";
 import { getSession } from "@/lib/auth";
@@ -19,7 +19,7 @@ import { clientIp, sharedRateLimit } from "@/lib/rate-limit";
 const GUEST_CHECKOUTS_PER_HOUR = Number(process.env.CHECKOUT_RATE_LIMIT_PER_HOUR ?? 20);
 
 export async function POST(req: Request) {
-  const body = (await req.json().catch(() => ({}))) as { product?: unknown; kitId?: unknown; email?: unknown; analyticsId?: unknown; experiments?: unknown; fallbacks?: unknown; isTest?: unknown };
+  const body = (await req.json().catch(() => ({}))) as { product?: unknown; kitId?: unknown; email?: unknown; analyticsId?: unknown; experiments?: unknown; fallbacks?: unknown; isTest?: unknown; attribution?: unknown };
   const rejected = checkoutRejection(body.product);
   if (rejected) return Response.json({ error: rejected.error, code: rejected.code }, { status: rejected.status });
 
@@ -30,7 +30,7 @@ export async function POST(req: Request) {
     const limit = await sharedRateLimit(`checkout:${clientIp(req)}`, [{ limit: GUEST_CHECKOUTS_PER_HOUR, seconds: 60 * 60 }]);
     if (!limit.ok) return Response.json({ error: "Too many checkout attempts. Try again in a few minutes.", code: "rate_limited" }, { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } });
   }
-  if (body.product === "directoryPack") return startPackCheckout(req, session?.email, email, body.analyticsId);
+  if (body.product === "directoryPack") return startPackCheckout(req, session?.email, email, body);
   const kit = typeof body.kitId === "string" ? await getKit(body.kitId) : null;
   if (!kit) return Response.json({ error: "That kit doesn't exist any more. Generate a new preview." }, { status: 404 });
   if (kit.paid) return Response.json({ url: session ? `/account/kits/${kit.id}` : `/kit/${kit.id}` });
@@ -101,10 +101,12 @@ export async function POST(req: Request) {
 }
 
 /** The pack's Checkout: no kit, promo or experiments. Refused until its price is set, so nothing can buy it before then. */
-async function startPackCheckout(req: Request, accountEmail: string | undefined, email: string | undefined, rawAnalyticsId: unknown) {
+async function startPackCheckout(req: Request, accountEmail: string | undefined, email: string | undefined, body: { analyticsId?: unknown; isTest?: unknown; attribution?: unknown }) {
   const product = "directoryPack" as const;
   if (!directoryPackOffer()) return Response.json({ error: DIRECTORY_PACK_NOT_ON_SALE, code: "not_on_sale" }, { status: 503 });
-  const analyticsId = resolveDistinctId(rawAnalyticsId);
+  const analyticsId = resolveDistinctId(body.analyticsId);
+  // As the kit's, with the page's first touch in place of the kit's stored one: the pack has no kit.
+  const attribution = withTestTraffic(parseAttribution(body.attribution), body.isTest === true);
   const isLoggedIn = !!accountEmail;
   try {
     const customer = accountEmail && !isStripeMock() ? await ensureStripeCustomer(accountEmail) : undefined;
@@ -112,7 +114,7 @@ async function startPackCheckout(req: Request, accountEmail: string | undefined,
     after(() =>
       captureServerEvent("checkout_started", {
         distinctId: analyticsId,
-        properties: { plan: product, ...checkoutPrice(product), ...featureProperties({}, []), isLoggedIn, mock: isStripeMock() },
+        properties: { plan: product, ...attributionProperties(attribution), ...checkoutPrice(product), ...featureProperties({}, []), isLoggedIn, mock: isStripeMock() },
       }),
     );
     return Response.json({ url, promo });

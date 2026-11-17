@@ -62,6 +62,8 @@ export async function startCheckout(
       experiments: Object.fromEntries(entries.map(([key, s]) => [key, s.variant])),
       fallbacks: entries.filter(([, s]) => s.fallback).map(([key]) => key),
       ...(isTestVisit() ? { isTest: true } : {}),
+      // A kit carries its own first touch; the pack has no kit, so the page sends its own.
+      ...(kitId ? {} : { attribution: firstTouch() }),
     },
     { signal },
   );

@@ -89,4 +89,16 @@ describe("QA traffic in the browser", () => {
     await startCheckout("kit", "kit_1");
     expect(JSON.parse((fetch.mock.calls[0] as unknown as [string, RequestInit])[1].body as string)).toMatchObject({ kitId: "kit_1", isTest: true });
   });
+
+  it("the pack's checkout request sends the page's first touch (it has no kit to carry one); the kit's doesn't", async () => {
+    await landOn("https://launchloop.dev/directory-pack?qa=1&utm_source=producthunt&utm_campaign=ph-day");
+    const fetch = vi.fn(async () => Response.json({ url: "/checkout/mock" }));
+    vi.stubGlobal("fetch", fetch);
+    const { startCheckout } = await import("@/lib/client");
+    const body = (i: number) => JSON.parse((fetch.mock.calls[i] as unknown as [string, RequestInit])[1].body as string);
+    await startCheckout("directoryPack");
+    expect(body(0)).toMatchObject({ product: "directoryPack", isTest: true, attribution: { utm_source: "producthunt", utm_campaign: "ph-day", is_test: true } });
+    await startCheckout("kit", "kit_1");
+    expect(body(1)).not.toHaveProperty("attribution");
+  });
 });
