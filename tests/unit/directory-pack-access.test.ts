@@ -170,6 +170,41 @@ describe("checkout", () => {
   });
 });
 
+describe("checkout_completed attribution", () => {
+  const ATTRIBUTION_KEYS = ["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content", "referring_domain", "is_test"];
+  const startPack = (extra: Record<string, unknown>) =>
+    checkout(new Request("http://x/api/checkout", { method: "POST", headers: { "Content-Type": "application/json", "x-forwarded-for": "203.0.113.30" }, body: JSON.stringify({ product: "directoryPack", analyticsId: "ph_1", ...extra }) }));
+  /** The metadata Stripe was given at checkout, delivered back as the paid session's. */
+  async function completedFromCheckout(extra: Record<string, unknown>) {
+    m.env.stripeDirectoryPackPriceId = "price_pack_test";
+    expect((await startPack(extra)).status).toBe(200);
+    const { metadata } = m.createSession.mock.calls.at(-1)![0] as { metadata: Record<string, string> };
+    await flush();
+    m.captureServerEvent.mockClear();
+    const event = paidEvent();
+    event.data.object.metadata = metadata as typeof event.data.object.metadata;
+    expect((await deliver(event)).status).toBe(200);
+    const calls = m.captureServerEvent.mock.calls.filter(([name]) => name === "checkout_completed");
+    expect(calls).toHaveLength(1);
+    return { metadata, properties: calls[0][1].properties };
+  }
+
+  it("a pack bought from a QA visit with UTMs: the session metadata carries them, and checkout_completed has plan directoryPack, is_test and the UTMs", async () => {
+    const { metadata, properties } = await completedFromCheckout({ isTest: true, attribution: { utm_source: "producthunt", utm_medium: "launch", utm_campaign: "ph-day", referring_domain: "producthunt.com" } });
+    expect(metadata).toMatchObject({ product: "directoryPack", utm_source: "producthunt", utm_medium: "launch", utm_campaign: "ph-day", referring_domain: "producthunt.com", is_test: "1" });
+    expect(properties).toMatchObject({ plan: "directoryPack", is_test: true, utm_source: "producthunt", utm_medium: "launch", utm_campaign: "ph-day", referring_domain: "producthunt.com" });
+  });
+
+  it("without UTMs or isTest, like the kit's: no attribution keys in the metadata or on checkout_completed", async () => {
+    const { metadata, properties } = await completedFromCheckout({ isTest: false });
+    expect(properties.plan).toBe("directoryPack");
+    for (const key of ATTRIBUTION_KEYS) {
+      expect(metadata, key).not.toHaveProperty(key);
+      expect(properties, key).not.toHaveProperty(key);
+    }
+  });
+});
+
 describe("after payment", () => {
   it("the webhook unlocks the pack: the CSV has every row and column, and the buyer is emailed the private link once", async () => {
     expect((await deliver(paidEvent())).status).toBe(200);

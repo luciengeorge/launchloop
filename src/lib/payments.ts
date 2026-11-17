@@ -50,7 +50,7 @@ export interface CheckoutRequest {
   experiments: Experiments;
   /** Experiments whose variant was a fallback, not a PostHog assignment (see Served). */
   fallbacks: ExperimentKey[];
-  /** The kit's first-touch UTMs, copied into metadata so the webhook's checkout_completed carries them. */
+  /** First-touch UTMs and is_test (the kit's stored ones, or the pack page's), copied into metadata so the webhook's checkout_completed carries them. */
   attribution?: Attribution;
 }
 
@@ -99,7 +99,7 @@ export async function createCheckoutUrl(params: CheckoutRequest): Promise<Checko
     ...experiments,
     ...(fallbacks.length ? { fallbacks: fallbacks.join(",") } : {}),
     ...(kitId ? { kitId, ...attributionMetadata(attribution) } : {}),
-    ...(packId ? { packId } : {}),
+    ...(packId ? { packId, ...attributionMetadata(attribution) } : {}),
   };
   const cancelPath = kitId ? `/kit/${kitId}?checkout=cancelled` : "/directory-pack?checkout=cancelled";
   const input: SessionInput = {

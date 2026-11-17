@@ -110,7 +110,7 @@ async function startPackCheckout(req: Request, accountEmail: string | undefined,
   const isLoggedIn = !!accountEmail;
   try {
     const customer = accountEmail && !isStripeMock() ? await ensureStripeCustomer(accountEmail) : undefined;
-    const { url, promo } = await createCheckoutUrl({ product, origin: new URL(req.url).origin, packId: newPackId(), email, customer, analyticsId, isLoggedIn, experiments: {}, fallbacks: [] });
+    const { url, promo } = await createCheckoutUrl({ product, origin: new URL(req.url).origin, packId: newPackId(), email, customer, analyticsId, isLoggedIn, experiments: {}, fallbacks: [], attribution });
     after(() =>
       captureServerEvent("checkout_started", {
         distinctId: analyticsId,
