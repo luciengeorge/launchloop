@@ -554,7 +554,8 @@ export default function BetaListLaunchPostPage() {
       <h2 id="next">Next steps</h2>
       <p>
         Planning the public launch after BetaList? Start with <Link href={postPath({ slug: "how-to-launch-on-product-hunt" })}>how to launch on Product Hunt</Link> and the{" "}
-        <Link href="/product-hunt-launch-checklist">Product Hunt launch checklist</Link>. Weighing BetaList against Uneed first? Read{" "}
+        <Link href="/product-hunt-launch-checklist">Product Hunt launch checklist</Link>. Deciding between Product Hunt and BetaList first? See{" "}
+        <Link href={postPath({ slug: "product-hunt-vs-betalist" })}>Product Hunt or BetaList</Link>. Weighing BetaList against Uneed first? Read{" "}
         <Link href={postPath({ slug: "betalist-vs-uneed" })}>BetaList or Uneed</Link>. For Hacker News, read{" "}
         <Link href="/how-to-write-a-show-hn-post">how to write a Show HN post</Link>. For communities, see{" "}
         <Link href="/how-to-promote-on-reddit">how to promote your app on Reddit</Link> and{" "}

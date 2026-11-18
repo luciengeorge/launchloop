@@ -382,7 +382,8 @@ export default function ProductHuntLaunchPostPage() {
         Ready to plan the day itself? The <Link href="/product-hunt-launch-checklist">Product Hunt launch checklist</Link> has the step-by-step list, from a week out to the week
         after. Write the tagline with <Link href="/how-to-write-a-product-hunt-tagline">how to write a Product Hunt tagline</Link> and check it in the{" "}
         <Link href={TAGLINE_CHECKER.path}>tagline checker</Link>. Still choosing between Product Hunt and Show HN? See{" "}
-        <Link href={postPath({ slug: "product-hunt-vs-show-hn" })}>Product Hunt or Show HN</Link>. Built it with an AI builder? Read{" "}
+        <Link href={postPath({ slug: "product-hunt-vs-show-hn" })}>Product Hunt or Show HN</Link>. Choosing between Product Hunt and BetaList? See{" "}
+        <Link href={postPath({ slug: "product-hunt-vs-betalist" })}>Product Hunt or BetaList</Link>. Built it with an AI builder? Read{" "}
         <Link href="/how-to-launch-a-vibe-coded-app">how to launch a vibe-coded app</Link> first. If you also want a short list of free directories to submit to in the
         same week, see <Link href="/free-startup-directories">free startup directories</Link>.
       </p>
