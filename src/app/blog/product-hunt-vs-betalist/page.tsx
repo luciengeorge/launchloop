@@ -30,7 +30,7 @@ const SRC = {
 const FAQ: FaqItem[] = [
   {
     q: "Is Product Hunt free to launch on?",
-    a: "Yes, to post a product. Product Hunt's How Product Hunt works page says launching costs nothing, and that you can submit a product, comment, and reach Product of the Day without spending a cent. Paid ads exist, but a standard launch is not a paid submission.",
+    a: "Yes, to post a product. Product Hunt's How Product Hunt works page says launching costs nothing, and that you can submit a product, comment, and reach Product of the Day without spending a cent.",
   },
   {
     q: "Is BetaList free?",
@@ -132,7 +132,7 @@ export default function ProductHuntVsBetalistPage() {
           <tr className="border-b border-border">
             <th scope="row" className="py-2 pr-4 align-top font-normal">Site and domain</th>
             <td className="py-2 pr-4 align-top">Homepage, app store page or GitHub repo; skip link shorteners</td>
-            <td className="py-2 align-top">Own domain required; free hosting subdomains and direct app-store links are rejected</td>
+            <td className="py-2 align-top">Criteria: a distinct landing page; free hosting subdomains and direct app-store links are rejected</td>
           </tr>
           <tr>
             <th scope="row" className="py-2 pr-4 align-top font-normal">After the feature</th>

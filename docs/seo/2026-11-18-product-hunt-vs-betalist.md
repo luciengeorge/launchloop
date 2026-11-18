@@ -53,7 +53,8 @@ Product Hunt `www.producthunt.com/launch/*` returned HTTP 403 (Cloudflare challe
 - How Product Hunt works: the team reviews every launch and hand-picks which ones to feature on the homepage leaderboard; featuring is an editorial decision and meeting the guidelines does not guarantee a spot. Paraphrased from that page, not quoted, because the live sentence is longer.
 - Preparing for launch: use a direct link to the homepage, an app store page, or a GitHub repo; skip link shorteners.
 - BetaList Help: all plans include a do-follow backlink if featured. Help also states a newsletter subscriber figure; this page does not repeat that figure because we did not count it independently.
-- BetaList criteria: own domain required; free hosting subdomains (vercel.app, netlify.app, herokuapp.com) and direct app-store links are rejected.
+- BetaList criteria: a distinct landing page; free hosting subdomains (vercel.app, netlify.app, herokuapp.com) and a direct app-store link in place of a landing page are rejected. The table cell was revised so it does not say "own domain required," which is not the criteria wording.
+- BetaList criteria: "There should be at least a few weeks between the two posts so they feel like distinct moments to our audience." This is the gap between a pre-launch feature and a later launch feature. The page paraphrases it; it is not inside a `<q>`.
 - Help.producthunt.com article 17350772 returned HTTP 404 on 18 November 2026. The current Launch Guide collection is https://help.producthunt.com/en/collections/19793093-launch-guide.
 
 ## Notes
