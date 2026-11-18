@@ -503,7 +503,8 @@ export default function ProductHuntAlternativesPostPage() {
         tagline with the{" "}
         <Link href="/tools/product-hunt-tagline-checker">tagline checker</Link> and your link&apos;s share card with the <Link href="/tools/og-preview">OG image preview</Link>,
         both free. Choosing between Product Hunt and Show HN first? See{" "}
-        <Link href={postPath({ slug: "product-hunt-vs-show-hn" })}>Product Hunt or Show HN</Link>. Deciding between BetaList and Uneed? See{" "}
+        <Link href={postPath({ slug: "product-hunt-vs-show-hn" })}>Product Hunt or Show HN</Link>. Deciding between Product Hunt and BetaList? See{" "}
+        <Link href={postPath({ slug: "product-hunt-vs-betalist" })}>Product Hunt or BetaList</Link>. Deciding between BetaList and Uneed? See{" "}
         <Link href={postPath({ slug: "betalist-vs-uneed" })}>BetaList or Uneed</Link>.
       </p>
       <p>

@@ -310,3 +310,40 @@ describe("ChatGPT vs launch kits post", () => {
     expect(source).not.toMatch(/\.(png|jpg|jpeg|webp)/i);
   });
 });
+
+describe("Product Hunt vs BetaList post", () => {
+  const p = post("product-hunt-vs-betalist");
+  const root = path.join(import.meta.dirname, "../..");
+  const source = readFileSync(path.join(root, "src/app/blog/product-hunt-vs-betalist/page.tsx"), "utf8");
+  const log = readFileSync(path.join(root, "docs/seo/2026-11-18-product-hunt-vs-betalist.md"), "utf8");
+  const decode = (s: string) =>
+    s.replace(/\{" "\}/g, " ").replace(/&apos;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/\s+/g, " ").trim();
+
+  it("has the approved title and slug and is dated 18 November 2026", () => {
+    expect(p).toMatchObject({
+      slug: "product-hunt-vs-betalist",
+      title: "Product Hunt or BetaList: which should you launch on first?",
+      published: "2026-11-18",
+      updated: "2026-11-18",
+    });
+    expect(fullTitle(p.metaTitle)).toBe("Product Hunt or BetaList: which first? · LaunchLoop");
+    expect(`${p.title} ${p.metaTitle}`).not.toMatch(/\bbest\b/i);
+    expect(BLOG_POSTS.map((x) => x.slug)[0]).toBe(p.slug);
+  });
+
+  it("quotes nothing that isn't listed word for word in its quote log", () => {
+    const quotes = [...source.matchAll(/<q>([\s\S]*?)<\/q>/g)].map((m) => decode(m[1]));
+    expect(quotes.length).toBeGreaterThan(10);
+    const table = log.split("## Every quote on the page")[1];
+    expect(table, "the log has an 'Every quote on the page' table").toBeTruthy();
+    const logged = table.replace(/\s+/g, " ");
+    for (const q of quotes) expect(logged, q).toContain(`"${q}"`);
+  });
+
+  it("has no dashes in its own copy and names the Directory Launch Pack price from the product registry", () => {
+    expect(source).not.toMatch(DASHES);
+    expect(source).toContain("PRODUCTS.directoryPack.priceLabel");
+    expect(source).toContain('href="/directory-pack"');
+    expect(source).toContain('href="/free-startup-directories"');
+  });
+});

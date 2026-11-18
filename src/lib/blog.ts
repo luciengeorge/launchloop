@@ -21,6 +21,16 @@ export const BLOG_FEED_PATH = "/blog/rss.xml";
 /** Newest first, so add new posts at the top. */
 export const BLOG_POSTS: BlogPost[] = [
   {
+    slug: "product-hunt-vs-betalist",
+    title: "Product Hunt or BetaList: which should you launch on first?",
+    metaTitle: "Product Hunt or BetaList: which first?",
+    description:
+      "Product Hunt or BetaList for your launch? Costs, queues and rules quoted from each site's own pages, with the date we read them and who each one suits.",
+    published: "2026-11-18",
+    updated: "2026-11-18",
+    readingMinutes: 9,
+  },
+  {
     slug: "linkedin-product-launch-post",
     title: "LinkedIn product launch posts: structures and examples",
     metaTitle: "LinkedIn product launch posts: examples",
@@ -118,7 +128,7 @@ export const BLOG_POSTS: BlogPost[] = [
       "Sites like Product Hunt, from their own pages: who BetaList, Uneed, Peerlist, DevHunt, Show HN and others are for, what a launch costs and the rules.",
     published: "2026-10-24",
     updated: "2026-10-24",
-    readingMinutes: 20,
+    readingMinutes: 21,
   },
   {
     slug: "how-to-launch-on-product-hunt",
