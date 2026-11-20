@@ -138,6 +138,13 @@ export default async function Home() {
           <p className="mt-8 flex items-center gap-2 text-sm text-muted-foreground">
             <GitBranch className="size-4" aria-hidden="true" /> Public repos only. We never clone your code. We keep a short excerpt of your sources with your kit, nothing more.
           </p>
+          <p className="mt-4 text-sm text-muted-foreground">
+            After launch day, work through our{" "}
+            <Link href="/free-startup-directories" className="font-medium text-foreground underline underline-offset-4 hover:text-primary-text">
+              free startup directories
+            </Link>{" "}
+            list.
+          </p>
         </div>
       </section>
 

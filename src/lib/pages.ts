@@ -36,7 +36,7 @@ export const PAGES = {
     absoluteTitle: true,
     description:
       "Paste your GitHub repo or live URL and LaunchLoop drafts your landing page copy, Product Hunt post, X thread, LinkedIn post and on-brand images. Free preview.",
-    updated: "2026-10-15",
+    updated: "2026-11-20",
     type: "website",
     image: { url: "/opengraph-image", alt: `${SITE.name}: ${SITE.tagline}` },
   },
@@ -99,7 +99,7 @@ export const PAGES = {
     path: "/free-startup-directories",
     title: "Free startup directories to launch on, 2026",
     description: "A free top-20 of startup directories you can submit to in 2026, with queues, badge rules and the date we last checked. No invented traffic figures.",
-    updated: "2026-11-16",
+    updated: "2026-11-20",
     card: { eyebrow: "Free list", headline: "Free startup directories: 20 places to launch in 2026" },
   }),
   directoryPack: core({

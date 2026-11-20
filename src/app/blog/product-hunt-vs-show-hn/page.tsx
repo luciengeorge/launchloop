@@ -164,6 +164,9 @@ export default function ProductHuntVsShowHnPage() {
         Draft the listing or the Show HN comment in your own words. Check the tagline and title with the free tools above. LaunchLoop&apos;s kit drafts Product Hunt copy and
         images from a repo; it does not write Show HN posts. Start with a <Link href="/#start">free preview</Link> or see <Link href="/pricing">pricing</Link>.
       </p>
+      <p>
+        After launch day, list your app on our <Link href="/free-startup-directories">free startup directories</Link> too.
+      </p>
 
       <Faq path={postPath(p)} title="Product Hunt or Show HN: FAQ" items={FAQ} />
 
