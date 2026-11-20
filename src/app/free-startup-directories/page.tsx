@@ -127,6 +127,13 @@ export default function FreeStartupDirectoriesPage() {
           </div>
         </header>
 
+        <aside aria-labelledby="launch-week" className="mt-8 max-w-3xl rounded-2xl border border-border bg-card p-5" data-testid="launch-week-callout">
+          <h2 id="launch-week" className="text-lg font-semibold tracking-tight text-foreground">Launch week</h2>
+          <p className="mt-2 text-muted-foreground">
+            Launching on Product Hunt this week? Start with the <Link href="/product-hunt-launch-checklist" className={link}>Product Hunt launch checklist</Link>, then come back here and submit to the first few directories in the table below while your launch is live.
+          </p>
+        </aside>
+
         <section aria-labelledby="directories" className="mt-12 space-y-4">
           <h2 id="directories" className="text-2xl font-semibold tracking-tight">The 20 free directories</h2>
           <p className="text-sm font-medium">Last reviewed: {longDate(reviewed)}</p>

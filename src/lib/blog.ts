@@ -77,7 +77,7 @@ export const BLOG_POSTS: BlogPost[] = [
     description:
       "Looking for LaunchLoop alternatives? Free launch kits from their own pages, next to what LaunchLoop's free preview returns on the same jobs.",
     published: "2026-11-09",
-    updated: "2026-11-09",
+    updated: "2026-11-20",
     readingMinutes: 5,
   },
   {
@@ -87,7 +87,7 @@ export const BLOG_POSTS: BlogPost[] = [
     description:
       "Product Hunt or Show HN for a developer tool? Their own rules side by side, what each asks of a launch, and our checkers run on one launch text.",
     published: "2026-11-09",
-    updated: "2026-11-09",
+    updated: "2026-11-20",
     readingMinutes: 6,
   },
   {
@@ -107,7 +107,7 @@ export const BLOG_POSTS: BlogPost[] = [
     description:
       "Open Graph image size from each platform's own docs: a safe 1200×630 default, what Facebook, LinkedIn, X and Slack say, the tags to set and how to test it.",
     published: "2026-10-26",
-    updated: "2026-10-26",
+    updated: "2026-11-20",
     readingMinutes: 15,
   },
   {

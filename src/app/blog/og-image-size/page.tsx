@@ -349,6 +349,9 @@ export default function OgImageSizePostPage() {
         <Link href="/how-to-write-a-product-hunt-tagline">how to write a Product Hunt tagline</Link>.
       </p>
       <p>
+        After launch day, list your app on our <Link href="/free-startup-directories">free startup directories</Link>, and check the share image on each listing first.
+      </p>
+      <p>
         If you&apos;d rather not make all of this by hand, LaunchLoop reads your repo and live page and drafts your landing page copy, Product Hunt post, X thread and LinkedIn
         post, plus a 1200×630 OG image, a 1600×900 post image and a 1270×760 Product Hunt gallery image in your site&apos;s colours. The drafts are yours to edit and post.
         Start with a <Link href="/#start">free preview</Link> or see <Link href="/pricing">pricing</Link>.

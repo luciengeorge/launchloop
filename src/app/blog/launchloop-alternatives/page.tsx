@@ -130,6 +130,9 @@ export default function LaunchloopAlternativesPage() {
         words before you post. For ChatGPT next to these kits on one frozen repo, read{" "}
         <Link href={postPath({ slug: "chatgpt-vs-product-hunt-launch-kits" })}>Can ChatGPT write Product Hunt launch copy?</Link>.
       </p>
+      <p>
+        After launch day, list your app on our <Link href="/free-startup-directories">free startup directories</Link> too.
+      </p>
 
       <Faq path={postPath(p)} title="LaunchLoop alternatives: FAQ" items={FAQ} />
 

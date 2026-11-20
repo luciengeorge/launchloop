@@ -253,6 +253,9 @@ export default async function OgPreviewPage() {
           covers the rest. Sharing on Reddit? Link posts there show a preview image too, and{" "}
           <Link href="/how-to-promote-on-reddit">how to promote your app on Reddit</Link> covers the self-promotion rules.
         </p>
+        <p>
+          After launch day, list your app on our <Link href="/free-startup-directories">free startup directories</Link>, with a share image that renders.
+        </p>
 
         <h2 id="faq">OG preview FAQ</h2>
         <div className="space-y-8">

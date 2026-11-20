@@ -254,10 +254,10 @@ describe("RSS feed", () => {
 describe("OG image size post", () => {
   const p = post("og-image-size");
 
-  it("targets OG and Open Graph image size, dated 26 October 2026, without echoing the OG preview tool", () => {
+  it("targets OG and Open Graph image size, published 26 October 2026 and updated 20 November 2026, without echoing the OG preview tool", () => {
     expect(fullTitle(p.metaTitle)).toBe("OG image size: X, LinkedIn, Facebook and Slack · LaunchLoop");
     expect(p.description).toMatch(/^Open Graph image size/);
-    expect(p).toMatchObject({ published: "2026-10-26", updated: "2026-10-26" });
+    expect(p).toMatchObject({ published: "2026-10-26", updated: "2026-11-20" });
     expect(p.metaTitle).not.toBe(OG_PREVIEW.metaTitle);
     expect(p.description).not.toBe(OG_PREVIEW.description);
   });
@@ -270,8 +270,8 @@ describe("OG image size post", () => {
     expect(size.a).not.toMatch(/all design|works everywhere/);
   });
 
-  it("dates the OG preview tool page to 26 October 2026, when its rewrite for this post merged", () => {
-    expect(OG_PREVIEW.updated).toBe("2026-10-26");
+  it("dates the OG preview tool page to 20 November 2026, when the launch-week directories link was added", () => {
+    expect(OG_PREVIEW.updated).toBe("2026-11-20");
   });
 });
 
